@@ -20,7 +20,7 @@ class PressureVarRho_proper : public Operator
   PoissonSolver * const unifRhoSolver;
 
   void pressureCorrection(const double dt) const;
-  void updatePressureRHS(const double dt) const;
+  Real updatePressureRHS(const double dt) const;
 
  public:
   void operator()(const double dt);

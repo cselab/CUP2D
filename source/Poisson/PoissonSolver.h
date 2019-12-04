@@ -16,19 +16,18 @@ class PoissonSolver
  protected:
   SimulationData& sim;
 
-  // total number of DOFs in y and x:
-  const size_t totNy = sim.vel->getBlocksPerDimension(1) * VectorBlock::sizeY;
-  const size_t totNx = sim.vel->getBlocksPerDimension(0) * VectorBlock::sizeX;
-
   // memory buffer for mem transfers to/from solver:
   Real * buffer = nullptr; // rhs in cub2rhs, sol in sol2cub
-  Real * const presMom = new Real[totNy * totNx];
   void cub2rhs(const std::vector<cubism::BlockInfo>& BSRC);
   void sol2cub(const std::vector<cubism::BlockInfo>& BDST);
 
  public:
   int iter = 0;
   const size_t stride;
+  // total number of DOFs in y and x:
+  const size_t totNy = sim.vel->getBlocksPerDimension(1) * VectorBlock::sizeY;
+  const size_t totNx = sim.vel->getBlocksPerDimension(0) * VectorBlock::sizeX;
+  Real * const presMom = new Real[totNy * totNx];
 
   PoissonSolver(SimulationData& s, long stride);
 

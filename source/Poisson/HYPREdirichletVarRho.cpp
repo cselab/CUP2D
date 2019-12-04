@@ -65,46 +65,9 @@ void HYPREdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, dbuffer); // 5)
   }
 
-  if(not bPeriodic && 1) // 6)
-  {
-    #if 0
-     #pragma omp parallel for schedule(static)
-     for (size_t i = 0; i < totNx; ++i) {
-      // first south row
-      matAry[stride*(0)       +i][3]  = 0; // south
-      // first north row
-      matAry[stride*(totNy-1) +i][4]  = 0; // north
-     }
-     #pragma omp parallel for schedule(static)
-     for (size_t j = 0; j < totNy; ++j) {
-      // first west col
-      matAry[stride * j +      0][1]  = 0; // west
-      // first east col
-      matAry[stride * j +totNx-1][2]  = 0; // east
-     }
-    #else
-     #pragma omp parallel for schedule(static)
-     for (size_t i = 0; i < totNx; ++i) {
-      // first south row
-      matAry[stride*(0)       +i][0] += matAry[stride*(0)       +i][3]; // cc
-      matAry[stride*(0)       +i][3]  = 0; // south
-      // first north row
-      matAry[stride*(totNy-1) +i][0] += matAry[stride*(totNy-1) +i][4]; // cc
-      matAry[stride*(totNy-1) +i][4]  = 0; // north
-     }
-     #pragma omp parallel for schedule(static)
-     for (size_t j = 0; j < totNy; ++j) {
-      // first west col
-      matAry[stride * j +      0][0] += matAry[stride*j +       0][1]; // center
-      matAry[stride * j +      0][1]  = 0; // west
-      // first east col
-      matAry[stride * j +totNx-1][0] += matAry[stride*j + totNx-1][2]; // center
-      matAry[stride * j +totNx-1][2]  = 0; // east
-     }
-    #endif
-  }
+  if(bUpdateMat) printf("UPDATING THE MATRIX\n");
 
-  if(1) { // 7)
+  if(bUpdateMat) { // 7)
     double * const linV = (double*) matAry;
     // These indices must match to those in the offset array:
     HYPRE_Int inds[5] = {0, 1, 2, 3, 4};
