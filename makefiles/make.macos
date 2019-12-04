@@ -1,6 +1,6 @@
 #ifneq "$(findstring g++, $(CXX))" ""
-CXX=g++-8
-LD=g++-8
+#CXX=g++-8
+#LD=g++-8
 #endif
 
 MPICXX=mpic++
@@ -9,3 +9,4 @@ GSL_ROOT_DIR=$(wildcard /usr/local/Cellar/gsl/*)
 HYPRE_ROOT=$(wildcard /usr/local/Cellar/hypre/*)
 FFTW_ROOT=$(wildcard /usr/local/Cellar/fftw/*)
 HDF5_ROOT=$(wildcard /usr/local/Cellar/hdf5/*)
+LIBOMP_LIB=$(shell ls -d /usr/local/Cellar/libomp/*/lib)

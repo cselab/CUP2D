@@ -36,7 +36,7 @@ void Disk::create(const std::vector<BlockInfo>& vInfo)
 
 void Disk::updateVelocity(double dt)
 {
-  if(0) //(sim.step == 0)
+  #if 0
   {
     std::cout << "Checking against potential flow solution." << std::endl;
     const std::vector<BlockInfo>& velInfo = sim.vel->getBlocksInfo();
@@ -80,6 +80,7 @@ void Disk::updateVelocity(double dt)
     sim.dumpTmp("PotFlowL2Error");
     sim.dumpTmpV("PotFlowTarget");
   }
+  #endif
   Shape::updateVelocity(dt);
   if(tAccel > 0) {
     if(bForcedx && sim.time < tAccel) u = (sim.time/tAccel)*forcedu;

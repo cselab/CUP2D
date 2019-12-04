@@ -165,7 +165,7 @@ public:
     sim.stopProfiler();
   }
 
-  ~FFTW_periodic()
+  ~FFTW_periodic() override
   {
     delete [] COScoefX;
     delete [] COScoefY;

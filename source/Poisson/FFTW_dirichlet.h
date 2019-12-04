@@ -48,7 +48,7 @@ class FFTW_dirichlet : public PoissonSolver
   inline void _solve() const
   {
     const Real waveFactX = M_PI/MX, waveFactY = M_PI/MY;
-    static constexpr tol = 0.1;
+    static constexpr Real tol = 0.1;
     const Real norm_factor = 0.25/(MX*MY);
     Real * __restrict__ const in_out = buffer;
     #pragma omp parallel for schedule(static)
@@ -129,7 +129,7 @@ class FFTW_dirichlet : public PoissonSolver
     sim.stopProfiler();
   }
 
-  ~FFTW_dirichlet()
+  ~FFTW_dirichlet() override
   {
     delete [] COScoefX;
     delete [] COScoefY;

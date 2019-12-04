@@ -88,9 +88,9 @@ class IF2D_Interpolation1D
   }
 
   static void naturalCubicSpline(const Real*x, const Real*y, const unsigned n,
-    const Real*xx, Real*yy, const unsigned nn, const Real offset) {
-    Real y2[n];
-    Real u[n-1];
+    const Real*xx, Real*yy, const unsigned nn, const Real offset)
+  {
+    std::vector<Real> y2(n), u(n-1);
 
     y2[0] = 0;
     u[0] = 0;
@@ -174,7 +174,8 @@ struct ParameterScheduler
     savestream.close();
   }
 
-  void restart(std::string filename) {
+  void restart(std::string filename)
+  {
     std::ifstream restartstream;
     restartstream.open(filename+".txt");
     restartstream >> t0 >> t1;
@@ -182,9 +183,10 @@ struct ParameterScheduler
     restartstream >> parameters_t0[i] >> parameters_t1[i] >> dparameters_t0[i];
     restartstream.close();
   }
-  virtual void resetAll() {
-     parameters_t0 = std::array<Real, Npoints>();
-     parameters_t1 = std::array<Real, Npoints>();
+  virtual void resetAll()
+  {
+    parameters_t0 = std::array<Real, Npoints>();
+    parameters_t1 = std::array<Real, Npoints>();
     dparameters_t0 = std::array<Real, Npoints>();
     t0 = -1;
     t1 =  0;
@@ -193,10 +195,11 @@ struct ParameterScheduler
   ParameterScheduler()
   {
     t0=-1; t1=0;
-     parameters_t0 = std::array<Real, Npoints>();
-     parameters_t1 = std::array<Real, Npoints>();
+    parameters_t0 = std::array<Real, Npoints>();
+    parameters_t1 = std::array<Real, Npoints>();
     dparameters_t0 = std::array<Real, Npoints>();
   }
+  virtual ~ParameterScheduler() {}
 
   void transition(const Real t, const Real tstart, const Real tend,
       const std::array<Real, Npoints> parameters_tend,

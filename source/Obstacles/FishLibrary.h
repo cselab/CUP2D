@@ -202,6 +202,7 @@ struct PutFishOnBlocks
 
   PutFishOnBlocks(const FishData& cf, const double pos[2],
     const Real ang): cfish(cf), position{(Real)pos[0],(Real)pos[1]}, angle(ang) { }
+  virtual ~PutFishOnBlocks() {}
 
   void operator()(const cubism::BlockInfo& i, ScalarBlock& b,
     ObstacleBlock* const o, const std::vector<AreaSegment*>& v) const;

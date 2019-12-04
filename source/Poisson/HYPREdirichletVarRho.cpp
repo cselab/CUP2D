@@ -113,10 +113,10 @@ void HYPREdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
 
   sim.stopProfiler();
 
-  if(0) {
+  #if 0
     char fname[512]; sprintf(fname, "RHS_%06d", sim.step);
     sim.dumpTmp2( std::string(fname) );
-  }
+  #endif
 
   sim.startProfiler("HYPRE_solve");
   if (solver == "gmres")
@@ -242,17 +242,17 @@ HYPREdirichletVarRho::HYPREdirichletVarRho(SimulationData& s) :
     HYPRE_StructBiCGSTABSetTol(hypre_solver, 1e-3);
     HYPRE_StructBiCGSTABSetAbsoluteTol(hypre_solver, 1e-3);
     HYPRE_StructBiCGSTABSetPrintLevel(hypre_solver, 0);
-    if(0) { // Use SMG preconditioner: BAD
+    #if 0 // Use SMG preconditioner: BAD
       HYPRE_StructPFMGCreate(COMM, &hypre_precond);
       HYPRE_StructPFMGSetMaxIter(hypre_precond, 50);
       HYPRE_StructPFMGSetTol(hypre_precond, 1e-3);
-      HYPRE_StructPFMGSetRelChange(hypre_precond, 1e-3);
+      //HYPRE_StructPFMGSetRelChange(hypre_precond, 1e-3); // WRONG: ARG IS INT
       HYPRE_StructPFMGSetPrintLevel(hypre_precond, 3);
       HYPRE_StructSMGSetNumPreRelax(hypre_precond, 1);
       HYPRE_StructSMGSetNumPostRelax(hypre_precond, 1);
       HYPRE_StructBiCGSTABSetPrecond(hypre_solver, HYPRE_StructPFMGSolve,
                                      HYPRE_StructPFMGSetup, hypre_precond);
-    }
+    #endif
     HYPRE_StructBiCGSTABSetup(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   }
   else if (solver == "pfmg") {
@@ -261,7 +261,7 @@ HYPREdirichletVarRho::HYPREdirichletVarRho(SimulationData& s) :
     //HYPRE_StructSMGSetMemoryUse(hypre_solver, 0);
     HYPRE_StructPFMGSetMaxIter(hypre_solver, 100);
     HYPRE_StructPFMGSetTol(hypre_solver, 1e-3);
-    HYPRE_StructPFMGSetRelChange(hypre_solver, 1e-4);
+    //HYPRE_StructPFMGSetRelChange(hypre_solver, 1e-4); // WRONG: ARG IS INT
     HYPRE_StructPFMGSetPrintLevel(hypre_solver, 3);
     HYPRE_StructPFMGSetNumPreRelax(hypre_solver, 1);
     HYPRE_StructPFMGSetNumPostRelax(hypre_solver, 1);
@@ -276,7 +276,7 @@ HYPREdirichletVarRho::HYPREdirichletVarRho(SimulationData& s) :
     HYPRE_StructPCGSetTol(hypre_solver, 1e-4);
     HYPRE_StructPCGSetAbsoluteTol(hypre_solver, 1e-4);
     HYPRE_StructPCGSetPrintLevel(hypre_solver, 0);
-    if(0) { // Use SMG preconditioner: BAD
+    #if 0 // Use SMG preconditioner: BAD
       HYPRE_StructSMGCreate(COMM, &hypre_precond);
       HYPRE_StructSMGSetMaxIter(hypre_precond, 100);
       HYPRE_StructSMGSetTol(hypre_precond, 1e-3);
@@ -284,7 +284,7 @@ HYPREdirichletVarRho::HYPREdirichletVarRho(SimulationData& s) :
       HYPRE_StructSMGSetNumPostRelax(hypre_precond, 1);
       HYPRE_StructPCGSetPrecond(hypre_solver, HYPRE_StructSMGSolve,
                                 HYPRE_StructSMGSetup, hypre_precond);
-    }
+    #endif
     HYPRE_StructPCGSetup(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   }
   else {

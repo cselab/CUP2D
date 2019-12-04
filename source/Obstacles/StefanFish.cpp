@@ -135,7 +135,7 @@ class CurvatureFish : public FishData
     }
   }
 
-  ~CurvatureFish() {
+  ~CurvatureFish() override {
     _dealloc(rK); _dealloc(vK); _dealloc(rC); _dealloc(vC);
     _dealloc(rB); _dealloc(vB);
   }

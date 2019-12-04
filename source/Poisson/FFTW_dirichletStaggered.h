@@ -20,17 +20,17 @@ typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #endif // _FLOAT_PRECISION_
 
-class FFTW_neumann : public PoissonSolver
+class FFTW_dirichletStaggered : public PoissonSolver
 {
   const size_t MX = totNx, MY = totNy;
   float * const COScoefX = new float[MX];
   float * const COScoefY = new float[MY];
-  const Real norm_factor = 0.25/(MX*MY);
   myplan fwd, bwd;
 
-  inline void _solve() const
+  inline void _solveSpectral() const
   {
     const Real waveFactX = M_PI/MX, waveFactY = M_PI/MY;
+    const Real norm_factor = 0.25/(MX*MY);
     Real * __restrict__ const in_out = buffer;
     #pragma omp parallel for schedule(static)
     for(size_t j=0; j<MY; ++j)
@@ -41,46 +41,32 @@ class FFTW_neumann : public PoissonSolver
     in_out[0] = 0; //this is sparta! (part 2)
   }
 
-  inline void _solveSpectral() const
+  // BALANCE TWO PROBLEMS:
+  // - if only grid consistent odd DOF and even DOF do not 'talk' to each others
+  // - if only spectral then nont really div free
+  // COMPROMISE: define a tolerance that balances two effects
+  inline void _solve() const
   {
-    const Real waveFactX = M_PI/MX, waveFactY = M_PI/MY;
+    const Real norm_factor = 0.25/(MX*MY);
     Real * __restrict__ const in_out = buffer;
     #pragma omp parallel for schedule(static)
     for(size_t j=0; j<MY; ++j)
     for(size_t i=0; i<MX; ++i) {
-      const Real rkx = (i + (Real).5)*waveFactX, rky = (j + (Real).5)*waveFactY;
-      const Real denomFD = 1 - COScoefX[i]/2 - COScoefY[j]/2;
-      const Real denomSP = rkx*rkx + rky*rky;
-      in_out[j * MX + i] *=  - norm_factor / ( 0.9*denomFD + 0.1*denomSP );
+      in_out[j * MX + i] *= - norm_factor/(4 - COScoefX[i] - COScoefY[j]);
     }
     in_out[0] = 0; //this is sparta! (part 2)
-    ///*
-    //in_out[    MX-1 ] = 0; // j=0, i=end
-    //in_out[MX*(MY-1)] = 0; // j=end, i=0
-    //in_out[MX*MY -1 ] = 0; // j=end, i=end
-    //*/
-    /*
-    #pragma omp parallel for schedule(static)
-    for(size_t j=0; j<MY; ++j) in_out[   j   * MX + (MX-1)] = 0;
-    #pragma omp parallel for schedule(static)
-    for(size_t j=0; j<MY; ++j) in_out[   j   * MX + (MX-2)] = 0;
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<MX; ++i) in_out[(MY-1) * MX +    i  ] = 0;
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<MX; ++i) in_out[(MY-2) * MX +    i  ] = 0;
-    */
   }
 
  public:
 
   #define TOT_DOF_X s.vel->getBlocksPerDimension(0) * VectorBlock::sizeX
 
-  FFTW_neumann(SimulationData& s) : PoissonSolver(s, TOT_DOF_X)
+  FFTW_dirichletStaggered(SimulationData& s) : PoissonSolver(s, TOT_DOF_X)
   {
     #pragma omp parallel for schedule(static)
-    for(size_t j=0; j<MY; ++j) COScoefY[j] = std::cos(M_PI/MY*2.0*j);
+    for(size_t j=0; j<MY; ++j) COScoefY[j] = std::cos(M_PI/MY*j);
     #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<MX; ++i) COScoefX[i] = std::cos(M_PI/MX*2.0*i);
+    for(size_t i=0; i<MX; ++i) COScoefX[i] = std::cos(M_PI/MX*i);
 
     printf("Employing FFTW-based Poisson solver by cosine transform.\n");
     const int desired_threads = omp_get_max_threads();
@@ -88,14 +74,14 @@ class FFTW_neumann : public PoissonSolver
       const int retval = fftw_init_threads();
       fftw_plan_with_nthreads(desired_threads);
       buffer = fftw_alloc_real(MY * MX);
-      fwd = fftw_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_RODFT10, FFTW_RODFT10, FFTW_MEASURE);
-      bwd = fftw_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_RODFT01, FFTW_RODFT01, FFTW_MEASURE);
+      fwd = fftw_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+      bwd = fftw_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
     #else // _FLOAT_PRECISION_
       const int retval = fftwf_init_threads();
       fftwf_plan_with_nthreads(desired_threads);
       buffer = fftwf_alloc_real(MY * MX);
-      fwd = fftwf_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_RODFT10, FFTW_RODFT10, FFTW_MEASURE);
-      bwd = fftwf_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_RODFT01, FFTW_RODFT01, FFTW_MEASURE);
+      fwd = fftwf_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+      bwd = fftwf_plan_r2r_2d(MY, MX, buffer, buffer, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
     #endif // _FLOAT_PRECISION_
     if(retval==0) {
       std::cout<<"Call to fftw_init_threads() returned zero. Aborting\n";
@@ -138,7 +124,7 @@ class FFTW_neumann : public PoissonSolver
     sim.stopProfiler();
   }
 
-  ~FFTW_neumann() override
+  ~FFTW_dirichletStaggered() override
   {
     delete [] COScoefX;
     delete [] COScoefY;

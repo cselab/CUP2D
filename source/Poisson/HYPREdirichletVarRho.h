@@ -43,5 +43,5 @@ class HYPREdirichletVarRho : public PoissonSolver
     return "hypre";
   }
 
-  ~HYPREdirichletVarRho();
+  ~HYPREdirichletVarRho() override;
 };

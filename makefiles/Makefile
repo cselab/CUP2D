@@ -1,11 +1,4 @@
-ifeq ($(INTEL_LICENSE_FILE),)
-compiler ?= gnu
-else
-compiler ?= intel
-endif
-
 NVCC ?= nvcc
-
 hypre ?= true
 gpu ?= false
 hdf5 ?= true

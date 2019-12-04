@@ -33,5 +33,5 @@ class FFTW_freespace: public PoissonSolver
   void solve(const std::vector<cubism::BlockInfo>& BSRC,
              const std::vector<cubism::BlockInfo>& BDST) override;
 
-  ~FFTW_freespace();
+  ~FFTW_freespace() override;
 };

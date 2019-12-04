@@ -252,7 +252,7 @@ solver("smg")
     HYPRE_StructPCGSetMaxIter(hypre_solver, 1000);
     HYPRE_StructPCGSetTol(hypre_solver, 1e-2);
     HYPRE_StructPCGSetPrintLevel(hypre_solver, 2);
-    if(0)
+    #if 0
     { // Use SMG preconditioner
       HYPRE_StructSMGCreate(COMM, &hypre_precond);
       HYPRE_StructSMGSetMaxIter(hypre_precond, 1000);
@@ -262,6 +262,7 @@ solver("smg")
       HYPRE_StructPCGSetPrecond(hypre_solver, HYPRE_StructSMGSolve,
                                 HYPRE_StructSMGSetup, hypre_precond);
     }
+    #endif
     HYPRE_StructPCGSetup(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   }
 }

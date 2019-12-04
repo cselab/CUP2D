@@ -12,6 +12,8 @@
 #include "HYPREdirichlet.h"
 #endif
 #include "FFTW_dirichlet.h"
+#include "FFTW_dirichletStaggered.h"
+
 #include "FFTW_periodic.h"
 #ifdef CUDAFFT
 #include "CUDA_all.h"
@@ -55,7 +57,10 @@ PoissonSolver * PoissonSolver::makeSolver(SimulationData& sim)
   #endif
 
   // default is dirichlet BC
-  return static_cast<PoissonSolver*>(new FFTW_dirichlet(sim));
+  if(sim.bStaggeredGrid)
+    return static_cast<PoissonSolver*>(new FFTW_dirichletStaggered(sim));
+  else
+    return static_cast<PoissonSolver*>(new FFTW_dirichlet(sim));
 }
 
 void PoissonSolver::cub2rhs(const std::vector<BlockInfo>& BSRC)

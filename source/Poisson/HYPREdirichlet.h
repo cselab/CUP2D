@@ -37,7 +37,7 @@ class HYPREdirichlet : public PoissonSolver
     return "hypre";
   }
 
-  ~HYPREdirichlet();
+  ~HYPREdirichlet() override;
 };
 
 #endif
