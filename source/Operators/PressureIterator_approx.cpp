@@ -115,6 +115,8 @@ void PressureVarRho_approx::pressureCorrectionInit(const double dt)
     }
   }
   avgInvRho = intInvRho / (sim.extents[0] * sim.extents[1]);
+  //avgInvRho = 1/avgInvRho;
+  printf("Average invRho %e\n", avgInvRho);
 }
 
 Real PressureVarRho_approx::pressureCorrection(const double dt) const
@@ -266,8 +268,8 @@ void PressureVarRho_approx::updatePressureRHS(const double dt) const
   const std::vector<BlockInfo>&  tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& pRhsInfo = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& penlInfo = sim.tmpV->getBlocksInfo();
-
-  #pragma omp parallel
+  Real sumPosPrhs = 0, sumNegPrhs = 0, sumPosFdiv = 0, sumNegFdiv = 0;
+  #pragma omp parallel reduction(+ : sumPosPrhs,sumNegPrhs,sumPosFdiv,sumNegFdiv)
   {
     static constexpr int stenBegV[3] = { 0, 0, 0}, stenEndV[3] = { 2, 2, 1};
     static constexpr int stenBegP[3] = {-1,-1, 0}, stenEndP[3] = { 2, 2, 1};
@@ -287,11 +289,75 @@ void PressureVarRho_approx::updatePressureRHS(const double dt) const
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        const Real lapP = (1 - rho0 * IRHO(ix,iy).s) * laplacian(P,ix,iy);
-        const Real dPdRx = DcellDx(P,ix,iy) * DcellDx(IRHO,ix,iy);
-        const Real dPdRy = DcellDy(P,ix,iy) * DcellDy(IRHO,ix,iy);
-        const Real hatPfac = lapP - rho0 * (dPdRx + dPdRy);
-        RHS(ix,iy).s = hatPfac + facDiv*( vRHS(ix,iy).s + dt * div(F,ix,iy) );
+        #if 1
+          const Real rE = (1 - rho0 * (IRHO(ix+1,iy).s + IRHO(ix,iy).s)/2 );
+          const Real rW = (1 - rho0 * (IRHO(ix-1,iy).s + IRHO(ix,iy).s)/2 );
+          const Real rN = (1 - rho0 * (IRHO(ix,iy+1).s + IRHO(ix,iy).s)/2 );
+          const Real rS = (1 - rho0 * (IRHO(ix,iy-1).s + IRHO(ix,iy).s)/2 );
+          const Real dN = P(ix,iy+1).s-P(ix,iy).s, dS = P(ix,iy).s-P(ix,iy-1).s;
+          const Real dE = P(ix+1,iy).s-P(ix,iy).s, dW = P(ix,iy).s-P(ix-1,iy).s;
+          const Real hatPfac = rE*dE - rW*dW + rN*dN - rS*dS;
+        #else
+          const Real lapP = (1 - rho0 * IRHO(ix,iy).s) * laplacian(P,ix,iy);
+          const Real dPdRx = DcellDx(P,ix,iy) * DcellDx(IRHO,ix,iy);
+          const Real dPdRy = DcellDy(P,ix,iy) * DcellDy(IRHO,ix,iy);
+          const Real hatPfac = lapP -rho0*(dPdRx+dPdRy);
+        #endif
+        RHS(ix,iy).s = hatPfac + facDiv*( vRHS(ix,iy).s + dt * div(F,ix,iy));
+        if(     hatPfac < 0) sumNegPrhs -= hatPfac;
+        else                 sumPosPrhs += hatPfac;
+        if(div(F,ix,iy) < 0) sumNegFdiv -= facDiv * div(F,ix,iy);
+        else                 sumPosFdiv += facDiv * div(F,ix,iy);
+      }
+    }
+  }
+
+  const Real sumRhsP = sumPosPrhs-sumNegPrhs, sumRhsF = sumPosFdiv-sumNegFdiv;
+  const Real corrDenomP = sumRhsP>0 ? sumPosPrhs : sumNegPrhs;
+  const Real corrDenomF = sumRhsF>0 ? sumPosFdiv : sumNegFdiv;
+  const Real corrP = sumRhsP / std::max(corrDenomP, EPS);
+  const Real corrF = sumRhsF / std::max(corrDenomF, EPS);
+  //printf("src terms: pressure sum=%e abs=%e, force  sum=%e abs=%e\n",
+  //  sumRhsP, corrDenomP, sumRhsP, corrDenomF);
+
+  #pragma omp parallel
+  {
+    static constexpr int stenBegV[3] = { 0, 0, 0}, stenEndV[3] = { 2, 2, 1};
+    static constexpr int stenBegP[3] = {-1,-1, 0}, stenEndP[3] = { 2, 2, 1};
+    ScalarLab presLab; presLab.prepare(*(sim.pres),   stenBegP, stenEndP, 0);
+    ScalarLab iRhoLab; iRhoLab.prepare(*(sim.invRho), stenBegP, stenEndP, 0);
+    VectorLab penlLab; penlLab.prepare(*(sim.tmpV),   stenBegV, stenEndV, 0);
+
+    #pragma omp for schedule(static)
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      presLab.load(presInfo[i],0); const ScalarLab& __restrict__ P   = presLab;
+      iRhoLab.load(iRhoInfo[i],0); const ScalarLab& __restrict__ IRHO= iRhoLab;
+      penlLab.load(penlInfo[i],0); const VectorLab& __restrict__ F   = penlLab;
+      ScalarBlock& __restrict__ RHS = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        #if 1
+          const Real rE = (1 - rho0 * (IRHO(ix+1,iy).s + IRHO(ix,iy).s)/2 );
+          const Real rW = (1 - rho0 * (IRHO(ix-1,iy).s + IRHO(ix,iy).s)/2 );
+          const Real rN = (1 - rho0 * (IRHO(ix,iy+1).s + IRHO(ix,iy).s)/2 );
+          const Real rS = (1 - rho0 * (IRHO(ix,iy-1).s + IRHO(ix,iy).s)/2 );
+          const Real dN = P(ix,iy+1).s-P(ix,iy).s, dS = P(ix,iy).s-P(ix,iy-1).s;
+          const Real dE = P(ix+1,iy).s-P(ix,iy).s, dW = P(ix,iy).s-P(ix-1,iy).s;
+          const Real hatPfac = rE*dE - rW*dW + rN*dN - rS*dS;
+        #else
+          const Real lapP = (1 - rho0 * IRHO(ix,iy).s) * laplacian(P,ix,iy);
+          const Real dPdRx = DcellDx(P,ix,iy) * DcellDx(IRHO,ix,iy);
+          const Real dPdRy = DcellDy(P,ix,iy) * DcellDy(IRHO,ix,iy);
+          const Real hatPfac = lapP - rho0 * (dPdRx + dPdRy);
+        #endif
+        const Real divF = facDiv * dt * div(F,ix,iy);
+        if      (hatPfac > 0 and corrP > 0) RHS(ix, iy).s -= corrP * hatPfac;
+        else if (hatPfac < 0 and corrP < 0) RHS(ix, iy).s += corrP * hatPfac;
+        if      (   divF > 0 and corrF > 0) RHS(ix, iy).s -= corrF *    divF;
+        else if (   divF < 0 and corrF < 0) RHS(ix, iy).s += corrF *    divF;
       }
     }
   }

@@ -46,19 +46,20 @@ void HYPREdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, dbuffer); // 3)
 
     //Real sumRHS = 0, sumABS = 0;
-    #pragma omp parallel for schedule(static) //reduction(+ : sumRHS, sumABS)
-    for(size_t i=0; i<nBlocks; ++i) {
-      const size_t blocki = VectorBlock::sizeX * BSRC[i].index[0];
-      const size_t blockj = VectorBlock::sizeY * BSRC[i].index[1];
-      const ScalarBlock& RHS = *(ScalarBlock*) BSRC[i].ptrBlock;
-      const size_t start = blocki + stride * blockj;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) { // 4)
-        dbuffer[start +ix +stride*iy] = RHS(ix,iy).s;
-        //sumRHS +=           RHS(ix,iy).s;  // 2)
-        //sumABS += std::fabs(RHS(ix,iy).s); // 2)
-      }
-    }
+    //#pragma omp parallel for schedule(static) //reduction(+ : sumRHS, sumABS)
+    //for(size_t i=0; i<nBlocks; ++i) {
+    //  const size_t blocki = VectorBlock::sizeX * BSRC[i].index[0];
+    //  const size_t blockj = VectorBlock::sizeY * BSRC[i].index[1];
+    //  const ScalarBlock& RHS = *(ScalarBlock*) BSRC[i].ptrBlock;
+    //  const size_t start = blocki + stride * blockj;
+    //  for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    //  for(int ix=0; ix<VectorBlock::sizeX; ++ix) { // 4)
+    //    dbuffer[start +ix +stride*iy] = RHS(ix,iy).s;
+    //    //sumRHS +=           RHS(ix,iy).s;  // 2)
+    //    //sumABS += std::fabs(RHS(ix,iy).s); // 2)
+    //  }
+    //}
+    cub2rhs(BSRC);
 
     //printf("Relative RHS correction:%e\n", sumRHS/std::max(EPS,sumABS) );
     HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, dbuffer); // 5)
@@ -143,7 +144,7 @@ void HYPREdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     for (size_t i = 0; i < totNy*totNx; ++i) avgP += fac * dbuffer[i];
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < totNy*totNx; ++i) dbuffer[i] -= avgP;
-    printf("Average pressure:%e\n", avgP);
+    //printf("Average pressure:%e\n", avgP);
   }
 
   #ifdef _FLOAT_PRECISION_

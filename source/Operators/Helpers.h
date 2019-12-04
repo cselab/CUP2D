@@ -93,3 +93,19 @@ class computeVorticity
     return "computeVorticity";
   }
 };
+
+
+class computeDivergence
+{
+  SimulationData& sim;
+  const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
+  const size_t Nblocks = velInfo.size();
+ public:
+  computeDivergence(SimulationData& s) : sim(s) { }
+
+  void run() const;
+
+  std::string getName() const {
+    return "computeDivergence";
+  }
+};

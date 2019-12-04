@@ -142,7 +142,8 @@ void PoissonSolver::cub2rhs(const std::vector<BlockInfo>& BSRC)
       sumRHS += b(ix,iy).s;
     }
   }
-  //if(sim.verbose) printf("Relative RHS sum:%e\n", sumRHS);
+  
+  //printf("Relative RHS sum:%e\n", sumRHS); fflush(0);
 }
 
 void PoissonSolver::sol2cub(const std::vector<BlockInfo>& BDST)

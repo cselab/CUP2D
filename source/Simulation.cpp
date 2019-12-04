@@ -186,6 +186,8 @@ void Simulation::init()
   {
     pipeline.push_back( new PutObjectsOnGrid(sim) );
     //pipeline.push_back( new FadeOut(sim) );
+    // do not employ Dodd and Ferrante. It just does not work:
+    sim.iterativePenalization = false;
     if(sim.iterativePenalization) {
       sim.bStaggeredGrid = true;
       //pipeline.push_back( new advDiffGrav(sim) );
@@ -255,10 +257,11 @@ void Simulation::simulate()
 double Simulation::calcMaxTimestep()
 {
   const auto findMaxU_op = findMaxU(sim);
-  const Real maxU = findMaxU_op.run(); assert(maxU>=0);
+  sim.uMax_measured = findMaxU_op.run(); assert(maxU>=0);
 
   const double h = sim.getH();
-  const double dtFourier = h*h/sim.nu, dtCFL = maxU<2.2e-16? 1 : h/maxU;
+  const double dtFourier = h*h/sim.nu;
+  const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
   sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
 
@@ -271,7 +274,7 @@ double Simulation::calcMaxTimestep()
 
   if(sim.verbose)
     printf("step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f\n",
-      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, maxU);
+      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured);
 
   if(sim.dlm > 0) sim.lambda = sim.dlm / sim.dt;
   return sim.dt;

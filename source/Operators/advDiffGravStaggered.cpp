@@ -29,11 +29,12 @@ void advDiffGravStaggered::operator()(const double dt)
   const Real UINF[2]= {sim.uinfx, sim.uinfy}, h = sim.getH();
   const Real G[2]= { (Real) dt * sim.gravity[0], (Real) dt * sim.gravity[1] };
   const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
+  const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
   const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-  const Real fadeW= 1-std::pow(std::max(UINF[0],(Real)0)/norUinf,2)/BC_KILL_FAC;
-  const Real fadeS= 1-std::pow(std::max(UINF[1],(Real)0)/norUinf,2)/BC_KILL_FAC;
-  const Real fadeE= 1-std::pow(std::min(UINF[0],(Real)0)/norUinf,2)/BC_KILL_FAC;
-  const Real fadeN= 1-std::pow(std::min(UINF[1],(Real)0)/norUinf,2)/BC_KILL_FAC;
+  const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+  const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
   const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
 
   sim.startProfiler("advDiffGrav");
@@ -188,7 +189,7 @@ void advDiffGravStaggered::operator()(const double dt)
     ////////////////////////////////////////////////////////////////////////////
     //const Real corr = IF/std::max(AF, EPS);
     const Real corr = IF/( 2*(BSY*sim.bpdy -1) + 2*(BSX*sim.bpdx -1) );
-    printf("Relative inflow correction %e\n",corr);
+    //printf("Relative inflow correction %e\n",corr);
     #pragma omp parallel for schedule(dynamic)
     for (size_t i=0; i < Nblocks; i++) {
       VectorBlock& V = *(VectorBlock*)  velInfo[i].ptrBlock;

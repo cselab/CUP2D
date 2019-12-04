@@ -51,6 +51,7 @@ struct SimulationData
   double nu = 0;
   double dlm = 1;
   double extent = 1;
+  double uMax_measured = 0;
   std::array<Real,2> extents = { (Real) 1, (Real) 1 };
   Real fadeLenX = 0, fadeLenY = 0;
 

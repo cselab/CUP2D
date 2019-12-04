@@ -35,6 +35,28 @@ void computeVorticity::run() const
   }
 }
 
+void computeDivergence::run() const
+{
+  const Real invH = 1.0 / sim.getH();
+  const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
+  #pragma omp parallel
+  {
+    static constexpr int stenBeg [3] = {0,0,0}, stenEnd [3] = { 2, 2, 1};
+    VectorLab velLab;   velLab.prepare(*(sim.vel), stenBeg, stenEnd, 0);
+
+    #pragma omp for schedule(static)
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
+      auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+
+      for(int y=0; y<VectorBlock::sizeY; ++y)
+      for(int x=0; x<VectorBlock::sizeX; ++x)
+      O(x,y).s = invH * (V(x+1,y).u[0]-V(x,y).u[0] + V(x,y+1).u[1]-V(x,y).u[1]);
+    }
+  }
+}
+
 void IC::operator()(const double dt)
 {
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();

@@ -208,10 +208,12 @@ void SimulationData::dumpAll(std::string name)
 {
   if(bStaggeredGrid)
   {
-    const auto K = computeVorticity(*this); K.run();
+    const auto K1 = computeVorticity(*this); K1.run();
+    dumpTmp (name);
+    //const auto K2 = computeDivergence(*this); K2.run();
+    //dumpTmp (name+"div");
     dumpPres (name);
     dumpInvRho (name);
-    dumpTmp (name);
   }
   else
   {
