@@ -16,44 +16,15 @@ static constexpr double EPS = std::numeric_limits<double>::epsilon();
 Real PressureVarRho_proper::updatePressureRHS(const double dt) const
 {
   const Real h = sim.getH(), facDiv = h/dt;
-  const size_t stride = varRhoSolver->stride;
-  const size_t totNy = varRhoSolver->totNy, totNx = varRhoSolver->totNx;
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>&  chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>&  tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& pRhsInfo = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
-  HYPREdirichletVarRho::RowType* const mat = varRhoSolver->matAry;
   const auto isE = [&](const BlockInfo&I) { return I.index[0] == sim.bpdx-1; };
   const auto isN = [&](const BlockInfo&I) { return I.index[1] == sim.bpdy-1; };
-
-  const auto updateMat = [&] (const size_t idx, const size_t idy, Real coefDiag,
-                              Real coefW, Real coefE, Real coefS, Real coefN)
-  {
-    const size_t ind = stride * idy + idx;
-    if(idx == 0) {       // first west col
-      coefDiag += coefW; coefW = 0;
-    }
-    if(idx == totNx-1) { // first east col
-      coefDiag += coefE; coefE = 0;
-    }
-    if(idy == 0) {       // first south row
-      coefDiag += coefS; coefS = 0;
-    }
-    if(idy == totNy-1) { // first north row
-      coefDiag += coefN; coefN = 0;
-    }
-    const Real dMat = std::pow(mat[ind][0] - coefDiag, 2)
-                    + std::pow(mat[ind][1] - coefW,    2)
-                    + std::pow(mat[ind][2] - coefE,    2)
-                    + std::pow(mat[ind][3] - coefS,    2)
-                    + std::pow(mat[ind][4] - coefN,    2);
-    mat[ind][0] = coefDiag;
-    mat[ind][1] = coefW; mat[ind][2] = coefE;
-    mat[ind][3] = coefS; mat[ind][4] = coefN;
-    return dMat;
-  };
+  const auto& S = * varRhoSolver;
 
   Real maxDiffMat = 0;
   #pragma omp parallel reduction(max : maxDiffMat)
@@ -99,7 +70,7 @@ Real PressureVarRho_proper::updatePressureRHS(const double dt) const
         const Real dE = P(ix+1,iy).s-P(ix,iy).s, dW = P(ix,iy).s-P(ix-1,iy).s;
         RHS(ix,iy).s = TMP(ix,iy).s +(1-rE)*dE -(1-rW)*dW +(1-rN)*dN -(1-rS)*dS;
         const size_t idx = blocki + ix, idy = blockj + iy;
-        const Real dMat = updateMat(idx, idy, -rN -rS -rE -rW, rW, rE, rS, rN);
+        const Real dMat = S.updateMat(idx,idy, -rN -rS -rE -rW, rW, rE, rS, rN);
         maxDiffMat = std::max(maxDiffMat, dMat);
       }
 
@@ -198,8 +169,12 @@ void PressureVarRho_proper::operator()(const double dt)
 }
 
 PressureVarRho_proper::PressureVarRho_proper(SimulationData& s) :
-  Operator(s), varRhoSolver( new HYPREdirichletVarRho(s) ),
-  unifRhoSolver( PoissonSolver::makeSolver(s) ) { }
+  Operator(s), unifRhoSolver( PoissonSolver::makeSolver(s) ),
+#ifdef AMGX_POISSON
+  varRhoSolver( new AMGXdirichletVarRho(s) ) { }
+#else
+  varRhoSolver( new HYPREdirichletVarRho(s) ) { }
+#endif
 
 PressureVarRho_proper::~PressureVarRho_proper() {
     delete varRhoSolver;

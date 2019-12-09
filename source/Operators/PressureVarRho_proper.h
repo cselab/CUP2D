@@ -16,10 +16,16 @@ class PoissonSolver;
 
 class PressureVarRho_proper : public Operator
 {
-  HYPREdirichletVarRho * const varRhoSolver;
   PoissonSolver * const unifRhoSolver;
 
+  #ifdef AMGX_POISSON
+    AMGXdirichletVarRho * const varRhoSolver;
+  #else
+    HYPREdirichletVarRho * const varRhoSolver;
+  #endif
+
   void pressureCorrection(const double dt) const;
+
   Real updatePressureRHS(const double dt) const;
 
  public:
