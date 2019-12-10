@@ -9,8 +9,8 @@
 # ( The paper says 1025?? )
 # We use Ga = sqrt(2 * 1.7 * 9.8 * 0.02) * 0.16 / 0.00011
 
-OPTIONS="-bpdx 64 -bpdy 64 -tdump 0.01 -extent 2 -nu 0.00011 -tend 80 -poissonType cosine -DLM 1 -iterativePenalization 1"
-OBJECTS='ellipse semiAxisX=0.08 semiAxisY=0.01 ypos=0.625 angle=11.5 bFixed=1 rhoS=2.7
+OPTIONS="-bpdx 64 -bpdy 64 -tdump 0.01 -CFL 0.02 -extent 5 -nu 0.0089 -tend 80 -poissonType cosine -DLM 1 -iterativePenalization 0"
+OBJECTS='ellipse semiAxisX=0.324 semiAxisY=0.0405 ypos=1.5 angle=11.5 bFixed=1 rhoS=2.7
 '
 
 source launchCommon.sh
