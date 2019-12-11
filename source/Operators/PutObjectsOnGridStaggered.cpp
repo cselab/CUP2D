@@ -83,6 +83,8 @@ void PutObjectsOnGridStaggered::putChiOnGrid(Shape * const shape) const
     {
       if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
+      memset(o.chiX, 0, sizeof(Real) * VectorBlock::sizeX * VectorBlock::sizeY);
+      memset(o.chiY, 0, sizeof(Real) * VectorBlock::sizeX * VectorBlock::sizeY);
 
       distlab.load(tmpInfo[i], 0); // loads signed distance field with ghosts
       const ScalarLab& __restrict__ SDIST = distlab;
