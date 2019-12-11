@@ -139,12 +139,9 @@ public:
 
     for(int iy=s[1]; iy<e[1]; iy++)
     for(int ix=s[0]; ix<e[0]; ix++)
-      cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access
-        (
+      cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
           ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-          ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1],
-          0
-        );
+          ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
   }
 
   // Called by Cubism:

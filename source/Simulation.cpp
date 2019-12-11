@@ -18,6 +18,7 @@
 #include "Operators/PressureIterator_unif.h"
 #include "Operators/PressureIterator_approx.h"
 #include "Operators/PutObjectsOnGrid.h"
+#include "Operators/PutObjectsOnGridStaggered.h"
 #include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/UpdateObjectsStaggered.h"
@@ -184,25 +185,20 @@ void Simulation::init()
   }
   if(sim.bVariableDensity)
   {
-    pipeline.push_back( new PutObjectsOnGrid(sim) );
     //pipeline.push_back( new FadeOut(sim) );
     // do not employ Dodd and Ferrante. It just does not work:
     sim.iterativePenalization = false;
-    if(sim.iterativePenalization) {
-      sim.bStaggeredGrid = true;
-      //pipeline.push_back( new advDiffGrav(sim) );
-      pipeline.push_back( new advDiffGrav(sim) );
-      pipeline.push_back( new PressureVarRho_approx(sim) );
-    } else {
-      sim.bStaggeredGrid = true;
-      pipeline.push_back( new advDiffGravStaggered(sim) );
-      pipeline.push_back( new UpdateObjectsStaggered(sim) );
-      //pipeline.push_back( new PressureSingleStaggered(sim) );
-      pipeline.push_back( new PressureVarRho_proper(sim) );
-      //pipeline.push_back( new PressureSingleStaggered(sim) );
-      //pipeline.push_back( new PressureVarRhoDifference(sim) );
-    }
-     // pipeline.push_back( new PressureVarRho_iterator(sim) );
+    sim.bStaggeredGrid = true;
+    pipeline.push_back( new PutObjectsOnGridStaggered(sim) );
+    pipeline.push_back( new advDiffGravStaggered(sim) );
+    pipeline.push_back( new UpdateObjectsStaggered(sim) );
+    //pipeline.push_back( new PressureSingleStaggered(sim) );
+    pipeline.push_back( new PressureVarRho_proper(sim) );
+    //pipeline.push_back( new advDiffGrav(sim) );
+    //pipeline.push_back( new PressureVarRho_approx(sim) );
+    //pipeline.push_back( new PressureSingleStaggered(sim) );
+    //pipeline.push_back( new PressureVarRhoDifference(sim) );
+    //pipeline.push_back( new PressureVarRho_iterator(sim) );
     //pipeline.push_back( new FadeOut(sim) );
   }
   else

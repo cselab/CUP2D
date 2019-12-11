@@ -8,14 +8,25 @@
 
 
 #include "advDiffGravStaggered.h"
-//#define NOINFLOW
 
 using namespace cubism;
+#define THIRD_ORDER_UPWIND
+
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
 static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
+
+#ifdef THIRD_ORDER_UPWIND
+  static constexpr int stencilBeg = -2, stencilEnd = 3;
+  const int loopBeg = stencilBeg, loopEnd = BSX-1 + stencilBeg;
+#else
+  static constexpr int stencilBeg = -1, stencilEnd = 2;
+  const int loopBeg = stencilBeg, loopEnd = BSY-1 + stencilBeg;
+#endif
+
 static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 1, 1, 1};
-static constexpr int stenBegV[3] = {-1,-1, 0}, stenEndV[3] = { 2, 2, 1};
+static constexpr int stenBegV[3] = {stencilBeg, stencilBeg, 0};
+static constexpr int stenEndV[3] = {stencilEnd, stencilEnd, 1};
 
 void advDiffGravStaggered::operator()(const double dt)
 {
@@ -26,23 +37,35 @@ void advDiffGravStaggered::operator()(const double dt)
   const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0; };
   const auto isN = [&](const BlockInfo&I) { return I.index[1] == sim.bpdy-1; };
 
+  #pragma omp parallel for schedule(dynamic)
+  for (size_t i=0; i < Nblocks; i++) {
+    VectorBlock & V = *(VectorBlock*) velInfo[i].ptrBlock;
+    for(int y=0; y<BSY && isE(velInfo[i]); ++y) V(EX, y).u[1] = V(EX-1, y).u[1];
+    for(int x=0; x<BSX && isN(velInfo[i]); ++x) V(x, EY).u[0] = V(x, EY-1).u[0];
+  }
+
   const Real UINF[2]= {sim.uinfx, sim.uinfy}, h = sim.getH();
   const Real G[2]= { (Real) dt * sim.gravity[0], (Real) dt * sim.gravity[1] };
-  const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
-  const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
+
+  const Real bcfac = std::min((Real)1, sim.uMax_measured * dt / h);
   const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-  const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
-  const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
+  const Real fadeW= 1 - bcfac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeS= 1 - bcfac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+  const Real fadeE= 1 - bcfac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeN= 1 - bcfac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
   const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
 
   sim.startProfiler("advDiffGrav");
+  #ifdef THIRD_ORDER_UPWIND
+    const Real dfac = (sim.nu/h)*(dt/h), afac = -dt/h/6;
+  #else
+    const Real dfac = (sim.nu/h)*(dt/h), afac = -dt/h/2;
+  #endif
 
   #pragma omp parallel
   {
-    VectorLab vellab; vellab.prepare(*(sim.vel), stenBegV, stenEndV, 1);
-    ScalarLab rholab; rholab.prepare(*(sim.invRho), stenBeg, stenEnd, 1);
+    VectorLab vellab; vellab.prepare(*(sim.vel), stenBegV, stenEndV, 0);
+    ScalarLab rholab; rholab.prepare(*(sim.invRho), stenBeg, stenEnd, 0);
 
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; ++i)
@@ -51,100 +74,61 @@ void advDiffGravStaggered::operator()(const double dt)
       rholab.load(iRhoInfo[i], 0); auto & __restrict__ IRHO = rholab;
       auto& __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
-      for(int iy=-1; iy<=VectorBlock::sizeY && isE(velInfo[i]); ++iy) { // west
-        V(EX+1,iy).u[0] = V(EX  ,iy).u[0];
-        V(EX+1,iy).u[1] = V(EX-1,iy).u[1];
-        V(EX  ,iy).u[1] = V(EX-1,iy).u[1];
-      }
+      if (isW(velInfo[i])) for (int iy = loopBeg; iy < loopEnd; ++iy)
+      for (int ix = loopBeg; ix < 0; ++ix) fade(V(ix,iy), fadeW);
 
-      for(int ix=-1; ix<=VectorBlock::sizeX && isN(velInfo[i]); ++ix) { // north
-        V(ix,EY+1).u[1] = V(ix,EY  ).u[1];
-        V(ix,EY+1).u[0] = V(ix,EY-1).u[0];
-        V(ix,EY  ).u[0] = V(ix,EY-1).u[0];
-      }
+      if (isE(velInfo[i])) for (int iy = loopBeg; iy < loopEnd; ++iy)
+      for (int ix = BSX; ix < loopEnd; ++ix) fade(V(EX+1,iy), fadeE);
 
-      if( isE(velInfo[i]) && isN(velInfo[i]) ) {
-        V(EX  ,EY  ).u[0] = V(EX,EY-1).u[0];
-        V(EX  ,EY+1).u[0] = V(EX,EY-1).u[0];
-        V(EX+1,EY  ).u[0] = V(EX,EY-1).u[0];
-        V(EX+1,EY+1).u[0] = V(EX,EY-1).u[0];
+      if (isS(velInfo[i])) for (int iy = loopBeg; iy < 0; ++iy)
+      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,BY-1), fadeS);
 
-        V(EX  ,EY  ).u[1] = V(EX-1,EY).u[1];
-        V(EX+1,EY  ).u[1] = V(EX-1,EY).u[1];
-        V(EX  ,EY+1).u[1] = V(EX-1,EY).u[1];
-        V(EX+1,EY+1).u[1] = V(EX-1,EY).u[1];
-      }
-      if( isW(velInfo[i]) && isN(velInfo[i]) ) {
-        V(BX  ,EY  ).u[0] = V(BX,EY-1).u[0];
-        V(BX  ,EY+1).u[0] = V(BX,EY-1).u[0];
-        V(BX-1,EY  ).u[0] = V(BX,EY-1).u[0];
-        V(BX-1,EY+1).u[0] = V(BX,EY-1).u[0];
-
-        V(BX-1,EY+1).u[1] = V(BX,EY).u[1];
-      }
-      if( isE(velInfo[i]) && isS(velInfo[i]) ) {
-        V(EX+1,BY-1).u[0] = V(EX,BY).u[0];
-
-        V(EX  ,BY  ).u[1] = V(EX-1,BY).u[1];
-        V(EX+1,BY  ).u[1] = V(EX-1,BY).u[1];
-        V(EX  ,BY-1).u[1] = V(EX-1,BY).u[1];
-        V(EX+1,BY-1).u[1] = V(EX-1,BY).u[1];
-      }
-      if( isW(velInfo[i]) && isS(velInfo[i]) ) {
-        V(BX-1,BY-1).u[0] = V(BX,BY).u[0];
-        V(BX-1,BY-1).u[1] = V(BX,BY).u[1];
-      }
-
-      for(int iy=-1; iy<=BSY && isW(velInfo[i]); ++iy) fade(V(BX-1,iy), fadeW);
-      for(int ix=-1; ix<=BSX && isS(velInfo[i]); ++ix) fade(V(ix,BY-1), fadeS);
-      for(int iy=-1; iy<=BSY && isE(velInfo[i]); ++iy) fade(V(EX+1,iy), fadeE);
-      for(int ix=-1; ix<=BSX && isN(velInfo[i]); ++ix) fade(V(ix,EY+1), fadeN);
+      if (isN(velInfo[i])) for (int iy = BSY; iy < loopEnd; ++iy)
+      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,EY+1), fadeN);
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
         const Real gravFacU = G[0] * ( 1 - (IRHO(ix-1,iy).s+IRHO(ix,iy).s)/2 );
         const Real gravFacV = G[1] * ( 1 - (IRHO(ix,iy-1).s+IRHO(ix,iy).s)/2 );
-        const Real upx = V(ix+1, iy).u[0], upy = V(ix, iy+1).u[0];
-        const Real ulx = V(ix-1, iy).u[0], uly = V(ix, iy-1).u[0];
-        const Real vpx = V(ix+1, iy).u[1], vpy = V(ix, iy+1).u[1];
-        const Real vlx = V(ix-1, iy).u[1], vly = V(ix, iy-1).u[1];
+
         const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
-        #if 1
-        {
-          const Real VadvU = (vpy + V(ix-1,iy+1).u[1] + vcc + vlx)/4  + UINF[1];
-          const Real dUadv = (ucc+UINF[0]) * (upx-ulx) + VadvU * (upy - uly);
-          const Real dUdif = upx + upy + ulx + uly - 4 * ucc;
-          TMP(ix,iy).u[0] = V(ix,iy).u[0] + afac*dUadv + dfac*dUdif + gravFacU;
-        }
-        {
-          const Real UadvV = (upx + V(ix+1,iy-1).u[0] + ucc + uly)/4 + UINF[0];
-          const Real dVadv = UadvV * (vpx-vlx) + (vcc+UINF[1]) * (vpy-vly);
-          const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-          TMP(ix,iy).u[1] = V(ix,iy).u[1] + afac*dVadv + dfac*dVdif + gravFacV;
-        }
-        #else
-        {
-          const Real UE = (upx+ucc)/2, UW = (ulx+ucc)/2;
-          const Real UN = (upy+ucc)/2, US = (uly+ucc)/2;
-          const Real VN = (vpy+V(ix-1,iy+1).u[1])/2, VS = (vcc+vlx)/2;
-          const Real dUadvX =  (UE + UINF[0]) * UE - (UW + UINF[0]) * UW;
-          const Real dUadvY =  (VN + UINF[1]) * UN - (VS + UINF[1]) * US;
-          const Real dUdif = upx + upy + ulx + uly - 4 * ucc;
-          const Real dUAdvDiff = afac*(dUadvX + dUadvY) + dfac*dUdif;
-          TMP(ix,iy).u[0] = V(ix,iy).u[0] + dUAdvDiff + gravFacU;
-        }
-        {
-          const Real VE = (vpx+vcc)/2, VW = (vlx+vcc)/2;
-          const Real VN = (vpy+vcc)/2, VS = (vly+vcc)/2;
-          const Real UE = (upx+V(ix+1,iy-1).u[0])/2, UW = (ucc+uly)/2;
-          const Real dVadvX =  (UE + UINF[0]) * VE - (UW + UINF[0]) * VW;
-          const Real dVadvY =  (VN + UINF[1]) * VN - (VS + UINF[1]) * VS;
-          const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-          const Real dVAdvDiff = afac*(dVadvX + dVadvY) + dfac*dVdif;
-          TMP(ix,iy).u[1] = V(ix,iy).u[1] + dVAdvDiff + gravFacV;
-        }
+        const Real up1x = V(ix+1, iy).u[0], up1y = V(ix, iy+1).u[0];
+        const Real ul1x = V(ix-1, iy).u[0], ul1y = V(ix, iy-1).u[0];
+        const Real vp1x = V(ix+1, iy).u[1], vp1y = V(ix, iy+1).u[1];
+        const Real vl1x = V(ix-1, iy).u[1], vl1y = V(ix, iy-1).u[1];
+        #ifdef THIRD_ORDER_UPWIND
+          const Real up2x = V(ix+2, iy).u[0], up2y = V(ix, iy+2).u[0];
+          const Real ul2x = V(ix-2, iy).u[0], ul2y = V(ix, iy-2).u[0];
+          const Real vp2x = V(ix+2, iy).u[1], vp2y = V(ix, iy+2).u[1];
+          const Real vl2x = V(ix-2, iy).u[1], vl2y = V(ix, iy-2).u[1];
         #endif
+
+        // advection V at x (U) faces and advection U at y (V) faces:
+        const Real VadvU = (vp1y + V(ix-1,iy+1).u[1] + vcc + vl1x)/4 + UINF[1];
+        const Real UadvV = (up1x + V(ix+1,iy-1).u[0] + ucc + ul1y)/4 + UINF[0];
+        const Real UadvU = ucc + UINF[0], VadvV = vcc + UINF[1];
+
+        #ifdef THIRD_ORDER_UPWIND
+          const Real dudx = UadvU>0 ?          2*up1x + 3*ucc - 6*ul1x + ul2x
+                                    : - up2x + 6*up1x - 3*ucc - 2*ul1x;
+          const Real dvdx = UadvV>0 ?          2*vp1x + 3*vcc - 6*vl1x + vl2x
+                                    : - vp2x + 6*vp1x - 3*vcc - 2*vl1x;
+          const Real dudy = VadvU>0 ?          2*up1y + 3*ucc - 6*ul1y + ul2y
+                                    : - up2y + 6*up1y - 3*ucc - 2*ul1y;
+          const Real dvdy = VadvV>0 ?          2*vp1y + 3*vcc - 6*vl1y + vl2y
+                                    : - vp2y + 6*vp1y - 3*vcc - 2*vl1y;
+        #else
+          const Real dudx = up1x - ul1x, dudy = up1y - ul1y;
+          const Real dvdx = vp1x - vl1x, dvdy = vp1y - vl1y;
+        #endif
+
+        const Real dUadv = UadvU * dudx + VadvU * dudy;
+        const Real dVadv = UadvV * dvdx + VadvV * dvdy;
+        const Real dUdif = up1x + up1y + ul1x + ul1y - 4 * ucc;
+        const Real dVdif = vp1x + vp1y + vl1x + vl1y - 4 * vcc;
+        TMP(ix,iy).u[0] = V(ix,iy).u[0] + afac*dUadv + dfac*dUdif + gravFacU;
+        TMP(ix,iy).u[1] = V(ix,iy).u[1] + afac*dVadv + dfac*dVdif + gravFacV;
       }
     }
   }

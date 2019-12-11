@@ -63,7 +63,8 @@ OBJECTS = \
 		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
 		FishLibrary.o ArgumentParser.o PoissonSolver.o advDiffGravStaggered.o \
 		advDiffGrav.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
-		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o
+		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
+		PutObjectsOnGridStaggered.o
 #Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
 
 ifneq ($(FFTW_ROOT),)
