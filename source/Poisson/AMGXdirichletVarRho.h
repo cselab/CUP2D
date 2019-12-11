@@ -18,6 +18,8 @@
 #endif
 #endif
 
+using amgx_val_t = double;
+
 class AMGXdirichletVarRho : public PoissonSolver
 {
   #ifdef AMGX_POISSON
@@ -32,9 +34,9 @@ class AMGXdirichletVarRho : public PoissonSolver
     AMGX_SOLVE_STATUS status;
   #endif
   const bool bPeriodic = false;
-  const std::string solver;
   int * row_ptrs = nullptr;
-  int64_t * col_indices = nullptr;
+  int * col_indices = nullptr;
+  size_t nNonZeroInMatrix = 0;
   amgx_val_t * dbuffer;
 
  public:

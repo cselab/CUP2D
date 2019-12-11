@@ -11,7 +11,11 @@
 
 #include "../Operator.h"
 
-class HYPREdirichletVarRho;
+#ifdef AMGX_POISSON
+  class AMGXdirichletVarRho;
+#else
+  class HYPREdirichletVarRho;
+#endif
 class PoissonSolver;
 
 class PressureVarRho_proper : public Operator

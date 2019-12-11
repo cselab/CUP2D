@@ -8,6 +8,8 @@
 
 
 #include "AMGXdirichletVarRho.h"
+#include <algorithm>
+#include "mpi.h"
 //#include "cuda_runtime.h"
 
 using namespace cubism;
@@ -39,8 +41,8 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     // 7) if user modified matrix, reassemble it so that hypre updates precond
 
   if(bUpdateMat) { // 7)
-    AMGX_matrix_upload_all(mat, totNy * totNx, totNy * totNx, nnz, 1, 1,
-                           row_ptrs, col_indices, matAry, NULL);
+    AMGX_matrix_upload_all(mat, totNy*totNx, nNonZeroInMatrix,
+                           1, 1, row_ptrs, col_indices, matAry, NULL);
     // set the connectivity information (for the vector)
     AMGX_vector_bind(sol, mat);
     AMGX_vector_bind(rhs, mat);
@@ -57,11 +59,11 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       dbuffer[blockStart + ix + stride*iy] = P(ix,iy).s; // 1)
   }
-  AMGX_vector_upload(sol, n, 1, dbuffer); // 3)
+  AMGX_vector_upload(sol, totNy*totNx, 1, dbuffer); // 3)
 
   cub2rhs(BSRC);
 
-  AMGX_vector_upload(rhs, n, 1, dbuffer); // 5)
+  AMGX_vector_upload(rhs, totNy*totNx, 1, dbuffer); // 5)
 
   sim.stopProfiler();
 
@@ -104,7 +106,7 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
 #define STRIDE s.vel->getBlocksPerDimension(0) * VectorBlock::sizeX
 
 AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
-  PoissonSolver(s, STRIDE), solver("gmres") //
+  PoissonSolver(s, STRIDE) //
 {
   #ifdef AMGX_POISSON
     #ifdef AMGX_DYNAMIC_LOADING
@@ -143,39 +145,49 @@ AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
     // own part of discretization points. Finally, the rhs and solution will be set to
     // a vector of ones and zeros, respectively.
     const size_t nDof = totNy * totNx;
-    row_ptrs    = (int     *) malloc(sizeof(int    ) * (nDof + 1));
-    col_indices = (int64_t *) malloc(sizeof(int64_t) *  nDof * 5 );
+    row_ptrs    = (int *) malloc(sizeof(int) * (nDof + 1));
+    col_indices = (int *) malloc(sizeof(int) *  nDof * 5 );
     matAry = (amgx_val_t *) malloc(nDof * 5 * sizeof(amgx_val_t));
-    size_t nnz = 0;
+    nNonZeroInMatrix = 0;
     for (size_t i = 0; i < nDof; ++i) {
-      row_ptrs[i] = nnz;
+      row_ptrs[i] = nNonZeroInMatrix;
       if ( i > totNy ) {
-        col_indices[nnz] = i - totNy; matAry[nnz] =  1;  ++nnz;
+        col_indices[nNonZeroInMatrix] = i - totNy;
+        matAry[nNonZeroInMatrix] =  1;
+        ++nNonZeroInMatrix;
       }
       if ( i % totNy not_eq 0 ) {
-        col_indices[nnz] = i - 1;     matAry[nnz] =  1;  ++nnz;
+        col_indices[nNonZeroInMatrix] = i - 1;
+        matAry[nNonZeroInMatrix] =  1;
+        ++nNonZeroInMatrix;
       }
       {
-        col_indices[nnz] = i;         matAry[nnz] = -4; ++nnz;
+        col_indices[nNonZeroInMatrix] = i;
+        matAry[nNonZeroInMatrix] = -4;
+        ++nNonZeroInMatrix;
       }
       if ( (i + 1) % totNy == 0 ) {
-        col_indices[nnz] = i + 1;     matAry[nnz] =  1;  ++nnz;
+        col_indices[nNonZeroInMatrix] = i + 1;
+        matAry[nNonZeroInMatrix] =  1;
+        ++nNonZeroInMatrix;
       }
       if (  i / totNy not_eq (totNx - 1) ) {
-        col_indices[nnz] = i + totNy; matAry[nnz] =  1;  ++nnz;
+        col_indices[nNonZeroInMatrix] = i + totNy;
+        matAry[nNonZeroInMatrix] =  1;
+        ++nNonZeroInMatrix;
       }
     }
-    row_ptrs[n] = nnz;
-    AMGX_SAFE_CALL(AMGX_matrix_upload_all(mat, nDof, nDof, nnz, 1, 1, row_ptrs,
-                                          col_indices, matAry, NULL) );
+    row_ptrs[nDof] = nNonZeroInMatrix;
+    AMGX_SAFE_CALL(AMGX_matrix_upload_all(mat, nDof, nNonZeroInMatrix, 1, 1,
+                                          row_ptrs, col_indices, matAry, NULL));
     // set the connectivity information (for the vector)
     AMGX_SAFE_CALL( AMGX_vector_bind(sol, mat) );
     AMGX_SAFE_CALL( AMGX_vector_bind(rhs, mat) );
     // generate the rhs and solution
-    std:fill(dbuffer, dbuffer + totNy * totNx, 0);
-    AMGX_SAFE_CALL( AMGX_vector_upload(rhs, n, 1, dbuffer) );
-    std:fill(dbuffer, dbuffer + totNy * totNx, 1);
-    AMGX_SAFE_CALL( AMGX_vector_upload(sol, n, 1, dbuffer) );
+    std::fill(dbuffer, dbuffer + totNy * totNx, 0);
+    AMGX_SAFE_CALL( AMGX_vector_upload(rhs, nDof, 1, dbuffer) );
+    std::fill(dbuffer, dbuffer + totNy * totNx, 1);
+    AMGX_SAFE_CALL( AMGX_vector_upload(sol, nDof, 1, dbuffer) );
   #endif
 }
 // let's relinquish STRIDE which was only added for clarity:

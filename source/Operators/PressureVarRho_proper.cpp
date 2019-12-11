@@ -8,7 +8,11 @@
 
 
 #include "PressureVarRho_proper.h"
+#ifdef AMGX_POISSON
+#include "../Poisson/AMGXdirichletVarRho.h"
+#else
 #include "../Poisson/HYPREdirichletVarRho.h"
+#endif
 
 using namespace cubism;
 static constexpr double EPS = std::numeric_limits<double>::epsilon();
