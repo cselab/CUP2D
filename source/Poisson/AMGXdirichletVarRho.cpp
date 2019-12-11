@@ -28,7 +28,7 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
   //static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   const size_t nBlocks = BDST.size();
 
-  sim.startProfiler("HYPRE_cub2rhs");
+  sim.startProfiler("AMGX_cub2rhs");
     // pre-hypre solve plan:
     // 1) place initial guess of pressure into vector x
     // 2) in the same compute discrepancy from sum RHS = 0
@@ -70,16 +70,16 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     sim.dumpTmp2( std::string(fname) );
   #endif
 
-  sim.startProfiler("HYPRE_solve");
+  sim.startProfiler("AMGX_solve");
   AMGX_solver_solve(solver, rhs, sol);
   //AMGX_SAFE_CALL( AMGX_solver_get_status(solver, &status) );
   sim.stopProfiler();
 
-  sim.startProfiler("HYPRE_getBoxV");
+  sim.startProfiler("AMGX_getBoxV");
   AMGX_vector_download(sol, dbuffer);
   sim.stopProfiler();
 
-  sim.startProfiler("HYPRE_sol2cub");
+  sim.startProfiler("AMGX_sol2cub");
 
   if(1) { // remove mean pressure
     double avgP = 0;
@@ -107,7 +107,6 @@ AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
   PoissonSolver(s, STRIDE), solver("gmres") //
 {
   #ifdef AMGX_POISSON
-
     #ifdef AMGX_DYNAMIC_LOADING
       void *lib_handle = lib_handle = amgx_libopen("libamgxsh.so");
       assert(lib_handle not_eq NULL && "ERROR: can not load the library");

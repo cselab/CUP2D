@@ -40,8 +40,8 @@ void advDiffGravStaggered::operator()(const double dt)
   #pragma omp parallel for schedule(dynamic)
   for (size_t i=0; i < Nblocks; i++) {
     VectorBlock & V = *(VectorBlock*) velInfo[i].ptrBlock;
-    for(int y=0; y<BSY && isE(velInfo[i]); ++y) V(EX, y).u[1] = V(EX-1, y).u[1];
-    for(int x=0; x<BSX && isN(velInfo[i]); ++x) V(x, EY).u[0] = V(x, EY-1).u[0];
+    if(isE(velInfo[i])) for(int y=0; y<BSY; ++y) V(EX,y).u[1] = V(EX-1,y).u[1];
+    if(isN(velInfo[i])) for(int x=0; x<BSX; ++x) V(x,EY).u[0] = V(x,EY-1).u[0];
   }
 
   const Real UINF[2]= {sim.uinfx, sim.uinfy}, h = sim.getH();
@@ -78,13 +78,13 @@ void advDiffGravStaggered::operator()(const double dt)
       for (int ix = loopBeg; ix < 0; ++ix) fade(V(ix,iy), fadeW);
 
       if (isE(velInfo[i])) for (int iy = loopBeg; iy < loopEnd; ++iy)
-      for (int ix = BSX; ix < loopEnd; ++ix) fade(V(EX+1,iy), fadeE);
+      for (int ix = BSX; ix < loopEnd; ++ix) fade(V(ix,iy), fadeE);
 
       if (isS(velInfo[i])) for (int iy = loopBeg; iy < 0; ++iy)
-      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,BY-1), fadeS);
+      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,iy), fadeS);
 
       if (isN(velInfo[i])) for (int iy = BSY; iy < loopEnd; ++iy)
-      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,EY+1), fadeN);
+      for (int ix = loopBeg; ix < loopEnd; ++ix) fade(V(ix,iy), fadeN);
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
@@ -92,7 +92,7 @@ void advDiffGravStaggered::operator()(const double dt)
         const Real gravFacU = G[0] * ( 1 - (IRHO(ix-1,iy).s+IRHO(ix,iy).s)/2 );
         const Real gravFacV = G[1] * ( 1 - (IRHO(ix,iy-1).s+IRHO(ix,iy).s)/2 );
 
-        const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
+        const Real ucc  = V(ix  , iy).u[0], vcc  = V(ix, iy  ).u[1];
         const Real up1x = V(ix+1, iy).u[0], up1y = V(ix, iy+1).u[0];
         const Real ul1x = V(ix-1, iy).u[0], ul1y = V(ix, iy-1).u[0];
         const Real vp1x = V(ix+1, iy).u[1], vp1y = V(ix, iy+1).u[1];

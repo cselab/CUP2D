@@ -253,7 +253,8 @@ void Simulation::simulate()
 double Simulation::calcMaxTimestep()
 {
   const auto findMaxU_op = findMaxU(sim);
-  sim.uMax_measured = findMaxU_op.run(); assert(maxU>=0);
+  sim.uMax_measured = findMaxU_op.run();
+  assert(sim.uMax_measured>=0);
 
   const double h = sim.getH();
   const double dtFourier = h*h/sim.nu;

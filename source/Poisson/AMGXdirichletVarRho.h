@@ -18,7 +18,7 @@
 #endif
 #endif
 
-class HYPREdirichletVarRho : public PoissonSolver
+class AMGXdirichletVarRho : public PoissonSolver
 {
   #ifdef AMGX_POISSON
     AMGX_Mode mode;
@@ -88,11 +88,11 @@ class HYPREdirichletVarRho : public PoissonSolver
   void solve(const std::vector<cubism::BlockInfo>& BSRC,
              const std::vector<cubism::BlockInfo>& BDST) override;
 
-  HYPREdirichletVarRho(SimulationData& s);
+  AMGXdirichletVarRho(SimulationData& s);
 
   std::string getName() {
-    return "hypre";
+    return "amgx";
   }
 
-  ~HYPREdirichletVarRho() override;
+  ~AMGXdirichletVarRho() override;
 };
