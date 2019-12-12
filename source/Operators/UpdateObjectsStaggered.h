@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../Operator.h"
+//#define MULTI_CHI_DEFINITIONS
 
 class Shape;
 

@@ -72,7 +72,9 @@ void UpdateObjectsStaggered::penalize(const double dt) const
   {
     static constexpr int stenBeg[3] = {-1,-1,0}, stenEnd[3] = {1,1,1};
     VectorLab udefLab; udefLab.prepare(*(sim.uDef), stenBeg, stenEnd, 0);
-    //ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
+    #ifndef MULTI_CHI_DEFINITIONS
+      ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
+    #endif
 
     #pragma omp for schedule(dynamic, 1)
     for (size_t i=0; i < Nblocks; i++)
@@ -84,25 +86,36 @@ void UpdateObjectsStaggered::penalize(const double dt) const
 
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
       const Real US = shape->u, VS = shape->v, WS = shape->omega;
+      #ifdef MULTI_CHI_DEFINITIONS
+        const CHI_MAT & __restrict__ Xx = o->chiX;
+        const CHI_MAT & __restrict__ Xy = o->chiY;
+      #else
+        const CHI_MAT & __restrict__ X = o->chi;
+        chiLab.load(chiInfo[i],0);  const auto& __restrict__ CHI = chiLab;
+      #endif
 
-      //const CHI_MAT & __restrict__ X = o->chi;
-      const CHI_MAT & __restrict__ Xx = o->chiX;
-      const CHI_MAT & __restrict__ Xy = o->chiY;
-      //const UDEFMAT & __restrict__ udef = o->udef;
-            auto& __restrict__    V = *(VectorBlock*) velInfo[i].ptrBlock;
-      udefLab.load(uDefInfo[i],0); const auto& __restrict__ UDEF = udefLab;
-      //chiLab.load(chiInfo[i],0);  const auto& __restrict__ CHI = chiLab;
+      auto& __restrict__ V = * (VectorBlock*) velInfo[i].ptrBlock;
+      udefLab.load(uDefInfo[i], 0); const auto& __restrict__ UDEF = udefLab;
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
+        #ifdef MULTI_CHI_DEFINITIONS
+          const Real penX = Xx[iy][ix], penY = Xy[iy][ix];
+        #else
+          const Real CHIX = (CHI(ix,iy).s + CHI(ix-1,iy).s) / 2;
+          const Real CHIY = (CHI(ix,iy).s + CHI(ix,iy-1).s) / 2;
+          const Real CHIXO = (X[iy][ix]+(ix>0? X[iy][ix-1] : CHI(ix-1,iy).s))/2;
+          const Real CHIYO = (X[iy][ix]+(iy>0? X[iy-1][ix] : CHI(ix,iy-1).s))/2;
+          const Real penX = CHIX>CHIXO? 0 : CHIXO, penY = CHIY>CHIYO? 0 : CHIYO;
+        #endif
         // What if multiple obstacles share a block? Do not penalize with this
         // obstacle if CHI stored on the grid is greater than obstacle's CHI.
         Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
         const Real UDEFX = (UDEF(ix,iy).u[0] + UDEF(ix-1,iy).u[0]) / 2;
         const Real UDEFY = (UDEF(ix,iy).u[1] + UDEF(ix,iy-1).u[1]) / 2;
-        V(ix,iy).u[0] += Xx[iy][ix] * (US - WS*p[1] + UDEFX - V(ix,iy).u[0]);
-        V(ix,iy).u[1] += Xy[iy][ix] * (VS + WS*p[0] + UDEFY - V(ix,iy).u[1]);
+        V(ix,iy).u[0] += penX * (US - WS*p[1] + UDEFX - V(ix,iy).u[0]);
+        V(ix,iy).u[1] += penY * (VS + WS*p[0] + UDEFY - V(ix,iy).u[1]);
       }
     }
   }

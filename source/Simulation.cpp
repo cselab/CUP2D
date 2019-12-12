@@ -189,7 +189,11 @@ void Simulation::init()
     // do not employ Dodd and Ferrante. It just does not work:
     sim.iterativePenalization = false;
     sim.bStaggeredGrid = true;
-    pipeline.push_back( new PutObjectsOnGridStaggered(sim) );
+    #ifdef MULTI_CHI_DEFINITIONS
+      pipeline.push_back( new PutObjectsOnGridStaggered(sim) );
+    #else
+      pipeline.push_back( new PutObjectsOnGrid(sim) );
+    #endif
     pipeline.push_back( new advDiffGravStaggered(sim) );
     pipeline.push_back( new UpdateObjectsStaggered(sim) );
     //pipeline.push_back( new PressureSingleStaggered(sim) );
