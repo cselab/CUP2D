@@ -32,6 +32,8 @@ export OMP_NUM_THREADS=12
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
+AMGXCONF=FGMRES_NOPREC.json
+cp /users/novatig/AMGX/gnu9.1/lib/configs/core/${AMGXCONF} ${FOLDERNAME}/AMGX_setup.json
 
 # did we allocate a node?
 srun hostname &> /dev/null

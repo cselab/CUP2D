@@ -108,6 +108,13 @@ void AMGXdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
 AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
   PoissonSolver(s, STRIDE) //
 {
+  buffer = new Real[totNy * totNx];
+  #ifdef _FLOAT_PRECISION_
+    dbuffer = new double[totNy * totNx];
+  #else
+    dbuffer = buffer;
+  #endif
+
   #ifdef AMGX_POISSON
     #ifdef AMGX_DYNAMIC_LOADING
       void *lib_handle = lib_handle = amgx_libopen("libamgxsh.so");
@@ -121,7 +128,8 @@ AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
     // TODO WHAT IS MODE?
     mode = AMGX_mode_dDDI; // AMGX_mode_dDFI / AMGX_mode_dFFI
     // TODO WHAT IS CONFIG?
-    AMGX_SAFE_CALL( AMGX_config_create(&config, "") );
+    //AMGX_SAFE_CALL(AMGX_config_create(&config, "") );
+    AMGX_SAFE_CALL(  AMGX_config_create_from_file(&config, "AMGX_setup.json") );
 
     if (sizeof(amgx_val_t) == sizeof(double)) {
       assert(AMGX_GET_MODE_VAL(AMGX_MatPrecision,mode) == AMGX_matDouble);
@@ -138,6 +146,7 @@ AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
     AMGX_SAFE_CALL(AMGX_vector_create(&sol, workspace, mode));
     AMGX_SAFE_CALL(AMGX_vector_create(&rhs, workspace, mode));
     AMGX_SAFE_CALL(AMGX_solver_create(&solver, workspace, mode, config));
+
     //generate 3D Poisson matrix, [and rhs & solution]
     // generate the matrix: this routine will create 2D (5 point) discretization of the
     // Poisson operator. The discretization is performed on a the 2D domain consisting
@@ -154,35 +163,39 @@ AMGXdirichletVarRho::AMGXdirichletVarRho(SimulationData& s) :
       if ( i > totNy ) {
         col_indices[nNonZeroInMatrix] = i - totNy;
         matAry[nNonZeroInMatrix] =  1;
-        ++nNonZeroInMatrix;
+        nNonZeroInMatrix++;
       }
       if ( i % totNy not_eq 0 ) {
         col_indices[nNonZeroInMatrix] = i - 1;
         matAry[nNonZeroInMatrix] =  1;
-        ++nNonZeroInMatrix;
+        nNonZeroInMatrix++;
       }
       {
         col_indices[nNonZeroInMatrix] = i;
         matAry[nNonZeroInMatrix] = -4;
-        ++nNonZeroInMatrix;
+        nNonZeroInMatrix++;
       }
       if ( (i + 1) % totNy == 0 ) {
         col_indices[nNonZeroInMatrix] = i + 1;
         matAry[nNonZeroInMatrix] =  1;
-        ++nNonZeroInMatrix;
+        nNonZeroInMatrix++;
       }
       if (  i / totNy not_eq (totNx - 1) ) {
         col_indices[nNonZeroInMatrix] = i + totNy;
         matAry[nNonZeroInMatrix] =  1;
-        ++nNonZeroInMatrix;
+        nNonZeroInMatrix++;
       }
+      assert(nNonZeroInMatrix <= nDof * 5);
     }
     row_ptrs[nDof] = nNonZeroInMatrix;
+
     AMGX_SAFE_CALL(AMGX_matrix_upload_all(mat, nDof, nNonZeroInMatrix, 1, 1,
                                           row_ptrs, col_indices, matAry, NULL));
+
     // set the connectivity information (for the vector)
     AMGX_SAFE_CALL( AMGX_vector_bind(sol, mat) );
     AMGX_SAFE_CALL( AMGX_vector_bind(rhs, mat) );
+
     // generate the rhs and solution
     std::fill(dbuffer, dbuffer + totNy * totNx, 0);
     AMGX_SAFE_CALL( AMGX_vector_upload(rhs, nDof, 1, dbuffer) );
