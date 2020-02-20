@@ -88,8 +88,8 @@ struct ObstacleBlock
   void clear()
   {
     clear_surface();
-    memset(chi, 0, sizeof(Real)*sizeX*sizeY);
-    memset(dist, 0, sizeof(Real)*sizeX*sizeY);
+    std::fill(dist[0], dist[0] + sizeX * sizeY, -1);
+    std::fill(chi [0], chi [0] + sizeX * sizeY,  0);
     memset(rho, 0, sizeof(Real)*sizeX*sizeY);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*2);
   }

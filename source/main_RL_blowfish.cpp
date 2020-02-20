@@ -24,6 +24,8 @@ using namespace cubism;
 // max number of actions per simulation
 // range of angles in initial conditions
 
+static bool bVerbose = true;
+
 inline void resetIC(BlowFish* const agent, smarties::Communicator*const c)
 {
   const Real A = 5*M_PI/180; // start between -5 and 5 degrees
@@ -51,7 +53,10 @@ inline std::vector<double> getState(const BlowFish* const agent)
   const double WL = agent->flapVel_L * agent->timescale;
   const double AR = agent->flapAng_R, AL = agent->flapAng_L;
   std::vector<double> states = {U, V, w, angle, AR, AL, WR, WL};
-  printf("Sending [%f %f %f %f %f %f %f %f]\n", U,V,w,angle,AR,AL,WR,WL);
+  if(bVerbose) {
+    printf("Sending [%f %f %f %f %f %f %f %f]\n", U,V,w,angle,AR,AL,WR,WL);
+    fflush(0);
+  }
   return states;
 }
 
@@ -75,8 +80,7 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
   bool bTrouble = false;
   if(std::isnan(reward)) bTrouble = true;
   for(size_t i=0; i<state.size(); i++) if(std::isnan(state[i])) bTrouble = true;
-  if ( bTrouble )
-  {
+  if ( bTrouble ) {
     reward = -100;
     printf("Caught a nan!\n");
     state = std::vector<double>(state.size(), 0);
@@ -94,9 +98,8 @@ inline void app_main(
   MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
   int argc, char**argv             // args read from app's runtime settings file
 ) {
-  for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
   const int nActions = 2, nStates = 8;
-  const unsigned maxLearnStepPerSim = comm->isTraining()? 500
+  const unsigned maxLearnStepPerSim = comm->isTraining()? 200
                                      : std::numeric_limits<int>::max();
 
   comm->setStateActionDims(nStates, nActions);
@@ -157,7 +160,7 @@ inline void app_main(
       double reward = getReward(agent);
 
       if ( agentOver || checkNaN(state, reward) ) {
-        printf("Agent failed\n"); fflush(0);
+        printf("Agent failed after %u steps.\n", step); fflush(0);
         comm->sendTermState(state, reward);
         break;
       }

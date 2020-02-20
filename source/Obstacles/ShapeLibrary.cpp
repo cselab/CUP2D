@@ -27,9 +27,12 @@ void FillBlocks_Cylinder::operator()(const BlockInfo& I,
   for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
   {
     Real p[2]; I.pos(p, ix, iy); p[0] -= pos[0]; p[1] -= pos[1];
-    O.dist[iy][ix] = distanceTocylinder(p[0], p[1]);
-    B(ix,iy).s = std::max( B(ix,iy).s, O.dist[iy][ix] );
-    O.rho[iy][ix] = rhoS;
+    const Real dist = distanceTocylinder(p[0], p[1]);
+    if( dist > O.dist[iy][ix] ) {
+      O.dist[iy][ix] = dist;
+      B(ix,iy).s = std::max( B(ix,iy).s, dist );
+      O.rho[iy][ix] = rhoS;
+    }
   }
 }
 
@@ -43,9 +46,12 @@ void FillBlocks_HalfCylinder::operator()(const BlockInfo& I,
     for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
     {
       Real p[2]; I.pos(p, ix, iy); p[0] -= pos[0]; p[1] -= pos[1];
-      O.dist[iy][ix] = distanceTocylinder(p[0], p[1]);
-      B(ix,iy).s = std::max( B(ix,iy).s, O.dist[iy][ix] );
-      O.rho[iy][ix] = rhoS;
+      const Real dist = distanceTocylinder(p[0], p[1]);
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        O.rho[iy][ix] = rhoS;
+      }
     }
   }
 }
@@ -60,15 +66,17 @@ void FillBlocks_VarRhoCylinder::operator()(const BlockInfo& I,
     for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
     {
       Real p[2]; I.pos(p, ix, iy); p[0] -= pos[0]; p[1] -= pos[1];
-      O.dist[iy][ix] = distanceTocylinder(p[0], p[1]);
-      B(ix,iy).s = std::max( B(ix,iy).s, O.dist[iy][ix] );
-
-      //const Real x =  p[0]*cosang + p[1]*sinang;
-      const Real y = -p[0]*sinang + p[1]*cosang;
-      const Real Y = 0.5*y/h; //>0 is top, <0 is bottom
-      const Real moll = Y>1 ? 0 : (Y<-1 ? 1 : mollified_heaviside(Y));
-      //const Real moll = Y>0 ? 0 : 1;
-      O.rho[iy][ix] = (1-moll)*rhoTop + moll*rhoBot;
+      const Real dist = distanceTocylinder(p[0], p[1]);
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        //const Real x =  p[0]*cosang + p[1]*sinang;
+        const Real y = -p[0]*sinang + p[1]*cosang;
+        const Real Y = 0.5*y/h; //>0 is top, <0 is bottom
+        const Real moll = Y>1 ? 0 : (Y<-1 ? 1 : mollified_heaviside(Y));
+        //const Real moll = Y>0 ? 0 : 1;
+        O.rho[iy][ix] = (1-moll)*rhoTop + moll*rhoBot;
+      }
     }
   }
 }
@@ -83,11 +91,14 @@ void FillBlocks_Plate::operator()(const BlockInfo& I,
     for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
     {
       Real p[2]; I.pos(p, ix, iy); p[0] -= pos[0]; p[1] -= pos[1];
-      O.udef[iy][ix][0] = -p[1]*angvel;
-      O.udef[iy][ix][1] =  p[0]*angvel;
-      O.dist[iy][ix] = distance(p[0], p[1]);
-      B(ix,iy).s = std::max( B(ix,iy).s, O.dist[iy][ix] );
-      O.rho[iy][ix] = rhoS;
+      const Real dist = distance(p[0], p[1]);
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        O.rho[iy][ix] = rhoS;
+        O.udef[iy][ix][0] = -p[1]*angvel;
+        O.udef[iy][ix][1] =  p[0]*angvel;
+      }
     }
   }
 }
@@ -115,9 +126,11 @@ void FillBlocks_Ellipse::operator()(const BlockInfo& I,
         const int sign = sqDist > (xs[0]*xs[0]+xs[1]*xs[1]) ? -1 : 1;
         dist = sign * absdist;
       }
-      O.dist[iy][ix] = dist;
-      B(ix,iy).s = std::max( B(ix,iy).s, dist );
-      O.rho[iy][ix] = rhoS;
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        O.rho[iy][ix] = rhoS;
+      }
     }
   }
 }
@@ -145,12 +158,14 @@ void FillBlocks_VarRhoEllipse::operator()(const BlockInfo& I,
         const int sign = sqDist > (xs[0]*xs[0]+xs[1]*xs[1]) ? -1 : 1;
         dist = sign * absdist;
       }
-      O.dist[iy][ix] = dist;
-      B(ix,iy).s = std::max( B(ix,iy).s, dist );
-      const Real y = -p[0]*sinang + p[1]*cosang;
-      const Real Y = 0.5 * y / h; //>0 is top, <0 is bottom
-      const Real moll = Y>1 ? 0 : (Y<-1 ? 1 : mollified_heaviside(Y));
-      O.rho[iy][ix] = (1-moll)*rhoTop + moll*rhoBot;
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        const Real y = -p[0]*sinang + p[1]*cosang;
+        const Real Y = 0.5 * y / h; //>0 is top, <0 is bottom
+        const Real moll = Y>1 ? 0 : (Y<-1 ? 1 : mollified_heaviside(Y));
+        O.rho[iy][ix] = (1-moll)*rhoTop + moll*rhoBot;
+      }
     }
   }
 }
