@@ -1,4 +1,4 @@
-//
+ //
 //  CubismUP_2D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
