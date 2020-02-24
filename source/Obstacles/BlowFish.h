@@ -23,15 +23,15 @@ class BlowFish : public Shape
   const double rhoBot = 0.5; //bot half
   const double rhoFin = 1.0; //fins
 
-  const Real finLength = 0.5*radius; //fins
-  const Real finWidth  = 0.1*radius; //fins
+  const Real finLength = 0.5 * radius; //fins
+  const Real finWidth  = 0.1 * radius; //fins
   const Real finAngle0 = M_PI/6; //fins
 
-  const Real attachDist = radius + std::max(finWidth, (Real)sim.getH()*2);
+  const Real attachDist = radius + std::max(finWidth, (Real) sim.getH() * 2);
   //Real powerOutput = 0, old_powerOutput = 0;
   const Real deltaRho = 0.5; //ASSUME RHO FLUID == 1
   // analytical period of oscillation for small angles
-  const Real timescale = sqrt(3*M_PI*radius/deltaRho/fabs(sim.gravity[1])/8);
+  const Real timescale = std::sqrt(3*M_PI * radius / deltaRho / std::fabs(sim.gravity[1]) / 8);
   const Real minRho = std::min(rhoTop,rhoBot), maxRho = std::max(rhoTop,rhoBot);
 
   BlowFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);

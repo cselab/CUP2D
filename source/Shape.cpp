@@ -144,9 +144,9 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
       _a += rhochi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
     }
   }
-  assert(std::fabs(_x)     < 10*std::numeric_limits<Real>::epsilon() );
-  assert(std::fabs(_y)     < 10*std::numeric_limits<Real>::epsilon() );
-  assert(std::fabs(M - _m) < 10*std::numeric_limits<Real>::epsilon() );
+  // assert(std::fabs(_x)     < 10*std::numeric_limits<Real>::epsilon() );
+  // assert(std::fabs(_y)     < 10*std::numeric_limits<Real>::epsilon() );
+  // assert(std::fabs(M - _m) < 10*std::numeric_limits<Real>::epsilon() );
   // turn moments into velocities:
   _u /= _m;
   _v /= _m;

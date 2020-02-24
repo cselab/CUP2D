@@ -65,7 +65,7 @@ void HYPREdirichletVarRho::solve(const std::vector<BlockInfo>& BSRC,
     HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, dbuffer); // 5)
   }
 
-  if(bUpdateMat) printf("UPDATING THE MATRIX\n");
+  if(bUpdateMat and sim.verbose) printf("UPDATING THE MATRIX\n");
 
   if(bUpdateMat) { // 7)
     double * const linV = (double*) matAry;
