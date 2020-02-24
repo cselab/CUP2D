@@ -486,8 +486,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
         changeVelocityToComputationalFrame(udef);
         // support is two points left, two points right --> Towers Chi will
         // be one point left, one point right, but needs SDF wider
-        for(int sy =std::max(0, iap[1]-1); sy <std::min(iap[1]+3, BS[1]); ++sy)
-        for(int sx =std::max(0, iap[0]-1); sx <std::min(iap[0]+3, BS[0]); ++sx)
+        for(int sy =std::max(0, iap[1]-2); sy <std::min(iap[1]+4, BS[1]); ++sy)
+        for(int sx =std::max(0, iap[0]-2); sx <std::min(iap[0]+4, BS[0]); ++sx)
         {
           Real p[2];
           info.pos(p, sx, sy);
