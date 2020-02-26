@@ -93,7 +93,7 @@ void Naca::updateVelocity(double dt)
   // pattern) or self propelled, here we do not touch it.
   time += dt;
   const Real arga = 2*M_PI*Fpitch*time;
-  omega = 2*M_PI*Fpitch*Apitch*std::cos(arga); // last term is [(center of mass - rotation axis)*L]^2 according to parallel axis theorem
-  u = (0.399421-0.106667)*length*std::cos(arga)*omega;
-  v = -(0.399421-0.106667)*length*std::sin(arga)*omega;
+  omega += 2*M_PI*Fpitch*Apitch*std::cos(arga); // last term is [(center of mass - rotation axis)*L]^2 according to parallel axis theorem
+  u += (0.399421-0.106667)*length*std::cos(arga)*omega;
+  v += -(0.399421-0.106667)*length*std::sin(arga)*omega;
 }
