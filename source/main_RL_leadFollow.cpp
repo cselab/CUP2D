@@ -29,7 +29,12 @@ inline void resetIC(StefanFish* const a, Shape*const p,
 {
   std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
   std::uniform_real_distribution<double> disX(0, 0.5),  disY(-0.25, 0.25);
-  const double SX = c->isTraining()? disX(c->getPRNG()) : 0.25;
+  #if 1
+  // cylFollow
+  const double SX = c->isTraining()? disX(c->getPRNG()) : 0.35;
+  #else
+  const double SX = c->isTraining()? disX(c->getPRNG()) : 0.5;
+  #endif
   const double SY = c->isTraining()? disY(c->getPRNG()) : 0.00;
   const double SA = c->isTraining()? disA(c->getPRNG()) : 0.00;
   double C[2] = { p->center[0] + (1+SX)*a->length,
@@ -50,7 +55,15 @@ inline bool isTerminal(const StefanFish*const a, const Shape*const p) {
   const double X = ( a->center[0] - p->center[0] )/ a->length;
   const double Y = ( a->center[1] - p->center[1] )/ a->length;
   assert(X>0);
-  return std::fabs(Y)>1 || X<0.5 || X>3;
+  #if 1
+    // cylFollow
+    return std::fabs(Y)>1 || X<0.5 || X>3;
+  #else
+    // extended follow 
+    // return std::fabs(Y)>1 || X<1 || X>3;
+    // restricted follow
+    return std::fabs(Y)>0.75 || X<1 || X>2;
+  #endif
 }
 
 inline double getReward(const StefanFish* const a, const Shape*const p) {
@@ -84,12 +97,18 @@ inline void app_main(
   for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
   #ifdef STEFANS_SENSORS_STATE
     const int nActions = 2, nStates = 16;
+    comm->setStateActionDims(nStates, nActions);
+    std::vector<bool> b_observable =  //{ false, false, false, false, false, false, false, false, false, false, //blind fish
+                                      { true, true, true, true, true, true, true, true, true, true, //vision
+                                      //  false, false, false, false, false, false }; // no shear 
+                                        true, true, true, true, true, true }; //shear
+    comm->setStateObservable(b_observable);
   #else
     const int nActions = 2, nStates = 10;
+    comm->setStateActionDims(nStates, nActions);
   #endif
   const unsigned maxLearnStepPerSim = 200; // random number... TODO
 
-  comm->setStateActionDims(nStates, nActions);
   // Tell smarties that action space should be bounded.
   // First action modifies curvature, only makes sense between -1 and 1
   // Second action affects Tp = (1+act[1])*Tperiod_0 (eg. halved if act[1]=-.5).
