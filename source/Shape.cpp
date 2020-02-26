@@ -53,7 +53,7 @@ void Shape::updateVelocity(double dt)
   gsl_linalg_LU_decomp (& Agsl.matrix, permgsl, & sgsl);
   gsl_linalg_LU_solve (& Agsl.matrix, permgsl, & bgsl.vector, xgsl);
 
-  if(not bForcedy  || sim.time > timeForced)  u     = gsl_vector_get(xgsl, 0);
+  if(not bForcedx  || sim.time > timeForced)  u     = gsl_vector_get(xgsl, 0);
   if(not bForcedy  || sim.time > timeForced)  v     = gsl_vector_get(xgsl, 1);
   if(not bBlockang || sim.time > timeForced)  omega = gsl_vector_get(xgsl, 2);
 }
