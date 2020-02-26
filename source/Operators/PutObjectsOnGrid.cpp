@@ -169,7 +169,7 @@ void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
     for(int iy=0; iy<VectorBlock::sizeY; iy++)
     for(int ix=0; ix<VectorBlock::sizeX; ix++)
     {
-      if( chi[iy][ix] < CHI(ix,iy).s || chi[iy][ix] <= 0) continue;
+      if( chi[iy][ix] < CHI(ix,iy).s) continue;
       Real p[2]; uDefInfo[i].pos(p, ix, iy);
       UDEF(ix, iy).u[0] += udef[iy][ix][0];
       UDEF(ix, iy).u[1] += udef[iy][ix][1];
