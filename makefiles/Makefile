@@ -27,6 +27,11 @@ ifneq "$(findstring daint,$(shell hostname))" ""
 include make.daint
 endif
 
+ifneq "$(findstring barry,$(shell hostname))" ""
+include make.barry
+endif
+
+
 CXX=$(MPICXX)
 LD=$(MPICXX)
 

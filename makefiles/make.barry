@@ -1,0 +1,5 @@
+CPPFLAGS+= -I/home/webepasc/gsl-2.6/include/
+LIBS+= -L/home/webepasc/gsl-2.6/lib/
+
+CPPFLAGS+= -I/home/webepasc/hypre-2.11.2/src/hypre/include/
+LIBS+= -L/home/webepasc/hypre-2.11.2/src/hypre/lib/
