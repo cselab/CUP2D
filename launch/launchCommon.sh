@@ -67,7 +67,7 @@ else
 
 BASEPATH="../runs/"
 NCPUSTR=`lscpu | grep "Core"`
-export OMP_NUM_THREADS=${NCPUSTR: -3}
+export OMP_NUM_THREADS=2
 echo "Setting nThreads to "${OMP_NUM_THREADS}
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
