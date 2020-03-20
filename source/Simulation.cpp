@@ -31,6 +31,7 @@
 #include "Obstacles/ShapesSimple.h"
 #include "Obstacles/CarlingFish.h"
 #include "Obstacles/StefanFish.h"
+#include "Obstacles/CStartFish.h"
 #include "Obstacles/BlowFish.h"
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Glider.h"
@@ -155,6 +156,8 @@ void Simulation::createShapes()
         shape = new Glider(           sim, ffparser, center);
       else if (objectName=="stefanfish")
         shape = new StefanFish(       sim, ffparser, center);
+      else if (objectName=="cstartfish")
+        shape = new CStartFish(       sim, ffparser, center);
       else if (objectName=="carlingfish")
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )

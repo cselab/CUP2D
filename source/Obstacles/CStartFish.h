@@ -11,7 +11,7 @@
 
 //#define STEFANS_SENSORS_STATE
 
-class StefanFish: public Fish
+class CStartFish: public Fish
 {
     const bool bCorrectTrajectory;
     const bool bCorrectPosition;
@@ -21,7 +21,7 @@ public:
     double getPhase(const double t) const;
 
     void resetAll() override;
-    StefanFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
+    CStartFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
     void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
     // member functions for state/reward

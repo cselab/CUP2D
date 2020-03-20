@@ -1,6 +1,6 @@
 /* main_RL_cStart.cpp
  * Created by Ioannis Mandralis (ioannima@ethz.ch)
- * Main script for a single StefanFish learning a fast start
+ * Main script for a single CStartFish learning a fast start
 */
 
 #include <unistd.h>
@@ -8,7 +8,7 @@
 
 #include "smarties.h"
 #include "Simulation.h"
-#include "Obstacles/StefanFish.h"
+#include "Obstacles/CStartFish.h"
 
 using namespace cubism;
 //
@@ -21,20 +21,20 @@ using namespace cubism;
 // max number of actions per simulation
 // range of angles in initial conditions
 
-inline void resetIC(StefanFish* const a, smarties::Communicator*const c)
+inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 {
     std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
     const double SA = c->isTraining()? disA(c->getPRNG()) : 0.00;
     a->setOrientation(SA);
 }
 
-inline void setAction(StefanFish* const agent,
+inline void setAction(CStartFish* const agent,
                       const std::vector<double> act, const double t)
 {
     agent->act(t, act);
 }
 
-inline bool isTerminal(const StefanFish*const a) {
+inline bool isTerminal(const CStartFish*const a) {
 
     // Terminate when the fish exits a radius of one characteristic lengths
     double charLength = a->getCharLength();
@@ -44,7 +44,7 @@ inline bool isTerminal(const StefanFish*const a) {
     return (radialPos >= charLength);
 }
 
-inline double getReward(const StefanFish* const a, const double& dt) {
+inline double getReward(const CStartFish* const a, const double& dt) {
     // Reward is negative the time between each action
     // time dependent
     // distance from initial condition.
@@ -68,7 +68,7 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
     return bTrouble;
 }
 
-inline double getTimeToNextAct(const StefanFish* const agent, const double t) {
+inline double getTimeToNextAct(const CStartFish* const agent, const double t) {
     return t + agent->getLearnTPeriod() / 2;
 }
 
@@ -103,8 +103,8 @@ inline void app_main(
     Simulation sim(argc, argv);
     sim.init();
 
-    StefanFish*const agent = dynamic_cast<StefanFish*>( sim.getShapes()[0] );
-    if(agent==nullptr) { printf("Agent was not a StefanFish!\n"); abort(); }
+    CStartFish*const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
+    if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
 
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
