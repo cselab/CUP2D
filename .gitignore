@@ -57,3 +57,5 @@ runs/
 engine_cmaes
 
 *.swp
+
+*.idea
