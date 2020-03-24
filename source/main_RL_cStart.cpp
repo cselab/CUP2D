@@ -10,6 +10,8 @@
 #include "Simulation.h"
 #include "Obstacles/CStartFish.h"
 
+static bool bVerbose = true;
+
 using namespace cubism;
 //
 // All these functions are defined here and not in object itself because
@@ -21,8 +23,18 @@ using namespace cubism;
 // max number of actions per simulation
 // range of angles in initial conditions
 
+inline double getRadialDisplacement(const CStartFish*const a) {
+    double com[2] = {0, 0};
+    a->getLabPosition(com);
+    double radialPos = std::sqrt(std::pow(com[0], 2) + std::pow(com[1], 2));
+    return radialPos;
+}
+
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 {
+    // Maybe randomize the initial curvature of the fish.
+    // Note: the fish always starts at xpos = 0.5...how do I incorporate this for sure.
+
     std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
     const double SA = c->isTraining()? disA(c->getPRNG()) : 0.00;
     a->setOrientation(SA);
@@ -35,16 +47,12 @@ inline void setAction(CStartFish* const agent,
 }
 
 inline bool isTerminal(const CStartFish*const a) {
-
-    // Terminate when the fish exits a radius of one characteristic lengths
+    // Terminate when the fish exits a radius of two characteristic lengths
     double charLength = a->getCharLength();
-    double com[2] = {0, 0};
-    a->getLabPosition(com);
-    double radialPos = std::sqrt(std::pow(com[0], 2) + std::pow(com[1], 2));
-    return (radialPos >= charLength);
+    return (getRadialDisplacement(a) >= 2 * charLength);
 }
 
-inline double getReward(const CStartFish* const a, const double& dt) {
+inline double getReward(const CStartFish* const a, const double& t_elapsed) {
     // Reward is negative the time between each action
     // time dependent
     // distance from initial condition.
@@ -52,7 +60,10 @@ inline double getReward(const CStartFish* const a, const double& dt) {
     // minimize energy ? would use the motion with maximum energy...
     // (efficiency)
     // only control the curvature
-    return -dt;
+    double reward = isTerminal(a)? getRadialDisplacement(a) - t_elapsed : getRadialDisplacement(a);
+    if (bVerbose) {printf("Stage reward is: %f \n", reward);}
+    return reward;
+
 }
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
@@ -77,6 +88,7 @@ inline void app_main(
         MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
         int argc, char**argv             // args read from app's runtime settings file
 ) {
+    printf("IN APP MAIN");
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
     #ifdef STEFANS_SENSORS_STATE
     const int nActions = 2, nStates = 16;

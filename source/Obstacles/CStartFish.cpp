@@ -179,8 +179,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
         const Real arg = arg0 - 2*M_PI*rS[i]/length/waveLength;
-        rK[i] = amplitudeFactor * rC[i];
-        vK[i] = amplitudeFactor * vC[i];
+        rK[i] = amplitudeFactor * (rC[i] + rB[i]);
+        vK[i] = amplitudeFactor * (vC[i] + vB[i]);
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
         assert(not std::isnan(vK[i]));
@@ -262,6 +262,7 @@ void CStartFish::create(const std::vector<BlockInfo>& vInfo)
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
     const double DT = sim.dt/Tperiod, time = sim.time;
+
     // Control pos diffs
     const double   xDiff = (centerOfMass[0] - origC[0])/length;
     const double   yDiff = (centerOfMass[1] - origC[1])/length;
@@ -593,7 +594,7 @@ std::vector<double> CStartFish::getCStartState() const
     S[5] = getV() * Tperiod / length;
     S[6] = getW() * Tperiod;
     S[7] = cFish->lastTact; //proprioception  - fish knows its current shape
-    S[8] = cFish->lastCurv; // 3 curvature controls instead of 1
+    S[8] = cFish->lastCurv; // could have 3 curvature controls instead of 1 e.g
     S[9] = cFish->oldrCurv;
     return S;
 }
