@@ -42,20 +42,28 @@ public:
 protected:
     Real * const rK;
     Real * const vK;
-    Real * const rC;
-    Real * const vC;
+    Real * const rBC;
+    Real * const vBC;
+    Real * const rUC;
+    Real * const vUC;
     Real * const rB;
     Real * const vB;
+    Real tauTail;
 
-    // next scheduler is used to ramp-up the curvature from 0 during first period:
-    Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-    // next scheduler is used for midline-bending control points for RL:
+    // Scheduler used to ramp-up the curvature from 0 to C-start configuration determined by B and K in Tprep:
+    Schedulers::ParameterSchedulerVector<6> baselineCurvatureScheduler;
+    // Scheduler used to ramp-up the curvature from 0 to C-start configuration determined by B and K in Tprep:
+    Schedulers::ParameterSchedulerVector<6> undulatoryCurvatureScheduler;
+    // Scheduler used to ramp-up the tau_tail parameter from 0 to its designated value at Tprep
+    Schedulers::ParameterSchedulerScalar tauTailScheduler;
+    // Scheduler used for midline bending control points for RL
     Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 public:
 
     ControlledCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
             : FishData(L, T, phi, _h, _A),   rK(_alloc(Nm)),vK(_alloc(Nm)),
-              rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)) {
+              rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), rB(_alloc(Nm)),
+              vB(_alloc(Nm)), vUC(_alloc(Nm)), tauTail(0.0) {
         _computeWidth();
         writeMidline2File(0, "initialCheck");
     }
@@ -76,7 +84,9 @@ public:
         lastTime = 0;
         lastAvel = 0;
         time0 = 0;
-        curvatureScheduler.resetAll();
+        baselineCurvatureScheduler.resetAll();
+        undulatoryCurvatureScheduler.resetAll();
+        tauTailScheduler.resetAll();
         rlBendingScheduler.resetAll();
         FishData::resetAll();
     }
@@ -135,8 +145,8 @@ public:
     }
 
     ~ControlledCurvatureFish() override {
-        _dealloc(rK); _dealloc(vK); _dealloc(rC); _dealloc(vC);
-        _dealloc(rB); _dealloc(vB);
+        _dealloc(rK); _dealloc(vK); _dealloc(rBC); _dealloc(vBC);
+        _dealloc(rUC); _dealloc(vUC); _dealloc(rB); _dealloc(vB);
     }
 
     void computeMidline(const Real time, const Real dt) override;
@@ -152,35 +162,75 @@ public:
 
 void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 {
+    // Curvature control points along midline of fish, as in Gazzola et. al.
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length
     };
-    const std::array<Real ,6> curvatureValues = {
-            (Real)0.0/length, (Real)0.0/length, (Real)0.0/length,
-            (Real)0.0/length, (Real)0.0/length, (Real)0.0/length
+
+    const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25,
+                                           (Real)0,(Real).25, (Real).5, (Real).75, (Real)1};
+
+    // Optimal C-Start parameters identified by Gazzola et. al. (already normalized by length)
+    // Need to re-normalize to take into account that we have a different fish length.
+//    const double lGazzola = 0.0044;
+//    const double curvatureFactor = lGazzola / length;
+    const double curvatureFactor = 1.5;
+    const std::array<Real ,6> baselineCurvatureValues = {
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-3.19 * curvatureFactor,
+            (Real)-0.74 * curvatureFactor, (Real)-0.44 * curvatureFactor, (Real)0.0 * curvatureFactor
     };
-    const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25, (Real)0,
-                                           (Real).25, (Real).5, (Real).75, (Real)1};
+    const std::array<Real ,6> undulatoryCurvatureValues = {
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-5.73 * curvatureFactor,
+            (Real)-2.73 * curvatureFactor, (Real)-1.09 * curvatureFactor, (Real)0.0 * curvatureFactor
+    };
+    const Real phi = 1.11;
+    const Real tauTailEnd = 0.74;
+//    const Real Tprop = 0.044;
+//    const Real Tprop = 0.588235;
+    const Real Tprop = Tperiod;
+    printf("Tprop is %f\n", Tprop);
+    const std::array<Real,6> curvatureZeros = std::array<Real, 6>(); // Initial curvature is zero
 
-    //initial curvature
-    const std::array<Real,6> curvatureZeros = std::array<Real, 6>();
-    curvatureScheduler.transition(0,0,Tperiod,curvatureZeros ,curvatureValues);
+    // Ratio of preparatory phase to propulsive phase Tprep/Tprop = 0.7.
+    const double prep_prop_ratio = 0.7;
+    const double phaseOneDuration = prep_prop_ratio * Tprop;
+    const double phaseTwoDuration = Tprop;
 
-    // write values to placeholders
-    curvatureScheduler.gimmeValues(t,                curvaturePoints,Nm,rS,rC,vC);
-    rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB);
+    // Ramp up tauTail parameter from zero to designated value at Tprep
+    tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
 
-    // next term takes into account the derivative of periodPIDval in darg:
-    const Real diffT = TperiodPID? 1 - (t-time0)*periodPIDdif/periodPIDval : 1;
-    // time derivative of arg:
-    const Real darg = 2*M_PI/periodPIDval * diffT;
-    const Real arg0 = 2*M_PI*((t-time0)/periodPIDval +timeshift) +M_PI*phaseShift;
+    // Phase One
+    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
+    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
+
+    // Phase Two
+    baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, baselineCurvatureValues, curvatureZeros);
+    undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, undulatoryCurvatureValues);
+
+    // Phase Three
+    baselineCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, curvatureZeros, curvatureZeros);
+    undulatoryCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, undulatoryCurvatureValues, undulatoryCurvatureValues);
+
+    // Write values to placeholders
+    baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
+    undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
+    tauTailScheduler.gimmeValues(t, tauTail); // writes to tauTail
+    rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
+
+    printf("rBC is %f, vBC is %f\n", rBC[2], vBC[2]);
+    printf("rUC is %f, vUC is %f\n", rUC[2], vUC[2]);
+    printf("tauTail is %f\n", tauTail);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
-        const Real arg = arg0 - 2*M_PI*rS[i]/length/waveLength;
-        rK[i] = amplitudeFactor * (rC[i] + rB[i]);
-        vK[i] = amplitudeFactor * (vC[i] + vB[i]);
+
+        const Real tauS = tauTail * rS[i] / length;
+        const Real arg = 2 * M_PI * (t/Tprop - tauS) + phi;
+        const Real chainKappa = 2 * M_PI / Tprop;
+
+        rK[i] = rBC[i] + rUC[i] * std::sin(arg);
+        vK[i] = rUC[i] * chainKappa * std::cos(arg);
+
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
         assert(not std::isnan(vK[i]));
