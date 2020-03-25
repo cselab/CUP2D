@@ -198,8 +198,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
 
     // Phase One
-    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration + phaseTwoDuration, curvatureZeros, baselineCurvatureValues);
-    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration + phaseTwoDuration, curvatureZeros, undulatoryCurvatureValues);
+    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
+    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
 
     // Phase Two
     const bool useCurrentDerivative = true;
