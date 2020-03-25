@@ -152,11 +152,12 @@ public:
     void computeMidline(const Real time, const Real dt) override;
     Real _width(const Real s, const Real L) override
     {
-        const Real sb=.04*length, st=.95*length, wt=.01*length, wh=.04*length;
+        const Real sb=.0862*length, st=.3448*length, wt=.0254*length, wh=.0635*length;
         if(s<0 or s>L) return 0;
-        return (s<sb ? std::sqrt(2*wh*s -s*s) :
-                (s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),1) : // pow(.,2) is 3D
-                 (wt * (L-s)/(L-st))));
+        return (s<sb ? wh * std::sqrt(1 - std::pow((sb - s)/sb, 2)) :
+                (s<st ? (-2*(wt-wh)-wt*(st-sb))*std::pow((s-sb)/(st-sb), 3)
+                        + (3*(wt-wh)+wt*(st-sb))*std::pow((s-sb)/(st-sb), 2)
+                        + wh: (wt - wt * std::pow((s-st)/(L-st), 2))));
     }
 };
 
@@ -172,9 +173,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
     // Optimal C-Start parameters identified by Gazzola et. al. (already normalized by length)
     // Need to re-normalize to take into account that we have a different fish length.
-//    const double lGazzola = 0.0044;
-//    const double curvatureFactor = lGazzola / length;
-    const double curvatureFactor = 1.5;
+    printf("Length is %f\n", length);
+    const double curvatureFactor = 1.0 / length;
     const std::array<Real ,6> baselineCurvatureValues = {
             (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-3.19 * curvatureFactor,
             (Real)-0.74 * curvatureFactor, (Real)-0.44 * curvatureFactor, (Real)0.0 * curvatureFactor
@@ -185,9 +185,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     };
     const Real phi = 1.11;
     const Real tauTailEnd = 0.74;
-//    const Real Tprop = 0.044;
-//    const Real Tprop = 0.588235;
-    const Real Tprop = Tperiod;
+    const Real Tprop = 0.588235;
     printf("Tprop is %f\n", Tprop);
     const std::array<Real,6> curvatureZeros = std::array<Real, 6>(); // Initial curvature is zero
 
@@ -200,16 +198,17 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
 
     // Phase One
-    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
-    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
+    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration + phaseTwoDuration, curvatureZeros, baselineCurvatureValues);
+    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration + phaseTwoDuration, curvatureZeros, undulatoryCurvatureValues);
 
     // Phase Two
-    baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, baselineCurvatureValues, curvatureZeros);
-    undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, undulatoryCurvatureValues);
+    const bool useCurrentDerivative = true;
+    baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, curvatureZeros, useCurrentDerivative);
+    undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
 
     // Phase Three
-    baselineCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, curvatureZeros, curvatureZeros);
-    undulatoryCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, undulatoryCurvatureValues, undulatoryCurvatureValues);
+    baselineCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, curvatureZeros, useCurrentDerivative);
+    undulatoryCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
@@ -217,9 +216,9 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     tauTailScheduler.gimmeValues(t, tauTail); // writes to tauTail
     rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
 
-    printf("rBC is %f, vBC is %f\n", rBC[2], vBC[2]);
-    printf("rUC is %f, vUC is %f\n", rUC[2], vUC[2]);
-    printf("tauTail is %f\n", tauTail);
+//    printf("rBC is %f, vBC is %f\n", rBC[2], vBC[2]);
+//    printf("rUC is %f, vUC is %f\n", rUC[2], vUC[2]);
+//    printf("tauTail is %f\n", tauTail);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
