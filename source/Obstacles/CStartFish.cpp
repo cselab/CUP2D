@@ -49,6 +49,7 @@ protected:
     Real * const rB;
     Real * const vB;
     Real tauTail;
+    Real vTauTail;
 
     // Scheduler used to ramp-up the curvature from 0 to C-start configuration determined by B and K in Tprep:
     Schedulers::ParameterSchedulerVector<6> baselineCurvatureScheduler;
@@ -63,7 +64,7 @@ public:
     ControlledCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
             : FishData(L, T, phi, _h, _A),   rK(_alloc(Nm)),vK(_alloc(Nm)),
               rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), rB(_alloc(Nm)),
-              vB(_alloc(Nm)), vUC(_alloc(Nm)), tauTail(0.0) {
+              vB(_alloc(Nm)), vUC(_alloc(Nm)), tauTail(0.0), vTauTail(0.0) {
         _computeWidth();
         writeMidline2File(0, "initialCheck");
     }
@@ -194,15 +195,18 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     const double phaseOneDuration = prep_prop_ratio * Tprop;
     const double phaseTwoDuration = Tprop;
 
+    const bool useCurrentDerivative = true;
+
     // Ramp up tauTail parameter from zero to designated value at Tprep
     tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
+//    tauTailScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, tauTailEnd, useCurrentDerivative);
+//    tauTailScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, tauTailEnd, useCurrentDerivative);
 
     // Phase One
     baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
     undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
 
     // Phase Two
-    const bool useCurrentDerivative = true;
     baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, curvatureZeros, useCurrentDerivative);
     undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
 
@@ -213,7 +217,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
     undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
-    tauTailScheduler.gimmeValues(t, tauTail); // writes to tauTail
+    tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
     rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
 
 //    printf("rBC is %f, vBC is %f\n", rBC[2], vBC[2]);
@@ -224,11 +228,12 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     for(int i=0; i<Nm; ++i) {
 
         const Real tauS = tauTail * rS[i] / length;
+        const Real vTauS = vTauTail * rS[i] / length;
         const Real arg = 2 * M_PI * (t/Tprop - tauS) + phi;
-        const Real chainKappa = 2 * M_PI / Tprop;
+        const Real vArg = 2 * M_PI / Tprop - 2 * M_PI * vTauS;
 
         rK[i] = rBC[i] + rUC[i] * std::sin(arg);
-        vK[i] = rUC[i] * chainKappa * std::cos(arg);
+        vK[i] = vBC[i] + rUC[i] * vArg * std::cos(arg) + vUC[i] * std::sin(arg);
 
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
@@ -240,7 +245,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);
 #if 0
     {
-    FILE * f = fopen("stefan_profile","w");
+    FILE * f = fopen("cStart_profile","w");
     for(int i=0;i<Nm;++i)
       fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
         i,rS[i],rX[i],rY[i],vX[i],vY[i],
