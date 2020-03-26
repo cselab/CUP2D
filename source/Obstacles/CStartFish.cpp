@@ -172,9 +172,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25,
                                            (Real)0,(Real).25, (Real).5, (Real).75, (Real)1};
 
-    // Optimal C-Start parameters identified by Gazzola et. al. (already normalized by length)
-    // Need to re-normalize to take into account that we have a different fish length.
-    printf("Length is %f\n", length);
+    // Optimal C-Start parameters identified by Gazzola et. al. (normalized)
     const double curvatureFactor = 1.0 / length;
     const std::array<Real ,6> baselineCurvatureValues = {
             (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-3.19 * curvatureFactor,
@@ -186,8 +184,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     };
     const Real phi = 1.11;
     const Real tauTailEnd = 0.74;
-    const Real Tprop = 0.588235;
-    printf("Tprop is %f\n", Tprop);
+    const Real Tprop = 0.5882352941;
     const std::array<Real,6> curvatureZeros = std::array<Real, 6>(); // Initial curvature is zero
 
     // Ratio of preparatory phase to propulsive phase Tprep/Tprop = 0.7.
@@ -195,12 +192,10 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     const double phaseOneDuration = prep_prop_ratio * Tprop;
     const double phaseTwoDuration = Tprop;
 
-    const bool useCurrentDerivative = true;
+    const bool useCurrentDerivative = false;
 
     // Ramp up tauTail parameter from zero to designated value at Tprep
     tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
-//    tauTailScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, tauTailEnd, useCurrentDerivative);
-//    tauTailScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, tauTailEnd, useCurrentDerivative);
 
     // Phase One
     baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
@@ -210,19 +205,11 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, curvatureZeros, useCurrentDerivative);
     undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
 
-    // Phase Three
-    baselineCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, curvatureZeros, useCurrentDerivative);
-    undulatoryCurvatureScheduler.transition(t, phaseOneDuration + phaseTwoDuration, phaseOneDuration + 2 * phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
-
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
     undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
     tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
     rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
-
-//    printf("rBC is %f, vBC is %f\n", rBC[2], vBC[2]);
-//    printf("rUC is %f, vUC is %f\n", rUC[2], vUC[2]);
-//    printf("tauTail is %f\n", tauTail);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {

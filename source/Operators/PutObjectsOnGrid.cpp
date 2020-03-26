@@ -207,6 +207,12 @@ void PutObjectsOnGrid::operator()(const double dt)
 
   for(Shape * const shape : sim.shapes)
   {
+    // Get the distance travelled (for debug cStart):
+    double com[2] = {0, 0}; shape->getCenterOfMass(com);
+    double distance = std::sqrt(std::pow((com[0] - shape->origC[0]), 2) + std::pow((com[1] - shape->origC[1]), 2));
+    printf("Distance travelled is: %f\n", distance);
+
+    // Check if shape is outside the domain extent.
     shape->updatePosition(dt);
     double p[2] = {0,0};
     shape->getCentroid(p);
