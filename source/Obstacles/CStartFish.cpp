@@ -26,8 +26,24 @@ public:
     Real avgAngVel = 0;
     // stored past action for RL state:
     Real lastTact = 0;
+    Real lastB3 = 0;
+    Real lastB4 = 0;
+    Real lastB5 = 0;
+    Real lastK3 = 0;
+    Real lastK4 = 0;
+    Real lastK5 = 0;
+    Real lastTau = 0;
+    Real oldrB3 = 0;
+    Real oldrB4 = 0;
+    Real oldrB5 = 0;
+    Real oldrK3 = 0;
+    Real oldrK4 = 0;
+    Real oldrK5 = 0;
+    Real oldrTau = 0;
+
     Real lastCurv = 0;
     Real oldrCurv = 0;
+
     // quantities needed to correctly control the speed of the midline maneuvers:
     Real periodPIDval = Tperiod;
     Real periodPIDdif = 0;
@@ -78,6 +94,25 @@ public:
         lastTact = 0;
         lastCurv = 0;
         oldrCurv = 0;
+
+        // Stuff I added:
+        lastTact = 0;
+        lastB3 = 0;
+        lastB4 = 0;
+        lastB5 = 0;
+        lastK3 = 0;
+        lastK4 = 0;
+        lastK5 = 0;
+        lastTau = 0;
+        oldrB3 = 0;
+        oldrB4 = 0;
+        oldrB5 = 0;
+        oldrK3 = 0;
+        oldrK4 = 0;
+        oldrK5 = 0;
+        oldrTau = 0;
+
+
         periodPIDval = Tperiod;
         periodPIDdif = 0;
         TperiodPID = false;
@@ -125,24 +160,38 @@ public:
     void execute(const Real t_current, const Real t_rlAction, const std::vector<double>&a)
     {
         assert(t_current >= t_rlAction);
-        oldrCurv = lastCurv; // store action
-        lastCurv = a[0]; // store action
+        oldrB3 = lastB3; // store action
+        oldrB4 = lastB4; // store action
+        oldrB5 = lastB5; // store action
+        oldrK3 = lastK3; // store action
+        oldrK4 = lastK4; // store action
+        oldrK5 = lastK5; // store action
+        oldrTau = lastTau;
 
-        rlBendingScheduler.Turn(a[0], t_rlAction);
-        printf("Turning by %g at time %g with period %g.\n",
-               a[0], t_current, t_rlAction);
+        lastB3 = a[0]; // store action
+        lastB4 = a[1]; // store action
+        lastB5 = a[2]; // store action
+        lastK3 = a[3]; // store action
+        lastK4 = a[4]; // store action
+        lastK5 = a[5]; // store action
+        lastTau = a[6];
 
-        if (a.size()>1) // also modify the swimming period
-        {
-            lastTact = a[1]; // store action
-            // this is arg of sinusoidal before change-of-Tp begins:
-            const Real lastArg = (t_rlAction - time0)/periodPIDval + timeshift;
-            // make sure change-of-Tp affects only body config for future times:
-            timeshift = lastArg; // add phase shift that accounts for current body shape
-            time0 = t_rlAction; // shift time axis of undulation
-            periodPIDval = Tperiod * (1 + a[1]); // actually change period
-            periodPIDdif = 0; // constant periodPIDval between infrequent actions
-        }
+        double actionDuration = this->periodPIDval / 2;
+        double curvatureFactor = 1.0/this->length;
+
+        const std::array<Real ,6> baselineCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)(oldrB3 + a[0]) * curvatureFactor,
+                (Real)(oldrB4 + a[1]) * curvatureFactor, (Real)(oldrB5 + a[2]) * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+        const std::array<Real ,6> undulatoryCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)(oldrK3 + a[3]) * curvatureFactor,
+                (Real)(oldrK4 + a[4]) * curvatureFactor, (Real)(oldrK5 + a[5]) * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+
+        baselineCurvatureScheduler.transition(t_current, t_rlAction, actionDuration, baselineCurvatureValues);
+        undulatoryCurvatureScheduler.transition(t_current, t_rlAction, actionDuration, undulatoryCurvatureValues);
+        tauTailScheduler.transition(t_current, t_rlAction, actionDuration, oldrTau + a[6]);
+
     }
 
     ~ControlledCurvatureFish() override {
@@ -169,47 +218,13 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length
     };
 
-    const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25,
-                                           (Real)0,(Real).25, (Real).5, (Real).75, (Real)1};
-
-    // Optimal C-Start parameters identified by Gazzola et. al. (normalized)
-    const double curvatureFactor = 1.0 / length;
-    const std::array<Real ,6> baselineCurvatureValues = {
-            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-3.19 * curvatureFactor,
-            (Real)-0.74 * curvatureFactor, (Real)-0.44 * curvatureFactor, (Real)0.0 * curvatureFactor
-    };
-    const std::array<Real ,6> undulatoryCurvatureValues = {
-            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-5.73 * curvatureFactor,
-            (Real)-2.73 * curvatureFactor, (Real)-1.09 * curvatureFactor, (Real)0.0 * curvatureFactor
-    };
     const Real phi = 1.11;
-    const Real tauTailEnd = 0.74;
-    const Real Tprop = 0.5882352941;
-    const std::array<Real,6> curvatureZeros = std::array<Real, 6>(); // Initial curvature is zero
-
-    // Ratio of preparatory phase to propulsive phase Tprep/Tprop = 0.7.
-    const double prep_prop_ratio = 0.7;
-    const double phaseOneDuration = prep_prop_ratio * Tprop;
-    const double phaseTwoDuration = Tprop;
-
-    const bool useCurrentDerivative = false;
-
-    // Ramp up tauTail parameter from zero to designated value at Tprep
-    tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
-
-    // Phase One
-    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
-    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
-
-    // Phase Two
-    baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, curvatureZeros, useCurrentDerivative);
-    undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
+    const Real Tprop = Tperiod;
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
     undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
     tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
-    rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
@@ -230,17 +245,87 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
     // solve frenet to compute midline parameters
     IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);
-#if 0
-    {
-    FILE * f = fopen("cStart_profile","w");
-    for(int i=0;i<Nm;++i)
-      fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
-        i,rS[i],rX[i],rY[i],vX[i],vY[i],
-        vNorX[i],vNorY[i],width[i],height[i]);
-    fclose(f);
-   }
-#endif
 }
+
+//void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
+//{
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
+//                                                  (Real).5*length, (Real).75*length, (Real).95*length, length
+//    };
+//
+//    const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25,
+//                                           (Real)0,(Real).25, (Real).5, (Real).75, (Real)1};
+//
+//    // Optimal C-Start parameters identified by Gazzola et. al. (normalized)
+//    const double curvatureFactor = 1.0 / length;
+//    const std::array<Real ,6> baselineCurvatureValues = {
+//            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-3.19 * curvatureFactor,
+//            (Real)-0.74 * curvatureFactor, (Real)-0.44 * curvatureFactor, (Real)0.0 * curvatureFactor
+//    };
+//    const std::array<Real ,6> undulatoryCurvatureValues = {
+//            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)-5.73 * curvatureFactor,
+//            (Real)-2.73 * curvatureFactor, (Real)-1.09 * curvatureFactor, (Real)0.0 * curvatureFactor
+//    };
+//    const Real phi = 1.11;
+//    const Real tauTailEnd = 0.74;
+//    const Real Tprop = Tperiod;
+//    const std::array<Real,6> curvatureZeros = std::array<Real, 6>(); // Initial curvature is zero
+//
+//    // Ratio of preparatory phase to propulsive phase Tprep/Tprop = 0.7.
+//    const double prep_prop_ratio = 0.7;
+//    const double phaseOneDuration = prep_prop_ratio * Tprop;
+//    const double phaseTwoDuration = Tprop;
+//
+//    const bool useCurrentDerivative = false;
+//
+//    // Ramp up tauTail parameter from zero to designated value at Tprep
+//    tauTailScheduler.transition(t, 0, phaseOneDuration, tauTailEnd);
+//
+//    // Phase One
+//    baselineCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, baselineCurvatureValues);
+//    undulatoryCurvatureScheduler.transition(t, 0, phaseOneDuration, curvatureZeros, undulatoryCurvatureValues);
+//
+//    // Phase Two
+//    baselineCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, curvatureZeros, useCurrentDerivative);
+//    undulatoryCurvatureScheduler.transition(t, phaseOneDuration, phaseOneDuration + phaseTwoDuration, undulatoryCurvatureValues, useCurrentDerivative);
+//
+//    // Write values to placeholders
+//    baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
+//    undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
+//    tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
+//    rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB); // not needed here..
+//
+//#pragma omp parallel for schedule(static)
+//    for(int i=0; i<Nm; ++i) {
+//
+//        const Real tauS = tauTail * rS[i] / length;
+//        const Real vTauS = vTauTail * rS[i] / length;
+//        const Real arg = 2 * M_PI * (t/Tprop - tauS) + phi;
+//        const Real vArg = 2 * M_PI / Tprop - 2 * M_PI * vTauS;
+//
+//        rK[i] = rBC[i] + rUC[i] * std::sin(arg);
+//        vK[i] = vBC[i] + rUC[i] * vArg * std::cos(arg) + vUC[i] * std::sin(arg);
+//
+//        assert(not std::isnan(rK[i]));
+//        assert(not std::isinf(rK[i]));
+//        assert(not std::isnan(vK[i]));
+//        assert(not std::isinf(vK[i]));
+//    }
+//
+//    // solve frenet to compute midline parameters
+//    IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);
+//#if 0
+//    {
+//    FILE * f = fopen("cStart_profile","w");
+//    for(int i=0;i<Nm;++i)
+//      fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
+//        i,rS[i],rX[i],rY[i],vX[i],vY[i],
+//        vNorX[i],vNorY[i],width[i],height[i]);
+//    fclose(f);
+//   }
+//#endif
+//}
 
 void CStartFish::resetAll() {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -405,6 +490,30 @@ void CStartFish::create(const std::vector<BlockInfo>& vInfo)
     //const int indCurrAct = (time + sim.dt)/(Tperiod/2);
     //if(time < indCurrAct*Tperiod/2) state(sim.shapes[0]);
 
+//    // Debug actions:
+//    std::vector<double> actions;
+//    actions.push_back(0.0);
+//    actions.push_back(0.0);
+//    actions.push_back(0.0);
+//    actions.push_back(-5.73);
+//    actions.push_back(-2.73);
+//    actions.push_back(-2.09);
+//    actions.push_back(0.74);
+//    cFish->execute(time, 0.0, actions);
+
+//    // Second action:
+//    if (time > 0.5 * this->getLearnTPeriod()){
+//        std::vector<double> actions;
+//        actions.push_back(-0.5 );
+//        actions.push_back(-0.2 );
+//        actions.push_back(-0.2 );
+//        actions.push_back(-0.5 );
+//        actions.push_back(-0.2 );
+//        actions.push_back(-0.1 );
+//        actions.push_back(0.35);
+//        cFish->execute(time, 0.5 * this->getLearnTPeriod(), actions);
+//    }
+
     Fish::create(vInfo);
 }
 
@@ -431,211 +540,45 @@ double CStartFish::getPhase(const double t) const
     return (phase<0) ? 2*M_PI + phase : phase;
 }
 
-std::vector<double> CStartFish::state(Shape*const p) const
+std::vector<double> CStartFish::state() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(10,0);
-    S[0] = ( center[0] - p->center[0] )/ length;
-    S[1] = ( center[1] - p->center[1] )/ length;
-    S[2] = getOrientation();
-    S[3] = getPhase( sim.time );
-    S[4] = getU() * Tperiod / length;
-    S[5] = getV() * Tperiod / length;
-    S[6] = getW() * Tperiod;
-    S[7] = cFish->lastTact;
-    S[8] = cFish->lastCurv;
-    S[9] = cFish->oldrCurv;
+    std::vector<double> S(20,0);
 
-#ifndef STEFANS_SENSORS_STATE
-    return S;
-#else
-    S.resize(16);
-    const Real h = sim.getH(), invh = 1/h;
-    const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-
-    // function that finds block id of block containing pos (x,y)
-    const auto holdingBlockID = [&](const Real x, const Real y)
-    {
-      const auto getMin = [&]( const BlockInfo&I )
-      {
-        std::array<Real,2> MIN = I.pos<Real>(0, 0);
-        for(int i=0; i<2; ++i)
-          MIN[i] -= 0.5 * h; // pos returns cell centers
-        return MIN;
-      };
-
-      const auto getMax = [&]( const BlockInfo&I )
-      {
-        std::array<Real,2> MAX = I.pos<Real>(VectorBlock::sizeX-1,
-                                             VectorBlock::sizeY-1);
-        for(int i=0; i<2; ++i)
-          MAX[i] += 0.5 * h; // pos returns cell centers
-        return MAX;
-      };
-
-      const auto holdsPoint = [&](const std::array<Real,2> MIN, std::array<Real,2> MAX,
-                                  const Real X,const Real Y)
-      {
-        // this may return true for 2 blocks if (X,Y) overlaps with edges
-        return X >= MIN[0] && Y >= MIN[1] && X <= MAX[0] && Y <= MAX[1];
-      };
-
-      std::vector<std::pair<double, int>> distsBlocks(velInfo.size());
-      for(size_t i=0; i<velInfo.size(); ++i)
-      {
-        std::array<Real,2> MIN = getMin(velInfo[i]);
-        std::array<Real,2> MAX = getMax(velInfo[i]);
-        if( holdsPoint(MIN, MAX, x, y) )
-        {
-        // handler to select obstacle block
-          const auto& skinBinfo = velInfo[i];
-          const auto *const o = obstacleBlocks[skinBinfo.blockID];
-          if(o != nullptr ) return (int) i;
-        }
-        std::array<Real, 4> WENS;
-        WENS[0] = MIN[0] - x;
-        WENS[1] = x - MAX[0];
-        WENS[2] = MIN[1] - y;
-        WENS[3] = y - MAX[1];
-        const Real dist = *std::max_element(WENS.begin(),WENS.end());
-        distsBlocks[i].first = dist;
-        distsBlocks[i].second = i;
-      }
-      std::sort(distsBlocks.begin(), distsBlocks.end());
-      std::reverse(distsBlocks.begin(), distsBlocks.end());
-      for( auto distBlock: distsBlocks )
-      {
-        // handler to select obstacle block
-          const auto& skinBinfo = velInfo[distBlock.second];
-          const auto *const o = obstacleBlocks[skinBinfo.blockID];
-          if(o != nullptr ) return (int) distBlock.second;
-      }
-      printf("ABORT: coordinate could not be associated to obstacle block\n");
-      fflush(0); abort();
-      return (int) 0;
-    };
-
-    // function that is probably unnecessary, unless pos is at block edge
-    // then it makes the op stable without increasing complexity in the above
-    const auto safeIdInBlock = [&](const std::array<Real,2> pos,
-                                   const std::array<Real,2> org)
-    {
-      const int indx = (int) std::round((pos[0] - org[0])*invh);
-      const int indy = (int) std::round((pos[1] - org[1])*invh);
-      const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
-      const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
-      return std::array<int, 2>{{ix, iy}};
-    };
-
-    // return fish velocity at a point on the fish skin:
-    const auto skinVel = [&](const std::array<Real,2> pSkin)
-    {
-      const auto& skinBinfo = velInfo[holdingBlockID(pSkin[0], pSkin[1])];
-      const auto *const o = obstacleBlocks[skinBinfo.blockID];
-      if (o == nullptr) {
-        printf("ABORT: skin point is outside allocated obstacle blocks\n");
-        fflush(0); abort();
-      }
-      const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin);
-      printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-        pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
-      const Real* const udef = o->udef[iSkin[1]][iSkin[0]];
-      const Real uSkin = u - omega * (pSkin[1]-centerOfMass[1]) + udef[0];
-      const Real vSkin = v + omega * (pSkin[0]-centerOfMass[0]) + udef[1];
-      return std::array<Real, 2>{{uSkin, vSkin}};
-    };
-
-    // return flow velocity at point of flow sensor:
-    const auto sensVel = [&](const std::array<Real,2> pSens)
-    {
-      const auto& sensBinfo = velInfo[holdingBlockID(pSens[0], pSens[1])];
-      const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSens = safeIdInBlock(pSens, oSens);
-      printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-        pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
-      const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
-      return std::array<Real, 2>{{b(iSens[0], iSens[1]).u[0],
-                                  b(iSens[0], iSens[1]).u[1]}};
-    };
-
-    // side of the head defined by position sb from function _width above ^^^
-    int iHeadSide = 0;
-    for(int i=0; i<myFish->Nm-1; ++i)
-      if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
-        iHeadSide = i;
-    assert(iHeadSide>0);
-
-    std::array<Real,2> tipShear, lowShear, topShear;
-    { // surface and sensor (shifted by 2h) points of the fish tip
-      const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
-      // first point of the two skins is the same
-      // normal should be almost the same: take the mean
-      const std::array<Real,2> pSkin = {DU.xSurf[0], DU.ySurf[0]};
-      const Real normX = (DU.normXSurf[0] + DL.normXSurf[0]) / 2;
-      const Real normY = (DU.normYSurf[0] + DL.normYSurf[0]) / 2;
-      const std::array<Real,2> pSens = {pSkin[0] + h * normX,
-                                        pSkin[1] + h * normY};
-      const std::array<Real,2> vSens = sensVel(pSens), vSkin = skinVel(pSkin);
-      tipShear[0] = (vSens[0] - vSkin[0]) * invh;
-      tipShear[1] = (vSens[1] - vSkin[1]) * invh;
-    }
-
-    for(int a = 0; a<2; ++a)
-    {
-      const auto& D = a==0? myFish->upperSkin : myFish->lowerSkin;
-      const std::array<Real,2> pSkin = {D.midX[iHeadSide], D.midY[iHeadSide]};
-      const Real normX = D.normXSurf[iHeadSide], normY = D.normYSurf[iHeadSide];
-      const std::array<Real,2> pSens = {pSkin[0] + h * normX,
-                                        pSkin[1] + h * normY};
-      const std::array<Real,2> vSens = sensVel(pSens), vSkin = skinVel(pSkin);
-      const Real shearX = (vSens[0] - vSkin[0]) * invh;
-      const Real shearY = (vSens[1] - vSkin[1]) * invh;
-      // now figure out how to rotate it along the fish skin for consistency:
-      const Real dX = D.xSurf[iHeadSide+1] - D.xSurf[iHeadSide];
-      const Real dY = D.ySurf[iHeadSide+1] - D.ySurf[iHeadSide];
-      const Real proj = dX * normX - dY * normY;
-      const Real tangX = proj>0?  normX : -normX; // s.t. tang points from head
-      const Real tangY = proj>0? -normY :  normY; // to tail, normal outward
-      (a==0? topShear[0] : lowShear[0]) = shearX * normX + shearY * normY;
-      (a==0? topShear[1] : lowShear[1]) = shearX * tangX + shearY * tangY;
-    }
-
-    S[10] = tipShear[0] * Tperiod / length;
-    S[11] = tipShear[1] * Tperiod / length;
-    S[12] = lowShear[0] * Tperiod / length;
-    S[13] = lowShear[1] * Tperiod / length;
-    S[14] = topShear[0] * Tperiod / length;
-    S[15] = topShear[1] * Tperiod / length;
-    printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n",
-      S[10],S[11], S[12],S[13], S[14],S[15]);
-
-    return S;
-#endif
-}
-
-std::vector<double> CStartFish::getCStartState() const
-{
-    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(10,0);
-
-    double charLength = getCharLength();
+    double length = this->length;
     double com[2] = {0, 0};
-    getLabPosition(com);
-    double radialPos = std::sqrt(std::pow(com[0], 2) + std::pow(com[1], 2));
+    this->getCenterOfMass(com);
+    double radialDisplacement = this->getRadialDisplacement();
     double polarAngle = std::atan2(com[1], com[0]);
 
-    // no sensor info needed probably
-
-    S[0] = radialPos / charLength; // distance from center
+    S[0] = radialDisplacement/length; // distance from center
     S[1] = polarAngle; // polar angle
     S[2] = getOrientation();
-    S[3] = getPhase( sim.time );
-    S[4] = getU() * Tperiod / length;
-    S[5] = getV() * Tperiod / length;
-    S[6] = getW() * Tperiod;
-    S[7] = cFish->lastTact; //proprioception  - fish knows its current shape
-    S[8] = cFish->lastCurv; // could have 3 curvature controls instead of 1 e.g
-    S[9] = cFish->oldrCurv;
+    S[3] = getU() * Tperiod / length;
+    S[4] = getV() * Tperiod / length;
+    S[5] = getW() * Tperiod;
+    S[6] = cFish->lastB3;
+    S[7] = cFish->lastB4;
+    S[8] = cFish->lastB5;
+    S[9] = cFish->lastK3;
+    S[10] = cFish->lastK4;
+    S[11] = cFish->lastK5;
+    S[12] = cFish->lastTau;
+    S[13] = cFish->oldrB3;
+    S[14] = cFish->oldrB4;
+    S[15] = cFish->oldrB5;
+    S[16] = cFish->oldrK3;
+    S[17] = cFish->oldrK4;
+    S[18] = cFish->oldrK5;
+    S[19] = cFish->oldrTau;
+
     return S;
+}
+
+double CStartFish::getRadialDisplacement() const {
+    double com[2] = {0, 0};
+    this->getCenterOfMass(com);
+    double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
+    printf("Radial displacement is: %f\n", radialDisplacement);
+    return radialDisplacement;
 }

@@ -25,8 +25,8 @@ public:
     void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
     // member functions for state/reward
-    std::vector<double> state(Shape*const p) const;
-    std::vector<double> getCStartState() const;
+    std::vector<double> state() const;
+    double getRadialDisplacement() const;
     double reward() const;
 
 };

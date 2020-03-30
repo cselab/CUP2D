@@ -10,8 +10,6 @@
 #include "Simulation.h"
 #include "Obstacles/CStartFish.h"
 
-static bool bVerbose = true;
-
 using namespace cubism;
 //
 // All these functions are defined here and not in object itself because
@@ -23,21 +21,13 @@ using namespace cubism;
 // max number of actions per simulation
 // range of angles in initial conditions
 
-inline double getRadialDisplacement(const CStartFish*const a) {
-    double com[2] = {0, 0};
-    a->getLabPosition(com);
-    double radialPos = std::sqrt(std::pow(com[0], 2) + std::pow(com[1], 2));
-    return radialPos;
-}
-
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 {
     // Maybe randomize the initial curvature of the fish.
     // Note: the fish always starts at xpos = 0.5...how do I incorporate this for sure.
-
-    std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
-    const double SA = c->isTraining()? disA(c->getPRNG()) : 0.00;
-    a->setOrientation(SA);
+    double com[2] = {0.5, 0.5};
+    a->setCenterOfMass(com);
+    a->setOrientation(-98.0 * M_PI / 180.0);
 }
 
 inline void setAction(CStartFish* const agent,
@@ -46,10 +36,10 @@ inline void setAction(CStartFish* const agent,
     agent->act(t, act);
 }
 
-inline bool isTerminal(const CStartFish*const a) {
-    // Terminate when the fish exits a radius of two characteristic lengths
-    double charLength = a->getCharLength();
-    return (getRadialDisplacement(a) >= 2 * charLength);
+inline bool isTerminal(const CStartFish*const a, const Real& time) {
+    // Terminate when the fish exits a radius of 1.5 characteristic lengths
+    printf("Time of current episode is: %f", time);
+    return (a->getRadialDisplacement() >= 1.5 * a->length) || time > 4.0 ;
 }
 
 inline double getReward(const CStartFish* const a, const double& t_elapsed) {
@@ -60,8 +50,9 @@ inline double getReward(const CStartFish* const a, const double& t_elapsed) {
     // minimize energy ? would use the motion with maximum energy...
     // (efficiency)
     // only control the curvature
-    double reward = isTerminal(a)? getRadialDisplacement(a) - t_elapsed : getRadialDisplacement(a);
-    if (bVerbose) {printf("Stage reward is: %f \n", reward);}
+    double radialDisplacement = a->getRadialDisplacement();
+    double reward = isTerminal(a, t_elapsed)? radialDisplacement - t_elapsed : radialDisplacement;
+    printf("Stage reward is: %f \n", reward);
     return reward;
 
 }
@@ -80,7 +71,11 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
 }
 
 inline double getTimeToNextAct(const CStartFish* const agent, const double t) {
-    return t + agent->getLearnTPeriod() / 2;
+    // Note: the agent learn period is controlled by parameter Tperiod which is loaded
+    // in periodPIDval. Set to Tprop in smarties launch interface.
+
+    // Agent allowed to act 6 times every Tprop time.
+    return t + agent->getLearnTPeriod() / 10;
 }
 
 inline void app_main(
@@ -88,45 +83,39 @@ inline void app_main(
         MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
         int argc, char**argv             // args read from app's runtime settings file
 ) {
-    printf("IN APP MAIN");
-    for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
-    #ifdef STEFANS_SENSORS_STATE
-    const int nActions = 2, nStates = 16;
-    comm->setStateActionDims(nStates, nActions);
-    std::vector<bool> b_observable =  //{ false, false, false, false, false, false, false, false, false, false, //blind fish
-            { true, true, true, true, true, true, true, true, true, true, //vision
-                    //  false, false, false, false, false, false }; // no shear
-              true, true, true, true, true, true }; //shear
-    comm->setStateObservable(b_observable);
-    #else
-    const int nActions = 2, nStates = 10;
-    comm->setStateActionDims(nStates, nActions);
-    #endif
-    const unsigned maxLearnStepPerSim = 200; // random number... TODO
+    printf("In app_main\n");
+    // Define the maximum learn steps per simulation (episode)
+    const unsigned maxLearnStepPerSim = 200; // must contain all the C-start !
 
-    // Tell smarties that action space should be bounded.
-    // First action modifies curvature, only makes sense between -1 and 1
-    // Second action affects Tp = (1+act[1])*Tperiod_0 (eg. halved if act[1]=-.5).
-    // If too small Re=L^2*Tp/nu would increase too much, we allow it to
-    //  double at most, therefore we set the bounds between -0.5 and 0.5.
-    std::vector<double> upper_action_bound{1.,.25}, lower_action_bound{-1.,-.25};
-    comm->setActionScales(upper_action_bound, lower_action_bound, true);
+    for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
+    const int nActions = 7, nStates = 20;
+    comm->setStateActionDims(nStates, nActions);
 
     Simulation sim(argc, argv);
     sim.init();
+    printf("Simulation initialized\n");
 
     CStartFish*const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
+    printf("Agent initialized\n");
+
+    const double curvatureLow = -0.5;
+    const double curvatureHigh = +0.5;
+    std::vector<double> upper_action_bound(nActions, curvatureHigh), lower_action_bound(nActions, curvatureLow);
+    comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
         sim.sim.dumpTime = agent->Tperiod / 20;
     }
+
     unsigned sim_id = 0, tot_steps = 0;
 
+    printf("Entering train loop\n");
     // Terminate loop if reached max number of time steps. Never terminate if 0
     while( true ) // train loop
     {
+        printf("In train loop\n");
         if(comm->isTraining() == false)
         {
             char dirname[1024]; dirname[1023] = '\0';
@@ -136,38 +125,55 @@ inline void app_main(
             chdir(dirname);
         }
 
+        printf("Resetting sim\n");
         sim.reset();
+        printf("Resetting IC\n");
         resetIC(agent, comm); // randomize initial conditions
 
         double t = 0, tNextAct = 0;
-        unsigned step = 0;
+        unsigned int step = 0;
         bool agentOver = false;
 
-        comm->sendInitState( agent->getCStartState() ); //send initial state
+        printf("Sending initial state\n");
+        comm->sendInitState( agent->state() ); //send initial state
 
+        printf("Entering simulation loop\n");
         while (true) //simulation loop
         {
+            printf("Setting action\n");
             setAction(agent, comm->recvAction(), tNextAct);
             tNextAct = getTimeToNextAct(agent, tNextAct);
+            printf("tNextAct: %f\n", tNextAct);
+
+//            const double maxSimSteps = 200;
             while (t < tNextAct)
             {
                 const double dt = sim.calcMaxTimestep();
+                printf("dt: %f\n", dt);
+//                if (dt < 0.0001) {
+//                    agentOver = true;
+//                    break;
+//                }
                 t += dt;
+                printf("t: %f\n", t);
+
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
                     assert(false); fflush(0); abort();
                 }
-                if ( isTerminal(agent) ) {
+                printf("step smarties is %d\n", step);
+                printf("sim.time is %f\n", t);
+                if ( isTerminal(agent, t)) {
                     agentOver = true;
                     break;
                 }
             }
             step++;
             tot_steps++;
-            std::vector<double> state = agent->getCStartState();
+            std::vector<double> state = agent->state();
             double reward = getReward(agent, t);
 
-            if (agentOver || checkNaN(state, reward) ) {
+            if (agentOver || checkNaN(state, reward)) {
                 printf("Agent failed\n"); fflush(0);
                 comm->sendTermState(state, reward);
                 break;
