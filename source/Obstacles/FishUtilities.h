@@ -148,6 +148,13 @@ class IF2D_Interpolation1D
     const Real y0, const Real y1, Real & y, Real & dy) {
     return cubicInterpolation(x0,x1,x,y0,y1,0,0,y,dy); // 0 slope at end points
   }
+
+  static void linearInterpolation(const Real x0, const Real x1, const Real x,
+    const Real y0,const Real y1, Real&y, Real&dy)
+  {
+    y = (y1 - y0) / (x1 - x0) * (x - x0) + y0;
+    dy = (y1 - y0) / (x1 - x0);
+  }
 };
 
 namespace Schedulers
@@ -251,6 +258,21 @@ struct ParameterScheduler
     }
   }
 
+  void gimmeValuesLinear(const Real t, std::array<Real, Npoints>& parameters, std::array<Real, Npoints>& dparameters)
+  {
+    // look at the different cases
+    if(t<t0 or t0<0) { // no transition, we are in state 0
+      parameters = parameters_t0;
+      dparameters = std::array<Real, Npoints>();
+    } else if(t>t1) { // no transition, we are in state 1
+      parameters = parameters_t1;
+      dparameters = std::array<Real, Npoints>();
+    } else { // we are within transition: interpolate
+      for(int i=0;i<Npoints;++i)
+        IF2D_Interpolation1D::linearInterpolation(t0,t1,t,parameters_t0[i],parameters_t1[i],parameters[i],dparameters[i]);
+    }
+  }
+
   void gimmeValues(const Real t, std::array<Real, Npoints>& parameters)
   {
     std::array<Real, Npoints> dparameters_whocares; // no derivative info
@@ -265,6 +287,14 @@ struct ParameterSchedulerScalar : ParameterScheduler<1>
     const std::array<Real, 1> myParameter = {parameter_tend};
     return
       ParameterScheduler<1>::transition(t,tstart,tend,myParameter,keepSlope);
+  }
+
+  void transition(const Real t, const Real tstart, const Real tend,
+                  const Real parameter_tstart, const Real parameter_tend)
+  {
+    const std::array<Real, 1> myParameterStart = {parameter_tstart};
+    const std::array<Real, 1> myParameterEnd = {parameter_tend};
+    return ParameterScheduler<1>::transition(t,tstart,tend,myParameterStart,myParameterEnd);
   }
 
   void gimmeValues(const Real t, Real & parameter, Real & dparameter)
@@ -357,7 +387,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
         bCheck = false;
       }
       else if (c > positions[Npoints-1]) {// Are you after oldest wave node?
-        IF2D_Interpolation1D::cubicInterpolation(
+          IF2D_Interpolation1D::cubicInterpolation(
           positions[Npoints-1], c, c,
           this->parameters_t0[Npoints-1], this->parameters_t0[Npoints-1],
           parameters_fine[i], dparameters_fine[i]);
@@ -381,6 +411,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
   void Turn(const Real b, const Real t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
   {
     this->t0 = t_turn;
+
     for(int i=Npoints-1; i>1; --i)
         this->parameters_t0[i] = this->parameters_t0[i-2];
     this->parameters_t0[1] = b;

@@ -39,7 +39,7 @@ inline void setAction(CStartFish* const agent,
 inline bool isTerminal(const CStartFish*const a, const Real& time) {
     // Terminate when the fish exits a radius of 1.5 characteristic lengths
     printf("Time of current episode is: %f", time);
-    return (a->getRadialDisplacement() >= 1.5 * a->length) || time > 4.0 ;
+    return (a->getRadialDisplacement() >= 1 * a->length) || time > 2.0 ;
 }
 
 inline double getReward(const CStartFish* const a, const double& t_elapsed) {
@@ -71,11 +71,7 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
 }
 
 inline double getTimeToNextAct(const CStartFish* const agent, const double t) {
-    // Note: the agent learn period is controlled by parameter Tperiod which is loaded
-    // in periodPIDval. Set to Tprop in smarties launch interface.
-
-    // Agent allowed to act 6 times every Tprop time.
-    return t + agent->getLearnTPeriod() / 10;
+    return agent->getPrep() ? t + 0.7 * agent->Tperiod:t + agent->Tperiod;
 }
 
 inline void app_main(
@@ -88,7 +84,8 @@ inline void app_main(
     const unsigned maxLearnStepPerSim = 200; // must contain all the C-start !
 
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
-    const int nActions = 7, nStates = 20;
+    // Use a discrete action space
+    const int nActions = 7, nStates = 13;
     comm->setStateActionDims(nStates, nActions);
 
     Simulation sim(argc, argv);
@@ -101,9 +98,16 @@ inline void app_main(
 
     const double curvatureLow = -0.5;
     const double curvatureHigh = +0.5;
-    std::vector<double> upper_action_bound(nActions, curvatureHigh), lower_action_bound(nActions, curvatureLow);
+    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1};
     comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
+//    const double ratioLow = 0.4;
+//    const double ratioHigh = 2.5;
+//    const double modulatorLow = 0.0;
+//    const double modulatorHigh = 1.0;
+//    std::vector<double> upper_action_bound(nActions, ratioHigh), lower_action_bound(nActions, ratioLow);
+//    std::vector<double> upper_action_bound(nActions, curvatureHigh), lower_action_bound(nActions, curvatureLow);
+//    comm->setActionScales(upper_action_bound, lower_action_bound, true);
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
         sim.sim.dumpTime = agent->Tperiod / 20;

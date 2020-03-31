@@ -9,16 +9,14 @@
 #pragma once
 #include "Fish.h"
 
-//#define STEFANS_SENSORS_STATE
-
 class CStartFish: public Fish
 {
-    const bool bCorrectTrajectory;
-    const bool bCorrectPosition;
 public:
     void act(const Real lTact, const std::vector<double>& a) const;
-    double getLearnTPeriod() const;
-    double getPhase(const double t) const;
+    void actTurn(const Real lTact, const std::vector<double>& a) const;
+//    void actSimple(const Real lTact, const std::vector<double>& a) const;
+//    void actModulate(const Real lTact, const std::vector<double>& a) const;
+    double getPrep() const;
 
     void resetAll() override;
     CStartFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
@@ -27,6 +25,5 @@ public:
     // member functions for state/reward
     std::vector<double> state() const;
     double getRadialDisplacement() const;
-    double reward() const;
 
 };
