@@ -11,20 +11,9 @@
 #include "Obstacles/CStartFish.h"
 
 using namespace cubism;
-//
-// All these functions are defined here and not in object itself because
-// Many different tasks, each requiring different state/act/rew descriptors
-// could be designed for the same objects (also to fully encapsulate RL).
-//
-// main hyperparameters:
-// number of actions per characteristic time scale
-// max number of actions per simulation
-// range of angles in initial conditions
 
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 {
-    // Maybe randomize the initial curvature of the fish.
-    // Note: the fish always starts at xpos = 0.5...how do I incorporate this for sure.
     double com[2] = {0.5, 0.5};
     a->setCenterOfMass(com);
     a->setOrientation(-98.0 * M_PI / 180.0);
@@ -38,8 +27,8 @@ inline void setAction(CStartFish* const agent,
 
 inline bool isTerminal(const CStartFish*const a, const Real& time) {
     // Terminate when the fish exits a radius of 1.5 characteristic lengths
-    printf("Time of current episode is: %f", time);
-    return (a->getRadialDisplacement() >= 1 * a->length) || time > 2.0 ;
+    printf("Time of current episode is: %f\n", time);
+    return (a->getRadialDisplacement() >= 1.5 * a->length) || time > 2.0 ;
 }
 
 inline double getReward(const CStartFish* const a, const double& t_elapsed) {
@@ -70,10 +59,6 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
     return bTrouble;
 }
 
-inline double getTimeToNextAct(const CStartFish* const agent, const double t) {
-    return agent->getPrep() ? t + 0.7 * agent->Tperiod:t + agent->Tperiod;
-}
-
 inline void app_main(
         smarties::Communicator*const comm, // communicator with smarties
         MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
@@ -81,11 +66,10 @@ inline void app_main(
 ) {
     printf("In app_main\n");
     // Define the maximum learn steps per simulation (episode)
-    const unsigned maxLearnStepPerSim = 200; // must contain all the C-start !
+    const unsigned maxLearnStepPerSim = 200; // not sure how to set this
 
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
-    // Use a discrete action space
-    const int nActions = 7, nStates = 13;
+    const int nActions = 8, nStates = 14;
     comm->setStateActionDims(nStates, nActions);
 
     Simulation sim(argc, argv);
@@ -96,24 +80,15 @@ inline void app_main(
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
     printf("Agent initialized\n");
 
-    const double curvatureLow = -0.5;
-    const double curvatureHigh = +0.5;
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1};
+    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
     comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
-//    const double ratioLow = 0.4;
-//    const double ratioHigh = 2.5;
-//    const double modulatorLow = 0.0;
-//    const double modulatorHigh = 1.0;
-//    std::vector<double> upper_action_bound(nActions, ratioHigh), lower_action_bound(nActions, ratioLow);
-//    std::vector<double> upper_action_bound(nActions, curvatureHigh), lower_action_bound(nActions, curvatureLow);
-//    comm->setActionScales(upper_action_bound, lower_action_bound, true);
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
         sim.sim.dumpTime = agent->Tperiod / 20;
     }
 
-    unsigned sim_id = 0, tot_steps = 0;
+    unsigned int sim_id = 0, tot_steps = 0;
 
     printf("Entering train loop\n");
     // Terminate loop if reached max number of time steps. Never terminate if 0
@@ -146,18 +121,13 @@ inline void app_main(
         {
             printf("Setting action\n");
             setAction(agent, comm->recvAction(), tNextAct);
-            tNextAct = getTimeToNextAct(agent, tNextAct);
+            tNextAct = agent->getTimeNextAct();
             printf("tNextAct: %f\n", tNextAct);
 
-//            const double maxSimSteps = 200;
             while (t < tNextAct)
             {
                 const double dt = sim.calcMaxTimestep();
                 printf("dt: %f\n", dt);
-//                if (dt < 0.0001) {
-//                    agentOver = true;
-//                    break;
-//                }
                 t += dt;
                 printf("t: %f\n", t);
 
