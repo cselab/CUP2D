@@ -28,7 +28,7 @@ inline void setAction(CStartFish* const agent,
 inline bool isTerminal(const CStartFish*const a, const Real& time) {
     // Terminate when the fish exits a radius of 1.5 characteristic lengths
     printf("Time of current episode is: %f\n", time);
-    return (a->getRadialDisplacement() >= 1.5 * a->length) || time > 2.0 ;
+    return (a->getRadialDisplacement() >= 1.50 * a->length) || time > 2.0 ;
 }
 
 inline double getReward(const CStartFish* const a, const double& t_elapsed) {
@@ -40,7 +40,7 @@ inline double getReward(const CStartFish* const a, const double& t_elapsed) {
     // (efficiency)
     // only control the curvature
     double radialDisplacement = a->getRadialDisplacement();
-    double reward = isTerminal(a, t_elapsed)? radialDisplacement - t_elapsed : radialDisplacement;
+    double reward = isTerminal(a, t_elapsed)? radialDisplacement - t_elapsed : radialDisplacement + a->EffPDefBnd;
     printf("Stage reward is: %f \n", reward);
     return reward;
 
