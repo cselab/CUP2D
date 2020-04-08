@@ -9,6 +9,7 @@
 
 #include "PutObjectsOnGrid.h"
 #include "../Shape.h"
+#include "../Utils/BufferedLogger.h"
 
 using namespace cubism;
 
@@ -207,10 +208,16 @@ void PutObjectsOnGrid::operator()(const double dt)
 
   for(Shape * const shape : sim.shapes)
   {
-    // Get the distance travelled (for debug cStart):
-    double com[2] = {0, 0}; shape->getCenterOfMass(com);
+    // Output the distance travelled to file (for debug cStart):
+    double com[2] = {0, 0};
+    shape->getCenterOfMass(com);
     double distance = std::sqrt(std::pow((com[0] - shape->origC[0]), 2) + std::pow((com[1] - shape->origC[1]), 2));
-    printf("Distance travelled is: %f\n", distance);
+
+    // Save to file
+    std::stringstream ssD;
+    ssD<<sim.path2file<<"/distanceValues_"<<shape->obstacleID<<".dat";
+    std::stringstream &fileDistance = logger.get_stream(ssD.str());
+    fileDistance<<sim.time<<" "<<distance<<"\n";
 
     // Check if shape is outside the domain extent.
     shape->updatePosition(dt);
