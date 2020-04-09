@@ -31,20 +31,29 @@ inline bool isTerminal(const CStartFish*const a, const Real& time) {
     return (a->getRadialDisplacement() >= 1.50 * a->length) || time > 2.0 ;
 }
 
-inline double getReward(const CStartFish* const a, const double& t_elapsed) {
-    // Reward is negative the time between each action
-    // time dependent
-    // distance from initial condition.
-    // terminal reward: total time it took
-    // minimize energy ? would use the motion with maximum energy...
-    // (efficiency)
-    // only control the curvature
-    double radialDisplacement = a->getRadialDisplacement();
-    double reward = isTerminal(a, t_elapsed)? radialDisplacement - t_elapsed : radialDisplacement + a->EffPDefBnd;
+inline double getReward(const CStartFish* const a, const double& t_elapsed, const double& energyExpended) {
+
+    // Baseline energy consumed by a C-start:
+    const double baselineEnergy = 0.011; // in joules
+    // Relative difference in energy of current policy with respect to normal C-start:
+    double relativeChangeEnergy = std::abs(energyExpended - baselineEnergy) / baselineEnergy;
+    // Dimensionless radial displacement:
+    double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
+    // Dimensionless episode time:
+    double dimensionlessTElapsed = t_elapsed / a->Tperiod;
+
+    // Stage reward
+    double stageReward = dimensionlessRadialDisplacement;
+    // Terminal reward
+    double terminalReward = dimensionlessRadialDisplacement - relativeChangeEnergy - dimensionlessTElapsed;
+    // Overall reward
+    double reward = isTerminal(a, t_elapsed)? terminalReward : stageReward;
+
     printf("Stage reward is: %f \n", reward);
     return reward;
 
 }
+
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
 {
@@ -113,9 +122,11 @@ inline void app_main(
         unsigned int step = 0;
         bool agentOver = false;
 
+        // Energy consumed by fish in one episode.
+        double energyExpended = 0.0;
+
         printf("Sending initial state\n");
         comm->sendInitState( agent->state() ); //send initial state
-
         printf("Entering simulation loop\n");
         while (true) //simulation loop
         {
@@ -131,10 +142,14 @@ inline void app_main(
                 t += dt;
                 printf("t: %f\n", t);
 
+                printf("Get the power output\n");
+                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
                     assert(false); fflush(0); abort();
                 }
+
                 printf("step smarties is %d\n", step);
                 printf("sim.time is %f\n", t);
                 if ( isTerminal(agent, t)) {
@@ -145,7 +160,8 @@ inline void app_main(
             step++;
             tot_steps++;
             std::vector<double> state = agent->state();
-            double reward = getReward(agent, t);
+            printf("Energy expended is: %f\n", energyExpended);
+            double reward = getReward(agent, t, energyExpended);
 
             if (agentOver || checkNaN(state, reward)) {
                 printf("Agent failed\n"); fflush(0);
