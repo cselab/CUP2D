@@ -10,6 +10,7 @@
 #include "Simulation.h"
 #include "Obstacles/CStartFish.h"
 
+
 using namespace cubism;
 
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
@@ -25,12 +26,23 @@ inline void setAction(CStartFish* const agent,
     agent->act(t, act);
 }
 
+#if 0
 inline bool isTerminal(const CStartFish*const a, const Real& time) {
     // Terminate when the fish exits a radius of 1.5 characteristic lengths
     printf("Time of current episode is: %f\n", time);
     return (a->getRadialDisplacement() >= 1.50 * a->length) || time > 2.0 ;
 }
+#endif
 
+#if 1
+inline bool isTerminal(const CStartFish*const a, const Real& time) {
+    // Terminate after time equal to Gazzola's c-start
+    printf("Time of current episode is: %f\n", time);
+    return time > 1.5882352941 ;
+}
+#endif
+
+#if 0
 inline double getReward(const CStartFish* const a, const double& t_elapsed, const double& energyExpended) {
 
     // Baseline energy consumed by a C-start:
@@ -51,8 +63,38 @@ inline double getReward(const CStartFish* const a, const double& t_elapsed, cons
 
     printf("Stage reward is: %f \n", reward);
     return reward;
-
 }
+#endif
+#if 0
+inline double getReward(const CStartFish* const a, const double& t_elapsed) {
+
+    // Dimensionless radial displacement:
+    double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
+    // Dimensionless episode time:
+    double dimensionlessTElapsed = t_elapsed / a->Tperiod;
+
+    // Stage reward
+    double stageReward = dimensionlessRadialDisplacement;
+    // Terminal reward
+    double terminalReward = dimensionlessRadialDisplacement - dimensionlessTElapsed;
+    // Overall reward
+    double reward = isTerminal(a, t_elapsed)? terminalReward : stageReward;
+
+    printf("Stage reward is: %f \n", reward);
+    return reward;
+}
+#endif
+
+#if 1
+inline double getReward(const CStartFish* const a) {
+    // Dimensionless radial displacement:
+    double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
+    // Reward is dimensionless radial displacement:
+    double reward = dimensionlessRadialDisplacement;
+    printf("Stage reward is: %f \n", reward);
+    return reward;
+}
+#endif
 
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
@@ -123,7 +165,7 @@ inline void app_main(
         bool agentOver = false;
 
         // Energy consumed by fish in one episode.
-        double energyExpended = 0.0;
+//        double energyExpended = 0.0;
 
         printf("Sending initial state\n");
         comm->sendInitState( agent->state() ); //send initial state
@@ -142,8 +184,8 @@ inline void app_main(
                 t += dt;
                 printf("t: %f\n", t);
 
-                printf("Get the power output\n");
-                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+//                printf("Get the power output\n");
+//                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
 
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -160,8 +202,10 @@ inline void app_main(
             step++;
             tot_steps++;
             std::vector<double> state = agent->state();
-            printf("Energy expended is: %f\n", energyExpended);
-            double reward = getReward(agent, t, energyExpended);
+//            printf("Energy expended is: %f\n", energyExpended);
+//            double reward = getReward(agent, t, energyExpended);
+//            double reward = getReward(agent, t);
+            double reward = getReward(agent);
 
             if (agentOver || checkNaN(state, reward)) {
                 printf("Agent failed\n"); fflush(0);
