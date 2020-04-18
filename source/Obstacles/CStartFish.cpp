@@ -44,8 +44,9 @@ public:
 
     // Time for next action
     double t_next = 0.0;
-//    bool act1 = true;
-//    bool act2 = true;
+
+    // Target location
+    double target[2] = {0.0, 0.0};
 
 protected:
     // Current curvature and curvature velocity
@@ -97,8 +98,9 @@ public:
         oldrAlpha = 0;
 
         t_next = 0.0;
-//        act1=true;
-//        act2=true;
+
+        target[0] = 0.0;
+        target[1] = 0.0;
 
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
@@ -256,6 +258,14 @@ void CStartFish::act(const Real t_rlAction, const std::vector<double>& a) const
     cFish->schedule(sim.time, a);
 }
 
+void CStartFish::setTarget(double desiredTarget[2]) const
+{
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->target[0] = desiredTarget[0];
+    cFish->target[1] = desiredTarget[1];
+}
+
+#if 0
 std::vector<double> CStartFish::state() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -282,6 +292,36 @@ std::vector<double> CStartFish::state() const
     S[13] = cFish->lastAlpha;
     return S;
 }
+#endif
+
+#if 1
+std::vector<double> CStartFish::state() const
+{
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+
+    double length = this->length;
+    double com[2] = {0, 0}; this->getCenterOfMass(com);
+
+    std::vector<double> S(14,0);
+
+    S[0] = (com[0] - cFish->target[0]) / length; // distance from targetX
+    S[1] = (com[1] - cFish->target[1]) / length; // distance from targetY
+    S[2] = getOrientation();
+    S[3] = getU() * Tperiod / length;
+    S[4] = getV() * Tperiod / length;
+    S[5] = getW() * Tperiod;
+    S[6] = cFish->lastB3;
+    S[7] = cFish->lastB4;
+    S[8] = cFish->lastB5;
+    S[9] = cFish->lastK3;
+    S[10] = cFish->lastK4;
+    S[11] = cFish->lastK5;
+    S[12] = cFish->lastTau;
+    S[13] = cFish->lastAlpha;
+
+    return S;
+}
+#endif
 
 double CStartFish::getRadialDisplacement() const {
     double com[2] = {0, 0};

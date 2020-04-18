@@ -13,12 +13,29 @@
 
 using namespace cubism;
 
+#if 0
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 {
     double com[2] = {0.5, 0.5};
     a->setCenterOfMass(com);
     a->setOrientation(-98.0 * M_PI / 180.0);
 }
+#endif
+#if 1
+inline void resetIC(CStartFish* const a, smarties::Communicator*const c, double target[2])
+{
+    double com[2] = {0.5, 0.5};
+    double initialAngle = -98.0;
+    a->setCenterOfMass(com);
+    a->setOrientation(initialAngle * M_PI / 180.0);
+    // Place target at 1.5 fish lengths away (1.5 * 0.25 = 0.375). Diametrically opposite from initial orientation.
+    double fishLengthRadius = 1.5;
+    double length = a->length;
+    double supplementaryAngle = 180.0 + initialAngle;
+    target[0] = fishLengthRadius * length * std::cos(supplementaryAngle);
+    target[1] = fishLengthRadius * length * std::sin(supplementaryAngle);
+}
+#endif
 
 inline void setAction(CStartFish* const agent,
                       const std::vector<double> act, const double t)
@@ -85,7 +102,7 @@ inline double getReward(const CStartFish* const a, const double& t_elapsed) {
 }
 #endif
 
-#if 1
+#if 0
 inline double getReward(const CStartFish* const a) {
     // Dimensionless radial displacement:
     double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
@@ -96,6 +113,17 @@ inline double getReward(const CStartFish* const a) {
 }
 #endif
 
+#if 1
+inline double getReward(const CStartFish* const a, double previousRelativePosition[2]) {
+    // Reward inspired from Zermelo's problem (without the penalty per time step)
+    double currentDistance = std::sqrt(std::pow(a->state()[0], 2) + std::pow(a->state()[1], 2));
+    double previousDistance = std::sqrt(std::pow(previousRelativePosition[0], 2) + std::pow(previousRelativePosition[1], 2));
+
+    double reward = 1/currentDistance - 1/previousDistance;
+    printf("Stage reward is: %f \n", reward);
+    return reward;
+}
+#endif
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
 {
@@ -115,7 +143,6 @@ inline void app_main(
         MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
         int argc, char**argv             // args read from app's runtime settings file
 ) {
-    printf("In app_main\n");
     // Define the maximum learn steps per simulation (episode)
     const unsigned maxLearnStepPerSim = 200; // not sure how to set this
 
@@ -125,11 +152,9 @@ inline void app_main(
 
     Simulation sim(argc, argv);
     sim.init();
-    printf("Simulation initialized\n");
 
     CStartFish*const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
-    printf("Agent initialized\n");
 
     std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
     comm->setActionScales(upper_action_bound, lower_action_bound, true);
@@ -141,11 +166,9 @@ inline void app_main(
 
     unsigned int sim_id = 0, tot_steps = 0;
 
-    printf("Entering train loop\n");
     // Terminate loop if reached max number of time steps. Never terminate if 0
     while( true ) // train loop
     {
-        printf("In train loop\n");
         if(comm->isTraining() == false)
         {
             char dirname[1024]; dirname[1023] = '\0';
@@ -155,34 +178,34 @@ inline void app_main(
             chdir(dirname);
         }
 
-        printf("Resetting sim\n");
         sim.reset();
-        printf("Resetting IC\n");
-        resetIC(agent, comm); // randomize initial conditions
+
+        double target[2] = {0.0, 0.0}; // initialize target
+        resetIC(agent, comm, target); // randomize initial conditions
+        agent->setTarget(target); // set the target
 
         double t = 0, tNextAct = 0;
         unsigned int step = 0;
         bool agentOver = false;
+        double previousRelativePosition[2] = {0.0, 0.0};
 
-        // Energy consumed by fish in one episode.
+//        // Energy consumed by fish in one episode.
 //        double energyExpended = 0.0;
 
-        printf("Sending initial state\n");
         comm->sendInitState( agent->state() ); //send initial state
-        printf("Entering simulation loop\n");
         while (true) //simulation loop
         {
-            printf("Setting action\n");
             setAction(agent, comm->recvAction(), tNextAct);
             tNextAct = agent->getTimeNextAct();
-            printf("tNextAct: %f\n", tNextAct);
+
+            // Store the previous relative position before advancing
+            previousRelativePosition[0] = agent->state()[0];
+            previousRelativePosition[1] = agent->state()[1];
 
             while (t < tNextAct)
             {
                 const double dt = sim.calcMaxTimestep();
-                printf("dt: %f\n", dt);
                 t += dt;
-                printf("t: %f\n", t);
 
 //                printf("Get the power output\n");
 //                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
@@ -192,8 +215,6 @@ inline void app_main(
                     assert(false); fflush(0); abort();
                 }
 
-                printf("step smarties is %d\n", step);
-                printf("sim.time is %f\n", t);
                 if ( isTerminal(agent, t)) {
                     agentOver = true;
                     break;
@@ -205,7 +226,7 @@ inline void app_main(
 //            printf("Energy expended is: %f\n", energyExpended);
 //            double reward = getReward(agent, t, energyExpended);
 //            double reward = getReward(agent, t);
-            double reward = getReward(agent);
+            double reward = getReward(agent, previousRelativePosition);
 
             if (agentOver || checkNaN(state, reward)) {
                 printf("Agent failed\n"); fflush(0);
