@@ -116,10 +116,23 @@ inline double getReward(const CStartFish* const a) {
 #if 1
 inline double getReward(const CStartFish* const a, double previousRelativePosition[2]) {
     // Reward inspired from Zermelo's problem (without the penalty per time step)
-    double currentDistance = std::sqrt(std::pow(a->state()[0], 2) + std::pow(a->state()[1], 2));
-    double previousDistance = std::sqrt(std::pow(previousRelativePosition[0], 2) + std::pow(previousRelativePosition[1], 2));
 
-    double reward = 1/currentDistance - 1/previousDistance;
+    // Current position and previous position relative to target in absolute coordinates.
+    double relativeX = a->state()[0] * a->length;
+    double relativeY = a->state()[1] * a->length;
+//    double prevRelativeX = previousRelativePosition[0] * a->length;
+//    double prevRelativeY = previousRelativePosition[1] * a->length;
+
+    // Current distance and previous distance from target in absolute units.
+    double distance_ = (std::sqrt(std::pow(relativeX, 2) + std::pow(relativeY, 2))) / a->length;
+//    double prevDistance_ = (std::sqrt(std::pow(prevRelativeX, 2) + std::pow(prevRelativeY, 2))) / a->length;
+
+//    double reward = 1/distance_ - 1/prevDistance_;
+
+    // Simpler reward structure
+//    double radialDisplacement_ = a->getRadialDisplacement() / a->length;
+    double reward = -distance_;
+
     printf("Stage reward is: %f \n", reward);
     return reward;
 }
@@ -156,7 +169,8 @@ inline void app_main(
     CStartFish*const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
 
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
+//    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0}, upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
+    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0}, upper_action_bound{+4, +1, +1, 0, 0, 0, +1, +1};
     comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
     if(comm->isTraining() == false) {
@@ -182,7 +196,13 @@ inline void app_main(
 
         double target[2] = {0.0, 0.0}; // initialize target
         resetIC(agent, comm, target); // randomize initial conditions
+        printf("Target[0] is %f, Target[1] is %f\n", target[0], target[1]);
         agent->setTarget(target); // set the target
+
+        double outTarget[2] = {0.0, 0.0};
+        agent->getTarget(outTarget);
+        printf("Target[0] is %f, Target[1] is %f\n", outTarget[0], outTarget[1]);
+
 
         double t = 0, tNextAct = 0;
         unsigned int step = 0;
@@ -201,6 +221,7 @@ inline void app_main(
             // Store the previous relative position before advancing
             previousRelativePosition[0] = agent->state()[0];
             previousRelativePosition[1] = agent->state()[1];
+            printf("Previous relative position is (%f, %f)", previousRelativePosition[0], previousRelativePosition[1]);
 
             while (t < tNextAct)
             {
@@ -223,6 +244,7 @@ inline void app_main(
             step++;
             tot_steps++;
             std::vector<double> state = agent->state();
+            printf("state is (%f, %f, ...)", state[0], state[1]);
 //            printf("Energy expended is: %f\n", energyExpended);
 //            double reward = getReward(agent, t, energyExpended);
 //            double reward = getReward(agent, t);

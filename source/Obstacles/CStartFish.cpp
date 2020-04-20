@@ -201,7 +201,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act2=false;
 //    }
 
-    const Real phi = 1.11;
+//    const Real phi = 1.11;
+    const Real phi = 0.0;
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
@@ -265,6 +266,13 @@ void CStartFish::setTarget(double desiredTarget[2]) const
     cFish->target[1] = desiredTarget[1];
 }
 
+void CStartFish::getTarget(double outTarget[2]) const
+{
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    outTarget[0] = cFish->target[0];
+    outTarget[1] = cFish->target[1];
+}
+
 #if 0
 std::vector<double> CStartFish::state() const
 {
@@ -301,23 +309,27 @@ std::vector<double> CStartFish::state() const
 
     double length = this->length;
     double com[2] = {0, 0}; this->getCenterOfMass(com);
+    double radialDisplacement = this->getRadialDisplacement();
+    double polarAngle = std::atan2(com[1], com[0]);
 
-    std::vector<double> S(14,0);
+    std::vector<double> S(16,0);
 
-    S[0] = (com[0] - cFish->target[0]) / length; // distance from targetX
-    S[1] = (com[1] - cFish->target[1]) / length; // distance from targetY
-    S[2] = getOrientation();
-    S[3] = getU() * Tperiod / length;
-    S[4] = getV() * Tperiod / length;
-    S[5] = getW() * Tperiod;
-    S[6] = cFish->lastB3;
-    S[7] = cFish->lastB4;
-    S[8] = cFish->lastB5;
-    S[9] = cFish->lastK3;
-    S[10] = cFish->lastK4;
-    S[11] = cFish->lastK5;
-    S[12] = cFish->lastTau;
-    S[13] = cFish->lastAlpha;
+    S[0] = radialDisplacement / length; // distance from center
+    S[1] = polarAngle; // polar angle
+    S[2] = (com[0] - cFish->target[0]) / length; // distance from targetX
+    S[3] = (com[1] - cFish->target[1]) / length; // distance from targetY
+    S[4] = getOrientation();
+    S[5] = getU() * Tperiod / length;
+    S[6] = getV() * Tperiod / length;
+    S[7] = getW() * Tperiod;
+    S[8] = cFish->lastB3;
+    S[9] = cFish->lastB4;
+    S[10] = cFish->lastB5;
+    S[11] = cFish->lastK3;
+    S[12] = cFish->lastK4;
+    S[13] = cFish->lastK5;
+    S[14] = cFish->lastTau;
+    S[15] = cFish->lastAlpha;
 
     return S;
 }
