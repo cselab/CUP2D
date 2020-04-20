@@ -69,7 +69,7 @@ OBJECTS = \
 		FishLibrary.o ArgumentParser.o PoissonSolver.o advDiffGravStaggered.o \
 		advDiffGrav.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o
+		PutObjectsOnGridStaggered.o Naca.o CStartFish.o
 #Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
 
 ifneq ($(FFTW_ROOT),)
@@ -147,6 +147,10 @@ leadFollow: $(OBJECTS)
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
 blowfish: $(OBJECTS)
+	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
+	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
+
+cStart: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
