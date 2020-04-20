@@ -183,7 +183,6 @@ public:
     }
 };
 
-
 void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 {
     // Curvature control points along midline of fish, as in Gazzola et. al.
@@ -273,8 +272,7 @@ void CStartFish::getTarget(double outTarget[2]) const
     outTarget[1] = cFish->target[1];
 }
 
-#if 0
-std::vector<double> CStartFish::state() const
+std::vector<double> CStartFish::stateEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     std::vector<double> S(14,0);
@@ -300,17 +298,13 @@ std::vector<double> CStartFish::state() const
     S[13] = cFish->lastAlpha;
     return S;
 }
-#endif
 
-#if 1
-std::vector<double> CStartFish::state() const
+std::vector<double> CStartFish::stateTarget() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
 
     double length = this->length;
     double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double radialDisplacement = this->getRadialDisplacement();
-    double polarAngle = std::atan2(com[1], com[0]);
 
     std::vector<double> S(15,0);
 
@@ -332,7 +326,6 @@ std::vector<double> CStartFish::state() const
 
     return S;
 }
-#endif
 
 double CStartFish::getRadialDisplacement() const {
     double com[2] = {0, 0};
