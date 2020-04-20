@@ -24,17 +24,20 @@ inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
 #if 1
 inline void resetIC(CStartFish* const a, smarties::Communicator*const c, double target[2])
 {
-    double com[2] = {0.5, 0.5};
     double initialAngle = -98.0;
+    double length = a->length;
+    double com[2] = {0.5, 0.5};
     a->setCenterOfMass(com);
     a->setOrientation(initialAngle * M_PI / 180.0);
-    // Place target at 1.5 fish lengths away (1.5 * 0.25 = 0.375). Diametrically opposite from initial orientation.
-    double fishLengthRadius = 1.5;
-    double length = a->length;
-    double supplementaryAngle = 180.0 + initialAngle;
-    target[0] = fishLengthRadius * length * std::cos(supplementaryAngle);
-    target[1] = fishLengthRadius * length * std::sin(supplementaryAngle);
+    // Place target at 1.5 fish lengths away (1.5 * 0.25 = 0.375).
+    double targetRadius_ = 1.5;
+    double targetRadius = targetRadius_ * length;
+//    double targetAngle = 180.0 + initialAngle; // Diametrically opposite from initial orientation.
+    double targetAngle = initialAngle; // Directly ahead of fish
+    target[0] = targetRadius * std::cos(targetAngle);
+    target[1] = targetRadius * std::sin(targetAngle);
 }
+
 #endif
 
 inline void setAction(CStartFish* const agent,
@@ -115,23 +118,22 @@ inline double getReward(const CStartFish* const a) {
 
 #if 1
 inline double getReward(const CStartFish* const a, double previousRelativePosition[2]) {
-    // Reward inspired from Zermelo's problem (without the penalty per time step)
-
-    // Current position and previous position relative to target in absolute coordinates.
-    double relativeX = a->state()[0] * a->length;
-    double relativeY = a->state()[1] * a->length;
+//    // Reward inspired from Zermelo's problem (without the penalty per time step)
+//    // Current position and previous position relative to target in absolute coordinates.
+//    double relativeX = a->state()[0] * a->length;
+//    double relativeY = a->state()[1] * a->length;
 //    double prevRelativeX = previousRelativePosition[0] * a->length;
 //    double prevRelativeY = previousRelativePosition[1] * a->length;
-
-    // Current distance and previous distance from target in absolute units.
-    double distance_ = (std::sqrt(std::pow(relativeX, 2) + std::pow(relativeY, 2))) / a->length;
+//    // Current distance and previous distance from target in absolute units.
+//    double distance_ = (std::sqrt(std::pow(relativeX, 2) + std::pow(relativeY, 2))) / a->length;
 //    double prevDistance_ = (std::sqrt(std::pow(prevRelativeX, 2) + std::pow(prevRelativeY, 2))) / a->length;
-
 //    double reward = 1/distance_ - 1/prevDistance_;
-
-    // Simpler reward structure
+//    // Simpler reward structure
 //    double radialDisplacement_ = a->getRadialDisplacement() / a->length;
-    double reward = -distance_;
+
+
+    double distToTarget_ = a->state()[0];
+    double reward = -distToTarget_;
 
     printf("Stage reward is: %f \n", reward);
     return reward;
@@ -155,12 +157,11 @@ inline void app_main(
         smarties::Communicator*const comm, // communicator with smarties
         MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
         int argc, char**argv             // args read from app's runtime settings file
-) {
-    // Define the maximum learn steps per simulation (episode)
+) {    // Define the maximum learn steps per simulation (episode)
     const unsigned maxLearnStepPerSim = 200; // not sure how to set this
 
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
-    const int nActions = 8, nStates = 14;
+    const int nActions = 8, nStates = 15;
     comm->setStateActionDims(nStates, nActions);
 
     Simulation sim(argc, argv);
@@ -202,7 +203,6 @@ inline void app_main(
         double outTarget[2] = {0.0, 0.0};
         agent->getTarget(outTarget);
         printf("Target[0] is %f, Target[1] is %f\n", outTarget[0], outTarget[1]);
-
 
         double t = 0, tNextAct = 0;
         unsigned int step = 0;
@@ -269,6 +269,7 @@ inline void app_main(
 
         if (comm->terminateTraining()) return; // exit program
     }
+
 }
 
 int main(int argc, char**argv)

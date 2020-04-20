@@ -312,24 +312,23 @@ std::vector<double> CStartFish::state() const
     double radialDisplacement = this->getRadialDisplacement();
     double polarAngle = std::atan2(com[1], com[0]);
 
-    std::vector<double> S(16,0);
+    std::vector<double> S(15,0);
 
-    S[0] = radialDisplacement / length; // distance from center
-    S[1] = polarAngle; // polar angle
-    S[2] = (com[0] - cFish->target[0]) / length; // distance from targetX
-    S[3] = (com[1] - cFish->target[1]) / length; // distance from targetY
-    S[4] = getOrientation();
-    S[5] = getU() * Tperiod / length;
-    S[6] = getV() * Tperiod / length;
-    S[7] = getW() * Tperiod;
-    S[8] = cFish->lastB3;
-    S[9] = cFish->lastB4;
-    S[10] = cFish->lastB5;
-    S[11] = cFish->lastK3;
-    S[12] = cFish->lastK4;
-    S[13] = cFish->lastK5;
-    S[14] = cFish->lastTau;
-    S[15] = cFish->lastAlpha;
+    S[0] = this->getDistanceFromTarget() / length; // normalized distance from target
+    S[1] = (com[0] - cFish->target[0]) / length; // relative x position away from target
+    S[2] = (com[1] - cFish->target[1]) / length; // relative y position away from target
+    S[3] = getOrientation();
+    S[4] = getU() * Tperiod / length;
+    S[5] = getV() * Tperiod / length;
+    S[6] = getW() * Tperiod;
+    S[7] = cFish->lastB3;
+    S[8] = cFish->lastB4;
+    S[9] = cFish->lastB5;
+    S[10] = cFish->lastK3;
+    S[11] = cFish->lastK4;
+    S[12] = cFish->lastK5;
+    S[13] = cFish->lastTau;
+    S[14] = cFish->lastAlpha;
 
     return S;
 }
@@ -339,8 +338,16 @@ double CStartFish::getRadialDisplacement() const {
     double com[2] = {0, 0};
     this->getCenterOfMass(com);
     double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
-    printf("Radial displacement is: %f\n", radialDisplacement);
     return radialDisplacement;
+}
+
+double CStartFish::getDistanceFromTarget() const {
+    double com[2] = {0.0, 0.0};
+    double target[2] = {0.0, 0.0};
+    this->getCenterOfMass(com);
+    this->getTarget(target);
+    double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
+    return distanceFromTarget;
 }
 
 double CStartFish::getTimeNextAct() const {

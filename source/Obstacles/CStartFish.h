@@ -27,6 +27,7 @@ public:
     // member functions for state/reward
     std::vector<double> state() const;
     double getRadialDisplacement() const;
+    double getDistanceFromTarget() const;
     double getTimeNextAct() const;
 
 };
