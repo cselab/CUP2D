@@ -72,9 +72,9 @@ protected:
 public:
 
     ControlledCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-            : FishData(L, T, phi, _h, _A), rBC(_alloc(Nm)),vBC(_alloc(Nm)),
-              rUC(_alloc(Nm)), vUC(_alloc(Nm)), tauTail(0.0), vTauTail(0.0),
-              rK(_alloc(Nm)), vK(_alloc(Nm)), alpha(0.0) {
+            : FishData(L, T, phi, _h, _A), rK(_alloc(Nm)), vK(_alloc(Nm)),
+              rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), vUC(_alloc(Nm)),
+              tauTail(0.0), vTauTail(0.0), alpha(0.0) {
         _computeWidth();
         writeMidline2File(0, "initialCheck");
     }
@@ -188,7 +188,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     // Curvature control points along midline of fish, as in Gazzola et. al.
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
-
+//
 //    if (t>=0.0 && act1){
 //        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4};
 //        this->schedule(t, a);
@@ -200,8 +200,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act2=false;
 //    }
 
-//    const Real phi = 1.11;
-    const Real phi = 0.0;
+    const Real phi = 1.11;
+//    const Real phi = 0.0;
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
@@ -248,7 +248,6 @@ void CStartFish::create(const std::vector<BlockInfo>& vInfo)
 {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-    const double DT = sim.dt/Tperiod, time = sim.time;
     Fish::create(vInfo);
 }
 
@@ -277,7 +276,6 @@ std::vector<double> CStartFish::stateEscape() const
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     std::vector<double> S(14,0);
 
-    double length = this->length;
     double com[2] = {0, 0}; this->getCenterOfMass(com);
     double radialDisplacement = this->getRadialDisplacement();
     double polarAngle = std::atan2(com[1], com[0]);
@@ -302,8 +300,6 @@ std::vector<double> CStartFish::stateEscape() const
 std::vector<double> CStartFish::stateTarget() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-
-    double length = this->length;
     double com[2] = {0, 0}; this->getCenterOfMass(com);
 
     std::vector<double> S(15,0);
@@ -323,7 +319,6 @@ std::vector<double> CStartFish::stateTarget() const
     S[12] = cFish->lastK5;
     S[13] = cFish->lastTau;
     S[14] = cFish->lastAlpha;
-
     return S;
 }
 

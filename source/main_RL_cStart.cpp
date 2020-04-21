@@ -1,6 +1,6 @@
 /* main_RL_cStart.cpp
  * Created by Ioannis Mandralis (ioannima@ethz.ch)
- * Main script for a single CStartFish learning a fast start
+ * Main script for a single CStartFish learning a fast start. Task based reasoning for a smarties application.
 */
 
 #include <unistd.h>
@@ -12,12 +12,11 @@
 
 using namespace cubism;
 
-// Task based smarties application.
 // A task is something that shares the same agent, state, action-set, terminal condition, and initial condition.
 class Task
 {
 public:
-    const unsigned maxLearnStepPerSim = 200;
+    const unsigned maxLearnStepPerSim = 9000000;
     // Simulation quantities needed for reward functions
     double timeElapsed = 0.0; // time elapsed until now in the episode
     double energyExpended = 0.0; // energy expended until now in the episode
@@ -94,26 +93,14 @@ public:
         return a->stateTarget();
     }
 
-    inline double getReward(const CStartFish* const a) {
-//    // Reward inspired from Zermelo's problem (without the penalty per time step)
-//    // Current position and previous position relative to target in absolute coordinates.
-//    double relativeX = getState(a)[0] * a->length;
-//    double relativeY = getState(a)[1] * a->length;
-//    double prevRelativeX = previousRelativePosition[0] * a->length;
-//    double prevRelativeY = previousRelativePosition[1] * a->length;
-//    // Current distance and previous distance from target in absolute units.
-//    double distance_ = (std::sqrt(std::pow(relativeX, 2) + std::pow(relativeY, 2))) / a->length;
-//    double prevDistance_ = (std::sqrt(std::pow(prevRelativeX, 2) + std::pow(prevRelativeY, 2))) / a->length;
-//    double reward = 1/distance_ - 1/prevDistance_;
-//    // Simpler reward structure
-//    double radialDisplacement_ = a->getRadialDisplacement() / a->length;
+    inline double getReward(const CStartFish* const a)
+    {
+        return -getState(a)[0];
+    }
 
-
-        double distToTarget_ = getState(a)[0];
-        double reward = -distToTarget_;
-
-        printf("Stage reward is: %f \n", reward);
-        return reward;
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return getReward(a);
     }
 
 };
@@ -151,58 +138,59 @@ public:
 class DistanceEscape : public Escape
 {
 public:
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        return timeElapsed > 1.5882352941 ;
+    }
     inline double getReward(const CStartFish* const a)
     {
-        // Dimensionless radial displacement:
-        double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
-        // Reward is dimensionless radial displacement:
-        double reward = dimensionlessRadialDisplacement;
-        printf("Stage reward is: %f \n", reward);
-        return reward;
+        return 0.0;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return a->getRadialDisplacement() / a->length;
     }
 };
-class DistanceTimeEscape : public Escape
+class SequentialDistanceEscape : public Escape
+{
+public:
+    inline double getReward(const CStartFish* const a)
+    {
+        return a->getRadialDisplacement() / a->length;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return getReward(a);
+    }
+};
+class SequentialDistanceTimeEscape : public Escape
 {
 public:
     inline double getReward(const CStartFish* const a)
     {
         // Dimensionless radial displacement:
-        double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
-        // Dimensionless episode time:
-        double dimensionlessTElapsed = timeElapsed / a->Tperiod;
-        // Stage reward
-        double stageReward = dimensionlessRadialDisplacement;
-        // Terminal reward
-        double terminalReward = dimensionlessRadialDisplacement - dimensionlessTElapsed;
-        // Overall reward
-        double reward = isTerminal(a)? terminalReward : stageReward;
-        printf("Stage reward is: %f \n", reward);
-        return reward;
+        return a->getRadialDisplacement() / a->length;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        // Dimensionless radial displacement and time elapsed:
+        return a->getRadialDisplacement() / a->length - timeElapsed / a->Tperiod;
     }
 };
-class DistanceTimeEnergyEscape : public Escape
+class SequentialDistanceTimeEnergyEscape : public Escape
 {
+public:
+    const double baselineEnergy = 0.011; // Baseline energy consumed by a C-start in joules
 public:
     inline double getReward(const CStartFish* const a)
     {
-        // Baseline energy consumed by a C-start:
-        const double baselineEnergy = 0.011; // in joules
-        // Relative difference in energy of current policy with respect to normal C-start:
-        double relativeChangeEnergy = std::abs(energyExpended - baselineEnergy) / baselineEnergy;
         // Dimensionless radial displacement:
-        double dimensionlessRadialDisplacement = a->getRadialDisplacement() / a->length;
-        // Dimensionless episode time:
-        double dimensionlessTElapsed = timeElapsed / a->Tperiod;
-
-        // Stage reward
-        double stageReward = dimensionlessRadialDisplacement;
-        // Terminal reward
-        double terminalReward = dimensionlessRadialDisplacement - relativeChangeEnergy - dimensionlessTElapsed;
-        // Overall reward
-        double reward = isTerminal(a)? terminalReward : stageReward;
-
-        printf("Stage reward is: %f \n", reward);
-        return reward;
+        return a->getRadialDisplacement() / a->length;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        // Add the relative difference in energy of current policy with respect to normal C-start:
+        return a->getRadialDisplacement() / a->length - std::abs(energyExpended - baselineEnergy) / baselineEnergy - timeElapsed / a->Tperiod;
     }
 };
 
@@ -212,28 +200,25 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    GoToTarget task = GoToTarget();
+    DistanceEscape task = DistanceEscape();
 
-    // Define the maximum learn steps per simulation (episode)
-    const unsigned maxLearnStepPerSim = task.maxLearnStepPerSim;
-
+    // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
     comm->setStateActionDims(task.nStates, task.nActions);
+    comm->setActionScales(task.upper_action_bound, task.lower_action_bound, true);
+    const unsigned maxLearnStepPerSim = task.maxLearnStepPerSim;
 
+    // Initialize the simulation
     Simulation sim(argc, argv);
     sim.init();
 
-    CStartFish*const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
+    CStartFish* const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
-
-    comm->setActionScales(task.upper_action_bound, task.lower_action_bound, true);
-
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
         sim.sim.dumpTime = agent->Tperiod / 20;
     }
-
-    unsigned int sim_id = 0, tot_steps = 0;
+    unsigned sim_id = 0, tot_steps = 0;
 
     // Terminate loop if reached max number of time steps. Never terminate if 0
     while( true ) // train loop
@@ -249,15 +234,14 @@ inline void app_main(
 
         sim.reset();
         task.resetIC(agent, comm); // randomize initial conditions
-        double target[2] = {0,0}; agent->getTarget(target);
-        printf("Target is: (%f, %f)\n", target[0], target[1]);
 
         double t = 0, tNextAct = 0;
-        unsigned int step = 0;
+        unsigned step = 0;
         bool agentOver = false;
         double energyExpended = 0.0; // Energy consumed by fish in one episode
 
         comm->sendInitState( task.getState(agent) ); //send initial state
+
         while (true) //simulation loop
         {
             task.setAction(agent, comm->recvAction(), tNextAct);
@@ -265,20 +249,17 @@ inline void app_main(
 
             while (t < tNextAct)
             {
-                // Get the time-step from the simulation
                 const double dt = sim.calcMaxTimestep();
                 t += dt;
 
                 // Set the task-time
                 task.setTimeElapsed(t);
-                printf("Time is: %f\n", t);
 
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
 
                 // Set the task-energy-expenditure
                 task.setEnergyExpended(energyExpended);
-                printf("Energy is: %f\n", energyExpended);
 
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -293,8 +274,7 @@ inline void app_main(
             step++;
             tot_steps++;
             std::vector<double> state = task.getState(agent);
-            double reward = task.getReward(agent);
-            printf("Reward is: %f\n", reward);
+            double reward = agentOver? task.getTerminalReward(agent) : task.getReward(agent);
 
             if (agentOver || task.checkNaN(state, reward)) {
                 printf("Agent failed\n"); fflush(0);
