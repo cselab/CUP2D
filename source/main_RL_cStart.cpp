@@ -238,7 +238,7 @@ inline void app_main(
         double t = 0, tNextAct = 0;
         unsigned step = 0;
         bool agentOver = false;
-        double energyExpended = 0.0; // Energy consumed by fish in one episode
+        // double energyExpended = 0.0; // Energy consumed by fish in one episode
 
         comm->sendInitState( task.getState(agent) ); //send initial state
 
@@ -250,16 +250,13 @@ inline void app_main(
             while (t < tNextAct)
             {
                 const double dt = sim.calcMaxTimestep();
-                t += dt;
-
-                // Set the task-time
-                task.setTimeElapsed(t);
+                t += dt; task.setTimeElapsed(t); // set the task time.
 
                 // Forward integrate the energy expenditure
-                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+                // energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
 
                 // Set the task-energy-expenditure
-                task.setEnergyExpended(energyExpended);
+                // task.setEnergyExpended(energyExpended);
 
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
