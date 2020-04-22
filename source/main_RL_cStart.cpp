@@ -59,6 +59,7 @@ public:
     std::vector<double> upper_action_bound{+4, +1, +1, 0, 0, 0, +1, +1};
     const int nActions = 8;
     const int nStates = 15;
+    unsigned maxActionsPerSim = 9000000;
 public:
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
     {
@@ -112,8 +113,9 @@ public:
     // Task constants
     std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0};
     std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
-    const int nActions = 8;
-    const int nStates = 14;
+    int nActions = 8;
+    int nStates = 14;
+    unsigned maxActionsPerSim = 9000000;
 public:
 
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
@@ -194,13 +196,53 @@ public:
     }
 };
 
+// CStart
+class CStart : public Task
+{
+public:
+    // Task constants
+    unsigned maxActionsPerSim = 2;
+    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0};
+    std::vector<double> upper_action_bound{+4, +1, +1, 0, 0, 0, +1};
+    int nActions = 7;
+    int nStates = 2;
+public:
+    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
+    {
+        double com[2] = {0.5, 0.5};
+        a->setCenterOfMass(com);
+        a->setOrientation(-98.0 * M_PI / 180.0);
+    }
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        return timeElapsed > 1.5882352941 ;
+    }
+    inline std::vector<double> getState(const CStartFish* const a)
+    {
+        return a->stateCStart();
+    }
+    inline void setAction(CStartFish* const agent, const std::vector<double> act, const double t)
+    {
+        agent->actCStart(t, act);
+    }
+    inline double getReward(const CStartFish* const a)
+    {
+        return 0.0;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return a->getRadialDisplacement() / a->length;
+    }
+};
+
+
 inline void app_main(
         smarties::Communicator*const comm, // communicator with smarties
         MPI_Comm mpicom,                   // mpi_comm that mpi-based apps can use
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceEscape task = DistanceEscape();
+    CStart task = CStart();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -236,7 +278,7 @@ inline void app_main(
         task.resetIC(agent, comm); // randomize initial conditions
 
         double t = 0, tNextAct = 0;
-        unsigned step = 0;
+        unsigned step = 0, numActions = 0;
         bool agentOver = false;
         // double energyExpended = 0.0; // Energy consumed by fish in one episode
 
@@ -244,8 +286,14 @@ inline void app_main(
 
         while (true) //simulation loop
         {
-            task.setAction(agent, comm->recvAction(), tNextAct);
-            tNextAct = agent->getTimeNextAct();
+            if (numActions < task.maxActionsPerSim) {
+                task.setAction(agent, comm->recvAction(), tNextAct);
+                tNextAct = agent->getTimeNextAct();
+                numActions += 1;
+            } else {
+                tNextAct = 10.0;
+                // wait for episode to end. 10 seconds is alot. This only works for tasks which are time bounded.
+            }
 
             while (t < tNextAct)
             {

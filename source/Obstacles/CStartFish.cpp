@@ -48,6 +48,10 @@ public:
     // Target location
     double target[2] = {0.0, 0.0};
 
+//    // act bools
+//    bool act1 = true;
+//    bool act2 = true;
+
 protected:
     // Current curvature and curvature velocity
     Real * const rK;
@@ -101,6 +105,9 @@ public:
 
         target[0] = 0.0;
         target[1] = 0.0;
+
+//        act1 = true;
+//        act2 = true;
 
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
@@ -166,6 +173,70 @@ public:
 
     }
 
+    void scheduleCStart(const Real t_current, const std::vector<double>&a)
+    {
+        // Current time must be later than time at which action should be performed.
+        assert(t_current >= t_rlAction);
+
+        // Store last action into the older action placeholder
+        oldrB3 = lastB3;
+        oldrB4 = lastB4;
+        oldrB5 = lastB5;
+        oldrK3 = lastK3;
+        oldrK4 = lastK4;
+        oldrK5 = lastK5;
+        oldrTau = lastTau;
+
+        // Store the new action into the last action placeholder
+        lastB3 = a[0];
+        lastB4 = a[1];
+        lastB5 = a[2];
+        lastK3 = a[3];
+        lastK4 = a[4];
+        lastK5 = a[5];
+        lastTau = a[6];
+
+        // RL agent should output normalized curvature values as actions.
+        double curvatureFactor = 1.0 / this->length;
+
+        // Define the agent-prescribed curvature values
+        const std::array<Real ,6> baselineCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)lastB3 * curvatureFactor,
+                (Real)lastB4 * curvatureFactor, (Real)lastB5 * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+        const std::array<Real ,6> undulatoryCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)lastK3 * curvatureFactor,
+                (Real)lastK4  * curvatureFactor, (Real)lastK5 * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+
+        // Using the agent-prescribed action duration get the final time of the prescribed action
+        const double duration1 = 0.7 * this->Tperiod;
+        const double duration2 = this->Tperiod;
+        double actionDuration = 0.0;
+        if (t_current < duration1){
+            actionDuration = duration1;
+            this->t_next = t_current + actionDuration;
+        } else {
+            actionDuration = duration2;
+            this->t_next = t_current + actionDuration;
+        }
+
+        // Decide whether to use the current derivative for the cubic interpolation
+        const bool useCurrentDerivative = true;
+
+        // Act by scheduling a transition at the current time.
+        baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
+        undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
+        tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
+
+        printf("\nAction duration is: %f\n", actionDuration);
+        printf("t_next is: %f\n", this->t_next);
+        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
+        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
+        printf("Scheduled a transition between %f and %f to tau %f\n", t_current, t_next, lastTau);
+
+    }
+
     ~ControlledCurvatureFish() override {
         _dealloc(rBC); _dealloc(vBC); _dealloc(rUC); _dealloc(vUC);
         _dealloc(rK); _dealloc(vK);
@@ -188,15 +259,15 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     // Curvature control points along midline of fish, as in Gazzola et. al.
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
-//
+
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4};
-//        this->schedule(t, a);
+//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74};
+//        this->scheduleCStart(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0.0, 0.0, 0.0, -5.73, -2.73, -1.09, 0.74, 1.0};
-//        this->schedule(t, a);
+//        std::vector<double> a{0.0, 0.0, 0.0, -5.73, -2.73, -1.09, 0.74};
+//        this->scheduleCStart(t, a);
 //        act2=false;
 //    }
 
@@ -257,6 +328,12 @@ void CStartFish::act(const Real t_rlAction, const std::vector<double>& a) const
     cFish->schedule(sim.time, a);
 }
 
+void CStartFish::actCStart(const Real lTact, const std::vector<double> &a) const {
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->scheduleCStart(sim.time, a);
+}
+
+
 void CStartFish::setTarget(double desiredTarget[2]) const
 {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -294,6 +371,17 @@ std::vector<double> CStartFish::stateEscape() const
     S[11] = cFish->lastK5;
     S[12] = cFish->lastTau;
     S[13] = cFish->lastAlpha;
+    return S;
+}
+
+std::vector<double> CStartFish::stateCStart() const
+{
+    std::vector<double> S(2,0);
+    double com[2] = {0, 0}; this->getCenterOfMass(com);
+    double radialDisplacement = this->getRadialDisplacement();
+    double polarAngle = std::atan2(com[1], com[0]);
+    S[0] = radialDisplacement / length; // distance from center
+    S[1] = polarAngle; // polar angle
     return S;
 }
 

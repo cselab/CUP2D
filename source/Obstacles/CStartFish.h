@@ -13,6 +13,7 @@ class CStartFish: public Fish
 {
 public:
     void act(const Real lTact, const std::vector<double>& a) const;
+    void actCStart(const Real lTact, const std::vector<double>& a) const;
     void actTurn(const Real lTact, const std::vector<double>& a) const;
     void setTarget(double desiredTarget[2]) const;
     void getTarget(double outTarget[2]) const;
@@ -27,6 +28,7 @@ public:
     // member functions for state/reward
     std::vector<double> stateEscape() const;
     std::vector<double> stateTarget() const;
+    std::vector<double> stateCStart() const;
     double getRadialDisplacement() const;
     double getDistanceFromTarget() const;
     double getTimeNextAct() const;
