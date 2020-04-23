@@ -204,8 +204,8 @@ public:
     unsigned maxActionsPerSim = 2;
     std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0};
     std::vector<double> upper_action_bound{+4, +1, +1, 0, 0, 0, +1};
-    int nActions = 2;
-    int nStates = 14;
+    int nActions = 7;
+    int nStates = 2;
 public:
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
     {
