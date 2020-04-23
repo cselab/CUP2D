@@ -20,6 +20,9 @@ public:
     double t_next = 0.0; // Time for next action
     double target[2] = {0.0, 0.0}; // Target location
     bool act1 = true;
+    bool act2 = true;
+    bool act3 = true;
+    bool act4 = true;
 protected:
     Real * const rK; // Current curvature
     Real * const vK; // Current curvature velocity
@@ -50,6 +53,9 @@ public:
         t_next = 0.0;
         target[0] = 0.0; target[1] = 0.0;
         act1 = true;
+        act2 = true;
+        act3 = true;
+        act4 = true;
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
         tauTailScheduler.resetAll();
@@ -94,6 +100,47 @@ public:
         };
 
         // Use the agent-prescribed timing factor to get the final time of the prescribed action
+        const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod/2 + timingFactor * this->Tperiod/2;
+        this->t_next = t_current + actionDuration;
+
+        // Decide whether to use the current derivative for the cubic interpolation
+        const bool useCurrentDerivative = true;
+
+        // Act by scheduling a transition at the current time.
+        baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
+        undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
+        tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
+
+        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
+        printf("t_next is: %f\n", this->t_next);
+    }
+
+    void scoot(const Real t_current, const std::vector<double> &a) {
+        // Current time must be later than time at which action should be performed.
+        assert(t_current >= t_rlAction);
+
+        // Fix the phase of the burst. Normally I should deduce the phase required based on the current
+        // curvature configuration.
+        const double tailPhase = 0.74;
+
+        // Schedule a burst with given modulation and timing factor
+        const double modulationFactor = a[0];
+        const double timingFactor = a[1];
+
+        // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
+        const double curvatureFactor = modulationFactor / this->length;
+
+        // Define the curvature values of the burst
+        const std::array<Real ,6> baselineCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+        const std::array<Real ,6> undulatoryCurvatureValues = {
+                (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)2.57136 * curvatureFactor,
+                (Real)3.75425 * curvatureFactor, (Real)5.09147 * curvatureFactor, (Real)0.0 * curvatureFactor
+        };
+
+        // Use the agent-prescribed timing factor to get the final time of the prescribed action
         const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
         this->t_next = t_current + actionDuration;
 
@@ -104,15 +151,93 @@ public:
         baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
-        // Allow body to relax. How do I pick the relaxation time?
-        baselineCurvatureScheduler.transition(t_current + this->t_next, this->t_next, this->t_next, baselineCurvatureValues, useCurrentDerivative);
-        undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
-        tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
+        printf("Performing a scoot with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
         printf("t_next is: %f\n", this->t_next);
     }
 
+    void coast(const Real t_current, const std::vector<double> &a) {
+    // Current time must be later than time at which action should be performed.
+    assert(t_current >= t_rlAction);
+
+    // Fix the phase of the burst. Normally I should deduce the phase required based on the current
+    // curvature configuration.
+    const double tailPhase = 0.0;
+
+    // Schedule a burst with given modulation and timing factor
+    const double modulationFactor = a[0];
+    const double timingFactor = a[1];
+
+    // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
+    const double curvatureFactor = modulationFactor / this->length;
+
+    // Define the curvature values of the burst
+    const std::array<Real ,6> baselineCurvatureValues = {
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor
+    };
+    const std::array<Real ,6> undulatoryCurvatureValues = {
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
+            (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor
+    };
+
+    // Use the agent-prescribed timing factor to get the final time of the prescribed action
+    const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
+    this->t_next = t_current + actionDuration;
+
+    // Decide whether to use the current derivative for the cubic interpolation
+    const bool useCurrentDerivative = true;
+
+    // Act by scheduling a transition at the current time.
+    baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
+    undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
+    tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
+
+    printf("Performing a coast with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
+    printf("t_next is: %f\n", this->t_next);
+}
+
+    void hybrid(const Real t_current, const std::vector<double> &a)
+    {
+        const double tailPhase = 0.74;
+
+        const double beta = a[0];
+        const double kappaB = a[1];
+        const double kappaS = a[2];
+        const double timingFactor = a[3];
+
+        const double baselineCurvatureFactor = beta / this->length;
+        const double undulatoryCurvatureFactor = 1 / this->length;
+        const std::array<Real ,6> baselineCurvatureValues = {
+                (Real)0.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor, (Real)-4.0 * baselineCurvatureFactor,
+                (Real)-1.0 * baselineCurvatureFactor, (Real)-1.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor
+        };
+        const std::array<Real ,6> undulatoryCurvatureValuesScoot = {
+                (Real)0.0 * undulatoryCurvatureFactor, (Real)0.0 * undulatoryCurvatureFactor, (Real)2.57136 * undulatoryCurvatureFactor,
+                (Real)3.75425 * undulatoryCurvatureFactor, (Real)5.09147 * undulatoryCurvatureFactor, (Real)0.0 * undulatoryCurvatureFactor
+        };
+        const std::array<Real ,6> undulatoryCurvatureValuesBurst = {
+                (Real)0.0 * undulatoryCurvatureFactor, (Real)0.0 * undulatoryCurvatureFactor, (Real)-6.0 * undulatoryCurvatureFactor,
+                (Real)-3.0  * undulatoryCurvatureFactor, (Real)-1.5 * undulatoryCurvatureFactor, (Real)0.0 * undulatoryCurvatureFactor
+        };
+        std::array<Real, 6> undulatoryCurvatureValues = {0, 0, 0, 0, 0, 0};
+        for (int i=0;i<6;i++)
+        {
+            undulatoryCurvatureValues[i] = (kappaB * undulatoryCurvatureValuesBurst[i] + kappaS * undulatoryCurvatureValuesScoot[i])/2;
+        }
+
+        // Use the agent-prescribed timing factor to get the final time of the prescribed action
+        const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
+        this->t_next = t_current + actionDuration;
+        const bool useCurrentDerivative = true; // Decide whether to use the current derivative for the cubic interpolation
+
+        // Act by scheduling a transition at the current time.
+        baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
+        undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
+        tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
+        printf("Performing a hybrid action with beta %f, kappaB %f, kappaS %f\n", beta, kappaB, kappaS);
+        printf("t_next is: %f\n", this->t_next);
+    }
 };
 
 void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
@@ -122,14 +247,24 @@ void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
     if (t>=0.0 && act1){
-        std::vector<double> a{1.0, 0.4};
-        this->burst(t, a);
+        std::vector<double> a{1.0, 1.0, 0.0, 1.0};
+        this->hybrid(t, a);
         act1=false;
     }
-//    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0.0, 0.0, 0.0, -5.73, -2.73, -1.09, 0.74};
-//        this->scheduleCStart(t, a);
-//        act2=false;
+    if (t>=this->t_next && act2){
+        std::vector<double> a{0.0, 1.0, 0.0, 1.0};
+        this->hybrid(t, a);
+        act2=false;
+    }
+//    if (t>=this->t_next && act3){
+//        std::vector<double> a{1.0, 1.0};
+//        this->coast(t, a);
+//        act3=false;
+//    }
+//    if (t>=this->t_next && act4){
+//        std::vector<double> a{1.0, 0.4};
+//        this->coast(t, a);
+//        act4=false;
 //    }
 
     const Real phi = 1.11;
