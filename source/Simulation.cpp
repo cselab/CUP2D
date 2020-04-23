@@ -32,6 +32,7 @@
 #include "Obstacles/CarlingFish.h"
 #include "Obstacles/StefanFish.h"
 #include "Obstacles/CStartFish.h"
+#include "Obstacles/ZebraFish.h"
 #include "Obstacles/BlowFish.h"
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Glider.h"
@@ -158,6 +159,8 @@ void Simulation::createShapes()
         shape = new StefanFish(       sim, ffparser, center);
       else if (objectName=="cstartfish")
         shape = new CStartFish(       sim, ffparser, center);
+      else if (objectName=="zebrafish")
+          shape = new ZebraFish(      sim, ffparser, center);
       else if (objectName=="carlingfish")
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )
