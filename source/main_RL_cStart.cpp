@@ -209,9 +209,12 @@ public:
 public:
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
     {
+        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
+        std::uniform_real_distribution<Real> dis(-A, A);
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -98.0 * M_PI / 180.0;
+        agent->setOrientation(SA);
         double com[2] = {0.5, 0.5};
         a->setCenterOfMass(com);
-        a->setOrientation(-98.0 * M_PI / 180.0);
     }
     inline bool isTerminal(const CStartFish*const a)
     {
