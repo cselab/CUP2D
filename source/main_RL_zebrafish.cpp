@@ -1,13 +1,13 @@
 /* main_RL_cStart.cpp
  * Created by Ioannis Mandralis (ioannima@ethz.ch)
- * Main script for a single CStartFish learning a fast start. Task based reasoning for a smarties application.
+ * Main script for a single ZebraFish learning a fast start. Task based reasoning for a smarties application.
 */
 
 #include <unistd.h>
 #include <sys/stat.h>
 #include "smarties.h"
 #include "Simulation.h"
-#include "Obstacles/CStartFish.h"
+#include "Obstacles/ZebraFish.h"
 
 
 using namespace cubism;
@@ -21,7 +21,7 @@ public:
     double timeElapsed = 0.0; // time elapsed until now in the episode
     double energyExpended = 0.0; // energy expended until now in the episode
 public:
-    inline void setAction(CStartFish* const agent,
+    inline void setAction(ZebraFish* const agent,
                           const std::vector<double> act, const double t)
     {
         agent->act(t, act);
@@ -50,105 +50,52 @@ public:
 
 };
 
-// Target following
-class GoToTarget : public Task
-{
-public:
-    // Task constants
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0};
-    std::vector<double> upper_action_bound{+4, +1, +1, 0, 0, 0, +1, +1};
-    const int nActions = 8;
-    const int nStates = 15;
-    unsigned maxActionsPerSim = 9000000;
-public:
-    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
-    {
-        double initialAngle = -98.0;
-        double length = a->length;
-        double com[2] = {0.5, 0.5};
-        double target[2] = {0.0, 0.0};
-
-
-        // Place target at 1.5 fish lengths away (1.5 * 0.25 = 0.375).
-        double targetRadius_ = 1.5;
-        double targetRadius = targetRadius_ * length;
-//    double targetAngle = 180.0 + initialAngle; // Diametrically opposite from initial orientation.
-        double targetAngle = initialAngle; // Directly ahead of fish
-        target[0] = targetRadius * std::cos(targetAngle);
-        target[1] = targetRadius * std::sin(targetAngle);
-
-        // Set agent quantities
-        a->setCenterOfMass(com);
-        a->setOrientation(initialAngle * M_PI / 180.0);
-        a->setTarget(target);
-    }
-
-    inline bool isTerminal(const CStartFish*const a) {
-        // Terminate after time equal to Gazzola's C-start
-        printf("Time of current episode is: %f\n", timeElapsed);
-        return timeElapsed > 1.5882352941 ;
-    }
-
-    inline std::vector<double> getState(const CStartFish* const a)
-    {
-        return a->stateTarget();
-    }
-
-    inline double getReward(const CStartFish* const a)
-    {
-        return -getState(a)[0];
-    }
-
-    inline double getTerminalReward(const CStartFish* const a)
-    {
-        return getReward(a);
-    }
-
-};
-
 // Escaping
 class Escape : public Task
 {
 public:
     // Task constants
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0};
-    std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
-    int nActions = 8;
-    int nStates = 14;
+    std::vector<double> lower_action_bound{-1, 0, 0, 0};
+    std::vector<double> upper_action_bound{-1, 1, 1, 1};
+    int nActions = 4;
+    int nStates = 10;
     unsigned maxActionsPerSim = 9000000;
 public:
 
-    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
+    inline void resetIC(ZebraFish* const a, smarties::Communicator*const c)
     {
+        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
+        std::uniform_real_distribution<Real> dis(-A, A);
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -98.0 * M_PI / 180.0;
+        a->setOrientation(SA);
         double com[2] = {0.5, 0.5};
         a->setCenterOfMass(com);
-        a->setOrientation(-98.0 * M_PI / 180.0);
     }
 
-    inline bool isTerminal(const CStartFish*const a)
+    inline bool isTerminal(const ZebraFish*const a)
     {
         // Terminate when the fish exits a radius of 1.5 characteristic lengths or time > 2.0
         return (a->getRadialDisplacement() >= 1.50 * a->length) || timeElapsed > 2.0 ;
     }
 
-    inline std::vector<double> getState(const CStartFish* const a)
+    inline std::vector<double> getState(const ZebraFish* const a)
     {
-        return a->stateEscape();
+        return a->state();
     }
 
 };
 class DistanceEscape : public Escape
 {
 public:
-    inline bool isTerminal(const CStartFish*const a)
+    inline bool isTerminal(const ZebraFish*const a)
     {
         return timeElapsed > 1.5882352941 ;
     }
-    inline double getReward(const CStartFish* const a)
+    inline double getReward(const ZebraFish* const a)
     {
         return 0.0;
     }
-    inline double getTerminalReward(const CStartFish* const a)
+    inline double getTerminalReward(const ZebraFish* const a)
     {
         return a->getRadialDisplacement() / a->length;
     }
@@ -156,11 +103,11 @@ public:
 class SequentialDistanceEscape : public Escape
 {
 public:
-    inline double getReward(const CStartFish* const a)
+    inline double getReward(const ZebraFish* const a)
     {
         return a->getRadialDisplacement() / a->length;
     }
-    inline double getTerminalReward(const CStartFish* const a)
+    inline double getTerminalReward(const ZebraFish* const a)
     {
         return getReward(a);
     }
@@ -168,12 +115,12 @@ public:
 class SequentialDistanceTimeEscape : public Escape
 {
 public:
-    inline double getReward(const CStartFish* const a)
+    inline double getReward(const ZebraFish* const a)
     {
         // Dimensionless radial displacement:
         return a->getRadialDisplacement() / a->length;
     }
-    inline double getTerminalReward(const CStartFish* const a)
+    inline double getTerminalReward(const ZebraFish* const a)
     {
         // Dimensionless radial displacement and time elapsed:
         return a->getRadialDisplacement() / a->length - timeElapsed / a->Tperiod;
@@ -184,12 +131,12 @@ class SequentialDistanceTimeEnergyEscape : public Escape
 public:
     const double baselineEnergy = 0.011; // Baseline energy consumed by a C-start in joules
 public:
-    inline double getReward(const CStartFish* const a)
+    inline double getReward(const ZebraFish* const a)
     {
         // Dimensionless radial displacement:
         return a->getRadialDisplacement() / a->length;
     }
-    inline double getTerminalReward(const CStartFish* const a)
+    inline double getTerminalReward(const ZebraFish* const a)
     {
         // Add the relative difference in energy of current policy with respect to normal C-start:
         return a->getRadialDisplacement() / a->length - std::abs(energyExpended - baselineEnergy) / baselineEnergy - timeElapsed / a->Tperiod;
@@ -201,13 +148,13 @@ class CStart : public Task
 {
 public:
     // Task constants
-    unsigned maxActionsPerSim = 2;
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0};
-    std::vector<double> upper_action_bound{+4, +1, +1, 0, 0, 0, +1};
-    int nActions = 7;
-    int nStates = 14;
+    unsigned maxActionsPerSim = 3;
+    std::vector<double> lower_action_bound{-1, 0, 0, 0};
+    std::vector<double> upper_action_bound{-1, 1, 1, 1};
+    int nActions = 4;
+    int nStates = 10;
 public:
-    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
+    inline void resetIC(ZebraFish* const a, smarties::Communicator*const c)
     {
         const Real A = 10*M_PI/180; // start between -10 and 10 degrees
         std::uniform_real_distribution<Real> dis(-A, A);
@@ -216,23 +163,23 @@ public:
         double com[2] = {0.5, 0.5};
         a->setCenterOfMass(com);
     }
-    inline bool isTerminal(const CStartFish*const a)
+    inline bool isTerminal(const ZebraFish*const a)
     {
         return timeElapsed > 1.5882352941 ;
     }
-    inline std::vector<double> getState(const CStartFish* const a)
+    inline std::vector<double> getState(const ZebraFish* const a)
     {
-        return a->stateEscape();
+        return a->state();
     }
-    inline void setAction(CStartFish* const agent, const std::vector<double> act, const double t)
+    inline void setAction(ZebraFish* const agent, const std::vector<double> act, const double t)
     {
-        agent->actCStart(t, act);
+        agent->act(t, act);
     }
-    inline double getReward(const CStartFish* const a)
+    inline double getReward(const ZebraFish* const a)
     {
         return 0.0;
     }
-    inline double getTerminalReward(const CStartFish* const a)
+    inline double getTerminalReward(const ZebraFish* const a)
     {
         return a->getRadialDisplacement() / a->length;
     }
@@ -256,8 +203,8 @@ inline void app_main(
     Simulation sim(argc, argv);
     sim.init();
 
-    CStartFish* const agent = dynamic_cast<CStartFish*>( sim.getShapes()[0] );
-    if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
+    ZebraFish* const agent = dynamic_cast<ZebraFish*>( sim.getShapes()[0] );
+    if(agent==nullptr) { printf("Agent was not a ZebraFish!\n"); abort(); }
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
         sim.sim.dumpTime = agent->Tperiod / 20;

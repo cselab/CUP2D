@@ -23,6 +23,15 @@ public:
     bool act2 = true;
     bool act3 = true;
     bool act4 = true;
+    Real lastBeta = 0;
+    Real lastKappa = 0;
+    Real lastC = 0;
+    Real lastTimingFactor = 0;
+    Real oldrBeta = 0;
+    Real oldrKappa = 0;
+    Real oldrC = 0;
+    Real oldrTimingFactor = 0;
+
 protected:
     Real * const rK; // Current curvature
     Real * const vK; // Current curvature velocity
@@ -56,6 +65,15 @@ public:
         act2 = true;
         act3 = true;
         act4 = true;
+        lastBeta = 0;
+        lastKappa = 0;
+        lastC = 0;
+        lastTimingFactor = 0;
+        oldrBeta = 0;
+        oldrKappa = 0;
+        oldrC = 0;
+        oldrTimingFactor = 0;
+
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
         tauTailScheduler.resetAll();
@@ -199,14 +217,22 @@ public:
 
     void hybrid(const Real t_current, const std::vector<double> &a)
     {
+
+        // Store last action into the older action placeholder
+        oldrBeta = lastBeta;
+        oldrKappa = lastKappa;
+        oldrC = lastC;
+        oldrTimingFactor = lastTimingFactor;
+
+        // Store the new action into the last action placeholder
+        lastBeta = a[0];
+        lastKappa = a[1];
+        lastC = a[2];
+        lastTimingFactor = a[3];
+
         const double tailPhase = 0.74;
 
-        const double beta = a[0];
-        const double kappaB = a[1];
-        const double kappaS = a[2];
-        const double timingFactor = a[3];
-
-        const double baselineCurvatureFactor = beta / this->length;
+        const double baselineCurvatureFactor = lastC * lastBeta / this->length;
         const double undulatoryCurvatureFactor = 1 / this->length;
         const std::array<Real ,6> baselineCurvatureValues = {
                 (Real)0.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor, (Real)-4.0 * baselineCurvatureFactor,
@@ -223,11 +249,11 @@ public:
         std::array<Real, 6> undulatoryCurvatureValues = {0, 0, 0, 0, 0, 0};
         for (int i=0;i<6;i++)
         {
-            undulatoryCurvatureValues[i] = (kappaB * undulatoryCurvatureValuesBurst[i] + kappaS * undulatoryCurvatureValuesScoot[i])/2;
+            undulatoryCurvatureValues[i] = lastC * ((1 - lastKappa) * undulatoryCurvatureValuesScoot[i] + lastKappa * undulatoryCurvatureValuesBurst[i]);
         }
 
         // Use the agent-prescribed timing factor to get the final time of the prescribed action
-        const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
+        const Real actionDuration = (1 - lastTimingFactor) * 0.5 * this->Tperiod + lastTimingFactor * this->Tperiod;
         this->t_next = t_current + actionDuration;
         const bool useCurrentDerivative = true; // Decide whether to use the current derivative for the cubic interpolation
 
@@ -235,7 +261,7 @@ public:
         baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
-        printf("Performing a hybrid action with beta %f, kappaB %f, kappaS %f\n", beta, kappaB, kappaS);
+        printf("Performing a hybrid action with beta %f, kappa %f, c %f\n", lastBeta, lastKappa, lastC);
         printf("t_next is: %f\n", this->t_next);
     }
 };
@@ -246,19 +272,19 @@ void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
-    if (t>=0.0 && act1){
-        std::vector<double> a{1.0, 1.0, 0.0, 1.0};
-        this->hybrid(t, a);
-        act1=false;
-    }
-    if (t>=this->t_next && act2){
-        std::vector<double> a{0.0, 1.0, 0.0, 1.0};
-        this->hybrid(t, a);
-        act2=false;
-    }
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{1.0, 0.0, 1.0, 0.4};
+//        this->hybrid(t, a);
+//        act1=false;
+//    }
+//    if (t>=this->t_next && act2){
+//        std::vector<double> a{0.0, 0.0, 1.0, 1.0};
+//        this->hybrid(t, a);
+//        act2=false;
+//    }
 //    if (t>=this->t_next && act3){
-//        std::vector<double> a{1.0, 1.0};
-//        this->coast(t, a);
+//        std::vector<double> a{1.0, 1.0, 0.0, 1.0};
+//        this->hybrid(t, a);
 //        act3=false;
 //    }
 //    if (t>=this->t_next && act4){
@@ -322,13 +348,14 @@ void ZebraFish::act(const Real t_rlAction, const std::vector<double>& a) const
 {
     BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
     // Define how actions are selected here.
-    cFish->burst(sim.time, a);
+    cFish->hybrid(sim.time, a);
 }
 
 // Functions for state/reward
 std::vector<double> ZebraFish::state() const
 {
-    std::vector<double> S(14,0);
+    const BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
+    std::vector<double> S(10,0);
     double com[2] = {0, 0}; this->getCenterOfMass(com);
     double radialDisplacement = this->getRadialDisplacement();
     double polarAngle = std::atan2(com[1], com[0]);
@@ -338,6 +365,10 @@ std::vector<double> ZebraFish::state() const
     S[3] = getU() * Tperiod / length;
     S[4] = getV() * Tperiod / length;
     S[5] = getW() * Tperiod;
+    S[6] = cFish->lastBeta;
+    S[7] = cFish->lastKappa;
+    S[8] = cFish->lastC;
+    S[9] = cFish->lastTimingFactor;
     return S;
 }
 
