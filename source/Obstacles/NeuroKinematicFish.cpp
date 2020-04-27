@@ -279,11 +279,23 @@ public:
 
 void NeuroFish::computeMidline(const Real t, const Real dt)
 {
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,11> curvaturePoints = {(Real)0.00, (Real)0.10, (Real)0.20, (Real)0.30,
+//                                                  (Real)0.40, (Real)0.50, (Real)0.60,
+//                                                  (Real)0.70, (Real)0.80, (Real)0.90,
+//                                                  (Real)1.00};
+
     // Curvature control points along midline of fish, as in Gazzola et. al.
     const std::array<Real ,11> curvaturePoints = {(Real)0.2, (Real)0.28, (Real)0.36, (Real)0.44,
                                                   (Real)0.52, (Real)0.60, (Real)0.68,
                                                   (Real)0.76, (Real)0.84, (Real)0.92,
                                                   (Real)1.0};
+
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,11> curvaturePoints = {(Real)0.1, (Real)0.19, (Real)0.28, (Real)0.37,
+//                                                  (Real)0.46, (Real)0.55, (Real)0.64,
+//                                                  (Real)0.73, (Real)0.82, (Real)0.91,
+//                                                  (Real)1.0};
 
 //    // Curvature control points along midline of fish, as in Gazzola et. al.
 //    const std::array<Real ,6> curvaturePoints = {(Real)0.0*length, (Real)0.25*length, (Real)0.5*length, (Real)0.75*length,
@@ -292,12 +304,15 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
     const double K = 2.0;
 
     if (t>=0.0 && act1){
-        std::vector<double> a{10, 0.068, 0.68}; // a good starting heuristic is = firing time/10
+        std::vector<double> a{5, 0.1, 1.0}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act1=false;
     }
-
-//    printf("\n \n \n Nm is %d\n \n \n", Nm);
+    if (t>=0.68 && act2){
+        std::vector<double> a{-5, 0.1, 1.0}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act2=false;
+    }
 
     neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal, spatialDerivativeMuscSignal, spatialDerivativeDMuscSignal);
 
