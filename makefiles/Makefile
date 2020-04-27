@@ -69,7 +69,7 @@ OBJECTS = \
 		FishLibrary.o ArgumentParser.o PoissonSolver.o advDiffGravStaggered.o \
 		advDiffGrav.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o
+		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o
 #Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
 
 ifneq ($(FFTW_ROOT),)

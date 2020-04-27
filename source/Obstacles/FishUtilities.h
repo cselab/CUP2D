@@ -418,4 +418,115 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
     this->parameters_t0[0] = 0;
   }
 };
+
+/*********************** NEURO-KINEMATIC FISH *******************************/
+template<int Npoints>
+struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
+{
+
+    Real a = 0.0;
+    Real d = 10000;
+    Real deltaTFire = 0.0;
+    const Real tau1 = 0.001 / 0.044; //1 ms
+//    const Real tau2 = 0.006 / 0.044; //6 ms (AMPA)
+//    const Real tau2 = 0.080 / 0.044; //80 ms (NMDA)
+    const Real tau2 = 0.011 / 0.044; //11 ms (mySynapse) a quarter of the period
+
+    std::array<Real, Npoints>  neuroSignal_t_coarse;
+    std::array<Real, Npoints>  timeActivated_coarse; // array of time each synapse has been activated for
+    std::array<Real, Npoints>  muscSignal_t_coarse;
+    std::array<Real, Npoints>  dMuscSignal_t_coarse;
+    std::array<Real, Npoints>  muscSignal_t_coarse_end;
+    std::array<Real, Npoints>  dMuscSignal_t_coarse_end;
+
+    virtual void resetAll()
+    {
+        a = 0.0;
+        d = 10000;
+        neuroSignal_t_coarse = std::array<Real, Npoints>();
+        timeActivated_coarse = std::array<Real, Npoints>();
+        muscSignal_t_coarse = std::array<Real, Npoints>();
+        dMuscSignal_t_coarse = std::array<Real, Npoints>();
+        muscSignal_t_coarse_end = std::array<Real, Npoints>();
+        dMuscSignal_t_coarse_end = std::array<Real, Npoints>();
+    }
+    
+    template<typename T>
+    void gimmeValues(const Real t, const Real Length,
+                     const std::array<Real, Npoints> & positions, const int Nfine,
+                     const T*const positions_fine, T*const muscSignal_t_fine, Real*const dMuscSignal_t_fine,
+                     Real*const spatialDerivativeMuscSignal, Real*const spatialDerivativeDMuscSignal)
+    {
+//        if (t > this->t0 && t < this->t1) { advanceCoarseArrays(t); }
+
+        // Advance arrays
+        advanceCoarseArrays(t);
+        const Real _1oL = 1./Length;
+//        printf("Nfine is %d\n", Nfine);
+        for(int i=0;i<Nfine;++i){
+//            printf("i is %d \n", i);
+            const Real c = positions_fine[i]*_1oL; //spine coordinate
+            for (int j=1; j<Npoints; ++j) { // Check at which point of the spine we are
+//                printf("Entering second loop \n");
+                if (( c >= positions[j-1] ) && ( c <= positions[j] )) {
+//                    printf("[i=%d][j=%d] Interpolating (%f, %f)\n", i, j, this->muscSignal_t_coarse[j-1], this->muscSignal_t_coarse[j]);
+                    IF2D_Interpolation1D::cubicInterpolation(
+                            positions[j-1], positions[j], c,
+                            this->muscSignal_t_coarse[j-1], this->muscSignal_t_coarse[j],
+                            muscSignal_t_fine[i], spatialDerivativeMuscSignal[i]);
+//                    printf("[i=%d] Interpolated rMusc is %f \n", i, j, muscSignal_t_fine[i]);
+                    IF2D_Interpolation1D::cubicInterpolation(
+                            positions[j-1], positions[j], c,
+                            this->dMuscSignal_t_coarse[j-1], this->dMuscSignal_t_coarse[j],
+                            dMuscSignal_t_fine[i], spatialDerivativeDMuscSignal[i]);
+                    break;
+                }
+            }
+        }
+    }
+
+    void advanceCoarseArrays(const double time_current) {
+        for(int i=1;i<Npoints;i++) {
+            const double deltaT = time_current - this->timeActivated_coarse[i];
+            if (deltaT >=0) {
+                //Neural signal is now at a new node:
+                this->neuroSignal_t_coarse[i] = this->a;
+                const double biExp = std::exp(-deltaT/this->tau2) - std::exp(-deltaT/this->tau1);
+                const double dBiExp = -1/this->tau2 * std::exp(-deltaT/this->tau2) + 1/this->tau1 * std::exp(-deltaT/this->tau1);
+                const Real multiplier = std::exp(-(i-1)*d);
+//                const Real multiplier = 1;
+                printf("[Node %d] biExp is %f\n", i, biExp);
+                printf("[Node %d] dBiExp is %f\n", i, dBiExp);
+                printf("[Node %d] multiplier is %f\n", i, multiplier);
+                this->muscSignal_t_coarse[i] = this->neuroSignal_t_coarse[i] * multiplier * biExp;
+                this->dMuscSignal_t_coarse[i] = this->neuroSignal_t_coarse[i] * multiplier * dBiExp;
+                printf("[Node %d] muscSignal is %f\n", i, this->muscSignal_t_coarse[i]);
+                printf("[Node %d] dMuscSignal is %f\n", i, this->dMuscSignal_t_coarse[i]);
+            }
+        }
+    }
+
+    // Deal with residual signal from previous firing time action (you can increment the signal with itself)
+    void Spike(const Real t_spike, const Real aCmd, const Real dCmd, const Real deltaTFireCmd)
+    {
+        this->a = aCmd;
+        this->d = dCmd;
+        this->deltaTFire = deltaTFireCmd;
+        this->t0 = t_spike;
+        this->t1 = this->t0 + this->deltaTFire;
+
+        // Initialize the 0th node
+        this->timeActivated_coarse[0] = 100000;
+        this->neuroSignal_t_coarse[0] = 0.0;
+        this->muscSignal_t_coarse[0] = 0.0;
+        // Schedule the spike times at all nodes and initialize the signals
+        for(int i=1; i < Npoints; i++){
+            this->timeActivated_coarse[i] = this->t0 + (i-1)*this->d;
+            this->neuroSignal_t_coarse[i] = 0.0;
+            this->muscSignal_t_coarse[i] = 0.0;
+        }
+        // Initialize the 1st node
+        this->neuroSignal_t_coarse[1] = this->a;
+    }
+};
 }
