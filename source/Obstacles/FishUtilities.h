@@ -428,9 +428,9 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     Real d = 10000;
     Real deltaTFire = 0.0;
     const Real tau1 = 0.001 / 0.044; //1 ms
-//    const Real tau2 = 0.006 / 0.044; //6 ms (AMPA)
+    const Real tau2 = 0.006 / 0.044; //6 ms (AMPA)
 //    const Real tau2 = 0.080 / 0.044; //80 ms (NMDA)
-    const Real tau2 = 0.011 / 0.044; //11 ms (mySynapse) a quarter of the period
+//    const Real tau2 = 0.011 / 0.044; //11 ms (mySynapse) a quarter of the period
 
     std::array<Real, Npoints>  neuroSignal_t_coarse = std::array<Real, Npoints>();
     std::array<Real, Npoints>  timeActivated_coarse = std::array<Real, Npoints>(); // array of time each synapse has been activated for
@@ -466,7 +466,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     }
 
     void advanceCoarseArrays(const double time_current) {
-        for(int i=1;i<Npoints;i++) {
+        for(int i=2;i<Npoints;i++) {
             const double deltaT = time_current - this->timeActivated_coarse[i];
             if (deltaT>=0) {
                 // Activate a new node
@@ -474,7 +474,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
                 // Calculate bi-exponential function and its derivative.
                 const double biExp = std::exp(-deltaT/this->tau2) - std::exp(-deltaT/this->tau1);
                 const double dBiExp = -1/this->tau2 * std::exp(-deltaT/this->tau2) + 1/this->tau1 * std::exp(-deltaT/this->tau1);
-                const Real multiplier = std::exp(-(i-1)*d);
+                const Real multiplier = std::exp(-(i-2)*d);
                 printf("[Node %d] biExp is %f\n", i, biExp);
                 printf("[Node %d] dBiExp is %f\n", i, dBiExp);
                 printf("[Node %d] multiplier is %f\n", i, multiplier);
@@ -497,18 +497,21 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
         this->t0 = t_spike;
         this->t1 = this->t0 + this->deltaTFire;
 
-        // Initialize the 0th node
+        // Initialize the 0th and 1st node
         this->timeActivated_coarse[0] = 100000;
         this->neuroSignal_t_coarse[0] = 0.0;
         this->muscSignal_t_coarse[0] = 0.0;
+        this->timeActivated_coarse[1] = 100000;
+        this->neuroSignal_t_coarse[1] = 0.0;
+        this->muscSignal_t_coarse[1] = 0.0;
         // Schedule the spike times at all nodes and initialize the signals
-        for(int i=1; i < Npoints; i++){
+        for(int i=2; i < Npoints; i++){
             this->timeActivated_coarse[i] = this->t0 + (i-1)*this->d;
             this->neuroSignal_t_coarse[i] = 0.0;
             this->muscSignal_t_coarse[i] = 0.0; // dont accumulate muscle signal between episodes
         }
-        // Activate the 1st node
-        this->neuroSignal_t_coarse[1] = this->a;
+        // Activate the 2nd node
+        this->neuroSignal_t_coarse[2] = this->a;
     }
 };
 }

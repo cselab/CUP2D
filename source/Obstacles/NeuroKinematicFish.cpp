@@ -279,17 +279,17 @@ public:
 
 void NeuroFish::computeMidline(const Real t, const Real dt)
 {
-//    // Curvature control points along midline of fish, as in Gazzola et. al.
-//    const std::array<Real ,11> curvaturePoints = {(Real)0.00, (Real)0.10, (Real)0.20, (Real)0.30,
-//                                                  (Real)0.40, (Real)0.50, (Real)0.60,
-//                                                  (Real)0.70, (Real)0.80, (Real)0.90,
-//                                                  (Real)1.00};
-
     // Curvature control points along midline of fish, as in Gazzola et. al.
-    const std::array<Real ,11> curvaturePoints = {(Real)0.2, (Real)0.28, (Real)0.36, (Real)0.44,
-                                                  (Real)0.52, (Real)0.60, (Real)0.68,
-                                                  (Real)0.76, (Real)0.84, (Real)0.92,
-                                                  (Real)1.0};
+    const std::array<Real ,11> curvaturePoints = {(Real)0.00, (Real)0.10, (Real)0.20, (Real)0.30,
+                                                  (Real)0.40, (Real)0.50, (Real)0.60,
+                                                  (Real)0.70, (Real)0.80, (Real)0.90,
+                                                  (Real)1.00};
+
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,11> curvaturePoints = {(Real)0.2, (Real)0.28, (Real)0.36, (Real)0.44,
+//                                                  (Real)0.52, (Real)0.60, (Real)0.68,
+//                                                  (Real)0.76, (Real)0.84, (Real)0.92,
+//                                                  (Real)1.0};
 
 //    // Curvature control points along midline of fish, as in Gazzola et. al.
 //    const std::array<Real ,11> curvaturePoints = {(Real)0.1, (Real)0.19, (Real)0.28, (Real)0.37,
@@ -301,15 +301,15 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
 //    const std::array<Real ,6> curvaturePoints = {(Real)0.0*length, (Real)0.25*length, (Real)0.5*length, (Real)0.75*length,
 //                                                  (Real)0.95*length, (Real)1*length};
 
-    const double K = 2.0;
+    const double K = 0.5;
 
     if (t>=0.0 && act1){
-        std::vector<double> a{5, 0.1, 1.0}; // a good starting heuristic is = firing time/10
+        std::vector<double> a{10, 0.005, 1.0}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act1=false;
     }
-    if (t>=0.68 && act2){
-        std::vector<double> a{-5, 0.1, 1.0}; // a good starting heuristic is = firing time/10
+    if (t>=1.0 && act2){
+        std::vector<double> a{-10, 0.005, 1.0}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act2=false;
     }
@@ -318,25 +318,14 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
-
-        const Real wS = 2.0 - K * rS[i]/length; // the 0.01 is arbitrary...
-//        const Real wS = 1.0;
-
-//        printf("[i=%d] rMuscSignal %f\n", i, rMuscSignal[i]);
-//        printf("[i=%d] vMuscSignal %f\n", i, vMuscSignal[i]);
-
+        const Real wS = 1.5 - K * rS[i]/length;
         rK[i] = rMuscSignal[i] / wS / length;
         vK[i] = vMuscSignal[i] / wS / length;
-
-//        printf("rK is %f\n", rK[i]);
-//        printf("vK is %f\n", vK[i]);
-
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
         assert(not std::isnan(vK[i]));
         assert(not std::isinf(vK[i]));
     }
-
     // solve frenet to compute midline parameters
     IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);
 }
