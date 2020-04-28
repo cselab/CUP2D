@@ -50,7 +50,7 @@ protected:
     Schedulers::ParameterSchedulerVector<6> baselineCurvatureScheduler;  // baseline scheduler
     Schedulers::ParameterSchedulerVector<6> undulatoryCurvatureScheduler; // undulation scheduler
     Schedulers::ParameterSchedulerScalar tauTailScheduler; // phase scheduler
-    Schedulers::ParameterSchedulerNeuroKinematic<11> neuroKinematicScheduler;
+    Schedulers::ParameterSchedulerNeuroKinematic<6> neuroKinematicScheduler;
 
 public:
     NeuroFish(Real L, Real T, Real phi, Real _h, Real _A)
@@ -279,11 +279,24 @@ public:
 
 void NeuroFish::computeMidline(const Real t, const Real dt)
 {
-    // Curvature control points along midline of fish, as in Gazzola et. al.
-    const std::array<Real ,11> curvaturePoints = {(Real)0.00, (Real)0.10, (Real)0.20, (Real)0.30,
-                                                  (Real)0.40, (Real)0.50, (Real)0.60,
-                                                  (Real)0.70, (Real)0.80, (Real)0.90,
-                                                  (Real)1.00};
+
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,10> curvaturePoints = {(Real)0.10, (Real)0.20, (Real)0.30,
+//                                                  (Real)0.40, (Real)0.50, (Real)0.60,
+//                                                  (Real)0.70, (Real)0.80, (Real)0.90,
+//                                                  (Real)1.00};
+
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,21> curvaturePoints = {(Real)0.0, (Real)0.05, (Real)0.1, (Real)0.15, (Real)0.2, // head control points
+//                                                  (Real)0.25, (Real)0.3, (Real)0.35, (Real)0.4, (Real)0.45, (Real)0.5,
+//                                                  (Real)0.55, (Real)0.6, (Real)0.65, (Real)0.7, (Real)0.75, (Real)0.8,
+//                                                  (Real)0.85, (Real)0.9, (Real)0.95, (Real)1.0};
+
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,11> curvaturePoints = {(Real)0.00, (Real)0.10, (Real)0.20, (Real)0.30,
+//                                                  (Real)0.40, (Real)0.50, (Real)0.60,
+//                                                  (Real)0.70, (Real)0.80, (Real)0.90,
+//                                                  (Real)1.00};
 
 //    // Curvature control points along midline of fish, as in Gazzola et. al.
 //    const std::array<Real ,11> curvaturePoints = {(Real)0.2, (Real)0.28, (Real)0.36, (Real)0.44,
@@ -297,30 +310,51 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
 //                                                  (Real)0.73, (Real)0.82, (Real)0.91,
 //                                                  (Real)1.0};
 
-//    // Curvature control points along midline of fish, as in Gazzola et. al.
-//    const std::array<Real ,6> curvaturePoints = {(Real)0.0*length, (Real)0.25*length, (Real)0.5*length, (Real)0.75*length,
-//                                                  (Real)0.95*length, (Real)1*length};
+    // Curvature control points along midline of fish, as in Gazzola et. al.
+    const std::array<Real ,6> curvaturePoints = {(Real)0.0, (Real)0.25, (Real)0.5, (Real)0.75,
+                                                  (Real)0.95, (Real)1};
 
-    const double K = 0.5;
+    // Define the compliance function (1/wS)
+    Real* compliance_fine  = new Real[Nm];
+    const int NCompliancePoints = 11;
+    std::array<double, 11> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+//    std::array<double, 11> compliancePoints = {0.00, 0.50, 0.70, 0.90, 0.95, 1.0, 1.05, 1.0, 0.95, 0.85, 0.75};
+    std::array<double, 11> compliancePoints = {0.00, 0.04, 0.18, 0.40, 0.60, 0.75, 0.9, 0.85, 0.60, 0.2, 0.2};
+
+    IF2D_Interpolation1D::naturalCubicSpline(criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints, rS, compliance_fine, Nm);
+
+//    const double K = 0.5;
+//    const Real wS = 1.5 - K * rS[i]/length;
 
     if (t>=0.0 && act1){
-        std::vector<double> a{10, 0.005, 1.0}; // a good starting heuristic is = firing time/10
+        std::vector<double> a{400, 0.04, 0.147}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act1=false;
     }
-    if (t>=1.0 && act2){
-        std::vector<double> a{-10, 0.005, 1.0}; // a good starting heuristic is = firing time/10
+    if (t>=0.12 && act2){
+        std::vector<double> a{-400, 0.04, 0.147}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act2=false;
+    }
+    if (t>=0.24 && act3){
+        std::vector<double> a{-400, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act3=false;
+    }
+    if (t>=0.36 && act4){
+        std::vector<double> a{400, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act4=false;
     }
 
     neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal, spatialDerivativeMuscSignal, spatialDerivativeDMuscSignal);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
-        const Real wS = 1.5 - K * rS[i]/length;
-        rK[i] = rMuscSignal[i] / wS / length;
-        vK[i] = vMuscSignal[i] / wS / length;
+        rK[i] = rMuscSignal[i] * compliance_fine[i] / length;
+        vK[i] = vMuscSignal[i] * compliance_fine[i] / length;
+//        rK[i] = rMuscSignal[i] / wS / length;
+//        vK[i] = vMuscSignal[i] / wS / length;
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
         assert(not std::isnan(vK[i]));
