@@ -492,14 +492,14 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
 //                const Real deltaDMuscSignal = this->neuroSignal_t_coarse[i] * multiplier * (1/this->tau2 * std::exp(-deltaT/this->tau2) * (1 - std::exp(-delta_t/this->tau2)) + 1/this->tau1 * std::exp(-deltaT/this->tau1) * (std::exp(-delta_t/this->tau1) - 1));
 //                printf("[Node %d] biExp is %f\n", i, biExp);
 //                printf("[Node %d] dBiExp is %f\n", i, dBiExp);
-                printf("[Node %d] multiplier is %f\n", i, multiplier);
+//                printf("[Node %d] multiplier is %f\n", i, multiplier);
                 // Accumulate neural signal
 //                this->muscSignal_t_coarse[i] = this->neuroSignal_t_coarse[i] * multiplier * biExp;
                 this->dMuscSignal_t_coarse[i] = this->neuroSignal_t_coarse[i] * multiplier * dBiExp;
                 this->muscSignal_t_coarse[i] += deltaMuscSignal;
 //                this->dMuscSignal_t_coarse[i] += deltaDMuscSignal;
-                printf("[Node %d] muscSignal is %f\n", i, this->muscSignal_t_coarse[i]);
-                printf("[Node %d] dMuscSignal is %f\n", i, this->dMuscSignal_t_coarse[i]);
+//                printf("[Node %d] muscSignal is %f\n", i, this->muscSignal_t_coarse[i]);
+//                printf("[Node %d] dMuscSignal is %f\n", i, this->dMuscSignal_t_coarse[i]);
             }
         }
     }
