@@ -317,6 +317,10 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
     const std::array<Real ,9> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.50,
                                                  (Real)0.60, (Real)0.80, (Real)0.90, (Real)1};
 
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,11> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.40, (Real)0.50,
+//                                                 (Real)0.60, (Real)0.70, (Real)0.80, (Real)0.90, (Real)1};
+
     // Define the compliance function (1/wS)
     Real* compliance_fine  = new Real[Nm];
     const int NCompliancePoints = 9;
@@ -325,23 +329,64 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
 
     IF2D_Interpolation1D::naturalCubicSpline(criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints, rS, compliance_fine, Nm);
 
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{150, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+    // Allow actions three delays later
+    if (t>=0.0 && act1){
+        std::vector<double> a{50, 0.013, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act1=false;
+    }
+    if (t>=0.02 && act2){
+        std::vector<double> a{-100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act2=false;
+    }
+    if (t>=0.04 && act3){
+        std::vector<double> a{100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act3=false;
+    }
+    if (t>=0.06 && act4){
+        std::vector<double> a{-100, 0.013, 0.147}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act4=false;
+    }
+//    if (t>=0.06 && act4){
+//        std::vector<double> a{-200, 0.01, 0.147}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act1=false;
+//        act4=false;
+//    }
+//    if (t>=0.00001 && act2){
+//        std::vector<double> a{100, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+//        act2=false;
+//    }
+//    if (t>=0.00002 && act3){
+//        std::vector<double> a{100, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+//        act3=false;
 //    }
 //    if (t>=0.01 && act2){
-//        std::vector<double> a{150, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//        std::vector<double> a{300, 0.04, 0.147}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
 //        act2=false;
 //    }
 
     neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal, spatialDerivativeMuscSignal, spatialDerivativeDMuscSignal);
 
+    const double curvMax = 2*M_PI/length;
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
-        rK[i] = rMuscSignal[i] * compliance_fine[i] / length;
-        vK[i] = vMuscSignal[i] * compliance_fine[i] / length;
+        const Real curvCmd = rMuscSignal[i] * compliance_fine[i] / length;
+        const Real curvCmdVel = vMuscSignal[i] * compliance_fine[i] / length;
+
+        if (curvCmd >= curvMax) {
+            rK[i] = curvMax;
+            vK[i] = 0;
+        } else {
+            rK[i] = curvCmd;
+            vK[i] = curvCmdVel;
+        }
+
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
         assert(not std::isnan(vK[i]));
