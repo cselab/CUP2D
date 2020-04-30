@@ -49,8 +49,8 @@ public:
     double target[2] = {0.0, 0.0};
 
 //    // act bools
-//    bool act1 = true;
-//    bool act2 = true;
+    bool act1 = true;
+    bool act2 = true;
 
 protected:
     // Current curvature and curvature velocity
@@ -106,8 +106,8 @@ public:
         target[0] = 0.0;
         target[1] = 0.0;
 
-//        act1 = true;
-//        act2 = true;
+        act1 = true;
+        act2 = true;
 
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
@@ -259,26 +259,27 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     // Curvature control points along midline of fish, as in Gazzola et. al.
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
-
+//
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74};
+//        std::vector<double> a{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0};
 //        this->scheduleCStart(t, a);
 //        act1=false;
 //    }
-//    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0.0, 0.0, 0.0, -5.73, -2.73, -1.09, 0.74};
+//    if (t>=0.4* this->Tperiod && act2){
+//        std::vector<double> a{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0};
 //        this->scheduleCStart(t, a);
 //        act2=false;
 //    }
 
-    const Real phi = 1.11;
-//    const Real phi = 0.0;
+//    const Real phi = 1.11;
+    const Real phi = 0.0;
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
     undulatoryCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rUC, vUC); // writes to rUC, vUC
     tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
 
+    const double curvMax = 2*M_PI/length;
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
 
@@ -287,8 +288,16 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
         const Real arg = 2 * M_PI * (t/Tperiod - tauS) + phi;
         const Real vArg = 2 * M_PI / Tperiod - 2 * M_PI * vTauS;
 
-        rK[i] = rBC[i] + rUC[i] * std::sin(arg);
-        vK[i] = vBC[i] + rUC[i] * vArg * std::cos(arg) + vUC[i] * std::sin(arg);
+        const Real curvCmd = rBC[i] + rUC[i] * std::sin(arg);
+        const Real curvCmdVel = vBC[i] + rUC[i] * vArg * std::cos(arg) + vUC[i] * std::sin(arg);
+
+        if (curvCmd >= curvMax) {
+            rK[i] = curvMax;
+            vK[i] = 0;
+        } else {
+            rK[i] = curvCmd;
+            vK[i] = curvCmdVel;
+        }
 
         assert(not std::isnan(rK[i]));
         assert(not std::isinf(rK[i]));
@@ -351,7 +360,7 @@ void CStartFish::getTarget(double outTarget[2]) const
 std::vector<double> CStartFish::stateEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(14,0);
+    std::vector<double> S(22,0);
 
     double com[2] = {0, 0}; this->getCenterOfMass(com);
     double radialDisplacement = this->getRadialDisplacement();
@@ -371,6 +380,14 @@ std::vector<double> CStartFish::stateEscape() const
     S[11] = cFish->lastK5;
     S[12] = cFish->lastTau;
     S[13] = cFish->lastAlpha;
+    S[14] = cFish->oldrB3;
+    S[15] = cFish->oldrB4;
+    S[16] = cFish->oldrB5;
+    S[17] = cFish->oldrK3;
+    S[18] = cFish->oldrK4;
+    S[19] = cFish->oldrK5;
+    S[20] = cFish->oldrTau;
+    S[21] = cFish->oldrAlpha;
     return S;
 }
 

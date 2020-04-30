@@ -111,24 +111,26 @@ class Escape : public Task
 {
 public:
     // Task constants
-    std::vector<double> lower_action_bound{-4, -1, -1, -6, -3, -1.5, 0, 0};
+    std::vector<double> lower_action_bound{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 0};
     std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
     int nActions = 8;
-    int nStates = 14;
+    int nStates = 22;
     unsigned maxActionsPerSim = 9000000;
 public:
 
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
     {
+        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
+        std::uniform_real_distribution<Real> dis(-A, A);
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -98.0 * M_PI / 180.0;
+        a->setOrientation(SA);
         double com[2] = {0.5, 0.5};
         a->setCenterOfMass(com);
-        a->setOrientation(-98.0 * M_PI / 180.0);
     }
 
     inline bool isTerminal(const CStartFish*const a)
     {
-        // Terminate when the fish exits a radius of 1.5 characteristic lengths or time > 2.0
-        return (a->getRadialDisplacement() >= 1.50 * a->length) || timeElapsed > 2.0 ;
+        return timeElapsed > 1.5882352941;
     }
 
     inline std::vector<double> getState(const CStartFish* const a)
@@ -244,7 +246,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    CStart task = CStart();
+    SequentialDistanceEscape task = SequentialDistanceEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
