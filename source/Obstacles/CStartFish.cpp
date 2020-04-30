@@ -183,7 +183,6 @@ public:
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
         phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
 
-
         printf("Action duration is: %f\n", actionDuration);
         printf("t_next is: %f/n", this->t_next);
         printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
@@ -461,7 +460,7 @@ double CStartFish::getDistanceFromTarget() const {
     double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
     return distanceFromTarget;
 }
-
+//
 //double CStartFish::setEnergyExpended(const double energyExpended) const {
 //    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
 //    cFish->energyExpended = energyExpended;

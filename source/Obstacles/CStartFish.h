@@ -32,5 +32,5 @@ public:
     double getRadialDisplacement() const;
     double getDistanceFromTarget() const;
     double getTimeNextAct() const;
-    double setEnergyExpended() const;
+//    double setEnergyExpended() const;
 };

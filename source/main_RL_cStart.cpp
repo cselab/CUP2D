@@ -151,6 +151,25 @@ public:
         return a->getRadialDisplacement() / a->length;
     }
 };
+class DistanceEnergyEscape : public Escape
+{
+public:
+    const double baselineEnergy = 0.00848; // Baseline energy consumed by a C-start in joules for 1.15 lengths
+public:
+    inline double getReward(const CStartFish* const a)
+    {
+        return 0.0;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return a->getRadialDisplacement() / a->length;
+    }
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        return (timeElapsed > 1.5882352941 || energyExpended >= 0.00848);
+    }
+
+};
 class SequentialDistanceEscape : public Escape
 {
 public:
@@ -242,7 +261,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceEscape task = DistanceEscape();
+    DistanceEnergyEscape task = DistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -302,7 +321,6 @@ inline void app_main(
 
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
-//                agent->setEnergyExpended(energyExpended);
 
                 // Set the task-energy-expenditure
                 task.setEnergyExpended(energyExpended);
