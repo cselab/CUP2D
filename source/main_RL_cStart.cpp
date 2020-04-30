@@ -111,10 +111,10 @@ class Escape : public Task
 {
 public:
     // Task constants
-    std::vector<double> lower_action_bound{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 0};
-    std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1};
-    int nActions = 8;
-    int nStates = 22;
+    std::vector<double> lower_action_bound{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 0, 0};
+    std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1, +1};
+    int nActions = 9;
+    int nStates = 24;
     unsigned maxActionsPerSim = 9000000;
 public:
 
@@ -142,10 +142,6 @@ public:
 class DistanceEscape : public Escape
 {
 public:
-    inline bool isTerminal(const CStartFish*const a)
-    {
-        return timeElapsed > 1.5882352941 ;
-    }
     inline double getReward(const CStartFish* const a)
     {
         return 0.0;
@@ -246,7 +242,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    SequentialDistanceEscape task = SequentialDistanceEscape();
+    DistanceEscape task = DistanceEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -284,7 +280,7 @@ inline void app_main(
         double t = 0, tNextAct = 0;
         unsigned step = 0, numActions = 0;
         bool agentOver = false;
-        // double energyExpended = 0.0; // Energy consumed by fish in one episode
+        double energyExpended = 0.0; // Energy consumed by fish in one episode
 
         comm->sendInitState( task.getState(agent) ); //send initial state
 
@@ -305,10 +301,11 @@ inline void app_main(
                 t += dt; task.setTimeElapsed(t); // set the task time.
 
                 // Forward integrate the energy expenditure
-                // energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+                energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+//                agent->setEnergyExpended(energyExpended);
 
                 // Set the task-energy-expenditure
-                // task.setEnergyExpended(energyExpended);
+                task.setEnergyExpended(energyExpended);
 
                 if ( sim.advance( dt ) ) { // if true sim has ended
                     printf("Set -tend 0. This file decides the length of train sim.\n");
