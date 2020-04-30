@@ -23,6 +23,7 @@ public:
     void getTarget(double outTarget[2]) const;
     void setTarget(double inTarget[2]) const;
     double getRadialDisplacement() const;
+    double getPolarAngle() const;
     double getDistanceFromTarget() const;
     double getTimeNextAct() const;
 

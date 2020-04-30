@@ -50,69 +50,15 @@ public:
 
 };
 
-// Target following
-class GoToTarget : public Task
-{
-public:
-    // Task constants
-    std::vector<double> lower_action_bound{-300, 0.01, 0.01};
-    std::vector<double> upper_action_bound{+300, 0.5,  1.0 };
-    const int nActions = 3;
-    const int nStates = 10;
-    unsigned maxActionsPerSim = 9000000;
-public:
-    inline void resetIC(NeuroKinematicFish* const a, smarties::Communicator*const c)
-    {
-        double initialAngle = -98.0;
-        double length = a->length;
-        double com[2] = {0.5, 0.5};
-        double target[2] = {0.0, 0.0};
-
-        // Place target at 1.5 fish lengths away (1.5 * 0.25 = 0.375).
-        double targetRadius_ = 1.5;
-        double targetRadius = targetRadius_ * length;
-        double targetAngle = initialAngle; // Directly ahead of fish
-        target[0] = targetRadius * std::cos(targetAngle);
-        target[1] = targetRadius * std::sin(targetAngle);
-
-        // Set agent quantities
-        a->setCenterOfMass(com);
-        a->setOrientation(initialAngle * M_PI / 180.0);
-        a->setTarget(target);
-    }
-
-    inline bool isTerminal(const NeuroKinematicFish*const a) {
-        // Terminate after time equal to Gazzola's C-start
-        printf("Time of current episode is: %f\n", timeElapsed);
-        return timeElapsed > 1.5882352941 ;
-    }
-
-    inline std::vector<double> getState(const NeuroKinematicFish* const a)
-    {
-        return a->state();
-    }
-
-    inline double getReward(const NeuroKinematicFish* const a)
-    {
-        return -getState(a)[0];
-    }
-
-    inline double getTerminalReward(const NeuroKinematicFish* const a)
-    {
-        return getReward(a);
-    }
-
-};
-
 // Escaping
 class Escape : public Task
 {
 public:
     // Task constants
-    std::vector<double> lower_action_bound{-1, 0, 0, 0};
-    std::vector<double> upper_action_bound{-1, 1, 1, 1};
-    int nActions = 4;
-    int nStates = 10;
+    std::vector<double> lower_action_bound{-100, 0.0136, 0.0136};
+    std::vector<double> upper_action_bound{+100, 0.136,  1.227 };
+    int nActions = 3;
+    int nStates = 12;
     unsigned maxActionsPerSim = 9000000;
 public:
 
@@ -129,7 +75,7 @@ public:
     inline bool isTerminal(const NeuroKinematicFish*const a)
     {
         // Terminate when the fish exits a radius of 1.5 characteristic lengths or time > 2.0
-        return (a->getRadialDisplacement() >= 1.50 * a->length) || timeElapsed > 2.0 ;
+        return timeElapsed >= 1.5882352941 ;
     }
 
     inline std::vector<double> getState(const NeuroKinematicFish* const a)
@@ -137,107 +83,20 @@ public:
         return a->state();
     }
 
-};
-class DistanceEscape : public Escape
-{
-public:
-    inline bool isTerminal(const NeuroKinematicFish*const a)
-    {
-        return timeElapsed > 1.5882352941 ;
-    }
-    inline double getReward(const NeuroKinematicFish* const a)
-    {
-        return 0.0;
-    }
-    inline double getTerminalReward(const NeuroKinematicFish* const a)
-    {
-        return a->getRadialDisplacement() / a->length;
-    }
 };
 class SequentialDistanceEscape : public Escape
 {
 public:
     inline double getReward(const NeuroKinematicFish* const a)
     {
-        return a->getRadialDisplacement() / a->length;
+        return (a->getPolarAngle() < 0 && a->getPolarAngle() > -M_PI) ? a->getRadialDisplacement() / a->length : -a->getRadialDisplacement() / a->length;
     }
     inline double getTerminalReward(const NeuroKinematicFish* const a)
     {
         return getReward(a);
     }
 };
-class SequentialDistanceTimeEscape : public Escape
-{
-public:
-    inline double getReward(const NeuroKinematicFish* const a)
-    {
-        // Dimensionless radial displacement:
-        return a->getRadialDisplacement() / a->length;
-    }
-    inline double getTerminalReward(const NeuroKinematicFish* const a)
-    {
-        // Dimensionless radial displacement and time elapsed:
-        return a->getRadialDisplacement() / a->length - timeElapsed / a->Tperiod;
-    }
-};
-class SequentialDistanceTimeEnergyEscape : public Escape
-{
-public:
-    const double baselineEnergy = 0.011; // Baseline energy consumed by a C-start in joules
-public:
-    inline double getReward(const NeuroKinematicFish* const a)
-    {
-        // Dimensionless radial displacement:
-        return a->getRadialDisplacement() / a->length;
-    }
-    inline double getTerminalReward(const NeuroKinematicFish* const a)
-    {
-        // Add the relative difference in energy of current policy with respect to normal C-start:
-        return a->getRadialDisplacement() / a->length - std::abs(energyExpended - baselineEnergy) / baselineEnergy - timeElapsed / a->Tperiod;
-    }
-};
 
-// CStart
-class CStart : public Task
-{
-public:
-    // Task constants
-    unsigned maxActionsPerSim = 3;
-    std::vector<double> lower_action_bound{-1, 0, 0, 0};
-    std::vector<double> upper_action_bound{-1, 1, 1, 1};
-    int nActions = 4;
-    int nStates = 10;
-public:
-    inline void resetIC(NeuroKinematicFish* const a, smarties::Communicator*const c)
-    {
-        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
-        std::uniform_real_distribution<Real> dis(-A, A);
-        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -90.0 * M_PI / 180.0;
-        a->setOrientation(SA);
-        double com[2] = {0.5, 0.5};
-        a->setCenterOfMass(com);
-    }
-    inline bool isTerminal(const NeuroKinematicFish*const a)
-    {
-        return timeElapsed > 1.5882352941 ;
-    }
-    inline std::vector<double> getState(const NeuroKinematicFish* const a)
-    {
-        return a->state();
-    }
-    inline void setAction(NeuroKinematicFish* const agent, const std::vector<double> act, const double t)
-    {
-        agent->act(t, act);
-    }
-    inline double getReward(const NeuroKinematicFish* const a)
-    {
-        return 0.0;
-    }
-    inline double getTerminalReward(const NeuroKinematicFish* const a)
-    {
-        return a->getRadialDisplacement() / a->length;
-    }
-};
 
 inline void app_main(
         smarties::Communicator*const comm, // communicator with smarties
@@ -245,7 +104,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    GoToTarget task = GoToTarget();
+    SequentialDistanceEscape task = SequentialDistanceEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -302,6 +161,8 @@ inline void app_main(
             {
                 const double dt = sim.calcMaxTimestep();
                 t += dt; task.setTimeElapsed(t); // set the task time.
+
+//                if (dt <= 0.00003) {agentOver = true; break;}
 
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.

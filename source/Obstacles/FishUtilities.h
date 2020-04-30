@@ -439,6 +439,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     virtual void resetAll()
     {
         prevTime = 0.0;
+        numActiveSpikes = 0;
         neuroSignal_t_coarse = std::array<Real, Npoints>();
         timeActivated_coarse = std::array<Real, Npoints>();
         muscSignal_t_coarse = std::array<Real, Npoints>();
@@ -458,6 +459,20 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
         // Advance arrays
         if (numActiveSpikes > 0) {
             this->dMuscSignal_t_coarse = std::array<Real, Npoints>();
+
+            // Delete spikes that are no longer relevant
+            for (int i=0;i<numActiveSpikes;i++) {
+                const double relaxationTime = (Npoints + 1) * tau1 + tau2;
+                const double activeSpikeTime = t-timeActivatedVec_coarse.at(i).at(0);
+                if (activeSpikeTime >= relaxationTime) {
+                    numActiveSpikes -= 1;
+                    this->neuroSignalVec_coarse.erase(neuroSignalVec_coarse.begin() + i);
+                    this->timeActivatedVec_coarse.erase(timeActivatedVec_coarse.begin() + i);
+                    this->muscSignalVec_coarse.erase(muscSignalVec_coarse.begin() + i);
+                    this->dMuscSignalVec_coarse.erase(dMuscSignalVec_coarse.begin() + i);
+                }
+            }
+
             advanceCoarseArrays(t);
 
             // Set previous time for next gimmeValues call
@@ -474,13 +489,13 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     }
 
     void advanceCoarseArrays(const double time_current) {
-        printf("[numActiveSpikes][%d]\n", numActiveSpikes);
+//        printf("[numActiveSpikes][%d]\n", numActiveSpikes);
         const double delta_t = time_current - this->prevTime;
         for (int i = 0; i < numActiveSpikes; i++) {
             for (int j = 0; j < Npoints; j++) {
                 const double deltaT = time_current - this->timeActivatedVec_coarse.at(i).at(j);
                 if (deltaT >= 0) {
-                    printf("[i=%d][j=%d]\n", i, j);
+//                    printf("[i=%d][j=%d]\n", i, j);
                     // Activate current node but don't switch off previous one.
                     if (j > 0) {
                         this->neuroSignalVec_coarse.at(i).at(j) = this->neuroSignalVec_coarse.at(i)[j - 1];
@@ -510,7 +525,6 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
         this->muscSignalVec_coarse.push_back(std::array<Real, Npoints>());
         this->dMuscSignalVec_coarse.push_back(std::array<Real, Npoints>());
 
-        // need to delete arrays somewhere !
         for(int j=0; j < Npoints; j++){
             this->timeActivatedVec_coarse.at(numActiveSpikes-1).at(j) = this->t0 + j*dCmd;
         }

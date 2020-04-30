@@ -317,10 +317,6 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
     const std::array<Real ,9> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.50,
                                                  (Real)0.60, (Real)0.80, (Real)0.90, (Real)1};
 
-//    // Curvature control points along midline of fish, as in Gazzola et. al.
-//    const std::array<Real ,11> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.40, (Real)0.50,
-//                                                 (Real)0.60, (Real)0.70, (Real)0.80, (Real)0.90, (Real)1};
-
     // Define the compliance function (1/wS)
     Real* compliance_fine  = new Real[Nm];
     const int NCompliancePoints = 9;
@@ -328,47 +324,26 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
     std::array<double, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60, 0.75, 0.9, 0.85, 0.60};
 
     IF2D_Interpolation1D::naturalCubicSpline(criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints, rS, compliance_fine, Nm);
-
-    // Allow actions three delays later
-    if (t>=0.0 && act1){
-        std::vector<double> a{50, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-        act1=false;
-    }
-    if (t>=0.02 && act2){
-        std::vector<double> a{-100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-        act2=false;
-    }
-    if (t>=0.04 && act3){
-        std::vector<double> a{100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-        act3=false;
-    }
-    if (t>=0.06 && act4){
-        std::vector<double> a{-100, 0.013, 0.147}; // a good starting heuristic is = firing time/10
-        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-        act4=false;
-    }
-//    if (t>=0.06 && act4){
-//        std::vector<double> a{-200, 0.01, 0.147}; // a good starting heuristic is = firing time/10
+//
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{50, 0.013, 0.013}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act4=false;
+//        act1=false;
 //    }
-//    if (t>=0.00001 && act2){
-//        std::vector<double> a{100, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//    if (t>=0.1 && act2){
+//        std::vector<double> a{-100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
 //        act2=false;
 //    }
-//    if (t>=0.00002 && act3){
-//        std::vector<double> a{100, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//    if (t>=0.2 && act3){
+//        std::vector<double> a{100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
 //        act3=false;
 //    }
-//    if (t>=0.01 && act2){
-//        std::vector<double> a{300, 0.04, 0.147}; // a good starting heuristic is = firing time/10
+//    if (t>=0.3 && act4){
+//        std::vector<double> a{-100, 0.013, 0.147}; // a good starting heuristic is = firing time/10
 //        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act2=false;
+//        act4=false;
 //    }
 
     neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal, spatialDerivativeMuscSignal, spatialDerivativeDMuscSignal);
@@ -427,20 +402,21 @@ void NeuroKinematicFish::act(const Real t_rlAction, const std::vector<double>& a
 // Functions for state/reward
 std::vector<double> NeuroKinematicFish::state() const
 {
-    const NeuroFish* const cFish = dynamic_cast<NeuroFish*>( myFish );
-    std::vector<double> S(10,0);
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
+    const NeuroFish* const nFish = dynamic_cast<NeuroFish*>( myFish );
+    std::vector<double> S(12,0);
 
-    S[0] = this->getDistanceFromTarget() / length; // normalized distance from target
-    S[1] = (com[0] - cFish->target[0]) / length; // relative x position away from target
-    S[2] = (com[1] - cFish->target[1]) / length; // relative y position away from target
-    S[3] = getOrientation();
-    S[4] = getU() * Tperiod / length;
-    S[5] = getV() * Tperiod / length;
-    S[6] = getW() * Tperiod;
-    S[7] = cFish->lastAmplitude;
-    S[8] = cFish->lastDelay;
-    S[9] = cFish->lastFireTime;
+    S[0] = this->getRadialDisplacement() / length; // distance from center
+    S[1] = this->getPolarAngle(); // polar angle
+    S[2] = getOrientation();
+    S[3] = getU() * Tperiod / length;
+    S[4] = getV() * Tperiod / length;
+    S[5] = getW() * Tperiod;
+    S[6] = nFish->lastAmplitude;
+    S[7] = nFish->lastDelay;
+    S[8] = nFish->lastFireTime;
+    S[9] = nFish->oldrAmplitude;
+    S[10] = nFish->oldrDelay;
+    S[11] = nFish->oldrFireTime;
     return S;
 }
 
@@ -464,6 +440,12 @@ double NeuroKinematicFish::getRadialDisplacement() const {
     this->getCenterOfMass(com);
     double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
     return radialDisplacement;
+}
+
+double NeuroKinematicFish::getPolarAngle() const {
+    double com[2] = {0, 0}; this->getCenterOfMass(com);
+    double polarAngle = std::atan2(com[1], com[0]);
+    return polarAngle;
 }
 
 double NeuroKinematicFish::getDistanceFromTarget() const {
