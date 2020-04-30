@@ -56,7 +56,7 @@ class Escape : public Task
 public:
     // Task constants
     std::vector<double> lower_action_bound{-100, 0.0136, 0.0136};
-    std::vector<double> upper_action_bound{+100, 0.136,  1.227 };
+    std::vector<double> upper_action_bound{+100, 0.136,  1.36};
     int nActions = 3;
     int nStates = 12;
     unsigned maxActionsPerSim = 9000000;
@@ -87,9 +87,13 @@ public:
 class SequentialDistanceEscape : public Escape
 {
 public:
+//    inline double getReward(const NeuroKinematicFish* const a)
+//    {
+//        return (a->getPolarAngle() < 0 && a->getPolarAngle() > -M_PI) ? a->getRadialDisplacement() / a->length : -a->getRadialDisplacement() / a->length;
+//    }
     inline double getReward(const NeuroKinematicFish* const a)
     {
-        return (a->getPolarAngle() < 0 && a->getPolarAngle() > -M_PI) ? a->getRadialDisplacement() / a->length : -a->getRadialDisplacement() / a->length;
+        return a->getRadialDisplacement() / a->length;
     }
     inline double getTerminalReward(const NeuroKinematicFish* const a)
     {
