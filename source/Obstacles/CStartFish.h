@@ -32,5 +32,7 @@ public:
     double getRadialDisplacement() const;
     double getDistanceFromTarget() const;
     double getTimeNextAct() const;
-//    double setEnergyExpended() const;
+    void setEnergyExpended(const double setEnergyExpended);
+    void setVirtualOrigin(const double vo[2]);
+    double getPolarAngle() const;
 };

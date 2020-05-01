@@ -52,8 +52,11 @@ public:
     // Target location
     double target[2] = {0.0, 0.0};
 
+    // Virtual origin
+    double virtualOrigin[2] = {0.5, 0.5};
+
     // Energy expended
-//    double energyExpended = 0.0;
+    double energyExpended = 0.0;
 
 //    // act bools
     bool act1 = true;
@@ -114,7 +117,7 @@ public:
         oldrPhiUndulatory = 0;
         oldrAlpha = 0;
 
-//        energyExpended = 0.0;
+        energyExpended = 0.0;
 
         t_next = 0.0;
 
@@ -279,13 +282,13 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0.5, 0.4, 0.5};
-//        this->scheduleCStart(t, a);
+//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
+//        this->schedule(t, a);
 //        act1=false;
 //    }
-//    if (t>=0.4* this->Tperiod && act2){
-//        std::vector<double> a{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 1, 0.1};
-//        this->scheduleCStart(t, a);
+//    if (t>=0.7* this->Tperiod && act2){
+//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.7};
+//        this->schedule(t, a);
 //        act2=false;
 //    }
 
@@ -321,7 +324,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
         assert(not std::isinf(vK[i]));
     }
 
-    // solve frenet to compute midline parameters
+    // solve Frenet to compute midline parameters
     IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);
 }
 
@@ -376,47 +379,41 @@ void CStartFish::getTarget(double outTarget[2]) const
 std::vector<double> CStartFish::stateEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(24,0);
+    std::vector<double> S(25,0);
 
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double radialDisplacement = this->getRadialDisplacement();
-    double polarAngle = std::atan2(com[1], com[0]);
-
-    S[0] = radialDisplacement / length; // distance from center
-    S[1] = polarAngle; // polar angle
-    S[2] = getOrientation();
-    S[3] = getU() * Tperiod / length;
-    S[4] = getV() * Tperiod / length;
-    S[5] = getW() * Tperiod;
-    S[6] = cFish->lastB3;
-    S[7] = cFish->lastB4;
-    S[8] = cFish->lastB5;
-    S[9] = cFish->lastK3;
-    S[10] = cFish->lastK4;
-    S[11] = cFish->lastK5;
-    S[12] = cFish->lastTau;
-    S[13] = cFish->lastAlpha;
-    S[14] = cFish->lastPhiUndulatory;
-    S[15] = cFish->oldrB3;
-    S[16] = cFish->oldrB4;
-    S[17] = cFish->oldrB5;
-    S[18] = cFish->oldrK3;
-    S[19] = cFish->oldrK4;
-    S[20] = cFish->oldrK5;
-    S[21] = cFish->oldrTau;
-    S[22] = cFish->oldrAlpha;
-    S[23] = cFish->oldrPhiUndulatory;
+    S[0] = this->getRadialDisplacement() / length; // distance from original position
+    S[1] = this->getPolarAngle(); // polar angle from virtual origin
+    S[2] = cFish->energyExpended; // energy expended so far, must be set in RL
+    S[3] = getOrientation(); // orientation of fish
+    S[4] = getU() * Tperiod / length;
+    S[5] = getV() * Tperiod / length;
+    S[6] = getW() * Tperiod;
+    S[7] = cFish->lastB3;
+    S[8] = cFish->lastB4;
+    S[9] = cFish->lastB5;
+    S[10] = cFish->lastK3;
+    S[11] = cFish->lastK4;
+    S[12] = cFish->lastK5;
+    S[13] = cFish->lastTau;
+    S[14] = cFish->lastAlpha;
+    S[15] = cFish->lastPhiUndulatory;
+    S[16] = cFish->oldrB3;
+    S[17] = cFish->oldrB4;
+    S[18] = cFish->oldrB5;
+    S[19] = cFish->oldrK3;
+    S[20] = cFish->oldrK4;
+    S[21] = cFish->oldrK5;
+    S[22] = cFish->oldrTau;
+    S[23] = cFish->oldrAlpha;
+    S[24] = cFish->oldrPhiUndulatory;
     return S;
 }
 
 std::vector<double> CStartFish::stateCStart() const
 {
     std::vector<double> S(2,0);
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double radialDisplacement = this->getRadialDisplacement();
-    double polarAngle = std::atan2(com[1], com[0]);
-    S[0] = radialDisplacement / length; // distance from center
-    S[1] = polarAngle; // polar angle
+    S[0] = this->getRadialDisplacement() / length; // distance from center
+    S[1] = this->getPolarAngle(); // polar angle
     return S;
 }
 
@@ -460,13 +457,26 @@ double CStartFish::getDistanceFromTarget() const {
     double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
     return distanceFromTarget;
 }
-//
-//double CStartFish::setEnergyExpended(const double energyExpended) const {
-//    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-//    cFish->energyExpended = energyExpended;
-//}
+
+void CStartFish::setEnergyExpended(const double energyExpended) {
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->energyExpended = energyExpended;
+}
 
 double CStartFish::getTimeNextAct() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->t_next;
+}
+
+double CStartFish::getPolarAngle() const {
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    double com[2] = {0, 0}; this->getCenterOfMass(com);
+    double polarAngle = std::atan2(com[1]- cFish->virtualOrigin[1], com[0]- cFish->virtualOrigin[0]);
+    return polarAngle;
+}
+
+void CStartFish::setVirtualOrigin(const double vo[2]) {
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->virtualOrigin[0] = vo[0];
+    cFish->virtualOrigin[1] = vo[1];
 }

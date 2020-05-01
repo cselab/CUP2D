@@ -114,7 +114,7 @@ public:
     std::vector<double> lower_action_bound{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 0, 0};
     std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1, +1};
     int nActions = 9;
-    int nStates = 24;
+    int nStates = 25;
     unsigned maxActionsPerSim = 9000000;
 public:
 
@@ -122,10 +122,12 @@ public:
     {
         const Real A = 10*M_PI/180; // start between -10 and 10 degrees
         std::uniform_real_distribution<Real> dis(-A, A);
-        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -98.0 * M_PI / 180.0;
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : 10 * M_PI / 180.0;
         a->setOrientation(SA);
-        double com[2] = {0.5, 0.5};
+        double com[2] = {0.7, 0.5};
         a->setCenterOfMass(com);
+        double vo[2] = {0.9, 0.5};
+        a->setVirtualOrigin(vo);
     }
 
     inline bool isTerminal(const CStartFish*const a)
@@ -154,7 +156,7 @@ public:
 class DistanceEnergyEscape : public Escape
 {
 public:
-    const double baselineEnergy = 0.00848; // Baseline energy consumed by a C-start in joules for 1.15 lengths
+    const double baselineEnergy = 0.00730; // Baseline energy consumed by a C-start in joules for 0.93 lengths in 16x16 res
 public:
     inline double getReward(const CStartFish* const a)
     {
@@ -162,11 +164,17 @@ public:
     }
     inline double getTerminalReward(const CStartFish* const a)
     {
+//        printf("[terminalReward] reward is %f\n", a->getRadialDisplacement() / a->length);
         return a->getRadialDisplacement() / a->length;
     }
     inline bool isTerminal(const CStartFish*const a)
     {
-        return (timeElapsed > 1.5882352941 || energyExpended >= 0.00848);
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+
+//        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d\n", polarAngle, energyExpended, outsidePolarSweep);
+//        printf("[isTerminal] radialDisplacementState %f polarAngleState %f energyExpendedState %f orientationState %f\n", a->stateEscape()[0], a->stateEscape()[1], a->stateEscape()[2], a->stateEscape()[3]);
+        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep);
     }
 
 };
@@ -321,6 +329,7 @@ inline void app_main(
 
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
+                agent->setEnergyExpended(energyExpended);
 
                 // Set the task-energy-expenditure
                 task.setEnergyExpended(energyExpended);
