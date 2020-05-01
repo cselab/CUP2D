@@ -164,17 +164,27 @@ public:
     }
     inline double getTerminalReward(const CStartFish* const a)
     {
-//        printf("[terminalReward] reward is %f\n", a->getRadialDisplacement() / a->length);
-        return a->getRadialDisplacement() / a->length;
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+
+        const double penaltyPolar = outsidePolarSweep ? -10 : 0;
+        const double penaltyOrientation = orientationOutOfRange ? -10 : 0;
+
+//        printf("[terminalReward] reward is %f\n", a->getRadialDisplacement() / a->length + penaltyPolar + penaltyOrientation);
+        return a->getRadialDisplacement() / a->length + penaltyPolar + penaltyOrientation;
     }
     inline bool isTerminal(const CStartFish*const a)
     {
         const double polarAngle = a->getPolarAngle();
         const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
 
-//        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d\n", polarAngle, energyExpended, outsidePolarSweep);
+//        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d orientationOutOfRange %d\n", polarAngle, energyExpended, outsidePolarSweep, orientationOutOfRange);
 //        printf("[isTerminal] radialDisplacementState %f polarAngleState %f energyExpendedState %f orientationState %f\n", a->stateEscape()[0], a->stateEscape()[1], a->stateEscape()[2], a->stateEscape()[3]);
-        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep);
+        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
     }
 
 };
