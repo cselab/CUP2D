@@ -57,7 +57,7 @@ protected:
     Schedulers::ParameterSchedulerVector<6> baselineCurvatureScheduler;  // baseline scheduler
     Schedulers::ParameterSchedulerVector<6> undulatoryCurvatureScheduler; // undulation scheduler
     Schedulers::ParameterSchedulerScalar tauTailScheduler; // phase scheduler
-    Schedulers::ParameterSchedulerNeuroKinematic<9> neuroKinematicScheduler;
+    Schedulers::ParameterSchedulerNeuroKinematicObject<20> neuroKinematicScheduler;
 
 public:
     NeuroFish(Real L, Real T, Real phi, Real _h, Real _A)
@@ -313,46 +313,57 @@ public:
 
 void NeuroFish::computeMidline(const Real t, const Real dt)
 {
-    // Curvature control points along midline of fish, as in Gazzola et. al.
-    const std::array<Real ,9> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.50,
-                                                 (Real)0.60, (Real)0.80, (Real)0.90, (Real)1};
+//    // Curvature control points along midline of fish, as in Gazzola et. al.
+//    const std::array<Real ,9> curvaturePoints = {(Real)0.0, (Real)0.10, (Real)0.20, (Real)0.30, (Real)0.50,
+//                                                 (Real)0.60, (Real)0.80, (Real)0.90, (Real)1};
+
+    const std::array<Real ,20> curvaturePoints =
+            {(Real)0.0, (Real)0.05263158, (Real)0.10526316, (Real)0.15789474, (Real) 0.21052632, (Real)0.26315789, (Real)0.31578947, (Real)0.36842105, (Real)0.42105263,
+             (Real)0.47368421, (Real)0.52631579, (Real)0.57894737, (Real)0.63157895, (Real)0.68421053, (Real)0.73684211, (Real)0.78947368, (Real)0.84210526, (Real)0.89473684,
+             (Real)0.94736842, (Real)0.1};
 
     // Define the compliance function (1/wS)
     Real* compliance_fine  = new Real[Nm];
-    const int NCompliancePoints = 9;
-    std::array<double, 9> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 1};
-    std::array<double, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60, 0.75, 0.9, 0.85, 0.60};
+    const int NCompliancePoints = 10;
+//    std::array<double, 9> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 1};
+    std::array<double, 10> criticalSpinePoints = {0.0, 0.11111111, 0.22222222, 0.33333333, 0.44444444, 0.55555556, 0.66666667, 0.77777778, 0.88888889, 1.0};
+    std::array<double, 10> compliancePoints = {0.00, 0.04, 0.2, 0.4, 0.60, 0.78, 0.9, 0.85, 0.60, 0.20};
+//    std::array<double, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60, 0.75, 0.9, 0.85, 0.60};
 
     IF2D_Interpolation1D::naturalCubicSpline(criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints, rS, compliance_fine, Nm);
-//
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{50, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act1=false;
-//    }
-//    if (t>=0.1 && act2){
-//        std::vector<double> a{-100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act2=false;
-//    }
-//    if (t>=0.2 && act3){
-//        std::vector<double> a{100, 0.013, 0.013}; // a good starting heuristic is = firing time/10
-//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act3=false;
-//    }
-//    if (t>=0.3 && act4){
-//        std::vector<double> a{-100, 0.013, 0.147}; // a good starting heuristic is = firing time/10
-//        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
-//        act4=false;
-//    }
 
-    neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal, spatialDerivativeMuscSignal, spatialDerivativeDMuscSignal);
+    if (t>=0.0 && act1){
+        printf("\n\n\n first action \n\n\n");
+        std::vector<double> a{500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act1=false;
+    }
+    if (t>=0.3138 && act2){
+        printf("\n\n\n second action \n\n\n");
+        std::vector<double> a{-500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act2=false;
+    }
+    if (t>=0.6276 && act3){
+        std::vector<double> a{300, 0.0157, 0.013}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act3=false;
+    }
+    if (t>=0.9414 && act4){
+        std::vector<double> a{-300, 0.0157, 0.147}; // a good starting heuristic is = firing time/10
+        neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
+        act4=false;
+    }
+
+    neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal);
 
     const double curvMax = 2*M_PI/length;
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
         const Real curvCmd = rMuscSignal[i] * compliance_fine[i] / length;
         const Real curvCmdVel = vMuscSignal[i] * compliance_fine[i] / length;
+
+//        printf("[node %d] curvature %f", i, curvCmd);
 
         if (curvCmd >= curvMax) {
             rK[i] = curvMax;
