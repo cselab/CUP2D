@@ -185,6 +185,55 @@ public:
 //        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d orientationOutOfRange %d\n", polarAngle, energyExpended, outsidePolarSweep, orientationOutOfRange);
 //        printf("[isTerminal] radialDisplacementState %f polarAngleState %f energyExpendedState %f orientationState %f\n", a->stateEscape()[0], a->stateEscape()[1], a->stateEscape()[2], a->stateEscape()[3]);
         return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
+
+    }
+
+};
+class DistanceVariableEnergyEscape : public Escape
+{
+public:
+    double baselineEnergy = 0.0; // Baseline energy consumed by a C-start in joules for 0.93 lengths in 16x16 res
+public:
+    inline double getReward(const CStartFish* const a)
+    {
+        return 0.0;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+        const double penaltyPolar = outsidePolarSweep ? -10 : 0;
+        const double penaltyOrientation = orientationOutOfRange ? -10 : 0;
+        return a->getRadialDisplacement() / a->length + penaltyPolar + penaltyOrientation;
+    }
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
+
+    }
+    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
+    {
+        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
+        std::uniform_real_distribution<Real> dis(-A, A);
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -10.0 * M_PI / 180.0;
+        a->setOrientation(SA);
+        double com[2] = {0.7, 0.5};
+        a->setCenterOfMass(com);
+        double vo[2] = {0.9, 0.5};
+        a->setVirtualOrigin(vo);
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);
+        baselineEnergy = disEnergy(c->getPRNG());
+        a->setEnergyBudget(baselineEnergy);
+    }
+    inline std::vector<double> getState(const CStartFish* const a)
+    {
+        return a->stateEscapeVariableEnergy();
     }
 
 };
@@ -310,7 +359,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    SequentialDistanceEnergyEscape task = SequentialDistanceEnergyEscape();
+    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}

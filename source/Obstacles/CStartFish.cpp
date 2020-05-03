@@ -57,6 +57,7 @@ public:
 
     // Energy expended
     double energyExpended = 0.0;
+    double energyBudget = 0.0;
 
 //    // act bools
     bool act1 = true;
@@ -118,6 +119,7 @@ public:
         oldrAlpha = 0;
 
         energyExpended = 0.0;
+        energyBudget = 0.0;
 
         t_next = 0.0;
 
@@ -409,6 +411,39 @@ std::vector<double> CStartFish::stateEscape() const
     return S;
 }
 
+std::vector<double> CStartFish::stateEscapeVariableEnergy() const
+{
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    std::vector<double> S(25,0);
+
+    S[0] = this->getRadialDisplacement() / length; // distance from original position
+    S[1] = this->getPolarAngle(); // polar angle from virtual origin
+    S[2] = cFish->energyBudget - cFish->energyExpended; // energy expended relative to energy budget, must be set in RL
+    S[3] = getOrientation(); // orientation of fish
+    S[4] = getU() * Tperiod / length;
+    S[5] = getV() * Tperiod / length;
+    S[6] = getW() * Tperiod;
+    S[7] = cFish->lastB3;
+    S[8] = cFish->lastB4;
+    S[9] = cFish->lastB5;
+    S[10] = cFish->lastK3;
+    S[11] = cFish->lastK4;
+    S[12] = cFish->lastK5;
+    S[13] = cFish->lastTau;
+    S[14] = cFish->lastAlpha;
+    S[15] = cFish->lastPhiUndulatory;
+    S[16] = cFish->oldrB3;
+    S[17] = cFish->oldrB4;
+    S[18] = cFish->oldrB5;
+    S[19] = cFish->oldrK3;
+    S[20] = cFish->oldrK4;
+    S[21] = cFish->oldrK5;
+    S[22] = cFish->oldrTau;
+    S[23] = cFish->oldrAlpha;
+    S[24] = cFish->oldrPhiUndulatory;
+    return S;
+}
+
 std::vector<double> CStartFish::stateCStart() const
 {
     std::vector<double> S(2,0);
@@ -479,4 +514,10 @@ void CStartFish::setVirtualOrigin(const double vo[2]) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->virtualOrigin[0] = vo[0];
     cFish->virtualOrigin[1] = vo[1];
+}
+
+
+void CStartFish::setEnergyBudget(const double baselineEnergy) {
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->energyBudget = baselineEnergy;
 }

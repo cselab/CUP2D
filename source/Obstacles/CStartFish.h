@@ -27,6 +27,7 @@ public:
 
     // member functions for state/reward
     std::vector<double> stateEscape() const;
+    std::vector<double> stateEscapeVariableEnergy() const;
     std::vector<double> stateTarget() const;
     std::vector<double> stateCStart() const;
     double getRadialDisplacement() const;
@@ -34,5 +35,6 @@ public:
     double getTimeNextAct() const;
     void setEnergyExpended(const double setEnergyExpended);
     void setVirtualOrigin(const double vo[2]);
+    void setEnergyBudget(const double baselineEnergy);
     double getPolarAngle() const;
 };
