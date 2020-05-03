@@ -122,7 +122,7 @@ public:
     {
         const Real A = 10*M_PI/180; // start between -10 and 10 degrees
         std::uniform_real_distribution<Real> dis(-A, A);
-        const auto SA = c->isTraining() ? dis(c->getPRNG()) : 10 * M_PI / 180.0;
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -10.0 * M_PI / 180.0;
         a->setOrientation(SA);
         double com[2] = {0.7, 0.5};
         a->setCenterOfMass(com);
@@ -188,6 +188,37 @@ public:
     }
 
 };
+class SequentialDistanceEnergyEscape : public Escape
+{
+public:
+    const double baselineEnergy = 0.00730; // Baseline energy consumed by a C-start in joules for 0.93 lengths in 16x16 res
+public:
+    inline double getReward(const CStartFish* const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+        const double penaltyPolar = outsidePolarSweep ? -10 : 0;
+        const double penaltyOrientation = orientationOutOfRange ? -10 : 0;
+        return a->getRadialDisplacement() / a->length + penaltyPolar + penaltyOrientation;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        return getReward(a);
+    }
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+        return (timeElapsed > 1.5882352941 || outsidePolarSweep || orientationOutOfRange);
+
+    }
+
+};
+
 class SequentialDistanceEscape : public Escape
 {
 public:
@@ -279,7 +310,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceEnergyEscape task = DistanceEnergyEscape();
+    SequentialDistanceEnergyEscape task = SequentialDistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
