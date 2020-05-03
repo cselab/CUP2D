@@ -230,10 +230,14 @@ public:
         std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);
         baselineEnergy = disEnergy(c->getPRNG());
         a->setEnergyBudget(baselineEnergy);
+//        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
     }
     inline std::vector<double> getState(const CStartFish* const a)
     {
+//        printf("[getState] agent energy diff is %f\n", a->stateEscapeVariableEnergy()[2]);
+//        printf("[getState] agent energy expended is %f\n", a->getEnergyExpended());
         return a->stateEscapeVariableEnergy();
+
     }
 
 };
@@ -359,7 +363,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
+    DistanceEnergyEscape task = DistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}

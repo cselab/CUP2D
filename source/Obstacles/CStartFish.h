@@ -36,5 +36,7 @@ public:
     void setEnergyExpended(const double setEnergyExpended);
     void setVirtualOrigin(const double vo[2]);
     void setEnergyBudget(const double baselineEnergy);
+    double getEnergyBudget() const;
+    double getEnergyExpended() const;
     double getPolarAngle() const;
 };

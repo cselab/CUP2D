@@ -46,6 +46,9 @@ public:
     // Older phi
     Real oldrPhiUndulatory = 0;
 
+    // first action
+    bool firstAction = true;
+
     // Time for next action
     double t_next = 0.0;
 
@@ -118,6 +121,8 @@ public:
         oldrPhiUndulatory = 0;
         oldrAlpha = 0;
 
+        firstAction = true;
+
         energyExpended = 0.0;
         energyBudget = 0.0;
 
@@ -186,14 +191,21 @@ public:
         baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
-        phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
+
+        if (firstAction) {
+            printf("FIRST ACTION %f\n", lastPhiUndulatory);
+            phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, lastPhiUndulatory);
+            firstAction = false;
+        } else {
+            printf("Next action %f\n", lastPhiUndulatory);
+            phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
+        }
 
         printf("Action duration is: %f\n", actionDuration);
         printf("t_next is: %f/n", this->t_next);
         printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
         printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
         printf("Scheduled a transition between %f and %f to tau %f and phi %f\n", t_current, t_next, lastTau, lastPhiUndulatory);
-
     }
 
     void scheduleCStart(const Real t_current, const std::vector<double>&a)
@@ -257,7 +269,6 @@ public:
         printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
         printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
         printf("Scheduled a transition between %f and %f to tau %f\n", t_current, t_next, lastTau);
-
     }
 
     ~ControlledCurvatureFish() override {
@@ -498,6 +509,11 @@ void CStartFish::setEnergyExpended(const double energyExpended) {
     cFish->energyExpended = energyExpended;
 }
 
+double CStartFish::getEnergyExpended() const {
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    return cFish->energyExpended;
+}
+
 double CStartFish::getTimeNextAct() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->t_next;
@@ -520,4 +536,9 @@ void CStartFish::setVirtualOrigin(const double vo[2]) {
 void CStartFish::setEnergyBudget(const double baselineEnergy) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->energyBudget = baselineEnergy;
+}
+
+double CStartFish::getEnergyBudget() const {
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    return cFish->energyBudget;
 }
