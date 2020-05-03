@@ -363,7 +363,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceEnergyEscape task = DistanceEnergyEscape();
+    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
