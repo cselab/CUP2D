@@ -226,6 +226,7 @@ public:
         double vo[2] = {0.9, 0.5};
         a->setVirtualOrigin(vo);
         std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);
+//        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.0219;
         baselineEnergy = disEnergy(c->getPRNG());
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
@@ -361,7 +362,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
+    DistanceEnergyEscape task = DistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
