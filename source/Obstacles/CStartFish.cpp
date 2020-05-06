@@ -46,6 +46,9 @@ public:
     // Older phi
     Real oldrPhiUndulatory = 0;
 
+    // Distance travelled at Tprop
+    Real dTprop = 0.0;
+
     // first action
     bool firstAction = true;
 
@@ -120,6 +123,8 @@ public:
         oldrTau = 0;
         oldrPhiUndulatory = 0;
         oldrAlpha = 0;
+
+        dTprop = 0.0;
 
         firstAction = true;
 
@@ -389,6 +394,40 @@ void CStartFish::getTarget(double outTarget[2]) const
     outTarget[1] = cFish->target[1];
 }
 
+std::vector<double> CStartFish::stateEscapeTradeoff() const
+{
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    std::vector<double> S(26,0);
+
+    S[0] = this->getRadialDisplacement() / length; // distance from original position
+    S[1] = cFish->dTprop / length;
+    S[2] = this->getPolarAngle(); // polar angle from virtual origin
+    S[3] = cFish->energyBudget - cFish->energyExpended; // energy expended so far, must be set in RL
+    S[4] = getOrientation(); // orientation of fish
+    S[5] = getU() * Tperiod / length;
+    S[6] = getV() * Tperiod / length;
+    S[7] = getW() * Tperiod;
+    S[8] = cFish->lastB3;
+    S[9] = cFish->lastB4;
+    S[10] = cFish->lastB5;
+    S[11] = cFish->lastK3;
+    S[12] = cFish->lastK4;
+    S[13] = cFish->lastK5;
+    S[14] = cFish->lastTau;
+    S[15] = cFish->lastAlpha;
+    S[16] = cFish->lastPhiUndulatory;
+    S[17] = cFish->oldrB3;
+    S[18] = cFish->oldrB4;
+    S[19] = cFish->oldrB5;
+    S[20] = cFish->oldrK3;
+    S[21] = cFish->oldrK4;
+    S[22] = cFish->oldrK5;
+    S[23] = cFish->oldrTau;
+    S[24] = cFish->oldrAlpha;
+    S[25] = cFish->oldrPhiUndulatory;
+    return S;
+}
+
 std::vector<double> CStartFish::stateEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -507,6 +546,16 @@ double CStartFish::getDistanceFromTarget() const {
 void CStartFish::setEnergyExpended(const double energyExpended) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->energyExpended = energyExpended;
+}
+
+void CStartFish::setDistanceTprop(const double distanceTprop) {
+    ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    cFish->dTprop = distanceTprop;
+}
+
+double CStartFish::getDistanceTprop() const {
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    return cFish->dTprop;
 }
 
 double CStartFish::getEnergyExpended() const {

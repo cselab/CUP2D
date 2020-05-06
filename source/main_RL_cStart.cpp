@@ -271,6 +271,9 @@ public:
 
 };
 
+
+
+
 class SequentialDistanceEscape : public Escape
 {
 public:
@@ -313,6 +316,84 @@ public:
         return a->getRadialDisplacement() / a->length - std::abs(energyExpended - baselineEnergy) / baselineEnergy - timeElapsed / a->Tperiod;
     }
 };
+
+// Escape tradeoff
+class EscapeTradeoff : public Task
+{
+public:
+    // Task constants
+    std::vector<double> lower_action_bound{-2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, -2*M_PI, 0, 0, 0};
+    std::vector<double> upper_action_bound{0, 0, 0, 0, 0, 0, +1, +1, +1};
+    int nActions = 9;
+    int nStates = 26;
+    unsigned maxActionsPerSim = 9000000;
+    const double baselineEnergy = 0.00730; // Baseline energy consumed by a C-start in joules for 0.93 lengths in 16x16 res
+public:
+
+    inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
+    {
+        const Real A = 10*M_PI/180; // start between -10 and 10 degrees
+        std::uniform_real_distribution<Real> dis(-A, A);
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -10.0 * M_PI / 180.0;
+        a->setOrientation(SA);
+        double com[2] = {0.7, 0.5};
+        a->setCenterOfMass(com);
+        double vo[2] = {0.9, 0.5};
+        a->setVirtualOrigin(vo);
+        // Set the energy budget
+        a->setEnergyBudget(baselineEnergy);
+    }
+
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        return timeElapsed > 1.5882352941;
+    }
+
+    inline std::vector<double> getState(const CStartFish* const a)
+    {
+        return a->stateEscapeTradeoff();
+    }
+
+};
+class DistanceTradeoffEnergyEscape : public EscapeTradeoff
+{
+public:
+    const double relativeSpeedFactor = 2.70;
+public:
+    inline double getReward(const CStartFish* const a)
+    {
+        return 0.0;
+    }
+    inline double getTerminalReward(const CStartFish* const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+
+        const double penaltyPolar = outsidePolarSweep ? -10 : 0;
+        const double penaltyOrientation = orientationOutOfRange ? -10 : 0;
+
+        // Get the distance that the fish had travelled at Tprop
+
+//        printf("[terminalReward] reward is %f\n", a->getRadialDisplacement() / a->length + relativeSpeedFactor * getState(a)[1] + penaltyPolar + penaltyOrientation);
+//        printf("[terminalReward] rewardTradeoff is %f\n", relativeSpeedFactor * getState(a)[1]);
+        return a->getRadialDisplacement() / a->length + relativeSpeedFactor * getState(a)[1] + penaltyPolar + penaltyOrientation;
+    }
+    inline bool isTerminal(const CStartFish*const a)
+    {
+        const double polarAngle = a->getPolarAngle();
+        const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
+        const double orientation = a->getOrientation();
+        const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+
+//        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d orientationOutOfRange %d\n", polarAngle, energyExpended, outsidePolarSweep, orientationOutOfRange);
+//        printf("[isTerminal] radialDisplacementState %f dTprop % f polarAngleState %f energyExpendedState %f orientationState %f\n", getState(a)[0], getState(a)[1], getState(a)[2], getState(a)[3], getState(a)[4]);
+        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
+    }
+
+};
+
 
 // CStart
 class CStart : public Task
@@ -362,7 +443,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
+    DistanceTradeoffEnergyEscape task = DistanceTradeoffEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -423,6 +504,8 @@ inline void app_main(
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
                 agent->setEnergyExpended(energyExpended);
+                if (t <= agent->Tperiod) { agent->setDistanceTprop(agent->getRadialDisplacement()); }
+//                printf("radial disp %f\n", agent->getRadialDisplacement());
 
                 // Set the task-energy-expenditure
                 task.setEnergyExpended(energyExpended);
