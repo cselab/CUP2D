@@ -550,7 +550,13 @@ void CStartFish::setEnergyExpended(const double energyExpended) {
 
 void CStartFish::setDistanceTprop(const double distanceTprop) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    cFish->dTprop = distanceTprop;
+    double com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
+    bool propulsionForward = com[0] <= this->origC[0];
+    if (propulsionForward) {
+        cFish->dTprop = distanceTprop;
+    } else {
+        cFish->dTprop = -distanceTprop;
+    }
 }
 
 double CStartFish::getDistanceTprop() const {
