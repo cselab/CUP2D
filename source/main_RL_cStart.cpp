@@ -444,7 +444,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    SequentialDistanceEnergyEscape task = SequentialDistanceEnergyEscape();
+    DistanceTradeoffEnergyEscape task = DistanceTradeoffEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -505,7 +505,7 @@ inline void app_main(
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
                 agent->setEnergyExpended(energyExpended);
-//                if (t <= agent->Tperiod) { agent->setDistanceTprop(agent->getRadialDisplacement()); }
+                if (t <= agent->Tperiod) { agent->setDistanceTprop(agent->getRadialDisplacement()); }
 //                printf("radial disp %f\n", agent->getRadialDisplacement());
 
                 // Set the task-energy-expenditure
