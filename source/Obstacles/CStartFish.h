@@ -27,6 +27,7 @@ public:
 
     // member functions for state/reward
     std::vector<double> stateEscape() const;
+    std::vector<double> stateSequentialEscape() const;
     std::vector<double> stateEscapeTradeoff() const;
     std::vector<double> stateEscapeVariableEnergy() const;
     std::vector<double> stateTarget() const;

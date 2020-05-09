@@ -68,6 +68,9 @@ public:
 //    // act bools
     bool act1 = true;
     bool act2 = true;
+    bool act3 = true;
+    bool act4 = true;
+    bool act5 = true;
 
 protected:
     // Current curvature and curvature velocity
@@ -138,6 +141,9 @@ public:
 
         act1 = true;
         act2 = true;
+        act3 = true;
+        act4 = true;
+        act5 = true;
 
         baselineCurvatureScheduler.resetAll();
         undulatoryCurvatureScheduler.resetAll();
@@ -309,6 +315,32 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        this->schedule(t, a);
 //        act2=false;
 //    }
+//
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.58255* this->Tperiod && act2){
+//        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
+//    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
+//        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
+//        this->schedule(t, a);
+//        act3=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
+//        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
+//        this->schedule(t, a);
+//        act4=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.680396) * this->Tperiod && act5){
+//        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
+//        this->schedule(t, a);
+//        act5=false;
+//    }
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
@@ -460,6 +492,50 @@ std::vector<double> CStartFish::stateEscape() const
     S[24] = cFish->oldrPhiUndulatory;
     return S;
 }
+
+
+std::vector<double> CStartFish::stateSequentialEscape() const
+{
+    const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
+    std::vector<double> S(25,0);
+
+    double com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
+    bool propulsionForward = com[0] <= this->origC[0];
+    double signedRadialDisplacement = 0.0;
+    if (propulsionForward) {
+        signedRadialDisplacement = this->getRadialDisplacement() / length;
+    } else {
+        signedRadialDisplacement = -this->getRadialDisplacement() / length;
+    }
+
+    S[0] = signedRadialDisplacement; // distance from original position
+    S[1] = this->getPolarAngle(); // polar angle from virtual origin
+    S[2] = cFish->energyExpended; // energy expended so far, must be set in RL
+    S[3] = getOrientation(); // orientation of fish
+    S[4] = getU() * Tperiod / length;
+    S[5] = getV() * Tperiod / length;
+    S[6] = getW() * Tperiod;
+    S[7] = cFish->lastB3;
+    S[8] = cFish->lastB4;
+    S[9] = cFish->lastB5;
+    S[10] = cFish->lastK3;
+    S[11] = cFish->lastK4;
+    S[12] = cFish->lastK5;
+    S[13] = cFish->lastTau;
+    S[14] = cFish->lastAlpha;
+    S[15] = cFish->lastPhiUndulatory;
+    S[16] = cFish->oldrB3;
+    S[17] = cFish->oldrB4;
+    S[18] = cFish->oldrB5;
+    S[19] = cFish->oldrK3;
+    S[20] = cFish->oldrK4;
+    S[21] = cFish->oldrK5;
+    S[22] = cFish->oldrTau;
+    S[23] = cFish->oldrAlpha;
+    S[24] = cFish->oldrPhiUndulatory;
+    return S;
+}
+
 
 std::vector<double> CStartFish::stateEscapeVariableEnergy() const
 {

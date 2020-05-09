@@ -253,7 +253,7 @@ public:
         const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
         const double penaltyPolar = outsidePolarSweep ? -10 : 0;
         const double penaltyOrientation = orientationOutOfRange ? -10 : 0;
-        return a->getRadialDisplacement() / a->length + penaltyPolar + penaltyOrientation;
+        return getState(a)[0] + penaltyPolar + penaltyOrientation;
     }
     inline double getTerminalReward(const CStartFish* const a)
     {
@@ -268,10 +268,11 @@ public:
         return (timeElapsed > 1.5882352941 || outsidePolarSweep || orientationOutOfRange);
 
     }
-
+    inline std::vector<double> getState(const CStartFish* const a)
+    {
+        return a->stateSequentialEscape();
+    }
 };
-
-
 
 
 class SequentialDistanceEscape : public Escape
@@ -443,7 +444,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceTradeoffEnergyEscape task = DistanceTradeoffEnergyEscape();
+    SequentialDistanceEnergyEscape task = SequentialDistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -504,7 +505,7 @@ inline void app_main(
                 // Forward integrate the energy expenditure
                 energyExpended += -agent->defPowerBnd * dt; // We want work done by fish on fluid.
                 agent->setEnergyExpended(energyExpended);
-                if (t <= agent->Tperiod) { agent->setDistanceTprop(agent->getRadialDisplacement()); }
+//                if (t <= agent->Tperiod) { agent->setDistanceTprop(agent->getRadialDisplacement()); }
 //                printf("radial disp %f\n", agent->getRadialDisplacement());
 
                 // Set the task-energy-expenditure
