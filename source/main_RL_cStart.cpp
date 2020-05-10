@@ -182,9 +182,11 @@ public:
         const double orientation = a->getOrientation();
         const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
 
+        const double maxTime = 0.5882352941 * 1.5;
+
 //        printf("[isTerminal] polarAngle %f energyExpended %f outsidePolarSweep %d orientationOutOfRange %d\n", polarAngle, energyExpended, outsidePolarSweep, orientationOutOfRange);
 //        printf("[isTerminal] radialDisplacementState %f polarAngleState %f energyExpendedState %f orientationState %f\n", a->stateEscape()[0], a->stateEscape()[1], a->stateEscape()[2], a->stateEscape()[3]);
-        return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
+        return (timeElapsed > maxTime || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
     }
 
 };
@@ -444,7 +446,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceTradeoffEnergyEscape task = DistanceTradeoffEnergyEscape();
+    DistanceEnergyEscape task = DistanceEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
