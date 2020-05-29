@@ -36,7 +36,7 @@ void Disk::create(const std::vector<BlockInfo>& vInfo)
 
 void Disk::updateVelocity(double dt)
 {
-  #if 0
+  /*#if 0
   {
     std::cout << "Checking against potential flow solution." << std::endl;
     const std::vector<BlockInfo>& velInfo = sim.vel->getBlocksInfo();
@@ -81,35 +81,30 @@ void Disk::updateVelocity(double dt)
     sim.dumpTmpV("PotFlowTarget");
   }
   #endif
+  */
+  
   
   Shape::updateVelocity(dt);
+  {
   if(tAccel > 0) {
+    // Uniform linear motion
     if(bForcedx && sim.time < tAccel && xCenterRotation < 0 && yCenterRotation < 0) u = (sim.time/tAccel)*forcedu;
     if(bForcedy && sim.time < tAccel && xCenterRotation < 0 && yCenterRotation < 0) v = (sim.time/tAccel)*forcedv;
 
-    // Uniform circular motion: acceleration to maximal resultant magnitude
-    if(bForcedx && sim.time < tAccel && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - xCenterRotation, 2));
+    // Uniform circular motion
+    if(bForcedx && xCenterRotation > 0 && yCenterRotation > 0) {
+      Real accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
+      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
       Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      u = (sim.time/tAccel) * (- radiusForcedMotion*forcedomegaCirc*std::sin(forcedomega*sim.time) + theta_0);
+      u = accelCoef * (- radiusForcedMotion*forcedomegaCirc*std::sin(forcedomega*sim.time + theta_0));
     }
-    if(bForcedx && sim.time < tAccel && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - xCenterRotation, 2));
+    if(bForcedy && xCenterRotation > 0 && yCenterRotation > 0) {
+      Real accelCoef = sim.time<tAccel ? sim.time / tAccel : 1;
+      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
       Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      v = (sim.time/tAccel) * (  radiusForcedMotion*forcedomegaCirc*std::cos(forcedomega*sim.time) + theta_0);
+      v = accelCoef * (  radiusForcedMotion*forcedomegaCirc*std::cos(forcedomega*sim.time + theta_0));
     }
-    
-    // Uniform circular motion: after acceleration to maximal resultant magnitude
-    if(bForcedx && sim.time > tAccel && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - xCenterRotation, 2));
-      Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      u = - radiusForcedMotion * forcedomegaCirc*std::sin(forcedomega*sim.time + theta_0);
-    }
-    if(bForcedx && sim.time > tAccel && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - xCenterRotation, 2));
-      Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      v =   radiusForcedMotion * forcedomegaCirc*std::cos(forcedomega*sim.time + theta_0);
-    }
+  }
   }
 }
 
