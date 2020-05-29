@@ -67,10 +67,17 @@ void Shape::updateLabVelocity( int nSum[2], double uSum[2] )
 void Shape::updatePosition(double dt)
 {
   // Remember, uinf is -ubox, therefore we sum it to u body to get
-  // velocity of shapre relative to the sim box
+  // velocity of shape relative to the sim box
+  if(xCenterRotation > 0 && yCenterRotation > 0){
+  centerOfMass[0] = R * cos(forcedomega*sim.time + theta_0);
+  centerOfMass[1] = R * sin(forcedomega*sim.time + theta_0);
+  }
+  else{
   centerOfMass[0] += dt * ( u + sim.uinfx );
   centerOfMass[1] += dt * ( v + sim.uinfy );
-  labCenterOfMass[0] += dt * u;
+  }
+
+  labCenterOfMass[0] += dt * u; // lab CoM?
   labCenterOfMass[1] += dt * v;
 
   orientation += dt*omega;
@@ -341,8 +348,10 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   bBlockang( p("-bBlockAng").asBool(bForcedx || bForcedy) ),
   forcedu( - p("-xvel").asDouble(0) ), forcedv( - p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)), bDumpSurface(p("-dumpSurf").asInt(0)),
+  xCenterRotation( - p("-xCenterRotation").asDouble(-1) ), yCenterRotation( - p("-yCenterRotation").asDouble(-1) ),
+  forcedomegaCirc(-p("-circVel").asDouble(0)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
-  {}
+  
 
 Shape::~Shape()
 {

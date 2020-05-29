@@ -81,12 +81,26 @@ void Disk::updateVelocity(double dt)
     sim.dumpTmpV("PotFlowTarget");
   }
   #endif
+  
   Shape::updateVelocity(dt);
   if(tAccel > 0) {
-    if(bForcedx && sim.time < tAccel) u = (sim.time/tAccel)*forcedu;
-    if(bForcedy && sim.time < tAccel) v = (sim.time/tAccel)*forcedv;
+    if(bForcedx && sim.time < tAccel && xCenterRotation < 0 && yCenterRotation < 0) u = (sim.time/tAccel)*forcedu;
+    if(bForcedy && sim.time < tAccel && xCenterRotation < 0 && yCenterRotation < 0) v = (sim.time/tAccel)*forcedv;
+    
+    /*
+    R = std:sqrt(std:pow(center[0] - xCenterRotation, 2) + std:pow(center[1] - xCenterRotation, 2));
+    double theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+    */
+   
+    // Combine acceleration to max. magnitude with variation of magnitude due to rotation
+    if(bForcedx && sim.time < tAccel && xCenterRotation > 0 && yCenterRotation > 0) u = (sim.time/tAccel) * (- R * forcedomegaCirc*std::cos(forcedomega*sim.time) + theta_0);
+    if(bForcedx && sim.time < tAccel && xCenterRotation > 0 && yCenterRotation > 0) v = (sim.time/tAccel) * (  R * forcedomegaCirc*std::sin(forcedomega*sim.time) + theta_0);
+
+    if(bForcedx && sim.time > tAccel && xCenterRotation > 0 && yCenterRotation > 0) u = - R * forcedomegaCirc*std::cos(forcedomega*sim.time + theta_0);
+    if(bForcedx && sim.time > tAccel && xCenterRotation > 0 && yCenterRotation > 0) v =   R * forcedomegaCirc*std::sin(forcedomega*sim.time + theta_0);
   }
 }
+
 
 void HalfDisk::updateVelocity(double dt)
 {

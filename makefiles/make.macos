@@ -4,7 +4,7 @@
 #endif
 
 MPICXX=mpic++
-
+#CXX=g++-9
 GSL_ROOT_DIR=$(wildcard /usr/local/Cellar/gsl/*)
 HYPRE_ROOT=$(wildcard /usr/local/Cellar/hypre/*)
 FFTW_ROOT=$(wildcard /usr/local/Cellar/fftw/*)
