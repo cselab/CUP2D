@@ -41,8 +41,6 @@ class Shape
   const double xCenterRotation;
   const double yCenterRotation;
   const double forcedomegaCirc;
-  const double R;
-  const double theta_0;
   const double timeForced;
 
   double M = 0;

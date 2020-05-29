@@ -69,15 +69,17 @@ void Shape::updatePosition(double dt)
   // Remember, uinf is -ubox, therefore we sum it to u body to get
   // velocity of shape relative to the sim box
   if(xCenterRotation > 0 && yCenterRotation > 0){
-  centerOfMass[0] = R * cos(forcedomega*sim.time + theta_0);
-  centerOfMass[1] = R * sin(forcedomega*sim.time + theta_0);
+  Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - xCenterRotation, 2));
+  Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+  centerOfMass[0] = radiusForcedMotion * cos(forcedomega*sim.time + theta_0);
+  centerOfMass[1] = radiusForcedMotion * sin(forcedomega*sim.time + theta_0);
   }
   else{
   centerOfMass[0] += dt * ( u + sim.uinfx );
   centerOfMass[1] += dt * ( v + sim.uinfy );
   }
 
-  labCenterOfMass[0] += dt * u; // lab CoM?
+  labCenterOfMass[0] += dt * u;
   labCenterOfMass[1] += dt * v;
 
   orientation += dt*omega;
