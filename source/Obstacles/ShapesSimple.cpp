@@ -85,7 +85,6 @@ void Disk::updateVelocity(double dt)
   
   
   Shape::updateVelocity(dt);
-  {
   if(tAccel > 0) {
     // Uniform linear motion
     if(bForcedx && sim.time < tAccel && xCenterRotation < 0 && yCenterRotation < 0) u = (sim.time/tAccel)*forcedu;
@@ -93,21 +92,19 @@ void Disk::updateVelocity(double dt)
 
     // Uniform circular motion
     if(bForcedx && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-      Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      u = accelCoef * (- radiusForcedMotion*forcedomegaCirc*std::sin(forcedomega*sim.time + theta_0));
+      double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
+      double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
+      double theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+      u = accelCoef * (- radiusForcedMotion*omegaCirc*std::sin(omegaCirc*sim.time + theta_0));
     }
     if(bForcedy && xCenterRotation > 0 && yCenterRotation > 0) {
-      Real accelCoef = sim.time<tAccel ? sim.time / tAccel : 1;
-      Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-      Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-      v = accelCoef * (  radiusForcedMotion*forcedomegaCirc*std::cos(forcedomega*sim.time + theta_0));
+      double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
+      double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
+      double theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+      v = accelCoef * (  radiusForcedMotion*omegaCirc*std::cos(omegaCirc*sim.time + theta_0));
     }
   }
-  }
 }
-
 
 void HalfDisk::updateVelocity(double dt)
 {

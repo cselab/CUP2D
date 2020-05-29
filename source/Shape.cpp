@@ -71,8 +71,8 @@ void Shape::updatePosition(double dt)
   if(xCenterRotation > 0 && yCenterRotation > 0){
   Real radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] -yCenterRotation, 2));
   Real theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-  centerOfMass[0] = radiusForcedMotion * cos(forcedomega*sim.time + theta_0);
-  centerOfMass[1] = radiusForcedMotion * sin(forcedomega*sim.time + theta_0);
+  centerOfMass[0] = xCenterRotation + radiusForcedMotion * cos(forcedomegaCirc*sim.time + theta_0);
+  centerOfMass[1] = yCenterRotation + radiusForcedMotion * sin(forcedomegaCirc*sim.time + theta_0);
   }
   else{
   centerOfMass[0] += dt * ( u + sim.uinfx );
@@ -350,10 +350,10 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   bBlockang( p("-bBlockAng").asBool(bForcedx || bForcedy) ),
   forcedu( - p("-xvel").asDouble(0) ), forcedv( - p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)), bDumpSurface(p("-dumpSurf").asInt(0)),
-  xCenterRotation( - p("-xCenterRotation").asDouble(-1) ), yCenterRotation( - p("-yCenterRotation").asDouble(-1) ),
-  forcedomegaCirc(-p("-circVel").asDouble(0)),
+  xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
+  forcedomegaCirc( p("-circVel").asDouble(0)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
-  
+{}
 
 Shape::~Shape()
 {
