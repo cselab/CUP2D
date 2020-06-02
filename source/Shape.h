@@ -40,7 +40,10 @@ class Shape
   const bool bDumpSurface;
   const double xCenterRotation;
   const double yCenterRotation;
+  const double x0;
+  const double y0;
   const double forcedomegaCirc;
+  const double forcedlinCirc;
   const double timeForced;
 
   double M = 0;
@@ -49,6 +52,7 @@ class Shape
   double v = forcedv; // in lab frame, not sim frame
   double omega = forcedomega;
   double omegaCirc = forcedomegaCirc;
+  double linCirc = forcedlinCirc;
   double fluidAngMom = 0;
   double fluidMomX = 0;
   double fluidMomY = 0;
@@ -80,6 +84,7 @@ class Shape
     v = forcedv;
     omega = forcedomega;
     omegaCirc = forcedomegaCirc;
+    linCirc = forcedlinCirc;
     fluidMomX = 0;
     fluidMomY = 0;
     fluidAngMom = 0;

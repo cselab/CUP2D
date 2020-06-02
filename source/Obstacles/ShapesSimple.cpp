@@ -8,6 +8,9 @@
 
 #include "ShapeLibrary.h"
 #include "ShapesSimple.h"
+//#include <fstream>
+//#include <iostream>
+
 
 using namespace cubism;
 
@@ -94,17 +97,24 @@ void Disk::updateVelocity(double dt)
     if(bForcedx && xCenterRotation > 0 && yCenterRotation > 0) {
       double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
       double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-      double theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+      double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+        if(omegaCirc == 0.0) omegaCirc = linCirc/radiusForcedMotion;
       u = accelCoef * (- radiusForcedMotion*omegaCirc*std::sin(omegaCirc*sim.time + theta_0));
     }
     if(bForcedy && xCenterRotation > 0 && yCenterRotation > 0) {
       double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
       double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-      double theta_0 = atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
+      double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+        if(omegaCirc == 0.0) omegaCirc = linCirc/radiusForcedMotion;
       v = accelCoef * (  radiusForcedMotion*omegaCirc*std::cos(omegaCirc*sim.time + theta_0));
+
+      std::cout << "time: " << sim.time << std::endl;
+      std::cout << "maxU: " << sim.uMax_measured << std::endl;
+      std::cout << "Velocity magnitude: " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
     }
   }
 }
+
 
 void HalfDisk::updateVelocity(double dt)
 {
