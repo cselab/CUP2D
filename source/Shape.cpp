@@ -67,19 +67,9 @@ void Shape::updateLabVelocity( int nSum[2], double uSum[2] )
 void Shape::updatePosition(double dt)
 {
   // Remember, uinf is -ubox, therefore we sum it to u body to get
-  // velocity of shape relative to the sim box
-  if(xCenterRotation > 0 && yCenterRotation > 0){
-  double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] -yCenterRotation, 2));
-  const double theta_0 = std::atan2(center[1] - yCenterRotation, center[0] - xCenterRotation);
-    if(omegaCirc == 0.0) omegaCirc = linCirc/radiusForcedMotion;
-  centerOfMass[0] = xCenterRotation + radiusForcedMotion * std::cos(omegaCirc*sim.time + theta_0);
-  centerOfMass[1] = yCenterRotation + radiusForcedMotion * std::sin(omegaCirc*sim.time + theta_0);
-  }
-  else{
+  // velocity of shapre relative to the sim box
   centerOfMass[0] += dt * ( u + sim.uinfx );
   centerOfMass[1] += dt * ( v + sim.uinfy );
-  }
-
   labCenterOfMass[0] += dt * u;
   labCenterOfMass[1] += dt * v;
 
@@ -100,15 +90,6 @@ void Shape::updatePosition(double dt)
   if(sim.verbose)
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
       " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
-
-    std::ofstream positionData;
-    positionData.open("positions.csv", std::ios_base::app);
-    positionData << sim.time << "," << centerOfMass[0] << "," << centerOfMass[1] << std::endl;
-    
-    std::ofstream velocityData;
-    velocityData.open("velocities.csv", std::ios_base::app);
-    velocityData << sim.time << "," << u << "," << v << std::endl;
-
   if(not sim.muteAll)
   {
     std::stringstream ssF;
@@ -360,13 +341,8 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   bBlockang( p("-bBlockAng").asBool(bForcedx || bForcedy) ),
   forcedu( - p("-xvel").asDouble(0) ), forcedv( - p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)), bDumpSurface(p("-dumpSurf").asInt(0)),
-  xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
-  forcedomegaCirc( p("-circVel").asDouble(0)),
-  forcedlinCirc( p("-linCircVel").asDouble(0)),
-  x0( p("-xpos").asDouble(-1)),
-  y0( p("-ypos").asDouble(-1)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
-{}
+  {}
 
 Shape::~Shape()
 {

@@ -8,8 +8,6 @@
 
 #include "ShapeLibrary.h"
 #include "ShapesSimple.h"
-//#include <fstream>
-//#include <iostream>
 
 
 using namespace cubism;
@@ -37,9 +35,42 @@ void Disk::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
+void Disk::updatePosition(double dt)
+{
+  Shape::updatePosition(dt);
+  if(xCenterRotation > 0 && yCenterRotation > 0){
+    double radiusForcedMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] -yCenterRotation, 2));
+    double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+      if(omegaCirc == 0.0) omegaCirc = linCirc/radiusForcedMotion;
+    centerOfMass[0] = xCenterRotation + radiusForcedMotion * std::cos(omegaCirc*sim.time + theta_0);
+    centerOfMass[1] = yCenterRotation + radiusForcedMotion * std::sin(omegaCirc*sim.time + theta_0);
+
+    labCenterOfMass[0] += dt * u;
+    labCenterOfMass[1] += dt * v;
+
+    orientation += dt*omega;
+    orientation = orientation> M_PI ? orientation-2*M_PI : orientation;
+    orientation = orientation<-M_PI ? orientation+2*M_PI : orientation;
+
+    const double cosang = std::cos(orientation), sinang = std::sin(orientation);
+
+    center[0] = centerOfMass[0] + cosang*d_gm[0] - sinang*d_gm[1];
+    center[1] = centerOfMass[1] + sinang*d_gm[0] + cosang*d_gm[1];
+
+    const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
+    const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
+
+    if(sim.dt <= 0) return;
+
+    if(sim.verbose)
+    printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
+      " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
+  }
+}
+
 void Disk::updateVelocity(double dt)
 {
-  /*#if 0
+  #if 0
   {
     std::cout << "Checking against potential flow solution." << std::endl;
     const std::vector<BlockInfo>& velInfo = sim.vel->getBlocksInfo();
@@ -84,9 +115,8 @@ void Disk::updateVelocity(double dt)
     sim.dumpTmpV("PotFlowTarget");
   }
   #endif
-  */
-  
-  
+
+
   Shape::updateVelocity(dt);
   if(tAccel > 0) {
     // Uniform linear motion
