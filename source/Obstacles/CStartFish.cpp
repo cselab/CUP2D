@@ -11,6 +11,8 @@
 #include "FishLibrary.h"
 #include "FishUtilities.h"
 #include <sstream>
+#include "../Utils/BufferedLogger.h"
+
 
 using namespace cubism;
 
@@ -64,6 +66,9 @@ public:
     // Energy expended
     double energyExpended = 0.0;
     double energyBudget = 0.0;
+
+    // Dump time
+    Real nextDump = 0.0;
 
 //    // act bools
     bool act1 = true;
@@ -133,6 +138,8 @@ public:
 
         energyExpended = 0.0;
         energyBudget = 0.0;
+
+        nextDump = 0.0;
 
         t_next = 0.0;
 
@@ -305,6 +312,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
+//    // Reproduces the C-start (Gazzola et. al.)
 //    if (t>=0.0 && act1){
 //        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
 //        this->schedule(t, a);
@@ -315,7 +323,8 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        this->schedule(t, a);
 //        act2=false;
 //    }
-//
+
+    // Reproduces the 7.30mJ energy escape
 //    if (t>=0.0 && act1){
 //        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
 //        this->schedule(t, a);
@@ -341,6 +350,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        this->schedule(t, a);
 //        act5=false;
 //    }
+
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
@@ -373,6 +383,24 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
         assert(not std::isnan(vK[i]));
         assert(not std::isinf(vK[i]));
     }
+
+
+//    if (t >= this->nextDump) {
+//        // Save the midline curvature values and velocities to recreate spine externally.
+//        FILE * f = fopen("midline_coordinates.dat","a+");
+//        for(int i=0;i<Nm;++i)
+//            fprintf(f,"%d %g %g %g %g %g %g %g %g\n",
+//                    i,rS[i],rX[i],rY[i],vX[i],vY[i],
+//                    vNorX[i],vNorY[i],width[i]);
+//        fclose(f);
+//
+//        // Save the midpoint curvature to file
+//        FILE * f1 = fopen("curvature_values.dat","a+");
+//        fprintf(f1,"%f  %g  %d\n", t, rK[Nmid], Nmid);
+//        fclose(f1);
+//
+//        this->nextDump += 0.01; // dump time 0.01
+//    }
 
     // solve Frenet to compute midline parameters
     IF2D_Frenet2D::solve(Nm, rS, rK,vK, rX,rY, vX,vY, norX,norY, vNorX,vNorY);

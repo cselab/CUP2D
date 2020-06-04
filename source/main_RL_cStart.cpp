@@ -223,13 +223,12 @@ public:
         std::uniform_real_distribution<Real> dis(-A, A);
         const auto SA = c->isTraining() ? dis(c->getPRNG()) : -10.0 * M_PI / 180.0;
         a->setOrientation(SA);
-        double com[2] = {0.7, 0.5};
+        double com[2] = {0.7, 0.5}; // 0.7, 0.5
         a->setCenterOfMass(com);
-        double vo[2] = {0.9, 0.5};
+        double vo[2] = {0.9, 0.5}; // 0.9, 0.7
         a->setVirtualOrigin(vo);
-        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);
-//        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.0219;
-        baselineEnergy = disEnergy(c->getPRNG());
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.219);  // 0.00243, 0.0219
+        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.00730;
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
     }
@@ -446,7 +445,7 @@ inline void app_main(
         int argc, char**argv               // args read from app's runtime settings file
 ) {
     // Get the task definition
-    DistanceEnergyEscape task = DistanceEnergyEscape();
+    DistanceVariableEnergyEscape task = DistanceVariableEnergyEscape();
 
     // Inform smarties communicator of the task
     for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
@@ -462,7 +461,7 @@ inline void app_main(
     if(agent==nullptr) { printf("Agent was not a CStartFish!\n"); abort(); }
     if(comm->isTraining() == false) {
         sim.sim.verbose = true; sim.sim.muteAll = false;
-        sim.sim.dumpTime = agent->Tperiod / 20;
+//        sim.sim.dumpTime = agent->Tperiod / 20;
     }
     unsigned sim_id = 0, tot_steps = 0;
 
