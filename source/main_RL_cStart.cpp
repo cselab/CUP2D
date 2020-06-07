@@ -227,7 +227,7 @@ public:
         a->setCenterOfMass(com);
         double vo[2] = {0.9, 0.5}; // 0.9, 0.7
         a->setVirtualOrigin(vo);
-        std::uniform_real_distribution<Real> disEnergy(0.073, 0.146);  // 0.00243, 0.0219
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);  // 0.00243, 0.0219
         baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.2;
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
