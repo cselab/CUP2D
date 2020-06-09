@@ -225,10 +225,10 @@ public:
         a->setOrientation(SA);
         double com[2] = {0.7, 0.5}; // 0.7, 0.5
         a->setCenterOfMass(com);
-        double vo[2] = {0.9, 0.5}; // 0.9, 0.7
+        double vo[2] = {0.9, 0.7}; // 0.9, 0.7
         a->setVirtualOrigin(vo);
-        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);  // 0.00243, 0.0219
-        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.2;
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.219);  // 0.00243, 0.0219
+        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.0073;
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
     }
