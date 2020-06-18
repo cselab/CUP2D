@@ -312,17 +312,17 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
-//    // Reproduces the C-start (Gazzola et. al.)
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
-//        this->schedule(t, a);
-//        act1=false;
-//    }
-//    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.7};
-//        this->schedule(t, a);
-//        act2=false;
-//    }
+    // Reproduces the C-start (Gazzola et. al.)
+    if (t>=0.0 && act1){
+        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
+        this->schedule(t, a);
+        act1=false;
+    }
+    if (t>=0.7* this->Tperiod && act2){
+        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.7};
+        this->schedule(t, a);
+        act2=false;
+    }
 
     // Reproduces the 7.30mJ energy escape
 //    if (t>=0.0 && act1){
@@ -439,7 +439,6 @@ void CStartFish::actCStart(const Real lTact, const std::vector<double> &a) const
     cFish->scheduleCStart(sim.time, a);
 }
 
-
 void CStartFish::setTarget(double desiredTarget[2]) const
 {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -521,7 +520,6 @@ std::vector<double> CStartFish::stateEscape() const
     return S;
 }
 
-
 std::vector<double> CStartFish::stateSequentialEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
@@ -563,7 +561,6 @@ std::vector<double> CStartFish::stateSequentialEscape() const
     S[24] = cFish->oldrPhiUndulatory;
     return S;
 }
-
 
 std::vector<double> CStartFish::stateEscapeVariableEnergy() const
 {
@@ -690,7 +687,6 @@ void CStartFish::setVirtualOrigin(const double vo[2]) {
     cFish->virtualOrigin[0] = vo[0];
     cFish->virtualOrigin[1] = vo[1];
 }
-
 
 void CStartFish::setEnergyBudget(const double baselineEnergy) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
