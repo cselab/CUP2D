@@ -8,6 +8,8 @@
 
 
 #include "Shape.h"
+#include <iostream>
+#include <fstream>
 //#include "OperatorComputeForces.h"
 #include "Utils/BufferedLogger.h"
 #include <gsl/gsl_linalg.h>
@@ -87,9 +89,20 @@ void Shape::updatePosition(double dt)
 
   if(sim.dt <= 0) return;
 
-  if(sim.verbose)
+  if(sim.verbose){
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
       " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
+    
+    std::ofstream pos;
+    pos.open ("position.csv", std::ios_base::app);
+    pos << sim.time << "," << center[0] <<  "," << center[1] << "\n";
+    pos.close();
+
+    std::ofstream vel;
+    vel.open ("velocity.csv", std::ios_base::app);
+    vel << sim.time << "," << u <<  "," << v << "\n";
+    vel.close();
+    }
   if(not sim.muteAll)
   {
     std::stringstream ssF;

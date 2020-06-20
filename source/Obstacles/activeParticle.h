@@ -39,6 +39,9 @@ class activeParticle : public Shape
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
   double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
   double tTransit = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
+  bool transferIndicator = false;
+  double apoapsisX0;
+  double apoapsisY0;
 
 public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :

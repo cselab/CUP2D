@@ -8,24 +8,10 @@
 
 #include "ShapeLibrary.h"
 #include "activeParticle.h"
-
+#include <iostream>
+#include <fstream>
 
 using namespace cubism;
-
-void activeParticle::anomalyGivenTime() // Iterative solver for the Kepler equation E + e*sin(E) = M_e ;  
-{                                       // ref: Orbital Mechanics for Engineering Students (H.D. Curtis) Chap.3
-  double M_e = M_PI*(sim.time - tStartTransfer)/tTransit;
-  double E = M_e < M_PI ? M_e + eccentricity/2 : M_e - eccentricity/2;
-  double ratio = 1.0;
-  while(std::abs(ratio) > std::pow(10, -3)){
-    ratio = (E - eccentricity*std::sin(E) - M_e)/(1 - eccentricity*std::cos(E));
-    E = E - ratio;
-  }
-  double angle = std::atan(std::sqrt((1+eccentricity)/(1-eccentricity))*std::tan(E/2));
-  double real_angle = angle > 0 ? angle : angle + M_PI;
-  true_anomaly = 2*real_angle; // always between 0 and 180° in our case
-}
-
 
 void activeParticle::create(const std::vector<BlockInfo>& vInfo)
 {
@@ -53,34 +39,34 @@ void activeParticle::create(const std::vector<BlockInfo>& vInfo)
 void activeParticle::updatePosition(double dt)
 {
     Shape::updatePosition(dt);
+    //Uniform circular motion and Uniformly accelerated circular motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0){
       if(sim.time < tStartTransfer || sim.time > tStartTransfer + tTransit || tStartTransfer < 0){
         double forcedRadiusMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-        double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+        double theta_0 = transferIndicator ? std::atan2(apoapsisY0 - yCenterRotation, apoapsisX0 - xCenterRotation) : std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
           if(forcedOmegaCirc == 0.00) forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
         centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
         centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
-        std::cout << "UCM" << std::endl;
+        std::cout << "UCM Position" << std::endl;
+        std::cout << "apoapsisX0 = " << apoapsisX0 << std::endl;
+        std::cout << "apoapsisYO = " << apoapsisY0 << std::endl;
+
       }
     }
-    
+    // Elliptical transfer
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartTransfer > 0 && sim.time > tStartTransfer && sim.time < tStartTransfer+tTransit){
       anomalyGivenTime();
       double radiusEllipse = semilatus_rectum/(1+eccentricity*std::cos(true_anomaly));
       centerOfMass[0] = xCenterRotation + radiusEllipse*std::cos(true_anomaly);
       centerOfMass[1] = yCenterRotation + radiusEllipse*std::sin(true_anomaly); 
+      transferIndicator = true;
+      apoapsisX0 = centerOfMass[0];
+      apoapsisY0 = centerOfMass[1];
 
-      std::cout << "a = " << semimajor_axis << std::endl;
-      std::cout << "b = " << semiminor_axis << std::endl;
-      std::cout << "e = " << eccentricity << std::endl;
-      std::cout << "p = " << semilatus_rectum << std::endl;
-      std::cout << "radiusEllipse = " << radiusEllipse << std::endl;
-      std::cout << "trueAnomaly = " << true_anomaly*57.3 << std::endl;
-      std::cout << "mu = " << mu << std::endl;
-      std::cout << "tStartTransfer = " << tStartTransfer << std::endl;
-      std::cout << "tTransit = " << tTransit << std::endl;
-      std::cout << "initialRadius = " << initialRadiusRotation << std::endl;
-      std::cout << "finalRadius = " << finalRadiusRotation << std::endl;   
+      std::ofstream ell;
+      ell.open ("ellipsePos.csv", std::ios_base::app);
+      ell << sim.time << "," << radiusEllipse <<  "," << true_anomaly << "," << apoapsisX0 << "," << apoapsisY0 << "\n";
+      ell.close();
     }
       labCenterOfMass[0] += dt * u;
       labCenterOfMass[1] += dt * v;
@@ -113,20 +99,17 @@ void activeParticle::updateVelocity(double dt)
       if(sim.time < tStartTransfer || sim.time > tStartTransfer + tTransit || tStartTransfer < 0){
         double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
         double forcedRadiusMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-        double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+        double theta_0 = transferIndicator ? std::atan2(apoapsisY0 - yCenterRotation, apoapsisX0 - xCenterRotation) : std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
           if(forcedOmegaCirc == 0.00) forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
         u = accelCoef * (- forcedRadiusMotion*forcedOmegaCirc*std::sin(forcedOmegaCirc*sim.time + theta_0));
         v = accelCoef * (  forcedRadiusMotion*forcedOmegaCirc*std::cos(forcedOmegaCirc*sim.time + theta_0));
+        std::cout << "UCM Velocity" << std::endl;
+        std::cout << "radiusCircle = " << forcedRadiusMotion << std::endl;
+        std::cout << "tStartTransfer = " << tStartTransfer << std::endl;
 
         std::cout << "Linear velocity norm = " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
         std::cout << "Angular velocity = " << omegaCirc << std::endl;
-        std::cout << "ForcedRadiusMotion = " << forcedRadiusMotion << std::endl;
-        std::cout << "tStartTransfer = " << tStartTransfer << std::endl;
-        std::cout << "tTransit = " << tTransit << std::endl;
-        std::cout << "a = " << semimajor_axis << std::endl;
-        std::cout << "e = " << eccentricity << std::endl;
-        std::cout << "mu = " << mu << std::endl;
-        std::cout << "finalRadius = " << finalRadiusRotation << std::endl;
+
 
       }
     }
@@ -136,7 +119,7 @@ void activeParticle::updateVelocity(double dt)
       if(sim.time < tStartTransfer || sim.time > tStartTransfer + tTransit || tStartTransfer < 0){
         double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
         double forcedRadiusMotion = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
-        double theta_0 = std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
+        double theta_0 = transferIndicator ? std::atan2(apoapsisY0 - yCenterRotation, apoapsisX0 - xCenterRotation) : std::atan2(y0 - yCenterRotation, x0 - xCenterRotation);
           if(forcedLinCirc != 0.00) {
             forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
             omegaCirc = forcedOmegaCirc;
@@ -159,17 +142,49 @@ void activeParticle::updateVelocity(double dt)
     
     u = orbital_speed_radial*std::cos(true_anomaly) - orbital_speed_perp*std::sin(true_anomaly);
     v = orbital_speed_radial*std::sin(true_anomaly) + orbital_speed_perp*std::cos(true_anomaly);
+    std::ofstream ellVel;
+    ellVel.open ("ellipseVel.csv", std::ios_base::app);
+    ellVel << sim.time << "," << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl << "," << orbital_speed <<  "," << orbital_speed_radial <<  "," << orbital_speed_perp <<  "," << flight_path_angle << "\n";
+    ellVel.close();
     
-    std::cout << "h = " << angMom << std::endl;
-    std::cout << "radial_speed = " << orbital_speed_radial << std::endl;
-    std::cout << "perp_speed = " << orbital_speed_perp << std::endl;
-    std::cout << "orbital_speed = " << orbital_speed << std::endl;
-    std::cout << "radius_ellipse = " << radiusEllipse << std::endl;
-    std::cout << "true anomaly = " << true_anomaly*57.3 << std::endl;
+    std::cout << "Hohmann transfer velocity" << std::endl;
+    std::cout << "a = " << semimajor_axis << std::endl;
+    std::cout << "b = " << semiminor_axis << std::endl;
+    std::cout << "e = " << eccentricity << std::endl;
+    std::cout << "p = " << semilatus_rectum << std::endl;
+    std::cout << "radiusEllipse = " << radiusEllipse << std::endl;
+    std::cout << "trueAnomaly = " << true_anomaly*57.3 << std::endl;
     std::cout << "gamma = " << flight_path_angle*57.3 << std::endl;
+    std::cout << "mu = " << mu << std::endl;
+    std::cout << "tStartTransfer = " << tStartTransfer << std::endl;
+    std::cout << "tTransit = " << tTransit << std::endl;
+    std::cout << "initialRadius = " << initialRadiusRotation << std::endl;
+    std::cout << "finalRadius = " << finalRadiusRotation << std::endl; 
+
+
+    std::cout << "Linear velocity norm = " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
+    std::cout << "orbital_speed = " << orbital_speed << std::endl;
+    std::cout << "orbital_radial_speed = " << orbital_speed_radial << std::endl;
+    std::cout << "orbital_perp_speed = " << orbital_speed_perp << std::endl;
     }
   }
 }
+
+void activeParticle::anomalyGivenTime() // Iterative solver for the Kepler equation E + e*sin(E) = M_e ;  
+{                                       // ref: Orbital Mechanics for Engineering Students (H.D. Curtis) Chap.3
+  double M_e = M_PI*(sim.time - tStartTransfer)/tTransit;
+  double E = M_e < M_PI ? M_e + eccentricity/2 : M_e - eccentricity/2;
+  double ratio = 1.0;
+  while(std::abs(ratio) > std::pow(10, -3)){
+    ratio = (E - eccentricity*std::sin(E) - M_e)/(1 - eccentricity*std::cos(E));
+    E = E - ratio;
+  }
+  double angle = std::atan(std::sqrt((1+eccentricity)/(1-eccentricity))*std::tan(E/2));
+  double real_angle = angle > 0 ? angle : angle + M_PI;
+
+  true_anomaly = 2*real_angle; // always between 0 and 180° in our case
+}
+
 
 /*
 void computeVorticity::run() const
