@@ -215,20 +215,21 @@ public:
         const bool outsidePolarSweep = std::abs(polarAngle) < 160* M_PI/180.0;
         const double orientation = a->getOrientation();
         const bool orientationOutOfRange = std::abs(orientation) >= 90* M_PI/180.0;
+        printf("timeElapsed, energyExpended, outsidePolarSweep, orientationOutOfRange: %f, %f, %d, %d\n", timeElapsed, energyExpended, outsidePolarSweep, orientationOutOfRange);
         return (timeElapsed > 1.5882352941 || energyExpended > baselineEnergy || outsidePolarSweep || orientationOutOfRange);
     }
     inline void resetIC(CStartFish* const a, smarties::Communicator*const c)
     {
         const Real A = 10*M_PI/180; // start between -10 and 10 degrees
         std::uniform_real_distribution<Real> dis(-A, A);
-        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -10.0 * M_PI / 180.0;
+        const auto SA = c->isTraining() ? dis(c->getPRNG()) : -9.0 * M_PI / 180.0;
         a->setOrientation(SA);
         double com[2] = {0.7, 0.5}; // 0.7, 0.5
         a->setCenterOfMass(com);
-        double vo[2] = {0.9, 0.7}; // 0.9, 0.7
+        double vo[2] = {0.9, 0.5}; // 0.9, 0.5
         a->setVirtualOrigin(vo);
-        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.219);  // 0.00243, 0.0219
-        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.0073;
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);  // 0.00243, 0.0219
+        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.0077;
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
     }
