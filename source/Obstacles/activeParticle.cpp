@@ -101,7 +101,7 @@ void activeParticle::updatePosition(double dt)
       
           std::ofstream ell;
           ell.open ("ellipsePos.csv", std::ios_base::app);
-          ell << sim.time << "," << radiusEllipse <<  "," << true_anomaly << "," << lastElliPosX << "," << lastElliPosY << "\n";
+          ell << sim.time << "," << radiusEllipse <<  "," << true_anomaly << "\n";
           ell.close();
         }
       }

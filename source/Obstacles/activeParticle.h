@@ -57,6 +57,8 @@ public:
   forcedLinCirc( p("-linCircVel").asDouble(0)),
   initialRadiusRotation( p("-initialRadius").asDouble(-1)),
   finalRadiusRotation( p("-finalRadius").asDouble(-1)),
+  initialAngRotation( p("-initialAngVel").asDouble(-1)),
+  finalAngRotation( p("-finalAngVel").asDouble(-1)),
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
   forcedAccelCirc( p("-circAccel").asDouble(0)),
