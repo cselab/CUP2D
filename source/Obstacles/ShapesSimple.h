@@ -15,24 +15,9 @@ class Disk : public Shape
 {
   const double radius;
   const Real tAccel;
-  const double xCenterRotation;
-  const double yCenterRotation;
-  const double x0;
-  const double y0;
-  const double forcedomegaCirc;
-  const double forcedlinCirc;
-
-  double omegaCirc = forcedomegaCirc;
-  double linCirc = forcedlinCirc;
-  
  public:
   Disk(SimulationData& s, cubism::ArgumentParser& p, double C[2] ) :
   Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
-  xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
-  forcedomegaCirc( p("-circVel").asDouble(0)),
-  forcedlinCirc( p("-linCircVel").asDouble(0)),
-  x0( p("-xpos").asDouble(.5*sim.extents[0])),
-  y0( p("-ypos").asDouble(.5*sim.extents[1])),
   tAccel( p("-tAccel").asDouble(-1) ) {
     printf("Created a Disk with: R:%f rho:%f tAccel:%f\n",radius,rhoS,tAccel);
   }
@@ -53,7 +38,6 @@ class Disk : public Shape
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
-  void updatePosition(double dt) override;
 };
 
 class HalfDisk : public Shape

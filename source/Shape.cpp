@@ -349,3 +349,4 @@ Shape::~Shape()
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
 }
+
