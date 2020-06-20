@@ -15,8 +15,8 @@ class activeParticle : public Shape
 { 
   const double radius;
   const Real tAccel;
-  const Real tStartTransfer;
-  const Real tStartCircAccel;
+  const Real tStartElliTransfer;
+  const Real tStartCircAccelTransfer;
 
   const double xCenterRotation;
   const double yCenterRotation;
@@ -24,6 +24,8 @@ class activeParticle : public Shape
   const double y0;
   const double initialRadiusRotation;
   const double finalRadiusRotation;
+  const double initialAngRotation;
+  const double finalAngRotation;
   const double forcedLinCirc;
   const double forcedAccelCirc;
  
@@ -38,10 +40,14 @@ class activeParticle : public Shape
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
   double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
-  double tTransit = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
-  bool transferIndicator = false;
-  double apoapsisX0;
-  double apoapsisY0;
+  Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
+  Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
+
+  bool   lastUCM;
+  bool   lastUACM;
+  bool   lastElli;
+
+  std::vector<double> lastPos{x0, y0};
 
 public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
@@ -54,8 +60,8 @@ public:
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
   forcedAccelCirc( p("-circAccel").asDouble(0)),
-  tStartCircAccel( p("-tStartCircAccel").asDouble(-1) ),
-  tStartTransfer( p("-tStartTransfer").asDouble(-1) ),
+  tStartCircAccelTransfer( p("-tStartCircAccel").asDouble(-1) ),
+  tStartElliTransfer( p("-tStartElliTransfer").asDouble(-1) ),
   tAccel( p("-tAccel").asDouble(-1) ) {
   printf("Created an Active Particle with: R:%f rho:%f tAccel:%f\n",radius,rhoS,tAccel);
   }
@@ -75,9 +81,11 @@ public:
   }
   
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void anomalyGivenTime();
   void updateVelocity(double dt) override;
   void updatePosition(double dt) override;
+  void anomalyGivenTime();
+  void checkFeasibility();
+  std::vector<double> getLastPos(double lastUCMVisit, double lastUACMVisit, double lastElliVisit);
   void reward();
   
 };
@@ -96,3 +104,7 @@ class computeVorticity
     return "computeVorticity";
   }
 };*/
+
+
+// -----------------------------------
+// raise Exception 
