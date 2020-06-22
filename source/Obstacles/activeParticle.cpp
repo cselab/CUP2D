@@ -221,8 +221,9 @@ void activeParticle::updateVelocity(double dt)
           std::cout << "finalRadius = " << finalRadiusRotation << std::endl; 
       
       
-          std::cout << "Linear velocity norm = " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
-          std::cout << "orbital_speed = " << orbital_speed << std::endl;
+          std::cout << "orbital_speed_(norm (u,v)) = " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
+          std::cout << "orbital_speed_(orbital_formula) = " << orbital_speed << std::endl;
+          std::cout << "orbital_speed_(norm(radial, perp)) = " << std::sqrt(std::pow(orbital_speed_perp, 2) + std::pow(orbital_speed_radial, 2)) << std::endl;
           std::cout << "orbital_radial_speed = " << orbital_speed_radial << std::endl;
           std::cout << "orbital_perp_speed = " << orbital_speed_perp << std::endl;
         }
