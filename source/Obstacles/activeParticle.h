@@ -87,25 +87,25 @@ public:
   void updatePosition(double dt) override;
   void anomalyGivenTime();
   void checkFeasibility();
-  std::vector<double> getLastPos(double lastUCMVisit, double lastUACMVisit, double lastElliVisit);
+  //std::vector<double> getLastPos(double lastUCMVisit, double lastUACMVisit, double lastElliVisit);
   void reward();
   
 };
-/*
-class computeVorticity
+
+class computeVorticityCollocated
 {
   SimulationData& sim;
   const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
  public:
-  computeVorticity(SimulationData& s) : sim(s) { }
+  computeVorticityCollocated(SimulationData& s) : sim(s) { }
 
   void run() const;
 
   std::string getName() const {
-    return "computeVorticity";
+    return "computeVorticityCollocated";
   }
-};*/
+};
 
 
 // -----------------------------------
