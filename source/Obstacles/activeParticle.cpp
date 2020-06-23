@@ -57,8 +57,6 @@ void activeParticle::updatePosition(double dt)
 
         double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
         double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);
-        double initialRadiusRotation = forcedRadiusMotion;
-        double initialAngRotation = forcedOmegaCirc;
 
         centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(forcedOmegaCirc*sim.time + theta_0);
         centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(forcedOmegaCirc*sim.time + theta_0);
@@ -68,7 +66,7 @@ void activeParticle::updatePosition(double dt)
         lastElli = false;
 
         std::cout << "UCM Position" << std::endl;
-        std::cout << "lastPos = " << lastPos[0] << " , " << lastPos[1] << std::endl;
+        std::cout << "lastPos = (" << lastPos[0] << " , " << lastPos[1] << ")" << std::endl;
         std::cout << "theta_0 = " << theta_0 << std::endl;
         std::cout << "forcedRadiusMotion = " << forcedRadiusMotion << std::endl;
 
@@ -86,8 +84,6 @@ void activeParticle::updatePosition(double dt)
 
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);  
-      double initialRadiusRotation = forcedRadiusMotion;
-      double intialAngRotation = forcedOmegaCirc;
       
       centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
       centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
@@ -153,9 +149,6 @@ void activeParticle::updateVelocity(double dt)
           double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
           double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
 
-          double initialRadiusRotation = forcedRadiusMotion;
-          double initialAngRotation = forcedOmegaCirc;
-
           u = accelCoef * (- forcedRadiusMotion*forcedOmegaCirc*std::sin(forcedOmegaCirc*sim.time + theta_0));
           v = accelCoef * (  forcedRadiusMotion*forcedOmegaCirc*std::cos(forcedOmegaCirc*sim.time + theta_0));
           
@@ -183,8 +176,6 @@ void activeParticle::updateVelocity(double dt)
       
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
-      double initialRadiusRotation = forcedRadiusMotion;
-      double initialAngRotation = forcedOmegaCirc;
       
       omegaCirc += dt*accCirc;
       u = accelCoef * (- forcedRadiusMotion*omegaCirc*std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
@@ -246,11 +237,11 @@ void activeParticle::updateVelocity(double dt)
 }
 
 void activeParticle::anomalyGivenTime() // Iterative solver for the Kepler equation E + e*sin(E) = M_e ;  
-{                                       // ref: Orbital Mechanics for Engineering Students (H.D. Curtis) Chap.3
+{                                       // Ref: Orbital Mechanics for Engineering Students (H.D. Curtis) Chap.3
   double M_e = M_PI*(sim.time - tStartElliTransfer)/tTransitElli;
   double E = M_e < M_PI ? M_e + eccentricity/2 : M_e - eccentricity/2;
-  double ratio = 1.0;
-  while(std::abs(ratio) > std::pow(10, -3)){
+  double ratio = 1.0; double tol = std::pow(10, -3);
+  while(std::abs(ratio) > tol){
     ratio = (E - eccentricity*std::sin(E) - M_e)/(1 - eccentricity*std::cos(E));
     E = E - ratio;
   }

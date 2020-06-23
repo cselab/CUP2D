@@ -22,9 +22,7 @@ class activeParticle : public Shape
   const double yCenterRotation;
   const double x0;
   const double y0;
-  const double initialRadiusRotation;
   const double finalRadiusRotation;
-  const double initialAngRotation;
   const double finalAngRotation;
   const double forcedLinCirc;
   const double forcedAccelCirc;
@@ -58,15 +56,15 @@ public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
     Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
-  forcedOmegaCirc( p("-angCircVel").asDouble(0)),
   forcedLinCirc( p("-linCircVel").asDouble(0)),
   finalRadiusRotation( p("-finalRadiusRotation").asDouble(-1)),
-  finalAngRotation( p("-finalAngRotation").asDouble(0)),
+  forcedOmegaCirc( p("-angCircVel").asDouble(0)),
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
-  forcedAccelCirc( p("-forcedAccelCirc").asDouble(0)),
+  finalAngRotation( p("-finalAngRotation").asDouble(0)),
   tStartCircAccelTransfer( p("-tStartCircAccel").asDouble(-1) ),
   tStartElliTransfer( p("-tStartElliTransfer").asDouble(-1) ),
+  forcedAccelCirc( p("-forcedAccelCirc").asDouble(0)),
   tAccel( p("-tAccel").asDouble(-1) ) {
   printf("Created an Active Particle with: R:%f rho:%f tAccel:%f\n",radius,rhoS,tAccel);
   }
@@ -110,7 +108,3 @@ class computeVorticityCollocated
     return "computeVorticityCollocated";
   }
 };
-
-
-// -----------------------------------
-// raise Exception 
