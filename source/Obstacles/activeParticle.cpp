@@ -53,11 +53,11 @@ void activeParticle::updatePosition(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0){
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
-        if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
+        if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
+
         double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
         double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);
 
-        if(forcedOmegaCirc == 0.00) forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
         centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(forcedOmegaCirc*sim.time + theta_0);
         centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(forcedOmegaCirc*sim.time + theta_0);
   
@@ -81,6 +81,7 @@ void activeParticle::updatePosition(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
       if(sim.time > tStartCircAccelTransfer || sim.time < tStartCircAccelTransfer + tTransitAccel){
       if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
+
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);  
       
@@ -141,11 +142,13 @@ void activeParticle::updateVelocity(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0){
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
-          if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
-          double accelCoef = (sim.time - (tStartElliTransfer+tTransitElli)) < tAccel ? sim.time/tAccel : 1;
+          if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
+          if(lastUACM) accelCoef = (sim.time - (tStartCircAccelTransfer+tTransitAccel)) < tAccel ? (sim.time - (tStartCircAccelTransfer+tTransitAccel))/tAccel : 1;
+          if(lastElli) accelCoef = (sim.time - (tStartElliTransfer+tTransitElli)) < tAccel ? (sim.time - (tStartElliTransfer+tTransitElli))/tAccel : 1;
+
           double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
           double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
-            if(forcedOmegaCirc == 0.00) forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
+
           u = accelCoef * (- forcedRadiusMotion*forcedOmegaCirc*std::sin(forcedOmegaCirc*sim.time + theta_0));
           v = accelCoef * (  forcedRadiusMotion*forcedOmegaCirc*std::cos(forcedOmegaCirc*sim.time + theta_0));
           
@@ -158,7 +161,9 @@ void activeParticle::updateVelocity(double dt)
           std::cout << "tStartElliTransfer = " << tStartElliTransfer << std::endl;
   
           std::cout << "Linear velocity norm = " << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl;
-          std::cout << "Angular velocity = " << omegaCirc << std::endl;
+          std::cout << "Angular velocity = " << forcedOmegaCirc << std::endl;
+          std::cout << "AccelCoef = " << accelCoef << std::endl;
+
 
         }
       }
@@ -167,43 +172,40 @@ void activeParticle::updateVelocity(double dt)
     // Uniformly accelerated circular motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
       if(sim.time > tStartCircAccelTransfer || sim.time < tStartCircAccelTransfer + tTransitAccel){
-      if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
-        double accelCoef = sim.time<tAccel ? sim.time/tAccel : 1;
-        double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
-        double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
-          if(forcedLinCirc != 0.00) {
-            forcedOmegaCirc = forcedLinCirc/forcedRadiusMotion;
-            omegaCirc = forcedOmegaCirc;
-          }
-        omegaCirc += dt*accCirc;
-        u = (- forcedRadiusMotion*omegaCirc*std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
-        v = (  forcedRadiusMotion*omegaCirc*std::cos(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
-        
-        lastUCM = false;
-        lastUACM = true;
-        lastElli = false;
+      if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc, accelCoef = sim.time - tStartCircAccelTransfer < tAccel ? (sim.time - tStartCircAccelTransfer)/tAccel : 1;
+      
+      double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
+      double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
+      
+      omegaCirc += dt*accCirc;
+      u = accelCoef * (- forcedRadiusMotion*omegaCirc*std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
+      v = accelCoef * (  forcedRadiusMotion*omegaCirc*std::cos(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
+      
+      lastUCM = false;
+      lastUACM = true;
+      lastElli = false;
+
       }
     }
     
     // Elliptical motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartElliTransfer > 0){
       if(sim.time > tStartElliTransfer && sim.time < tStartElliTransfer + tTransitElli){
-      if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
-        double angMom = std::sqrt(semilatus_rectum*mu);
+        if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc, accelCoef = sim.time - tStartElliTransfer  < tAccel ? (sim.time - tStartElliTransfer)/tAccel : 1;
+
         double radiusEllipse = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
         double orbital_speed = std::sqrt(mu*(2/radiusEllipse - 1/semimajor_axis));
         double orbital_speed_perp = angMom*(1+eccentricity*std::cos(true_anomaly))/semilatus_rectum;
-        //double orbital_speed_radial = std::sqrt(std::pow(orbital_speed, 2) - std::pow(orbital_speed_perp, 2));
         double orbital_speed_radial = angMom*eccentricity*std::sin(true_anomaly)/semilatus_rectum;
         double flight_path_angle = std::atan2(orbital_speed_radial, orbital_speed_perp); //should be positive at all times in our case
         
-        u = orbital_speed_radial*std::cos(true_anomaly) - orbital_speed_perp*std::sin(true_anomaly);
-        v = orbital_speed_radial*std::sin(true_anomaly) + orbital_speed_perp*std::cos(true_anomaly);
-
+        u = accelCoef * (orbital_speed_radial*std::cos(true_anomaly) - orbital_speed_perp*std::sin(true_anomaly));
+        v = accelCoef * (orbital_speed_radial*std::sin(true_anomaly) + orbital_speed_perp*std::cos(true_anomaly));
+  
         lastUCM = false;
         lastUACM = false;
         lastElli = true;
-
+  
         std::ofstream ellVel;
         ellVel.open ("ellipseVel.csv", std::ios_base::app);
         ellVel << sim.time << "," << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl << "," << orbital_speed <<  "," << orbital_speed_radial <<  "," << orbital_speed_perp <<  "," << flight_path_angle << "\n";
@@ -229,7 +231,7 @@ void activeParticle::updateVelocity(double dt)
         std::cout << "orbital_radial_speed = " << orbital_speed_radial << std::endl;
         std::cout << "orbital_perp_speed = " << orbital_speed_perp << std::endl;
       }
-    }
+    }  
 
   }
 }
@@ -291,3 +293,72 @@ void activeParticle::reward(){
       // grab vorticity from block id with specified coordinates
 }
 
+/*
+void activeParticle::getBlockID()
+{
+// function that finds block id of block containing pos (x,y)
+const Real h = sim.getH(), invh = 1/h;
+const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+const auto holdingBlockID = [&](const Real x, const Real y)
+{
+  const auto getMin = [&]( const BlockInfo&I )
+  {
+    std::array<Real,2> MIN = I.pos<Real>(0, 0);
+    for(int i=0; i<2; ++i)
+      MIN[i] -= 0.5 * h; // pos returns cell centers
+    return MIN;
+  };
+
+  const auto getMax = [&]( const BlockInfo&I )
+  {
+    std::array<Real,2> MAX = I.pos<Real>(VectorBlock::sizeX-1,
+                                          VectorBlock::sizeY-1);
+    for(int i=0; i<2; ++i)
+      MAX[i] += 0.5 * h; // pos returns cell centers
+    return MAX;
+  };
+
+  const auto holdsPoint = [&](const std::array<Real,2> MIN, std::array<Real,2> MAX,
+                              const Real X,const Real Y)
+  {
+    // this may return true for 2 blocks if (X,Y) overlaps with edges
+    return X >= MIN[0] && Y >= MIN[1] && X <= MAX[0] && Y <= MAX[1];
+  };
+
+  std::vector<std::pair<double, int>> distsBlocks(velInfo.size());
+  for(size_t i=0; i<velInfo.size(); ++i)
+  {
+    std::array<Real,2> MIN = getMin(velInfo[i]);
+    std::array<Real,2> MAX = getMax(velInfo[i]);
+    if( holdsPoint(MIN, MAX, x, y) )
+    {
+    // handler to select obstacle block
+      const auto& skinBinfo = velInfo[i];
+      const auto *const o = obstacleBlocks[skinBinfo.blockID];
+      if(o != nullptr ) return (int) i;
+    }
+    std::array<Real, 4> WENS;
+    WENS[0] = MIN[0] - x;
+    WENS[1] = x - MAX[0];
+    WENS[2] = MIN[1] - y;
+    WENS[3] = y - MAX[1];
+    const Real dist = *std::max_element(WENS.begin(),WENS.end());
+    distsBlocks[i].first = dist;
+    distsBlocks[i].second = i;
+  }
+  std::sort(distsBlocks.begin(), distsBlocks.end());
+  std::reverse(distsBlocks.begin(), distsBlocks.end());
+  for( auto distBlock: distsBlocks )
+  {
+    // handler to select obstacle block
+      const auto& skinBinfo = velInfo[distBlock.second];
+      const auto *const o = obstacleBlocks[skinBinfo.blockID];
+      if(o != nullptr ) return (int) distBlock.second;
+  }
+  printf("ABORT: coordinate could not be associated to obstacle block\n");
+  fflush(0); abort();
+  return (int) 0;
+};
+}
+*/

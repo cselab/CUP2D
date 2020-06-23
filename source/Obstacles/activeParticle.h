@@ -40,12 +40,15 @@ class activeParticle : public Shape
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
   double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
-  Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
-  Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
+  double angMom = std::sqrt(semilatus_rectum*mu);
+  double accelCoef = sim.time < tAccel ? sim.time/tAccel : 1;
 
-  bool   lastUCM;
-  bool   lastUACM;
-  bool   lastElli;
+  Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
+  Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
+
+  bool lastUCM;
+  bool lastUACM;
+  bool lastElli;
 
   std::vector<double> lastPos{x0, y0};
 
@@ -87,6 +90,7 @@ public:
   void updatePosition(double dt) override;
   void anomalyGivenTime();
   void checkFeasibility();
+  void getBlockID();
   //std::vector<double> getLastPos(double lastUCMVisit, double lastUACMVisit, double lastElliVisit);
   void reward();
   
