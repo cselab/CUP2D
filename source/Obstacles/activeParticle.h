@@ -41,7 +41,7 @@ class activeParticle : public Shape
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
   double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
   double angMom = std::sqrt(semilatus_rectum*mu);
-  double accelCoef = 1;
+  double accelCoef;
 
   Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);

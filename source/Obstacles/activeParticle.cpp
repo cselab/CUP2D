@@ -143,9 +143,8 @@ void activeParticle::updateVelocity(double dt)
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
           if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
-          if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
-            accelCoef += dt/tAccel;
-          }
+          if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel) accelCoef += dt/tAccel;
+          else accelCoef = 1;
           double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
           double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
 
