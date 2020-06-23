@@ -35,6 +35,8 @@ class activeParticle : public Shape
   double linCirc = forcedLinCirc;
   double accCirc = forcedAccelCirc;
 
+  double initialRadiusRotation = std::sqrt(std::pow(x0 - xCenterRotation, 2) + std::pow(y0 - yCenterRotation, 2));
+  double initialAngRotation = forcedOmegaCirc;
   double semimajor_axis = (initialRadiusRotation + finalRadiusRotation)/2;
   double semiminor_axis = std::sqrt(initialRadiusRotation*finalRadiusRotation);
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
@@ -58,13 +60,11 @@ public:
   xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
   forcedOmegaCirc( p("-angCircVel").asDouble(0)),
   forcedLinCirc( p("-linCircVel").asDouble(0)),
-  initialRadiusRotation( p("-initialRadius").asDouble(-1)),
-  finalRadiusRotation( p("-finalRadius").asDouble(-1)),
-  initialAngRotation( p("-initialAngVel").asDouble(-1)),
-  finalAngRotation( p("-finalAngVel").asDouble(-1)),
+  finalRadiusRotation( p("-finalRadiusRotation").asDouble(-1)),
+  finalAngRotation( p("-finalAngRotation").asDouble(0)),
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
-  forcedAccelCirc( p("-circAccel").asDouble(0)),
+  forcedAccelCirc( p("-forcedAccelCirc").asDouble(0)),
   tStartCircAccelTransfer( p("-tStartCircAccel").asDouble(-1) ),
   tStartElliTransfer( p("-tStartElliTransfer").asDouble(-1) ),
   tAccel( p("-tAccel").asDouble(-1) ) {

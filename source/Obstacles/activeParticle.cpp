@@ -57,6 +57,8 @@ void activeParticle::updatePosition(double dt)
 
         double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
         double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);
+        double initialRadiusRotation = forcedRadiusMotion;
+        double initialAngRotation = forcedOmegaCirc;
 
         centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(forcedOmegaCirc*sim.time + theta_0);
         centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(forcedOmegaCirc*sim.time + theta_0);
@@ -80,10 +82,12 @@ void activeParticle::updatePosition(double dt)
     // Uniformly accelerated circular motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
       if(sim.time > tStartCircAccelTransfer || sim.time < tStartCircAccelTransfer + tTransitAccel){
-      if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1];
+      if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
 
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);  
+      double initialRadiusRotation = forcedRadiusMotion;
+      double intialAngRotation = forcedOmegaCirc;
       
       centerOfMass[0] = xCenterRotation + forcedRadiusMotion * std::cos(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
       centerOfMass[1] = yCenterRotation + forcedRadiusMotion * std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0);
@@ -149,6 +153,9 @@ void activeParticle::updateVelocity(double dt)
           double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
           double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
 
+          double initialRadiusRotation = forcedRadiusMotion;
+          double initialAngRotation = forcedOmegaCirc;
+
           u = accelCoef * (- forcedRadiusMotion*forcedOmegaCirc*std::sin(forcedOmegaCirc*sim.time + theta_0));
           v = accelCoef * (  forcedRadiusMotion*forcedOmegaCirc*std::cos(forcedOmegaCirc*sim.time + theta_0));
           
@@ -176,6 +183,8 @@ void activeParticle::updateVelocity(double dt)
       
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
+      double initialRadiusRotation = forcedRadiusMotion;
+      double initialAngRotation = forcedOmegaCirc;
       
       omegaCirc += dt*accCirc;
       u = accelCoef * (- forcedRadiusMotion*omegaCirc*std::sin(0.5*forcedAccelCirc*std::pow(sim.time, 2) + forcedOmegaCirc*sim.time + theta_0));
