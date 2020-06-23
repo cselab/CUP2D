@@ -220,10 +220,24 @@ public:
         }
 
         printf("Action duration is: %f\n", actionDuration);
-        printf("t_next is: %f/n", this->t_next);
-        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
-        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
-        printf("Scheduled a transition between %f and %f to tau %f and phi %f\n", t_current, t_next, lastTau, lastPhiUndulatory);
+        printf("Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
+
+        // Save the actions to file
+        FILE * f1 = fopen("actions.dat","a+");
+        fprintf(f1,"Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
+        fclose(f1);
+
+        // Durations
+        FILE * f2 = fopen("action_durations.dat","a+");
+        fprintf(f2,"Duration: %f\n", actionDuration);
+        fclose(f2);
+
+
+//        printf("Scheduled a transition between %f and %f to tau %f and phi %f\n", t_current, t_next, lastTau, lastPhiUndulatory);
+//        printf("Alpha is: %f\n", lastAlpha);
+//        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
+//        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
+//        printf("t_next is: %f/n", this->t_next);
     }
 
     void scheduleCStart(const Real t_current, const std::vector<double>&a)
@@ -363,32 +377,59 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act5=false;
 //    }
 
-    // Reproduces the 7.30mJ energy escape
-    if (t>=0.0 && act1){
-        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
-        this->schedule(t, a);
-        act1=false;
-    }
-    if (t>=0.58255* this->Tperiod && act2){
-        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
-        this->schedule(t, a);
-        act2=false;
-    }
-    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
-        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
-        this->schedule(t, a);
-        act3=false;
-    }
-    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
-        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
-        this->schedule(t, a);
-        act4=false;
-    }
-    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.680396) * this->Tperiod && act5){
-        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
-        this->schedule(t, a);
-        act5=false;
-    }
+//    // Reproduces the 7.30mJ energy escape
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.58255* this->Tperiod && act2){
+//        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
+//    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
+//        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
+//        this->schedule(t, a);
+//        act3=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
+//        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
+//        this->schedule(t, a);
+//        act4=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.680396) * this->Tperiod && act5){
+//        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
+//        this->schedule(t, a);
+//        act5=false;
+//    }
+
+//    // Reproduces the 21.90mJ energy escape
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-4.686684, -3.912884, -2.241593, -1.121328, -1.065105, -0.944875, 0.591863, 0.082740, 0.540199};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.318453 && act2){
+//        std::vector<double> a{-3.640735, -2.963610, -1.554508, -5.782052, -3.937959, -1.483281, 0.127391, 0.071496, 0.836809};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
+//    if (t>=(0.318453 + 0.315146) && act3){
+//        std::vector<double> a{-1.615101, -0.846640, -2.638458, -1.536289, -1.750644, -3.240543, 0.544093, 0.311599, 0.342352};
+//        this->schedule(t, a);
+//        act3=false;
+//    }
+//    if (t>=(0.318453 + 0.315146 + 0.385764) && act4){
+//        std::vector<double> a{-1.105307, -0.824289, -2.022394, -4.455174, -2.921277, -2.279189, 0.434638, 0.258321, 0.684365};
+//        this->schedule(t, a);
+//        act4=false;
+//    }
+//    if (t>=(0.318453 + 0.315146 + 0.385764 + 0.370094) && act5){
+//        std::vector<double> a{-2.849169, -3.017569, -2.438394, -4.134092, -2.877911, -2.616167, 0.447130, 0.369074, 0.520669};
+//        this->schedule(t, a);
+//        act5=false;
+//    }
 
 
     // Write values to placeholders
