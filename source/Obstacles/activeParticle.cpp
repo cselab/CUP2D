@@ -13,11 +13,16 @@
 
 using namespace cubism;
 
-void activeParticle::checkFeasibility(){
+void activeParticle::checkFeasibility()
+{
   if(tStartElliTransfer > 0 && tStartCircAccelTransfer > 0){
-    if(tStartElliTransfer + tTransitElli > tStartCircAccelTransfer || tStartCircAccelTransfer + tTransitAccel > tStartElliTransfer){
-    std::cout << "FATAL: insufficient time for transfers" << std::endl; abort();
+    if(tStartElliTransfer < tStartCircAccelTransfer && tStartElliTransfer + tTransitElli > tStartCircAccelTransfer) {
+      std::cout << "FATAL: insufficient time for transfer!" << std::endl; 
+      abort();
     }
+    if(tStartCircAccelTransfer < tStartElliTransfer && tStartCircAccelTransfer + tTransitAccel > tStartElliTransfer) {
+      std::cout << "FATAL: insufficient time for transfer!" << std::endl; 
+      abort();}
   }
 }
 
@@ -53,7 +58,7 @@ void activeParticle::updatePosition(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0){
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
-        if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
+        if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc, std::cout << lastUACM << lastElli << std::endl;
 
         double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
         double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);
@@ -66,9 +71,17 @@ void activeParticle::updatePosition(double dt)
         lastElli = false;
 
         std::cout << "UCM Position" << std::endl;
+        std::cout << "tTransitElli = " << tTransitElli << std::endl;
         std::cout << "lastPos = (" << lastPos[0] << " , " << lastPos[1] << ")" << std::endl;
         std::cout << "theta_0 = " << theta_0 << std::endl;
         std::cout << "forcedRadiusMotion = " << forcedRadiusMotion << std::endl;
+        std::cout << "angCircVel = " << forcedAccelCirc << std::endl;
+        std::cout << "tAccel = " << tAccel << std::endl;
+        std::cout << "tStartElliTransfer = " << tStartElliTransfer << std::endl;
+        std::cout << "finalRadius = " << finalRadiusRotation << std::endl;
+        std::cout << "tStartCircAccelTransfer = " << tStartCircAccelTransfer << std::endl;
+        std::cout << "finalAngRotation = " << finalAngRotation << std::endl;
+        std::cout << "forcedAccelCirc = " << forcedAccelCirc << std::endl;
 
         std::ofstream transit;
         transit.open ("transit.csv", std::ios_base::app);
@@ -79,7 +92,7 @@ void activeParticle::updatePosition(double dt)
     }
     // Uniformly accelerated circular motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
-      if(sim.time > tStartCircAccelTransfer || sim.time < tStartCircAccelTransfer + tTransitAccel){
+      if(sim.time > tStartCircAccelTransfer && sim.time < tStartCircAccelTransfer + tTransitAccel){
       if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
 
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
@@ -92,7 +105,7 @@ void activeParticle::updatePosition(double dt)
       lastUACM = true;
       lastElli = false;
 
-      //std::cout << "UACM Position" << endl; 
+      // std::cout << "Entered?????" << std::endl; 
       }
     }
 
@@ -167,16 +180,13 @@ void activeParticle::updateVelocity(double dt)
           std::cout << "lastUACM = " << lastUACM << std::endl;
           std::cout << "lastElli = " << lastElli << std::endl;
 
-          std::cout << "accelCoeff line = " << std::endl;
-
-
         }
       }
     }
 
     // Uniformly accelerated circular motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
-      if(sim.time > tStartCircAccelTransfer || sim.time < tStartCircAccelTransfer + tTransitAccel){
+      if(sim.time > tStartCircAccelTransfer && sim.time < tStartCircAccelTransfer + tTransitAccel){
       if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
         if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
           accelCoef += dt/tAccel;
@@ -191,6 +201,8 @@ void activeParticle::updateVelocity(double dt)
       lastUCM = false;
       lastUACM = true;
       lastElli = false;
+
+      std::cout << "Entered?????" << std::endl; 
 
       }
     }

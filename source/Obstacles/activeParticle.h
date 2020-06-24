@@ -43,12 +43,12 @@ class activeParticle : public Shape
   double angMom = std::sqrt(semilatus_rectum*mu);
   double accelCoef;
 
-  Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
+  Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
 
-  bool lastUCM;
-  bool lastUACM;
-  bool lastElli;
+  bool lastUCM = false;
+  bool lastUACM = false;
+  bool lastElli = false;
 
   std::vector<double> lastPos{x0, y0};
 
@@ -56,13 +56,13 @@ public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
     Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
-  forcedLinCirc( p("-linCircVel").asDouble(0)),
+  forcedLinCirc( p("-forcedLinCirc").asDouble(0)),
+  forcedOmegaCirc( p("-forcedOmegaCirc").asDouble(0)),
   finalRadiusRotation( p("-finalRadiusRotation").asDouble(-1)),
-  forcedOmegaCirc( p("-angCircVel").asDouble(0)),
+  finalAngRotation( p("-finalAngRotation").asDouble(0)),
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
-  finalAngRotation( p("-finalAngRotation").asDouble(0)),
-  tStartCircAccelTransfer( p("-tStartCircAccel").asDouble(-1) ),
+  tStartCircAccelTransfer( p("-tStartCircAccelTransfer").asDouble(-1) ),
   tStartElliTransfer( p("-tStartElliTransfer").asDouble(-1) ),
   forcedAccelCirc( p("-forcedAccelCirc").asDouble(0)),
   tAccel( p("-tAccel").asDouble(-1) ) {
