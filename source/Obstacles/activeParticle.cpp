@@ -156,8 +156,10 @@ void activeParticle::updateVelocity(double dt)
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
           if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
-          if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel) accelCoef += dt/tAccel;
-          else accelCoef = 1;
+          if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
+            accelCoef += dt/tAccel;
+          } 
+          else {accelCoef = 1;}
           double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
           double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
 
@@ -190,7 +192,8 @@ void activeParticle::updateVelocity(double dt)
       if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
         if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
           accelCoef += dt/tAccel;
-        }  
+        } 
+        else {accelCoef = 1;}
       double forcedRadiusMotion = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
       double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[1] - xCenterRotation);
       
@@ -202,7 +205,7 @@ void activeParticle::updateVelocity(double dt)
       lastUACM = true;
       lastElli = false;
 
-      std::cout << "Entered?????" << std::endl; 
+      std::cout << "accelCoef" << accelCoef << std::endl;
 
       }
     }
@@ -213,7 +216,8 @@ void activeParticle::updateVelocity(double dt)
         if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
         if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
           accelCoef += dt/tAccel;
-        }  
+        } 
+        else {accelCoef = 1;}
         double radiusEllipse = std::sqrt(std::pow(center[0] - xCenterRotation, 2) + std::pow(center[1] - yCenterRotation, 2));
         double orbital_speed = std::sqrt(mu*(2/radiusEllipse - 1/semimajor_axis));
         double orbital_speed_perp = angMom*(1+eccentricity*std::cos(true_anomaly))/semilatus_rectum;
@@ -251,6 +255,7 @@ void activeParticle::updateVelocity(double dt)
         std::cout << "orbital_speed_(norm(radial, perp)) = " << std::sqrt(std::pow(orbital_speed_perp, 2) + std::pow(orbital_speed_radial, 2)) << std::endl;
         std::cout << "orbital_radial_speed = " << orbital_speed_radial << std::endl;
         std::cout << "orbital_perp_speed = " << orbital_speed_perp << std::endl;
+        std::cout << "accelCoef" << accelCoef << std::endl;
       }
     }  
 
