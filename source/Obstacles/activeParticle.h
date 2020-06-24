@@ -51,6 +51,7 @@ class activeParticle : public Shape
   bool lastElli = false;
 
   std::vector<double> lastPos{x0, y0};
+  std::vector<double> lastVel{0.0, 0.0};
 
 public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
