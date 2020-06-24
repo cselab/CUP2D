@@ -156,7 +156,7 @@ void activeParticle::updateVelocity(double dt)
       if(sim.time < tStartCircAccelTransfer || sim.time > tStartCircAccelTransfer + tTransitAccel || tStartCircAccelTransfer < 0){
         if(sim.time < tStartElliTransfer || sim.time > tStartElliTransfer + tTransitElli || tStartElliTransfer < 0){
           if(lastUACM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
-          if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
+          if(sim.time < tAccel || sim.time - tStartCircAccelTransfer < tAccel || sim.time - tStartElliTransfer < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
             accelCoef += dt/tAccel;
           } 
           else {accelCoef = 1;}
@@ -190,7 +190,7 @@ void activeParticle::updateVelocity(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartCircAccelTransfer > 0){
       if(sim.time > tStartCircAccelTransfer && sim.time < tStartCircAccelTransfer + tTransitAccel){
       if(lastUCM || lastElli) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
-        if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
+        if(sim.time < tAccel || sim.time - tStartCircAccelTransfer < tAccel || sim.time - tStartElliTransfer < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
           accelCoef += dt/tAccel;
         } 
         else {accelCoef = 1;}
@@ -214,7 +214,7 @@ void activeParticle::updateVelocity(double dt)
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartElliTransfer > 0){
       if(sim.time > tStartElliTransfer && sim.time < tStartElliTransfer + tTransitElli){
         if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc;
-        if(sim.time < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
+        if(sim.time < tAccel || sim.time - tStartCircAccelTransfer < tAccel || sim.time - tStartElliTransfer < tAccel || sim.time - (tStartCircAccelTransfer+tTransitAccel) < tAccel || sim.time - (tStartElliTransfer+tTransitElli) < tAccel){
           accelCoef += dt/tAccel;
         } 
         else {accelCoef = 1;}
