@@ -16,7 +16,7 @@ class activeParticle : public Shape
   const double radius;
   const Real tAccel;
   const Real tStartElliTransfer;
-  const Real tStartCircAccelTransfer;
+  const Real tStartAccelTransfer;
 
   const double xCenterRotation;
   const double yCenterRotation;
@@ -41,7 +41,7 @@ class activeParticle : public Shape
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
   double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
   double angMom = std::sqrt(semilatus_rectum*mu);
-  double accelCoef = 0;
+  double accelCoef;
 
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
   Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
@@ -62,7 +62,7 @@ public:
   finalAngRotation( p("-finalAngRotation").asDouble(0)),
   x0( p("-xpos").asDouble(.5*sim.extents[0])),
   y0( p("-ypos").asDouble(.5*sim.extents[1])),
-  tStartCircAccelTransfer( p("-tStartCircAccelTransfer").asDouble(-1) ),
+  tStartAccelTransfer( p("-tStartAccelTransfer").asDouble(-1) ),
   tStartElliTransfer( p("-tStartElliTransfer").asDouble(-1) ),
   forcedAccelCirc( p("-forcedAccelCirc").asDouble(0)),
   tAccel( p("-tAccel").asDouble(-1) ) {
