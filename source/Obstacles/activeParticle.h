@@ -26,22 +26,26 @@ class activeParticle : public Shape
   const double finalAngRotation;
   const double forcedLinCirc;
   const double forcedAccelCirc;
- 
+  
+  double forcedOmegaCirc;
   double true_anomaly;
-  double forcedOmegaCirc; // declared as non constant in case we need to compute it from forcedLinCirc
   double omegaCirc = forcedOmegaCirc;
   double linCirc = forcedLinCirc;
   double accCirc = forcedAccelCirc;
 
-  double initialRadiusRotation = std::sqrt(std::pow(x0 - xCenterRotation, 2) + std::pow(y0 - yCenterRotation, 2));
+  std::vector<double> lastPos{x0, y0};
+  std::vector<double> lastVel{0.0, 0.0};
+
+  double accelCoef;
+
+  double initialRadiusRotation = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
   double initialAngRotation = forcedOmegaCirc;
   double semimajor_axis = (initialRadiusRotation + finalRadiusRotation)/2;
   double semiminor_axis = std::sqrt(initialRadiusRotation*finalRadiusRotation);
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
-  double mu = std::pow(omegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
   double angMom = std::sqrt(semilatus_rectum*mu);
-  double accelCoef;
+  double mu = std::pow(forcedOmegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
 
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
   Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
@@ -49,9 +53,6 @@ class activeParticle : public Shape
   bool lastUCM = false;
   bool lastUACM = false;
   bool lastElli = false;
-
-  std::vector<double> lastPos{x0, y0};
-  std::vector<double> lastVel{0.0, 0.0};
 
 public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :

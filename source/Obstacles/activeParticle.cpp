@@ -79,8 +79,8 @@ void activeParticle::updatePosition(double dt)
           std::cout << "forcedAccelCirc = " << forcedAccelCirc << std::endl;
   
           std::ofstream transit;
-          transit.open ("transit.csv", std::ios_base::app);
-          transit << sim.time << "," << lastPos[0] <<  "," << lastPos[1] << "," << theta_0 << "," << forcedRadiusMotion << "\n";
+          transit.open ("lastPos_theta0_forcedRadMotion.csv", std::ios_base::app);
+          transit << sim.time << "," << lastPos[0] <<  "," << lastPos[1] << "," << theta_0 << "," << forcedRadiusMotion << lastUCM << "\n";
           transit.close();
         }
       }
@@ -110,34 +110,46 @@ void activeParticle::updatePosition(double dt)
     // Elliptical motion
     if(bForcedx && bForcedy && xCenterRotation > 0 && yCenterRotation > 0 && tStartElliTransfer > 0){
       if(sim.time > tStartElliTransfer && sim.time < tStartElliTransfer + tTransitElli){
-      if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc, lastVel[0] = u, lastVel[1] = v;
-      anomalyGivenTime();
-      double radiusEllipse = semilatus_rectum/(1+eccentricity*std::cos(true_anomaly));
-      double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);  
+        if(lastUCM || lastUACM) lastPos[0] = centerOfMass[0], lastPos[1] = centerOfMass[1], forcedOmegaCirc = omegaCirc, lastVel[0] = u, lastVel[1] = v;
+        
+        /*
+        initialRadiusRotation = std::sqrt(std::pow(lastPos[0] - xCenterRotation, 2) + std::pow(lastPos[1] - yCenterRotation, 2));
+        initialAngRotation = forcedOmegaCirc;
+        semimajor_axis = (initialRadiusRotation + finalRadiusRotation)/2;
+        mu = std::pow(forcedOmegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
+        semiminor_axis = std::sqrt(initialRadiusRotation*finalRadiusRotation);
+        eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
+        semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
+        angMom = std::sqrt(semilatus_rectum*mu);
+        */
+        anomalyGivenTime();
 
-      centerOfMass[0] = xCenterRotation + radiusEllipse*std::cos(true_anomaly + theta_0);
-      centerOfMass[1] = yCenterRotation + radiusEllipse*std::sin(true_anomaly + theta_0); 
+        double radiusEllipse = semilatus_rectum/(1+eccentricity*std::cos(true_anomaly));
+        double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);  
   
-      lastUCM = false;
-      lastUACM = false;
-      lastElli = true;;
-
-      std::cout << " " << std::endl;
-      std::cout << "Ellipse Position" << std::endl;
-      std::cout << "a = " << semimajor_axis << std::endl;
-      std::cout << "b = " << semiminor_axis << std::endl;
-      std::cout << "e = " << eccentricity << std::endl;
-      std::cout << "p = " << semilatus_rectum << std::endl;
-      std::cout << "radiusEllipse = " << radiusEllipse << std::endl;
-      std::cout << "trueAnomaly = " << true_anomaly*57.3 << std::endl;
-      std::cout << "LastPos = (" << lastPos[0] << "," << lastPos[1] << ")" << std::endl;
-      std::cout << "lastVel[0] = " << lastVel[0] << std::endl;
-      std::cout << "lastVel[1] = " << lastVel[1] << std::endl;
-
-      std::ofstream ell;
-      ell.open ("ellipsePos.csv", std::ios_base::app);
-      ell << sim.time << "," << radiusEllipse <<  "," << true_anomaly << "\n";
-      ell.close();
+        centerOfMass[0] = xCenterRotation + radiusEllipse*std::cos(true_anomaly + theta_0);
+        centerOfMass[1] = yCenterRotation + radiusEllipse*std::sin(true_anomaly + theta_0); 
+    
+        lastUCM = false;
+        lastUACM = false;
+        lastElli = true;;
+  
+        std::cout << " " << std::endl;
+        std::cout << "Ellipse Position" << std::endl;
+        std::cout << "a = " << semimajor_axis << std::endl;
+        std::cout << "b = " << semiminor_axis << std::endl;
+        std::cout << "e = " << eccentricity << std::endl;
+        std::cout << "p = " << semilatus_rectum << std::endl;
+        std::cout << "radiusEllipse = " << radiusEllipse << std::endl;
+        std::cout << "trueAnomaly = " << true_anomaly*57.3 << std::endl;
+        std::cout << "LastPos = (" << lastPos[0] << "," << lastPos[1] << ")" << std::endl;
+        std::cout << "lastVel[0] = " << lastVel[0] << std::endl;
+        std::cout << "lastVel[1] = " << lastVel[1] << std::endl;
+  
+        std::ofstream ell;
+        ell.open ("ellipsePos.csv", std::ios_base::app);
+        ell << sim.time << "," << radiusEllipse <<  "," << true_anomaly << lastElli <<"\n";
+        ell.close();
       }
     }
   
@@ -253,7 +265,7 @@ void activeParticle::updateVelocity(double dt)
   
         std::ofstream ellVel;
         ellVel.open ("ellipseVel.csv", std::ios_base::app);
-        ellVel << sim.time << "," << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl << "," << orbital_speed <<  "," << orbital_speed_radial <<  "," << orbital_speed_perp <<  "," << flight_path_angle << "\n";
+        ellVel << sim.time << "," << std::sqrt(std::pow(u, 2) + std::pow(v, 2)) << std::endl << "," << orbital_speed <<  "," << orbital_speed_radial <<  "," << orbital_speed_perp <<  "," << flight_path_angle << lastElli << "\n";
         ellVel.close();
 
         std::cout << " " << std::endl;
