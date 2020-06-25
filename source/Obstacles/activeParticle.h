@@ -32,9 +32,12 @@ class activeParticle : public Shape
   double omegaCirc = forcedOmegaCirc;
   double linCirc = forcedLinCirc;
   double accCirc = forcedAccelCirc;
+  double corrector = 0;
 
   std::vector<double> lastPos{x0, y0};
   std::vector<double> lastVel{0.0, 0.0};
+
+  double theta_0 = std::atan2(lastPos[1] - yCenterRotation, lastPos[0] - xCenterRotation);
 
   double accelCoef;
 
@@ -44,8 +47,8 @@ class activeParticle : public Shape
   double semiminor_axis = std::sqrt(initialRadiusRotation*finalRadiusRotation);
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
-  double angMom = std::sqrt(semilatus_rectum*mu);
   double mu = std::pow(forcedOmegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
+  double angMom = std::sqrt(semilatus_rectum*mu);
 
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
   Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
@@ -91,7 +94,6 @@ public:
   void anomalyGivenTime();
   void checkFeasibility();
   void getBlockID();
-  //std::vector<double> getLastPos(double lastUCMVisit, double lastUACMVisit, double lastElliVisit);
   void reward();
   
 };
