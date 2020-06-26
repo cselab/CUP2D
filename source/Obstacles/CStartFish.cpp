@@ -923,7 +923,7 @@ std::vector<double> CStartFish::stateEscapeVariableEnergy() const
 
     S[0] = this->getRadialDisplacement() / length; // distance from original position
     S[1] = this->getPolarAngle(); // polar angle from virtual origin
-    S[2] = cFish->energyBudget - cFish->energyExpended; // energy expended relative to energy budget, must be set in RL
+    S[2] = (cFish->energyBudget - cFish->energyExpended)/0.0073; // energy expended relative to energy budget, must be set in RL
     S[3] = getOrientation(); // orientation of fish
     S[4] = getU() * Tperiod / length;
     S[5] = getV() * Tperiod / length;
