@@ -517,32 +517,32 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act5=false;
 //    }
 //
-//    // 17.57 (17.04) mJ escape
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.685327, -4.005475, -2.212091, -1.138507, -0.988073, -0.997685, 0.578228, 0.095351, 0.555037};
-//        this->schedule(t, a);
-//        act1=false;
-//    }
-//    if (t>=0.322162 && act2){
-//        std::vector<double> a{-3.581836, -3.104472, -1.592701, -5.698769, -3.811102, -1.501724, 0.145612, 0.074569, 0.820629};
-//        this->schedule(t, a);
-//        act2=false;
-//    }
-//    if (t>=(0.322162 + 0.316050) && act3){
-//        std::vector<double> a{-1.624217, -0.838124, -2.453317, -1.617455, -1.742226, -3.457168, 0.566668, 0.313464, 0.351841};
-//        this->schedule(t, a);
-//        act3=false;
-//    }
-//    if (t>=(0.322162+ 0.316050 + 0.386313) && act4){
-//        std::vector<double> a{-1.102140, -0.801205, -2.078403, -4.132382, -2.744817, -2.417795, 0.465530, 0.254771, 0.673557};
-//        this->schedule(t, a);
-//        act4=false;
-//    }
-//    if (t>=(0.322162 + 0.316050 + 0.386313 + 0.369050) && act5){
-//        std::vector<double> a{-2.875590, -3.001369, -2.466997, -4.079204, -2.833935, -2.637640, 0.454279, 0.353261, 0.521504};
-//        this->schedule(t, a);
-//        act5=false;
-//    }
+    // 17.57 (17.04) mJ escape
+    if (t>=0.0 && act1){
+        std::vector<double> a{-4.685327, -4.005475, -2.212091, -1.138507, -0.988073, -0.997685, 0.578228, 0.095351, 0.555037};
+        this->schedule(t, a);
+        act1=false;
+    }
+    if (t>=0.322162 && act2){
+        std::vector<double> a{-3.581836, -3.104472, -1.592701, -5.698769, -3.811102, -1.501724, 0.145612, 0.074569, 0.820629};
+        this->schedule(t, a);
+        act2=false;
+    }
+    if (t>=(0.322162 + 0.316050) && act3){
+        std::vector<double> a{-1.624217, -0.838124, -2.453317, -1.617455, -1.742226, -3.457168, 0.566668, 0.313464, 0.351841};
+        this->schedule(t, a);
+        act3=false;
+    }
+    if (t>=(0.322162+ 0.316050 + 0.386313) && act4){
+        std::vector<double> a{-1.102140, -0.801205, -2.078403, -4.132382, -2.744817, -2.417795, 0.465530, 0.254771, 0.673557};
+        this->schedule(t, a);
+        act4=false;
+    }
+    if (t>=(0.322162 + 0.316050 + 0.386313 + 0.369050) && act5){
+        std::vector<double> a{-2.875590, -3.001369, -2.466997, -4.079204, -2.833935, -2.637640, 0.454279, 0.353261, 0.521504};
+        this->schedule(t, a);
+        act5=false;
+    }
 //
 //    // 19.74 (19.16) mJ escape
 //    if (t>=0.0 && act1){
@@ -738,6 +738,12 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
         assert(not std::isinf(vK[i]));
     }
 
+    // Save the midpoint curvature to file
+    FILE * f1 = fopen("curvature_values.dat","a+");
+    fprintf(f1,"%f  %g  %d\n", t, rK[Nmid], Nmid);
+    fclose(f1);
+
+//    this->nextDump += 0.01; // dump time 0.01
 
 //    if (t >= this->nextDump) {
 //        // Save the midline curvature values and velocities to recreate spine externally.
@@ -748,12 +754,6 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //                    vNorX[i],vNorY[i],width[i]);
 //        fclose(f);
 //
-//        // Save the midpoint curvature to file
-//        FILE * f1 = fopen("curvature_values.dat","a+");
-//        fprintf(f1,"%f  %g  %d\n", t, rK[Nmid], Nmid);
-//        fclose(f1);
-//
-//        this->nextDump += 0.01; // dump time 0.01
 //    }
 
     // solve Frenet to compute midline parameters
