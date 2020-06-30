@@ -328,32 +328,32 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
     //***************************************************************************************************************//
 
-    // 2.43 (2.43) mJ escape
-    if (t>=0.0 && act1){
-        std::vector<double> a{-4.394378, -2.583142, -1.678619, -0.955955, -1.064813, -1.925944, 0.443542, 0.232105, 0.489527};
-        this->schedule(t, a);
-        act1=false;
-    }
-    if (t>=0.362384 && act2){
-        std::vector<double> a{-2.485280, -2.338090, -2.242998, -3.490950, -2.925883, -3.385765, 0.375721, 0.164584, 0.662246};
-        this->schedule(t, a);
-        act2=false;
-    }
-    if (t>=( 0.362384+0.342525 ) && act3){
-        std::vector<double> a{-1.556780, -1.454230, -3.299322, -0.947089, -1.671784, -4.202114, 0.568120, 0.291511, 0.467864};
-        this->schedule(t, a);
-        act3=false;
-    }
-    if (t>=( 0.362384+0.342525  +0.379856 ) && act4){
-        std::vector<double> a{-1.768546, -1.909876, -3.160618, -3.372401, -3.015401, -3.804584, 0.429210, 0.210001, 0.546459};
-        this->schedule(t, a);
-        act4=false;
-    }
-    if (t>=( 0.362384+0.342525  +0.379856  +0.355883 ) && act5){
-        std::vector<double> a{-2.432865, -2.854739, -3.499387, -2.548434, -2.434035, -3.313599, 0.505750, 0.344945, 0.467138};
-        this->schedule(t, a);
-        act5=false;
-    }
+//    // 2.43 (2.43) mJ escape
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-4.394378, -2.583142, -1.678619, -0.955955, -1.064813, -1.925944, 0.443542, 0.232105, 0.489527};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.362384 && act2){
+//        std::vector<double> a{-2.485280, -2.338090, -2.242998, -3.490950, -2.925883, -3.385765, 0.375721, 0.164584, 0.662246};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
+//    if (t>=( 0.362384+0.342525 ) && act3){
+//        std::vector<double> a{-1.556780, -1.454230, -3.299322, -0.947089, -1.671784, -4.202114, 0.568120, 0.291511, 0.467864};
+//        this->schedule(t, a);
+//        act3=false;
+//    }
+//    if (t>=( 0.362384+0.342525  +0.379856 ) && act4){
+//        std::vector<double> a{-1.768546, -1.909876, -3.160618, -3.372401, -3.015401, -3.804584, 0.429210, 0.210001, 0.546459};
+//        this->schedule(t, a);
+//        act4=false;
+//    }
+//    if (t>=( 0.362384+0.342525  +0.379856  +0.355883 ) && act5){
+//        std::vector<double> a{-2.432865, -2.854739, -3.499387, -2.548434, -2.434035, -3.313599, 0.505750, 0.344945, 0.467138};
+//        this->schedule(t, a);
+//        act5=false;
+//    }
 
 //    // 4.60 (4.46) mJ escape
 //    if (t>=0.0 && act1){
@@ -612,17 +612,17 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act2=false;
 //    }
 
-//    // Reproduces the 2D C-start (Gazzola et. al.)
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
-//        this->schedule(t, a);
-//        act1=false;
-//    }
-//    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
-//        this->schedule(t, a);
-//        act2=false;
-//    }
+    // Reproduces the 2D C-start (Gazzola et. al.)
+    if (t>=0.0 && act1){
+        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
+        this->schedule(t, a);
+        act1=false;
+    }
+    if (t>=0.7* this->Tperiod && act2){
+        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
+        this->schedule(t, a);
+        act2=false;
+    }
 
 //    // Reproduces the 13(12.7)mJ energy escape
 //    if (t>=0.0 && act1){
