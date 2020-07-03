@@ -47,7 +47,7 @@ class activeParticle : public Shape
   double semiminor_axis = std::sqrt(initialRadiusRotation*finalRadiusRotation);
   double eccentricity = std::sqrt(1-std::pow(semiminor_axis/semimajor_axis, 2));
   double semilatus_rectum = semimajor_axis*(1-std::pow(eccentricity, 2));
-  double mu = std::pow(forcedOmegaCirc*initialRadiusRotation, 2)*initialRadiusRotation;
+  double mu = std::pow(forcedOmegaCirc*initialRadiusRotation, 2)/((2/initialRadiusRotation)-(1/semimajor_axis));
   double angMom = std::sqrt(semilatus_rectum*mu);
 
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
@@ -91,24 +91,7 @@ public:
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
   void updatePosition(double dt) override;
-  void anomalyGivenTime();
+  double reward();
   void checkFeasibility();
-  void getBlockID();
-  void reward();
-  
-};
-
-class computeVorticityCollocated
-{
-  SimulationData& sim;
-  const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
- public:
-  computeVorticityCollocated(SimulationData& s) : sim(s) { }
-
-  void run() const;
-
-  std::string getName() const {
-    return "computeVorticityCollocated";
-  }
+  void anomalyGivenTime();
 };
