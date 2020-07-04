@@ -61,7 +61,6 @@ public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
     Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   xCenterRotation( p("-xCenterRotation").asDouble(-1) ), yCenterRotation( p("-yCenterRotation").asDouble(-1) ),
-  forcedLinCirc( p("-forcedLinCirc").asDouble(0)),
   forcedOmegaCirc( p("-forcedOmegaCirc").asDouble(0)),
   finalRadiusRotation( p("-finalRadiusRotation").asDouble(-1)),
   finalAngRotation( p("-finalAngRotation").asDouble(0)),
