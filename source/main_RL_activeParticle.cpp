@@ -8,6 +8,8 @@
 
 using namespace cubism;
 
+// Implement particle swarm later (shield etc.)
+
 static bool bVerbose = true;
 
 inline void resetIC(activeParticle* const agent, smarties::Communicator*const comm)
@@ -25,27 +27,39 @@ inline void resetIC(activeParticle* const agent, smarties::Communicator*const co
   agent->setCenterOfMass(C);
 }
 
-inline void setAction(activeParticle* const agent, const std::vector<double> act)
+inline void setAction(activeParticle* const agent, const std::vector<double> act, const double t)
 {
-  agent->finalAngRotation = act[0];
-  agent->finalRadiusRotation = act[1];
+  bool actUACM = act[0] > 0.5 ? true : false;
+  if(actUACM){
+    agent->finalAngRotation = act[1]*agent->forcedOmegaCirc;
+    agent->tStartAccelTransfer = t;
+  }
+  else{
+    agent->finalRadiusRotation = act[2]*agent->forcedRadiusMotion;
+    agent->tStartElliTransfer = t;
+  }
 }
 
 inline std::vector<double> getState(const activeParticle* const agent)
 {
-  const double currentRadius = agent->forcedRadiusMotion; // hmm, dont check for radius during transit
-  const double currentAngularVel = agent->forcedOmegaCirc; // "" during acceleration
+  const double currentRadius = agent->forcedRadiusMotion;
+  const double currentOmegaCirc = agent->forcedOmegaCirc; 
 }
 
 inline double getReward(const activeParticle* const agent)
 {
   double reward = agent->reward();
+
   return reward;
 }
 
 inline bool isTerminal(const activeParticle* const agent)
 {
-  return sim.time >= 100;
+  if(forcedRadiusMotion > 0.95) return true;
+  if(forcedRadiusMotion < 0.05) return true;
+  if(forcedOmegaCirc >= 80) return true;
+
+  return false;
 }
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
@@ -78,7 +92,7 @@ inline void app_main(
   MPI_Comm mpicom,                    // mpi_comm that mpi-based apps can use
   int argc, char**argv                // args read from app's runtime settings file
 ) {
-  const int nActions = 2, nStates = 2;
+  const int nActions = 3, nStates = 2;
   const unsigned maxLearnStepPerSim = comm->isTraining()? 200
                                      : std::numeric_limits<int>::max();
 

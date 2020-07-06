@@ -50,7 +50,7 @@ class activeParticle : public Shape
 
   bool lastUCM = false;
   bool lastUACM = false;
-  bool lastElli = false;
+  bool lastEM = false;
 
 public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
