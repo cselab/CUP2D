@@ -3,8 +3,7 @@
 
 #include "smarties.h"
 #include "Simulation.h"
-#include "Obstacles/ShapesSimple.h"
-#include "activeParticle.h"
+#include "Obstacles/activeParticle.h"
 
 using namespace cubism;
 
@@ -27,8 +26,8 @@ inline void resetIC(activeParticle* const agent, smarties::Communicator*const co
   agent->setCenterOfMass(C);
 }
 
-inline void setAction(activeParticle* const agent, const std::vector<double> act, const double t)
-{
+inline void setAction(activeParticle* const agent, const std::vector<double> act, double t)
+{ 
   bool actUACM = act[0] > 0.5 ? true : false;
   if(actUACM){
     agent->finalAngRotation = act[1]*agent->forcedOmegaCirc;
@@ -42,11 +41,17 @@ inline void setAction(activeParticle* const agent, const std::vector<double> act
 
 inline std::vector<double> getState(const activeParticle* const agent)
 {
-  const double currentRadius = agent->forcedRadiusMotion;
-  const double currentOmegaCirc = agent->forcedOmegaCirc; 
+  double currentRadius = agent->forcedRadiusMotion;
+  double currentOmegaCirc = agent->forcedOmegaCirc;
+  std::vector<double> state = {currentRadius, currentOmegaCirc};
+  if(bVerbose){
+    printf("Sending [%f %f]\n", currentRadius, currentOmegaCirc);
+    fflush(0);
+  }
+  return state;
 }
 
-inline double getReward(const activeParticle* const agent)
+inline double getReward(activeParticle* const agent)
 {
   double reward = agent->reward();
 
@@ -55,9 +60,9 @@ inline double getReward(const activeParticle* const agent)
 
 inline bool isTerminal(const activeParticle* const agent)
 {
-  if(forcedRadiusMotion > 0.95) return true;
-  if(forcedRadiusMotion < 0.05) return true;
-  if(forcedOmegaCirc >= 80) return true;
+  if(agent->finalRadiusRotation > 0.95) return true;
+  if(agent->finalRadiusRotation < 0.05) return true;
+  if(agent->forcedOmegaCirc >= 80) return true;
 
   return false;
 }
@@ -75,16 +80,13 @@ inline bool checkNaN(std::vector<double>& state, double& reward)
   return bTrouble;
 }
 
-inline double getTimeToNextAct(const activeParticle* const agent, const double t)
+inline double getTimeToNextAct(const activeParticle* const agent, double t)
 {
-  if(agent->lastUCM==1) return t + 2*M_PI/agent->forcedOmegaCirc;
-  if(agent->lastUACM==1) return t + agent->tTransitAccel;
-  if(agent->lastElli==1) return t + agent->tTransitElli;
-}
+  if(agent->lastUCM) return t + 2*M_PI/agent->forcedOmegaCirc;
+  if(agent->lastUACM) return t + agent->tTransitAccel;
+  if(agent->lastEM) return t + agent->tTransitElli;
 
-inline void resetAll(){
-
-  Shape::resetAll();
+  return 1;
 }
 
 inline void app_main(
@@ -93,7 +95,7 @@ inline void app_main(
   int argc, char**argv                // args read from app's runtime settings file
 ) {
   const int nActions = 3, nStates = 2;
-  const unsigned maxLearnStepPerSim = comm->isTraining()? 200
+  const unsigned maxLearnStepPerSim = comm->isTraining() ? 200
                                      : std::numeric_limits<int>::max();
 
   comm->setStateActionDims(nStates, nActions);
@@ -105,7 +107,7 @@ inline void app_main(
   if(agent==nullptr) { printf("Obstacle was not an Active Particle!\n"); abort(); }
   if(comm->isTraining() == false) {
     sim.sim.verbose = true; sim.sim.muteAll = false;
-    sim.sim.dumpTime = agent->timescale / 20;
+    sim.sim.dumpTime = 0.3;
   }
   unsigned sim_id = 0, tot_steps = 0;
 
@@ -132,7 +134,7 @@ inline void app_main(
 
     while (true) //simulation loop
     {
-      setAction(agent, comm->recvAction());
+      setAction(agent, comm->recvAction(), t);
       const double tNextAct = getTimeToNextAct(agent, t);
       while (t < tNextAct)
       {
@@ -172,8 +174,6 @@ inline void app_main(
 
     if(comm->terminateTraining()) return; // exit program
   }
-}
-
 }
 
 int main(int argc, char**argv)
