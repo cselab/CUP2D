@@ -12,20 +12,24 @@
 #include "../Shape.h"
 
 class activeParticle : public Shape
-{ 
+{
+public:
   const double radius;
-  const Real tStartAccelTransfer;
-  const Real tStartElliTransfer;
+  Real tStartAccelTransfer;
+  Real tStartElliTransfer;
 
   const double xCenterRotation;
   const double yCenterRotation;
   const double x0;
   const double y0;
-  const double finalRadiusRotation;
-  const double finalAngRotation;
-  const double forcedAccelCirc;
+
+  double finalRadiusRotation;
+  double finalAngRotation;
   
+  const double forcedAccelCirc;
+
   double forcedOmegaCirc;
+  double forcedRadiusMotion;
   double true_anomaly;
   double omegaCirc = forcedOmegaCirc;
   double accCirc = forcedAccelCirc;
@@ -33,6 +37,10 @@ class activeParticle : public Shape
 
   std::vector<double> lastPos{x0, y0};
   std::vector<double> lastVel{0.0, 0.0};
+
+  bool lastUCM = false;
+  bool lastUACM = false;
+  bool lastEM = false;
 
   const Real tAccel;
 
@@ -48,11 +56,6 @@ class activeParticle : public Shape
   Real tTransitElli = M_PI*std::sqrt(std::pow(semimajor_axis, 3)/mu);
   Real tTransitAccel = std::abs(finalAngRotation - initialAngRotation)/forcedAccelCirc;
 
-  bool lastUCM = false;
-  bool lastUACM = false;
-  bool lastEM = false;
-
-public:
   activeParticle(SimulationData& s,  cubism::ArgumentParser& p, double C[2] ) :
     Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   tStartAccelTransfer( p("-tStartAccelTransfer").asDouble(-1) ),
@@ -66,7 +69,6 @@ public:
   tAccel( p("-tAccel").asDouble(-1) ) {  
     printf("Created an Active Particle with: R:%f rho:%f tAccel:%f\n",radius,rhoS,tAccel);
   }
-
   
   Real getCharLength() const override
   {
@@ -81,7 +83,7 @@ public:
   
     Shape::outputSettings(outStream);
   }
-  
+
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updatePosition(double dt) override;
   void updateVelocity(double dt) override;
