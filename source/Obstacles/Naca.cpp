@@ -71,10 +71,10 @@ void NacaData::computeMidline(const Real t, const Real dt)
 }
 
 Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
-  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), time(0.0)  {
+  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.getH(), tRatio);
-  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch);
+  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f\n tAccel",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel);
 }
 
 void Naca::create(const std::vector<BlockInfo>& vInfo) {
@@ -90,10 +90,12 @@ void Naca::updateVelocity(double dt)
   Shape::updateVelocity(dt);
 
   // x velocity can be either fixed from the start (then we follow the obst op
-  // pattern) or self propelled, here we do not touch it.
-  time += dt;
-  const Real arga = 2*M_PI*Fpitch*time;
+  // pattern) or self propelled, here we do not touch it
+  const Real arga = 2*M_PI*Fpitch*sim.time;
   omega = 2*M_PI*Fpitch*Apitch*std::cos(arga);
-  u = forcedu-(0.399421-0.106667)*length*std::cos(arga)*omega;
+  if( sim.time < tAccel )
+    u = (sim.time/tAccel)*forcedu-(0.399421-0.106667)*length*std::cos(arga)*omega;
+  else
+    u = forcedu-(0.399421-0.106667)*length*std::cos(arga)*omega;
   v = (0.399421-0.106667)*length*std::sin(arga)*omega;
 }

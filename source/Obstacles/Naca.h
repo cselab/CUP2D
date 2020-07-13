@@ -13,7 +13,8 @@ class Naca: public Fish
 {
   const Real Apitch; //aplitude of sinusoidal pitch angle
   const Real Fpitch; //frequency
-  Real time;
+  const Real tAccel; //time to accelerate to target velocity
+
  public:
 
   Naca(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
