@@ -25,6 +25,7 @@
 #include "Operators/advDiffGrav.h"
 #include "Operators/advDiffGravStaggered.h"
 #include "Operators/advDiff.h"
+#include "Operators/advDiff_implicit_all.h"
 
 #include "Utils/FactoryFileLineParser.h"
 
@@ -96,6 +97,7 @@ void Simulation::parseRuntime()
   sim.lambda = parser("-lambda").asDouble(1e3 / sim.CFL);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
+  sim.implicit = parser("-implicit").asInt(0);//fully implicit advection-diffusion
 
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
@@ -215,10 +217,14 @@ void Simulation::init()
   {
     sim.bStaggeredGrid = false;
     pipeline.push_back( new PutObjectsOnGrid(sim) );
-    pipeline.push_back( new advDiff(sim) );
+    if(sim.implicit)
+        pipeline.push_back( new advDiff_implicit_all(sim) );
+    else
+        pipeline.push_back( new advDiff(sim) );
     //pipeline.push_back( new FadeOut(sim) );
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
+
     if(sim.iterativePenalization)
       pipeline.push_back( new PressureIterator_unif(sim) );
     else {
@@ -271,6 +277,11 @@ double Simulation::calcMaxTimestep()
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
   sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
+  if (sim.implicit) //then we don't care about dtFourier, as diffusion is unconditionally stable. Also, we can use bigger values for sim.CFL
+  {
+    sim.dt = sim.CFL * std::min({dtCFL, dtBody});
+    std::cout << "Timestep bounds:" << dtCFL << " " << dtFourier << " " << dtBody << std::endl;
+  }
 
   if (sim.step < 100)
   {
