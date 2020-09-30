@@ -20,7 +20,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   double _x=0, _y=0, _m=0;
   //double udefoutflow=0, udefoutnorm=0; // , udefoutflow, udefoutnorm
-  const Real h = sim.getH(), i2h = 0.5/h, fac = 0.5*h; // fac explained down
+  //const Real h = sim.getH(), i2h = 0.5/h, fac = 0.5*h; // fac explained down
   #pragma omp parallel reduction(+ : _x, _y, _m)
   {
     static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
@@ -29,6 +29,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
     #pragma omp for schedule(dynamic, 1)
     for (size_t i=0; i < Nblocks; i++)
     {
+      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
       if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
 
