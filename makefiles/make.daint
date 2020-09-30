@@ -4,7 +4,8 @@ MPICXX=CC
 
 gpu=true
 
-AMGX_DIR=/users/novatig/AMGX/gnu9.1/
+#AMGX_DIR=/users/novatig/AMGX/gnu9.1/
+AMGX_DIR=/users/pweber/external/AMGX
 
 CPPFLAGS+= -I/users/novatig/hypre/build/include/
 LIBS+= -L/users/novatig/hypre/build/lib/

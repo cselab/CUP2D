@@ -96,7 +96,7 @@ LIBS += -lcufft
 OBJECTS += CUDA_all.o
 CPPFLAGS += -DCUDAFFT
 
-LIBS += -L$(AMGX_DIR)/lib -lcublas -lcusparse -lcusolver -lamgx
+LIBS += -L$(AMGX_DIR)/lib -lamgx -lcublas -lcusparse -lcusolver -lnvToolsExt
 OBJECTS += AMGXdirichletVarRho.o
 CPPFLAGS += -DAMGX_POISSON -I$(AMGX_DIR)/include
 endif
