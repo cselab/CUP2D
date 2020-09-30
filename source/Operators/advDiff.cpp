@@ -44,15 +44,16 @@ void advDiff::operator()(const double dt)
   const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
   const auto isN = [&](const BlockInfo&I) { return I.index[1] == sim.bpdy-1; };
 
-  const Real UINF[2]= {sim.uinfx, sim.uinfy}, h = sim.getH();
+  const Real UINF[2]= {sim.uinfx, sim.uinfy};
   //const Real G[]= {sim.gravity[0],sim.gravity[1]};
-  const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
-  const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
-  const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-  const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
-  const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
+  //const Real h = sim.getH();
+  //const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
+  //const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
+  //const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
+  //const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+  //const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+  //const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+  //const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
   const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
 
   #pragma omp parallel
@@ -63,6 +64,15 @@ void advDiff::operator()(const double dt)
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
+      const Real h = velInfo[i].h_gridpoint;
+      const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
+      const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
+      const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
+      const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+      const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+      const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+      const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
+
       vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
