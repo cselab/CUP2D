@@ -219,18 +219,18 @@ public:
             phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
         }
 
-        printf("Action duration is: %f\n", actionDuration);
-        printf("Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
-
-        // Save the actions to file
-        FILE * f1 = fopen("actions.dat","a+");
-        fprintf(f1,"Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
-        fclose(f1);
-
-        // Durations
-        FILE * f2 = fopen("action_durations.dat","a+");
-        fprintf(f2,"Duration: %f\n", actionDuration);
-        fclose(f2);
+//        printf("Action duration is: %f\n", actionDuration);
+//        printf("Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
+//
+//        // Save the actions to file
+//        FILE * f1 = fopen("actions.dat","a+");
+//        fprintf(f1,"Action: {%f, %f, %f, %f, %f, %f, %f, %f, %f}\n", lastB3, lastB4, lastB5, lastK3, lastK4, lastK5, lastTau, lastAlpha, lastPhiUndulatory);
+//        fclose(f1);
+//
+//        // Durations
+//        FILE * f2 = fopen("action_durations.dat","a+");
+//        fprintf(f2,"Duration: %f\n", actionDuration);
+//        fclose(f2);
 
 
 //        printf("Scheduled a transition between %f and %f to tau %f and phi %f\n", t_current, t_next, lastTau, lastPhiUndulatory);
@@ -612,17 +612,17 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 //        act2=false;
 //    }
 
-    // Reproduces the 2D C-start (Gazzola et. al.)
-    if (t>=0.0 && act1){
-        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
-        this->schedule(t, a);
-        act1=false;
-    }
-    if (t>=0.7* this->Tperiod && act2){
-        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
-        this->schedule(t, a);
-        act2=false;
-    }
+//    // Reproduces the 2D C-start (Gazzola et. al.)
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.7* this->Tperiod && act2){
+//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
 
 //    // Reproduces the 13(12.7)mJ energy escape
 //    if (t>=0.0 && act1){

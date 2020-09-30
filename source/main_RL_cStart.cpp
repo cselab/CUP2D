@@ -228,8 +228,8 @@ public:
         a->setCenterOfMass(com);
         double vo[2] = {0.9, 0.5}; // 0.9, 0.5
         a->setVirtualOrigin(vo);
-        std::uniform_real_distribution<Real> disEnergy(0.002827, 0.02544);  // 0.00243, 0.0219 or 0.002827, 0.02544
-        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.00848;
+        std::uniform_real_distribution<Real> disEnergy(0.00243, 0.0219);  // 0.00243, 0.0219 or 0.002827, 0.02544
+        baselineEnergy = c->isTraining() ? disEnergy(c->getPRNG()) : 0.00730;
         a->setEnergyBudget(baselineEnergy);
 //        printf("[resetIC] agent energy budget is %f\n", a->getEnergyBudget());
     }
@@ -276,7 +276,7 @@ public:
     }
 };
 
-
+// Sequential reward escapes
 class SequentialDistanceEscape : public Escape
 {
 public:
