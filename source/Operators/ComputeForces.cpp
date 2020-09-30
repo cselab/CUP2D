@@ -15,7 +15,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 //
 void ComputeForces::operator()(const double dt)
 {
-  const Real NUoH = sim.nu / sim.getH(); // 2 nu / 2 h
+  //const Real NUoH = sim.nu / sim.getH(); // 2 nu / 2 h
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
 
   #pragma omp parallel
@@ -36,6 +36,8 @@ void ComputeForces::operator()(const double dt)
       #pragma omp for schedule(static)
       for (size_t i=0; i < Nblocks; ++i)
       {
+        const Real NUoH = sim.nu / velInfo[i].h_gridpoint; // 2 nu / 2 h
+
         ObstacleBlock * const O = OBLOCK[velInfo[i].blockID];
         if (O == nullptr) continue;
         assert(O->filled);
