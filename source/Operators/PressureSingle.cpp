@@ -22,6 +22,8 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
 void PressureSingle::integrateMomenta(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
   const double hsq = std::pow(velInfo[0].h_gridpoint, 2);
@@ -68,6 +70,8 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
 
 void PressureSingle::penalize(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   #pragma omp parallel for schedule(dynamic, 1)
   for (size_t i=0; i < Nblocks; i++)
   for (Shape * const shape : sim.shapes)
@@ -109,6 +113,8 @@ void PressureSingle::penalize(const double dt) const
 
 void PressureSingle::updatePressureRHS(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), facDiv = 0.5*h/dt;
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
   #pragma omp parallel
@@ -215,6 +221,8 @@ void PressureSingle::updatePressureRHS(const double dt) const
 
 void PressureSingle::pressureCorrection(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -0.5*dt/h;//, invDt = 1/dt;//sim.lambda;
 
   #pragma omp parallel

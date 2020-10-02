@@ -170,6 +170,8 @@ void update(
 
 void advDiffGravStaggered::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   sim.startProfiler("advDiffGrav");
 

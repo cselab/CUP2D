@@ -72,6 +72,8 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
 void PressureVarRho_approx::pressureCorrectionInit(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -dt/h, dA = h*h;
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -121,6 +123,8 @@ void PressureVarRho_approx::pressureCorrectionInit(const double dt)
 
 Real PressureVarRho_approx::pressureCorrection(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -dt/h;
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
   const std::vector<BlockInfo>&  tmpInfo = sim.tmp->getBlocksInfo();
@@ -163,6 +167,8 @@ Real PressureVarRho_approx::pressureCorrection(const double dt) const
 
 void PressureVarRho_approx::integrateMomenta(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const std::vector<BlockInfo>& vFluidInfo = sim.vFluid->getBlocksInfo();
 
@@ -207,6 +213,8 @@ void PressureVarRho_approx::integrateMomenta(Shape * const shape) const
 
 Real PressureVarRho_approx::penalize(const Real dt, const int iter) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
@@ -262,6 +270,8 @@ Real PressureVarRho_approx::penalize(const Real dt, const int iter) const
 
 void PressureVarRho_approx::updatePressureRHS(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), rho0 = 1/avgInvRho, facDiv = rho0 * h/dt;
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -365,6 +375,8 @@ void PressureVarRho_approx::updatePressureRHS(const double dt) const
 
 void PressureVarRho_approx::finalizePressure(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -dt/h;
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
@@ -402,6 +414,8 @@ void PressureVarRho_approx::finalizePressure(const double dt) const
 
 void PressureVarRho_approx::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   // first copy velocity before either Pres or Penal onto tmpV
   const std::vector<BlockInfo>& pOldInfo = sim.pOld->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();

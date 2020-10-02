@@ -124,6 +124,8 @@ void UpdateObjects::preventCollidingObstacles() const
 
 void UpdateObjects::integrateMomenta(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
   const double hsq = std::pow(velInfo[0].h_gridpoint, 2);
@@ -170,6 +172,8 @@ void UpdateObjects::integrateMomenta(Shape * const shape) const
 
 void UpdateObjects::penalize(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   #pragma omp parallel for schedule(dynamic, 1)
   for (size_t i=0; i < Nblocks; i++)
   for (Shape * const shape : sim.shapes)

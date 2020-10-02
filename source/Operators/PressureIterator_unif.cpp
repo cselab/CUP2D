@@ -21,6 +21,8 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
 void PressureIterator_unif::updatePressureRHS(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), facDiv = 0.5*h/dt;
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>&  tmpInfo = sim.tmp->getBlocksInfo();
@@ -52,6 +54,8 @@ void PressureIterator_unif::updatePressureRHS(const double dt) const
 
 void PressureIterator_unif::pressureCorrection(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -0.5*dt/h;
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
@@ -79,6 +83,8 @@ void PressureIterator_unif::pressureCorrection(const double dt) const
 
 void PressureIterator_unif::integrateMomenta(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const std::vector<BlockInfo>& vFluidInfo = sim.vFluid->getBlocksInfo();
 
@@ -134,6 +140,8 @@ void PressureIterator_unif::integrateMomenta(Shape * const shape) const
 
 Real PressureIterator_unif::penalize(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vFluidInfo = sim.vFluid->getBlocksInfo();
@@ -192,6 +200,8 @@ Real PressureIterator_unif::penalize(const double dt) const
 
 void PressureIterator_unif::finalizePressure(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -0.5*dt/h;
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
 
@@ -216,6 +226,8 @@ void PressureIterator_unif::finalizePressure(const double dt) const
 
 void PressureIterator_unif::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   // first copy velocity before either Pres or Penal onto tmpV
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();

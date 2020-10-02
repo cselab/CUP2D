@@ -66,6 +66,8 @@ static inline Real RY(const VectorLab&V, const Real uinf[2],
 
 void advDiff_implicit_all::explicit_update(double dt)
 {
+    const size_t Nblocks = velInfo.size();
+
     static const int BSX = VectorBlock::sizeX;
     static const int BSY = VectorBlock::sizeY;
 
@@ -110,6 +112,8 @@ void advDiff_implicit_all::explicit_update(double dt)
 
 void advDiff_implicit_all::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++)
   {

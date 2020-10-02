@@ -19,6 +19,8 @@ static constexpr double EPS = std::numeric_limits<double>::epsilon();
 
 Real PressureVarRho_proper::updatePressureRHS(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), facDiv = h/dt;
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -94,6 +96,8 @@ Real PressureVarRho_proper::updatePressureRHS(const double dt) const
 
 void PressureVarRho_proper::pressureCorrection(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real h = sim.getH(), pFac = -dt/h;
   const std::vector<BlockInfo>& iRhoInfo = sim.invRho->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -125,6 +129,8 @@ void PressureVarRho_proper::pressureCorrection(const double dt) const
 
 void PressureVarRho_proper::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& rhsInfo  = sim.pRHS->getBlocksInfo();

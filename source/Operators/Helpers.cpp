@@ -15,6 +15,7 @@ using namespace cubism;
 
 void computeVorticity::run() const
 {
+  const size_t Nblocks = velInfo.size();
   const Real invH = 1.0 / sim.getH();
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   #pragma omp parallel
@@ -37,7 +38,8 @@ void computeVorticity::run() const
 
 void computeDivergence::run() const
 {
-  const Real invH = 1.0 / sim.getH();
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   #pragma omp parallel
   {
@@ -47,6 +49,7 @@ void computeDivergence::run() const
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
+      const Real invH = 1.0 / tmpInfo[i].h_gridpoint;
       velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
       auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
 
@@ -59,6 +62,7 @@ void computeDivergence::run() const
 
 void IC::operator()(const double dt)
 {
+
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
@@ -68,6 +72,8 @@ void IC::operator()(const double dt)
   const std::vector<BlockInfo>& pRHSInfo  = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& iRhoInfo  = sim.invRho->getBlocksInfo();
+
+  const size_t Nblocks = velInfo.size();
 
   #pragma omp parallel
   {
@@ -105,6 +111,8 @@ void IC::operator()(const double dt)
 
 void FadeOut::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
   static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
@@ -157,6 +165,8 @@ void FadeOut::operator()(const double dt)
 
 Real findMaxU::run() const
 {
+  const size_t Nblocks = velInfo.size();
+
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
   ///*
   #ifdef ZERO_TOTAL_MOM
@@ -199,6 +209,8 @@ Real findMaxU::run() const
 
 void Checker::run(std::string when) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
@@ -311,6 +323,8 @@ void Checker::run(std::string when) const
 
 void ApplyObjVel::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
 

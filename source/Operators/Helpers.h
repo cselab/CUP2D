@@ -15,7 +15,6 @@ class findMaxU
 {
   SimulationData& sim;
   const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
  public:
   findMaxU(SimulationData& s) : sim(s) { }
 
@@ -44,7 +43,6 @@ class Checker
 {
   SimulationData& sim;
   const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
  public:
   Checker(SimulationData& s) : sim(s) { }
 
@@ -83,7 +81,6 @@ class computeVorticity
 {
   SimulationData& sim;
   const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
  public:
   computeVorticity(SimulationData& s) : sim(s) { }
 
@@ -99,7 +96,6 @@ class computeDivergence
 {
   SimulationData& sim;
   const std::vector<cubism::BlockInfo> & velInfo = sim.vel->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
  public:
   computeDivergence(SimulationData& s) : sim(s) { }
 

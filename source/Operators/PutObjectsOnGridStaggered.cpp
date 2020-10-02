@@ -16,6 +16,8 @@ static constexpr double EPS = std::numeric_limits<double>::epsilon();
 
 void PutObjectsOnGridStaggered::putChiOnGrid(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   double _x=0, _y=0, _m=0;
   const Real h = sim.getH(), i2h = 0.5/h, fac = 0.5*h; // fac explained down
@@ -187,6 +189,8 @@ void PutObjectsOnGridStaggered::putChiOnGrid(Shape * const shape) const
 
 void PutObjectsOnGridStaggered::putObjectVelOnGrid(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   //const Real h = sim.getH();
   //const double u_s = shape->u, v_s = shape->v, omega_s = shape->omega;
@@ -224,6 +228,8 @@ void PutObjectsOnGridStaggered::putObjectVelOnGrid(Shape * const shape) const
 
 void PutObjectsOnGridStaggered::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   // TODO I NEED SIGNED DISTANCE PER OBSTACLE
   // 0) clear chi^t and udef^t
   sim.startProfiler("ObjGrid_clear");

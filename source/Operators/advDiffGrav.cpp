@@ -13,6 +13,8 @@ using namespace cubism;
 
 void advDiffGrav::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   sim.startProfiler("advDiffGrav");
   static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();

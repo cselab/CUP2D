@@ -17,6 +17,8 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
 void UpdateObjectsStaggered::integrateMomenta(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
   const double hsq = std::pow(velInfo[0].h_gridpoint, 2);
@@ -66,6 +68,8 @@ void UpdateObjectsStaggered::integrateMomenta(Shape * const shape) const
 
 void UpdateObjectsStaggered::penalize(const double dt) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
 
   #pragma omp parallel
