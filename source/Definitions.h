@@ -27,6 +27,8 @@ using Real = float;
 #include <Cubism/BlockLab.h>
 #include <Cubism/StencilInfo.h>
 
+#include <Cubism/AMR_MeshAdaptation.h>
+
 #ifndef _BS_
 #define _BS_ 32
 #endif//_BS_
@@ -44,8 +46,66 @@ struct ScalarElement
   inline void clear() { s = 0; }
   inline void set(const Real v) { s = v; }
   inline void copy(const ScalarElement& c) { s = c.s; }
-  ScalarElement(const ScalarElement& c) = delete;
+  //ScalarElement(const ScalarElement& c) = delete;
   ScalarElement& operator=(const ScalarElement& c) { s = c.s; return *this; }
+
+  ScalarElement &operator*=(const Real a)
+  {
+    this->s*=a;
+    return *this;
+  }
+  ScalarElement &operator+=(const ScalarElement &rhs)
+  {
+    this->s+=rhs.s;
+    return *this;
+  }
+  ScalarElement &operator-=(const ScalarElement &rhs)
+  {
+    this->s-=rhs.s;
+    return *this;
+  }
+  ScalarElement &operator/=(const ScalarElement &rhs)
+  {
+    this->s/=rhs.s;
+    return *this;
+  }
+  friend ScalarElement operator*(const Real a, ScalarElement el)
+  {
+      return (el *= a);
+  }
+  friend ScalarElement operator+(ScalarElement lhs, const ScalarElement &rhs)
+  {
+      return (lhs += rhs);
+  }
+  friend ScalarElement operator-(ScalarElement lhs, const ScalarElement &rhs)
+  {
+      return (lhs -= rhs);
+  }
+  friend ScalarElement operator/(ScalarElement lhs, const ScalarElement &rhs)
+  {
+      return (lhs /= rhs);
+  }
+  bool operator<(const ScalarElement &other) const
+  {
+     return (s < other.s);
+  }
+  bool operator>(const ScalarElement &other) const
+  {
+     return (s > other.s);
+  }
+  bool operator<=(const ScalarElement &other) const
+  {
+     return (s <= other.s);
+  }
+  bool operator>=(const ScalarElement &other) const
+  {
+     return (s >= other.s);
+  }
+  double magnitude()
+  {
+    return s;
+  }
+
 };
 
 struct VectorElement
@@ -61,10 +121,108 @@ struct VectorElement
   inline void copy(const VectorElement& c) {
     for(int i=0; i<DIM; ++i) u[i] = c.u[i];
   }
-  VectorElement(const VectorElement& c) = delete;
+  //VectorElement(const VectorElement& c) = delete;
   VectorElement& operator=(const VectorElement& c) {
     for(int i=0; i<DIM; ++i) u[i] = c.u[i];
     return *this;
+  }
+  VectorElement &operator*=(const Real a)
+  {
+    for(int i=0; i<DIM; ++i)
+      this->u[i]*=a;
+    return *this;
+  }
+  VectorElement &operator+=(const VectorElement &rhs)
+  {
+    for(int i=0; i<DIM; ++i)
+      this->u[i]+=rhs.u[i];
+    return *this;
+  }
+  VectorElement &operator-=(const VectorElement &rhs)
+  {
+    for(int i=0; i<DIM; ++i)
+      this->u[i]-=rhs.u[i];
+    return *this;
+  }
+  VectorElement &operator/=(const VectorElement &rhs)
+  {
+    for(int i=0; i<DIM; ++i)
+      this->u[i]/=rhs.u[i];
+    return *this;
+  }
+  friend VectorElement operator*(const Real a, VectorElement el)
+  {
+      return (el *= a);
+  }
+  friend VectorElement operator+(VectorElement lhs, const VectorElement &rhs)
+  {
+      return (lhs += rhs);
+  }
+  friend VectorElement operator-(VectorElement lhs, const VectorElement &rhs)
+  {
+      return (lhs -= rhs);
+  }
+  friend VectorElement operator/(VectorElement lhs, const VectorElement &rhs)
+  {
+      return (lhs /= rhs);
+  }
+  bool operator<(const VectorElement &other) const
+  {
+    double s1 = 0.0;
+    double s2 = 0.0;
+    for(int i=0; i<DIM; ++i)
+    {
+      s1 +=u[i]*u[i];
+      s2 +=other.u[i]*other.u[i];
+    }
+
+    return (s1 < s2);
+  }
+  bool operator>(const VectorElement &other) const
+  {
+    double s1 = 0.0;
+    double s2 = 0.0;
+    for(int i=0; i<DIM; ++i)
+    {
+      s1 +=u[i]*u[i];
+      s2 +=other.u[i]*other.u[i];
+    }
+
+    return (s1 > s2);
+  }
+  bool operator<=(const VectorElement &other) const
+  {
+    double s1 = 0.0;
+    double s2 = 0.0;
+    for(int i=0; i<DIM; ++i)
+    {
+      s1 +=u[i]*u[i];
+      s2 +=other.u[i]*other.u[i];
+    }
+
+    return (s1 <= s2);
+  }
+  bool operator>=(const VectorElement &other) const
+  {
+    double s1 = 0.0;
+    double s2 = 0.0;
+    for(int i=0; i<DIM; ++i)
+    {
+      s1 +=u[i]*u[i];
+      s2 +=other.u[i]*other.u[i];
+    }
+
+    return (s1 >= s2);
+  }
+
+  double magnitude()
+  {
+    double s1 = 0.0;
+    for(int i=0; i<DIM; ++i)
+    {
+      s1 +=u[i]*u[i];
+    }
+    return sqrt(s1);
   }
 };
 
@@ -122,35 +280,79 @@ public:
   // Used for Boundary Conditions:
 
   // Apply bc on face of direction dir and side side (0 or 1):
-  template<int dir, int side> void applyBCface()
+  template<int dir, int side> void applyBCface(bool coarse=false)
   {
-    auto * const cb = this->m_cacheBlock;
+    if (!coarse)
+    {
+      auto * const cb = this->m_cacheBlock;
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int* const stenBeg = this->m_stencilStart;
+      const int* const stenEnd = this->m_stencilEnd;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
 
-    int s[3] = {0,0,0}, e[3] = {0,0,0};
-    const int* const stenBeg = this->m_stencilStart;
-    const int* const stenEnd = this->m_stencilEnd;
-    s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
-    s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
+                     : sizeX +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
+                     : sizeY +  stenEnd[1]-1;
 
-    e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
-                   : sizeX +  stenEnd[0]-1;
-    e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
-                   : sizeY +  stenEnd[1]-1;
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
+            ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
+            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
+    }
+    else
+    {
+      auto * const cb = this->m_CoarsenedBlock;
 
-    for(int iy=s[1]; iy<e[1]; iy++)
-    for(int ix=s[0]; ix<e[0]; ix++)
-      cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
-          ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-          ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
+      const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
+                         (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
+                         (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
+      const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
+                         (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
+                         (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
+
+      const int* const stenBeg = sI;
+      const int* const stenEnd = eI;
+
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : stenBeg[0];
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : stenBeg[1];
+
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 )
+                     : sizeX/2 +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 )
+                     : sizeY/2 +  stenEnd[1]-1;
+
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
+            ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0],
+            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 );
+    }
   }
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
   {
-    if( info.index[0]==0 )           this->template applyBCface<0,0>();
-    if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
-    if( info.index[1]==0 )           this->template applyBCface<1,0>();
-    if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+    if (!coarse)
+    {
+      if( info.index[0]==0 )           this->template applyBCface<0,0>();
+      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
+      if( info.index[1]==0 )           this->template applyBCface<1,0>();
+      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+    }
+    else
+    {
+      if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
+      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
+      if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
+      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+    }
+
+
   }
 
   BlockLabOpen(): cubism::BlockLab<BlockType,allocator>(){}
@@ -244,6 +446,9 @@ using ScalarGrid = cubism::Grid<ScalarBlock, std::allocator>;
 using DumpGrid = cubism::Grid<VelChiGlueBlock, std::allocator>;
 using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
 using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
+
+using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
+using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab>;
 
 /*
 template<> class BlockLabOpen<ScalarBlock, std::allocator> : public cubism::BlockLab<ScalarBlock, std::allocator>
