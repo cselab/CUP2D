@@ -105,8 +105,8 @@ void advDiff::operator()(const double dt)
   }
 
  {
-    const std::vector<size_t>& boundaryInfoIDs = sim.boundaryInfoIDs;
-    const size_t NboundaryBlocks = boundaryInfoIDs.size();
+    //const std::vector<size_t>& boundaryInfoIDs = sim.boundaryInfoIDs;
+    //const size_t NboundaryBlocks = boundaryInfoIDs.size();
     ////////////////////////////////////////////////////////////////////////////
     Real IF = 0;
     #pragma omp parallel for schedule(static) reduction(+ : IF)

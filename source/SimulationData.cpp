@@ -16,10 +16,8 @@ using namespace cubism;
 
 void SimulationData::allocateGrid()
 {
-  int levelStart = 2;
-  int levelMax   = levelStart + 1;
-  int aux = pow(2,levelStart) ;//1 << levelMax; 
-
+  int levelStart = levelMax-1;
+  int aux = pow(2,levelStart);
 
   chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
   vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
