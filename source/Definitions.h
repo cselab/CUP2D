@@ -106,6 +106,13 @@ struct ScalarElement
     return s;
   }
 
+  Real & member(int i)
+  {
+    assert(i==0);
+    return s;
+  }
+  static constexpr int DIM = 1;
+
 };
 
 struct VectorElement
@@ -223,6 +230,10 @@ struct VectorElement
       s1 +=u[i]*u[i];
     }
     return sqrt(s1);
+  }
+  Real & member(int i)
+  {
+    return u[i];
   }
 };
 
