@@ -17,6 +17,8 @@ static constexpr double EPS = std::numeric_limits<double>::epsilon();
 
 void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   double _x=0, _y=0, _m=0;
   //double udefoutflow=0, udefoutnorm=0; // , udefoutflow, udefoutnorm
@@ -29,8 +31,10 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
     #pragma omp for schedule(dynamic, 1)
     for (size_t i=0; i < Nblocks; i++)
     {
-      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
       if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
+
+      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
+
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
 
       distlab.load(tmpInfo[i], 0); // loads signed distance field with ghosts
@@ -41,7 +45,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       const CHI_MAT & __restrict__ rho = o.rho;
       const CHI_MAT & __restrict__ sdf = o.dist;
       //UDEFMAT & __restrict__ udef = o.udef;
-
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
@@ -113,10 +116,10 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           //  udefoutnorm += norx*norx + nory*nory;
           //}
         }
+
       }
     }
   }
-
   if(_m > EPS) {
     shape->centerOfMass[0] += _x/_m;
     shape->centerOfMass[1] += _y/_m;
@@ -124,7 +127,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
   } else printf("PutObjectsOnGrid _m is too small!\n");
 
   for (auto & o : OBLOCK) if(o not_eq nullptr) o->allocate_surface();
-
   /*
   const Real outflowCorr = udefoutflow / std::max(udefoutnorm, EPS);
   double udefoutpost = 0;
@@ -150,6 +152,8 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
 
 void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
 {
+  const size_t Nblocks = velInfo.size();
+
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   //const Real h = sim.getH();
   //const double u_s = shape->u, v_s = shape->v, omega_s = shape->omega;
@@ -187,6 +191,8 @@ void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
 
 void PutObjectsOnGrid::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
+
   // TODO I NEED SIGNED DISTANCE PER OBSTACLE
   // 0) clear chi^t and udef^t
   sim.startProfiler("ObjGrid_clear");
