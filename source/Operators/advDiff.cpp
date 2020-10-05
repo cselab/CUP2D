@@ -35,14 +35,15 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
 
 void advDiff::operator()(const double dt)
 {
+  const size_t Nblocks = velInfo.size();
   sim.startProfiler("advDiff");
   static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
-  const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-  const auto isE = [&](const BlockInfo&I) { return I.index[0] == sim.bpdx-1; };
-  const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-  const auto isN = [&](const BlockInfo&I) { return I.index[1] == sim.bpdy-1; };
+  //const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+  //const auto isE = [&](const BlockInfo&I) { return I.index[0] == sim.bpdx-1; };
+  //const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+  //const auto isN = [&](const BlockInfo&I) { return I.index[1] == sim.bpdy-1; };
 
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
   //const Real G[]= {sim.gravity[0],sim.gravity[1]};
@@ -64,6 +65,12 @@ void advDiff::operator()(const double dt)
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
+      int aux = 1<<velInfo[i].level;
+      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
+      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
+
       const Real h = velInfo[i].h_gridpoint;
       const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
       const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
@@ -97,14 +104,18 @@ void advDiff::operator()(const double dt)
     V.copy(T);
   }
 
-  {
+ {
     const std::vector<size_t>& boundaryInfoIDs = sim.boundaryInfoIDs;
     const size_t NboundaryBlocks = boundaryInfoIDs.size();
     ////////////////////////////////////////////////////////////////////////////
     Real IF = 0;
     #pragma omp parallel for schedule(static) reduction(+ : IF)
-    for (size_t k=0; k < NboundaryBlocks; k++) {
-      const size_t i = boundaryInfoIDs[k];
+    for (size_t i=0; i < Nblocks; i++) {
+      int aux = 1<<velInfo[i].level;
+      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
+      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
       const VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
       if(isW(velInfo[i])) for(int iy=0; iy<BSY; ++iy) IF -= V(BX,iy).u[0];
       if(isE(velInfo[i])) for(int iy=0; iy<BSY; ++iy) IF += V(EX,iy).u[0];
@@ -116,8 +127,12 @@ void advDiff::operator()(const double dt)
     const Real corr = IF/( 2*(BSY*sim.bpdy -0) + 2*(BSX*sim.bpdx -0) );
     //if(sim.verbose) printf("Relative inflow correction %e\n",corr);
     #pragma omp parallel for schedule(static)
-    for (size_t k=0; k < NboundaryBlocks; k++) {
-      const size_t i = boundaryInfoIDs[k];
+    for (size_t i=0; i < Nblocks; i++) {
+      int aux = 1<<velInfo[i].level;
+      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
+      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
       VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
       if(isW(velInfo[i])) for(int iy=0; iy<BSY; ++iy) V(BX,iy).u[0] += corr;
       if(isE(velInfo[i])) for(int iy=0; iy<BSY; ++iy) V(EX,iy).u[0] -= corr;
