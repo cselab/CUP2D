@@ -117,10 +117,10 @@ void Shape::outputSettings(std::ostream &outStream) const
 Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
 {
   double _x=0, _y=0, _m=0, _j=0, _u=0, _v=0, _a=0;
-  const double hsq = std::pow(vInfo[0].h_gridpoint, 2);
   #pragma omp parallel for schedule(dynamic,1) reduction(+:_x,_y,_m,_j,_u,_v,_a)
   for(size_t i=0; i<vInfo.size(); i++)
   {
+    const double hsq = std::pow(vInfo[i].h_gridpoint, 2);
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if(pos == nullptr) continue;
     const CHI_MAT & __restrict__ CHI = pos->chi;
