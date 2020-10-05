@@ -20,7 +20,7 @@ struct SimulationData
 
   ScalarGrid * chi   = nullptr;
   VectorGrid * vel   = nullptr;
-  std::vector<size_t> boundaryInfoIDs;
+  //std::vector<size_t> boundaryInfoIDs;
 
   ScalarGrid * pres  = nullptr;
   ScalarGrid * pOld  = nullptr;
@@ -47,6 +47,7 @@ struct SimulationData
 
   int bpdx = 0;
   int bpdy = 0;
+  int levelMax = 1; //max refinement level + 1
 
   double lambda = 0;
   double nu = 0;

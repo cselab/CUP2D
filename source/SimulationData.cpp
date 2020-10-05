@@ -16,39 +16,39 @@ using namespace cubism;
 
 void SimulationData::allocateGrid()
 {
-  chi   = new ScalarGrid(bpdx, bpdy, 1, extent);
-  vel   = new VectorGrid(bpdx, bpdy, 1, extent);
-  pres  = new ScalarGrid(bpdx, bpdy, 1, extent);
-  pOld  = new ScalarGrid(bpdx, bpdy, 1, extent);
+  int levelStart = 2;
+  int levelMax   = levelStart + 1;
+  int aux = pow(2,levelStart) ;//1 << levelMax; 
 
-  pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent);
-  invRho= new ScalarGrid(bpdx, bpdy, 1, extent);
 
-  tmpV  = new VectorGrid(bpdx, bpdy, 1, extent);
-  vFluid= new VectorGrid(bpdx, bpdy, 1, extent);
-  tmp   = new ScalarGrid(bpdx, bpdy, 1, extent);
-  uDef  = new VectorGrid(bpdx, bpdy, 1, extent);
-  vOld  = new VectorGrid(bpdx, bpdy, 1, extent);
-
-  dump  = new DumpGrid(bpdx, bpdy, 1, extent);
+  chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-  //extents[0] = bpdx * vel->getH() * VectorBlock::sizeX;
-  //extents[1] = bpdy * vel->getH() * VectorBlock::sizeY;
+
   //assume all blockinfos have same h at the start!!!
-  extents[0] = bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
-  extents[1] = bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
+  extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
+  extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 
-  const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;      };
-  const auto isE = [&](const BlockInfo&I) { return I.index[0] == bpdx-1; };
-  const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;      };
-  const auto isN = [&](const BlockInfo&I) { return I.index[1] == bpdy-1; };
+  //const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;      };
+  //const auto isE = [&](const BlockInfo&I) { return I.index[0] == bpdx-1; };
+  //const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;      };
+  //const auto isN = [&](const BlockInfo&I) { return I.index[1] == bpdy-1; };
   //const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-
-  for (size_t i=0; i < velInfo.size(); i++)
-    if(isW(velInfo[i]) || isE(velInfo[i]) || isS(velInfo[i]) || isN(velInfo[i]))
-      boundaryInfoIDs.push_back(i);
+  //for (size_t i=0; i < velInfo.size(); i++)
+  //  if(isW(velInfo[i]) || isE(velInfo[i]) || isS(velInfo[i]) || isN(velInfo[i]))
+  //    boundaryInfoIDs.push_back(i);
 }
 
 void SimulationData::dumpGlue(std::string name) {
