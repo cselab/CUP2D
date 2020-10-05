@@ -547,9 +547,11 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
             sign2d = grd2Core > Rsq ? -1 : 1; // as always, neg outside
           }
 
+          //const int wPoints = 3;
           if(std::fabs(o->dist[sy][sx]) > dist1) {
-            assert(dist1 < std::pow(3 * h, 2));
-            const Real W = 1 - std::sqrt(dist1) * (invh / 3);
+            //assert(dist1 < std::pow(wPoints * h, 2));
+            //const Real W = 1 - std::sqrt(dist1) * (invh / wPoints);
+            const Real W = 1.0;
             // W behaves like hat interpolation kernel that is used for internal
             // fish points. Introducing W (used to be W=1) smoothens transition
             // from surface to internal points. In fact, later we plus equal
