@@ -69,7 +69,7 @@ OBJECTS = \
 		FishLibrary.o ArgumentParser.o PoissonSolver.o advDiffGravStaggered.o \
 		advDiffGrav.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o CStartFish.o advDiff_implicit_all.o LinearSolverDelta.o
+		PutObjectsOnGridStaggered.o Naca.o CStartFish.o advDiff_implicit_all.o LinearSolverDelta.o AdaptTheMesh.o
 #Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
 
 ifneq ($(FFTW_ROOT),)
@@ -177,4 +177,4 @@ CUDA_all.o: CUDA_all.cu
 clean:
 	rm -f simulation libsimulation.a
 	rm -f *.o *.d
-	rm leadFollow
+	rm -f leadFollow
