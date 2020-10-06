@@ -20,6 +20,8 @@
 
 using amgx_val_t = double;
 
+void print_callback(const char *msg, int length);
+
 class AMGXdirichletVarRho : public PoissonSolver
 {
   #ifdef AMGX_POISSON

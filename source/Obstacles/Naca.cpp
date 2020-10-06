@@ -74,7 +74,7 @@ Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
   : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.getH(), tRatio);
-  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f\n tAccel",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel);
+  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f\n tAccel=%f",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel);
 }
 
 void Naca::create(const std::vector<BlockInfo>& vInfo) {

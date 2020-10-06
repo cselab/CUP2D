@@ -529,6 +529,7 @@ std::vector<double> StefanFish::state(Shape*const p) const
     assert(iHeadSide>0);
 
     std::array<Real,2> tipShear, lowShear, topShear;
+    topShear[0]=topShear[1]=0.0;//to silence a weird warning!
     { // surface and sensor (shifted by 2h) points of the fish tip
       const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
       // first point of the two skins is the same

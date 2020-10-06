@@ -63,8 +63,8 @@ public:
 
     ControlledCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
             : FishData(L, T, phi, _h, _A),   rK(_alloc(Nm)),vK(_alloc(Nm)),
-              rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), rB(_alloc(Nm)),
-              vB(_alloc(Nm)), vUC(_alloc(Nm)), tauTail(0.0), vTauTail(0.0) {
+              rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), vUC(_alloc(Nm)),
+              rB(_alloc(Nm)), vB(_alloc(Nm)), tauTail(0.0), vTauTail(0.0) {
         _computeWidth();
         writeMidline2File(0, "initialCheck");
     }
