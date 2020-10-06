@@ -48,6 +48,8 @@ struct SimulationData
   int bpdx = 0;
   int bpdy = 0;
   int levelMax = 1; //max refinement level + 1
+  double Rtol = 0.0;
+  double Ctol = 0.0;
 
   double lambda = 0;
   double nu = 0;
@@ -98,6 +100,7 @@ struct SimulationData
 
   inline double getH() const
   {
+    std::cout << "getH called!" << std::endl;
     return vel->getBlocksInfo().front().h_gridpoint; // yikes
   }
 

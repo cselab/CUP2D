@@ -20,8 +20,8 @@ void AdaptTheMesh::operator()(const double dt)
   VectorGrid * vOld  = sim.vOld   ;
   DumpGrid   * dump  = sim.dump   ;
 
-  double Rtol = 0.01;
-  double Ctol = 0.001;
+  double Rtol = sim.Rtol;
+  double Ctol = sim.Ctol;
 
   bool verbose = true;
   ScalarAMR chi_amr   ( *sim.chi,Rtol,Ctol, verbose);
@@ -50,8 +50,7 @@ void AdaptTheMesh::operator()(const double dt)
   tmp_amr   .AdaptLikeOther1<ScalarGrid>(*chi);
   uDef_amr  .AdaptLikeOther1<ScalarGrid>(*chi);
   vOld_amr  .AdaptLikeOther1<ScalarGrid>(*chi);
-  dump_amr  .AdaptLikeOther<ScalarGrid>(*chi);
-
+  dump_amr  .AdaptLikeOther <ScalarGrid>(*chi);
 
   chi    -> SortBlocks();
   vel    -> SortBlocks();
@@ -65,10 +64,6 @@ void AdaptTheMesh::operator()(const double dt)
   uDef   -> SortBlocks();
   vOld   -> SortBlocks();
   dump   -> SortBlocks();
-
-
-
-
 
   sim.stopProfiler();
 }
