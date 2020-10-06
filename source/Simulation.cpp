@@ -26,6 +26,7 @@
 #include "Operators/advDiffGravStaggered.h"
 #include "Operators/advDiff.h"
 #include "Operators/advDiff_implicit_all.h"
+#include "Operators/AdaptTheMesh.h"
 
 #include "Utils/FactoryFileLineParser.h"
 
@@ -76,6 +77,10 @@ void Simulation::parseRuntime()
   parser.set_strict_mode();
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
+  sim.levelMax = parser("-levelMax").asInt(1);
+  sim.Rtol = 0.01 ;//parser("-Rtol").asDouble(1.0);
+  sim.Ctol = 0.001;//parser("-Ctol").asDouble(0.0);
+
   parser.unset_strict_mode();
   sim.extent = parser("-extent").asDouble(1);
   sim.allocateGrid();
@@ -183,14 +188,16 @@ void Simulation::createShapes()
 
 void Simulation::init()
 {
+  //std::cout << "Ok1" << std::endl;
   parseRuntime();
   createShapes();
-
+  //std::cout << "Ok2" << std::endl;
   pipeline.clear();
   {
     IC ic(sim);
     ic(0);
   }
+  
   if(sim.bVariableDensity)
   {
     //pipeline.push_back( new FadeOut(sim) );
@@ -226,7 +233,11 @@ void Simulation::init()
     //pipeline.push_back( new PressureVarRho_proper(sim) );
 
     if(sim.iterativePenalization)
+    {
+      std::cout << "Iterative Penalization with AMR not ready." << std::endl;
+      abort();
       pipeline.push_back( new PressureIterator_unif(sim) );
+    }
     else {
       pipeline.push_back( new PressureSingle(sim) );
       //pipeline.push_back( new UpdateObjects(sim) );
@@ -235,9 +246,13 @@ void Simulation::init()
   }
   pipeline.push_back( new ComputeForces(sim) );
 
+  pipeline.push_back( new AdaptTheMesh(sim) );
+
   std::cout << "Operator ordering:\n";
   for (size_t c=0; c<pipeline.size(); c++)
     std::cout << "\t" << pipeline[c]->getName() << "\n";
+
+  std::cout << std::endl;
 
   reset();
   sim.dt = 0;
@@ -272,7 +287,7 @@ double Simulation::calcMaxTimestep()
   sim.uMax_measured = findMaxU_op.run();
   assert(sim.uMax_measured>=0);
 
-  const double h = sim.getH();
+  const double h = 1.0/256;//sim.getH();
   const double dtFourier = h*h/sim.nu;
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
@@ -304,6 +319,7 @@ bool Simulation::advance(const double dt)
   const bool bDump = sim.bDump();
 
   for (size_t c=0; c<pipeline.size(); c++) {
+    std::cout << "\t" << pipeline[c]->getName() << "is starting..." << std::endl;
     (*pipeline[c])(sim.dt);
     //sim.dumpAll( pipeline[c]->getName() );
   }

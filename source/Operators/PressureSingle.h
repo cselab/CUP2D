@@ -14,6 +14,8 @@
 class PoissonSolver;
 class Shape;
 
+#include "../Poisson/AMRSolver.h"
+
 class PressureSingle : public Operator
 {
   const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
@@ -21,7 +23,8 @@ class PressureSingle : public Operator
   const std::vector<cubism::BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
 
-  PoissonSolver * const pressureSolver;
+  //PoissonSolver * const pressureSolver;
+  AMRSolver * pressureSolver;
 
   void preventCollidingObstacles() const;
   void pressureCorrection(const double dt) const;

@@ -8,7 +8,8 @@
 
 
 #include "PressureSingle.h"
-#include "../Poisson/PoissonSolver.h"
+//#include "../Poisson/PoissonSolver.h"
+#include "../Poisson/AMRSolver.h"
 #include "../Shape.h"
 
 using namespace cubism;
@@ -26,13 +27,14 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
 
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
-  const double hsq = std::pow(velInfo[0].h_gridpoint, 2);
+  //const double hsq = std::pow(velInfo[0].h_gridpoint, 2);
   double PM=0, PJ=0, PX=0, PY=0, UM=0, VM=0, AM=0; //linear momenta
 
   #pragma omp parallel for schedule(dynamic,1) reduction(+:PM,PJ,PX,PY,UM,VM,AM)
   for(size_t i=0; i<Nblocks; i++)
   {
     const VectorBlock& __restrict__ VEL = *(VectorBlock*)velInfo[i].ptrBlock;
+    const double hsq = std::pow(velInfo[i].h_gridpoint, 2);
 
     if(OBLOCK[velInfo[i].blockID] == nullptr) continue;
     const CHI_MAT & __restrict__ rho = OBLOCK[velInfo[i].blockID]->rho;
@@ -115,13 +117,14 @@ void PressureSingle::updatePressureRHS(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
 
-  const Real h = sim.getH(), facDiv = 0.5*h/dt;
+  //const Real h = sim.getH(), facDiv = 0.5*h/dt;
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
   #pragma omp parallel
   {
     VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++) {
+      const Real h = velInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
       velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
       ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
@@ -163,7 +166,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
         TMP(ix, iy).s += srcBulk;
 
         #ifdef UNIFORM_CORRECT
-          posRHS[j] += h*h * std::sqrt(gradXx*gradXx + gradXy*gradXy);
+          posRHS[j] += velInfo[i].h_gridpoint * velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx + gradXy*gradXy);
         #else
           const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
           posRHS[j] += isPerim * TMP(ix, iy).s * (TMP(ix, iy).s>0);
@@ -205,7 +208,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
         const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
         const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
         #ifdef UNIFORM_CORRECT
-          TMP(ix, iy).s -= corr * h*h * std::sqrt(gradXx*gradXx+gradXy*gradXy);
+          TMP(ix, iy).s -= corr * velInfo[i].h_gridpoint*velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx+gradXy*gradXy);
         #else
           const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
           if      (isPerim and TMP(ix, iy).s > 0 and corr > 0)
@@ -223,7 +226,7 @@ void PressureSingle::pressureCorrection(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
 
-  const Real h = sim.getH(), pFac = -0.5*dt/h;//, invDt = 1/dt;//sim.lambda;
+  //const Real h = sim.getH(), pFac = -0.5*dt/h;//, invDt = 1/dt;//sim.lambda;
 
   #pragma omp parallel
   {
@@ -233,6 +236,8 @@ void PressureSingle::pressureCorrection(const double dt) const
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
+      const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt/h;
+
       plab.load(presInfo[i], 0); // loads pres field with ghosts
       const ScalarLab  &__restrict__   P = plab; // only this needs ghosts
             VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
@@ -361,7 +366,7 @@ void PressureSingle::operator()(const double dt)
   //if( sim.bDump() ) {
   //  sim.dumpTmp("avemaria_");
   //}
-  pressureSolver->solve(tmpInfo, presInfo);
+  pressureSolver->solve();
 
   sim.startProfiler("PCorrect");
   pressureCorrection(dt);
@@ -380,8 +385,12 @@ void PressureSingle::operator()(const double dt)
   sim.stopProfiler();
 }
 
-PressureSingle::PressureSingle(SimulationData& s) : Operator(s),
-pressureSolver( PoissonSolver::makeSolver(s) ) { }
+//PressureSingle::PressureSingle(SimulationData& s) : Operator(s),
+//pressureSolver( PoissonSolver::makeSolver(s) ) { }
+PressureSingle::PressureSingle(SimulationData& s) : Operator(s)
+{
+  pressureSolver = new AMRSolver(s);
+}
 
 PressureSingle::~PressureSingle() {
   delete pressureSolver;
