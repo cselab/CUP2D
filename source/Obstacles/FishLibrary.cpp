@@ -556,7 +556,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
             // internal point, meaning that fish-section udef rotation should
             // multiply distance from midline instead of entire half-width.
             // Remember that uder will become udef / chi, so W simplifies out.
-            assert(W > 0);
+            assert(W >= 0);
             o->udef[sy][sx][0] = W * udef[0];
             o->udef[sy][sx][1] = W * udef[1];
             o->dist[sy][sx] = sign2d * dist1;
