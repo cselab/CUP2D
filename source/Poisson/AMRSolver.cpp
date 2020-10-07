@@ -14,7 +14,7 @@ using namespace cubism;
 #if 1 //Conjugate gradient
 
 
-#if 0
+#if 1
 void Update_Vector(std::vector<BlockInfo>& aInfo, std::vector<BlockInfo>& bInfo, double c, std::vector<BlockInfo>& dInfo)
 {
   //set a = b + c * d
@@ -191,7 +191,7 @@ void AMRSolver::solve()
 
     if (err < max_error) break;
     //if (k%10 ==0) 
-        std::cout << k << " " << err << "   " << pAp << std::endl;
+    //   std::cout << k << " " << err << "   " << pAp << std::endl;
 
     if (counter == 5) break;
 
