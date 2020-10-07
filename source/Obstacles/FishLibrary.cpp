@@ -548,8 +548,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
           }
 
           if(std::fabs(o->dist[sy][sx]) > dist1) {
-            assert(dist1 < std::pow(3 * h, 2));
-            const Real W = 1 - std::sqrt(dist1) * (invh / 3);
+            const Real W = 1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
             // W behaves like hat interpolation kernel that is used for internal
             // fish points. Introducing W (used to be W=1) smoothens transition
             // from surface to internal points. In fact, later we plus equal
