@@ -100,8 +100,14 @@ struct SimulationData
 
   inline double getH() const
   {
-    std::cout << "getH called!" << std::endl;
-    return vel->getBlocksInfo().front().h_gridpoint; // yikes
+    double minH = 1e50;
+    auto & infos = vel->getBlocksInfo();
+    for (size_t i = 0 ; i< infos.size(); i++)
+    {
+      minH = std::min(infos[i].h_gridpoint, minH);
+    }
+    return minH;
+    //return vel->getBlocksInfo().front().h_gridpoint; // yikes
   }
 
   void startProfiler(std::string name);

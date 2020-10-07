@@ -287,7 +287,7 @@ double Simulation::calcMaxTimestep()
   sim.uMax_measured = findMaxU_op.run();
   assert(sim.uMax_measured>=0);
 
-  const double h = 1.0/256;//sim.getH();
+  const double h = sim.getH();
   const double dtFourier = h*h/sim.nu;
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
