@@ -31,10 +31,12 @@ int main(int argc, char **argv)
     //printf("Thread %3d  is running on CPU %3d\n", omp_get_thread_num(), cpu_num);
   //}
 
+  double time = - MPI_Wtime();
   Simulation* sim = new Simulation(argc, argv);
   sim->init();
   sim->simulate();
-
+  time += MPI_Wtime();
+  std::cout << "Total time =" << time << std::endl;
   MPI_Finalize();
   return 0;
 }

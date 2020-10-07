@@ -163,12 +163,12 @@ void AMRSolver::solve()
   
   bool flag = false;
   //for (size_t k = 1; k < Nsystem; k++)
-  for (size_t k = 1; k < 30; k++)
+  for (size_t k = 1; k < 100; k++)
   {
     
     err = std::sqrt(rk_rk)/Nsystem;
     
-    if (err < err_min && k>=10)
+    if (err < err_min && k>=3)
     {
         counter = 0;
         flag = true;
@@ -348,11 +348,11 @@ void AMRSolver::solve()
 
 
   bool flag = false;
-  for (size_t k = 1; k < 30; k++)
+  for (size_t k = 1; k < 300; k++)
   {  
     err = std::sqrt(rk_rk)/Nsystem;
     
-    if (err < err_min && k>=10)
+    if (err < err_min && k>=5)
     {
         counter = 0;
         flag = true;

@@ -319,7 +319,6 @@ bool Simulation::advance(const double dt)
   const bool bDump = sim.bDump();
 
   for (size_t c=0; c<pipeline.size(); c++) {
-    std::cout << "\t" << pipeline[c]->getName() << "is starting..." << std::endl;
     (*pipeline[c])(sim.dt);
     //sim.dumpAll( pipeline[c]->getName() );
   }
