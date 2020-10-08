@@ -318,6 +318,7 @@ void PressureSingle::preventCollidingObstacles() const
     const Real projVel = hitVelX * NX + hitVelY * NY;
     printf("%lu hit %lu in [%f %f] with dir:[%f %f] DU:[%f %f] proj:%f\n",
         i, j, CX, CY, NX, NY, hitVelX, hitVelY, projVel); fflush(0);
+
     if(projVel<=0) continue; // vel goes away from coll: no need to bounce
     const bool iForcedX = shapes[i]->bForcedx && sim.time<shapes[i]->timeForced;
     const bool iForcedY = shapes[i]->bForcedy && sim.time<shapes[i]->timeForced;
