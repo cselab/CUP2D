@@ -5,6 +5,10 @@ using namespace cubism;
 
 void AdaptTheMesh::operator()(const double dt)
 {
+  count ++;
+
+  if ((count-1) % 10 != 0) return;
+
   sim.startProfiler("AdaptTheMesh");
 
   ScalarGrid * chi   = sim.chi    ;

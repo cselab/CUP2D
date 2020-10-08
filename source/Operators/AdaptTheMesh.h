@@ -5,7 +5,9 @@
 class AdaptTheMesh : public Operator
 {
  public:
-  AdaptTheMesh(SimulationData& s) : Operator(s) {}
+  AdaptTheMesh(SimulationData& s) : Operator(s) {count=0;}
+
+  int count;
 
   void operator()(const double dt);
 
