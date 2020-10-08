@@ -31,6 +31,8 @@ class AMRSolver
   void Dot_Product(bV & aInfo, bV & bInfo, double & result);
   void Get_LHS (ScalarGrid * lhs, ScalarGrid * x);
 
+  void cub2rhs(const std::vector<cubism::BlockInfo>& BSRC);
+
   #ifdef PRECOND
   std::vector<std::vector<double>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;

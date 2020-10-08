@@ -10,6 +10,70 @@
 
 using namespace cubism;
 
+void AMRSolver::cub2rhs(const std::vector<BlockInfo>& BSRC)
+{
+  const double EPS = 1e-21;
+  const size_t nBlocks = BSRC.size();
+  Real sumRHS = 0, sumPOS = 0, sumNEG = 0;
+
+  const auto& extent = sim.extents;
+  const Real fadeLenX = sim.fadeLenX, invFadeX = 1/std::max(fadeLenX, EPS);
+  const Real fadeLenY = sim.fadeLenY, invFadeY = 1/std::max(fadeLenY, EPS);
+
+  const auto _is_touching = [&] (const BlockInfo& i) {
+    Real min_pos[2], max_pos[2]; i.pos(min_pos, 0, 0);
+    i.pos(max_pos, VectorBlock::sizeX-1, VectorBlock::sizeY-1);
+    const bool touchW = fadeLenX >= min_pos[0];
+    const bool touchE = fadeLenX >= extent[0] - max_pos[0];
+    const bool touchS = fadeLenY >= min_pos[1];
+    const bool touchN = fadeLenY >= extent[1] - max_pos[1];
+    return touchN || touchE || touchS || touchW;
+  };
+
+  #pragma omp parallel for schedule(dynamic) reduction(+: sumRHS,sumPOS,sumNEG)
+  for (size_t i=0; i < nBlocks; i++) {
+    if( not _is_touching(BSRC[i]) ) continue;
+    const ScalarBlock& b = *(ScalarBlock*) BSRC[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+      Real p[2]; BSRC[i].pos(p, ix, iy);
+      const Real yt = invFadeY * std::max((Real) 0, fadeLenY - extent[1]+p[1] );
+      const Real yb = invFadeY * std::max((Real) 0, fadeLenY - p[1] );
+      const Real xt = invFadeX * std::max((Real) 0, fadeLenX - extent[0]+p[0] );
+      const Real xb = invFadeX * std::max((Real) 0, fadeLenX - p[0] );
+      const Real fadeArg = std::min( std::max({yt, yb, xt, xb}), (Real) 1 );
+      const Real fadedRHS = b(ix,iy).s * std::pow(fadeArg, 2);
+      if(fadedRHS < 0) sumNEG -= fadedRHS;
+      if(fadedRHS > 0) sumPOS += fadedRHS;
+      sumRHS += fadedRHS;
+    }
+  }
+
+  assert(sumNEG >= 0 && sumPOS >= 0);
+  sumNEG = std::max(sumNEG, EPS);
+  sumPOS = std::max(sumPOS, EPS);
+  const Real corr = sumRHS>0 ? sumRHS/sumPOS : sumRHS/sumNEG;
+
+  #pragma omp parallel for schedule(dynamic)
+  for (size_t i=0; i < nBlocks; i++) {
+    if( not _is_touching(BSRC[i]) ) continue;
+    ScalarBlock& b = *(ScalarBlock*) BSRC[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+      Real p[2]; BSRC[i].pos(p, ix, iy);
+      const Real yt = invFadeY * std::max((Real) 0, fadeLenY - extent[1]+p[1] );
+      const Real yb = invFadeY * std::max((Real) 0, fadeLenY - p[1] );
+      const Real xt = invFadeX * std::max((Real) 0, fadeLenX - extent[0]+p[0] );
+      const Real xb = invFadeX * std::max((Real) 0, fadeLenX - p[0] );
+      const Real fadeArg = std::min( std::max({yt, yb, xt, xb}), (Real) 1 );
+      const Real fadeRHS = b(ix,iy).s * std::pow(fadeArg, 2);
+      const Real fadeCorrection = corr * (corr>0?  std::max(fadeRHS,(Real) 0)
+                                                : -std::min(fadeRHS,(Real) 0) );
+      b(ix,iy).s = b(ix,iy).s * (1-std::pow(fadeArg, 2)) + fadeCorrection;
+    }
+  }
+}
+
 void AMRSolver::Update_Vector(std::vector<BlockInfo>& aInfo, std::vector<BlockInfo>& bInfo, double c, std::vector<BlockInfo>& dInfo)
 {
   //set a = b + c * d
@@ -238,6 +302,7 @@ void AMRSolver::solve()
 {
   sim.startProfiler("AMRSolver");
 
+
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
@@ -251,6 +316,8 @@ void AMRSolver::solve()
   std::vector<cubism::BlockInfo>& pInfo = sim.pOld->getBlocksInfo();
   std::vector<cubism::BlockInfo>& rInfo = sim.pRHS->getBlocksInfo();
   
+  cub2rhs(tmpInfo);
+
   #ifdef PRECOND
   std::vector<cubism::BlockInfo>& zInfo = sim.z_cg->getBlocksInfo();
   double rk_zk;
@@ -314,7 +381,7 @@ void AMRSolver::solve()
   int count = 0;
 
   //for (size_t k = 1; k < Nsystem; k++)  
-  for (size_t k = 1; k < 1000; k++)
+  for (size_t k = 1; k < 3000; k++)
   {    
     count++;
     err = std::sqrt(rk_rk)/Nsystem;
@@ -336,7 +403,7 @@ void AMRSolver::solve()
 
     if (err < max_error) break;
 
-    if (  err/(err_min+1e-21) > 3.0 ) break; //error grows, stop iterations!
+    if (  err/(err_min+1e-21) > 5.0 ) break; //error grows, stop iterations!
 
     Get_LHS(sim.tmp,sim.pOld); // tmp <-- A*p_{k}
 
@@ -381,3 +448,6 @@ void AMRSolver::solve()
   sim.stopProfiler();
   std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }
+
+
+
