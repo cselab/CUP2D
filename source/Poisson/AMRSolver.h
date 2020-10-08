@@ -22,5 +22,20 @@ class AMRSolver
     return "AMRSolver";
   }
 
-  AMRSolver(SimulationData& s):sim(s){};
+  AMRSolver(SimulationData& s);
+
+  using bV = std::vector<cubism::BlockInfo>;
+
+  void Update_Vector (bV & aInfo, bV & bInfo, double c, bV & dInfo);
+  void Update_Vector1(bV & aInfo, double c, bV & dInfo);
+  void Dot_Product(bV & aInfo, bV & bInfo, double & result);
+  void Get_LHS (ScalarGrid * lhs, ScalarGrid * x);
+
+  #ifdef PRECOND
+  std::vector<std::vector<double>> Ld;
+  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
+  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+  double getA(int I1, int I2);
+  void FindZ(std::vector<cubism::BlockInfo> & zInfo,std::vector<cubism::BlockInfo> & rInfo);
+  #endif
 };
