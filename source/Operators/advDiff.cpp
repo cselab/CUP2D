@@ -108,36 +108,40 @@ void advDiff::operator()(const double dt)
     //const std::vector<size_t>& boundaryInfoIDs = sim.boundaryInfoIDs;
     //const size_t NboundaryBlocks = boundaryInfoIDs.size();
     ////////////////////////////////////////////////////////////////////////////
-    Real IF = 0;
+    Real IF = 0.0;
     #pragma omp parallel for schedule(static) reduction(+ : IF)
-    for (size_t i=0; i < Nblocks; i++) {
-      int aux = 1<<velInfo[i].level;
-      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
-      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      const int aux = 1<<velInfo[i].level;
+      const bool isW = velInfo[i].index[0] == 0;
+      const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
+      const bool isS = velInfo[i].index[1] == 0;
+      const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
       const VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
-      if(isW(velInfo[i])) for(int iy=0; iy<BSY; ++iy) IF -= V(BX,iy).u[0];
-      if(isE(velInfo[i])) for(int iy=0; iy<BSY; ++iy) IF += V(EX,iy).u[0];
-      if(isS(velInfo[i])) for(int ix=0; ix<BSX; ++ix) IF -= V(ix,BY).u[1];
-      if(isN(velInfo[i])) for(int ix=0; ix<BSX; ++ix) IF += V(ix,EY).u[1];
+      
+      if (isW) for(int iy=0; iy<BSY; ++iy) IF += -V(BX,iy).u[0];
+      if (isE) for(int iy=0; iy<BSY; ++iy) IF += V(EX,iy).u[0];
+      if (isS) for(int ix=0; ix<BSX; ++ix) IF += -V(ix,BY).u[1];
+      if (isN) for(int ix=0; ix<BSX; ++ix) IF += V(ix,EY).u[1];
     }
+
     ////////////////////////////////////////////////////////////////////////////
     //const Real corr = IF/std::max(AF, EPS);
-    const Real corr = IF/( 2*(BSY*sim.bpdy -0) + 2*(BSX*sim.bpdx -0) );
+    const Real corr = IF/( 2*(BSY*sim.bpdy*(1<<sim.levelMax) -0) + 2*(BSX*sim.bpdx*(1<<sim.levelMax) -0) );
+
     //if(sim.verbose) printf("Relative inflow correction %e\n",corr);
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i < Nblocks; i++) {
       int aux = 1<<velInfo[i].level;
-      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
-      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
+      const bool isW = velInfo[i].index[0] == 0;
+      const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
+      const bool isS = velInfo[i].index[1] == 0;
+      const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
       VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
-      if(isW(velInfo[i])) for(int iy=0; iy<BSY; ++iy) V(BX,iy).u[0] += corr;
-      if(isE(velInfo[i])) for(int iy=0; iy<BSY; ++iy) V(EX,iy).u[0] -= corr;
-      if(isS(velInfo[i])) for(int ix=0; ix<BSX; ++ix) V(ix,BY).u[1] += corr;
-      if(isN(velInfo[i])) for(int ix=0; ix<BSX; ++ix) V(ix,EY).u[1] -= corr;
+      if(isW) for(int iy=0; iy<BSY; ++iy) V(BX,iy).u[0] += corr;
+      if(isE) for(int iy=0; iy<BSY; ++iy) V(EX,iy).u[0] -= corr;
+      if(isS) for(int ix=0; ix<BSX; ++ix) V(ix,BY).u[1] += corr;
+      if(isN) for(int ix=0; ix<BSX; ++ix) V(ix,EY).u[1] -= corr;
     }
   }
   sim.stopProfiler();
