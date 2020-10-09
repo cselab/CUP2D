@@ -16,7 +16,6 @@ using namespace cubism;
 void computeVorticity::run() const
 {
   const size_t Nblocks = velInfo.size();
-  const Real invH = 1.0 / sim.getH();
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   #pragma omp parallel
   {
@@ -26,6 +25,7 @@ void computeVorticity::run() const
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
+      const Real invH = 1.0 / tmpInfo[i].h_gridpoint;
       velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
       auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
 
@@ -116,7 +116,6 @@ void FadeOut::operator()(const double dt)
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
   static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
-  //const auto& extent = sim.extents; const Real H = sim.vel->getH();
   const auto isW = [&](const BlockInfo& info) {
     return info.index[0] == 0;
   };
@@ -171,9 +170,10 @@ Real findMaxU::run() const
   ///*
   #ifdef ZERO_TOTAL_MOM
   const std::vector<BlockInfo>& iRhoInfo  = sim.invRho->getBlocksInfo();
-  Real momX = 0, momY = 0, totM = 0; const Real h = sim.getH();
+  Real momX = 0, momY = 0, totM = 0; 
   #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
   for (size_t i=0; i < Nblocks; i++) {
+    const Real h = velInfo[i].h_gridpoint;
     const ScalarBlock& IRHO= *(ScalarBlock*) iRhoInfo[i].ptrBlock;
     const VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
