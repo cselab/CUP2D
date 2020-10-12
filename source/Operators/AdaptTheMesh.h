@@ -2,12 +2,15 @@
 
 #include "../Operator.h"
 #include "Cubism/AMR_MeshAdaptation.h"
+#include "Helpers.h"
+
 class AdaptTheMesh : public Operator
 {
  public:
-  AdaptTheMesh(SimulationData& s) : Operator(s) {count=0;}
-
   int count;
+  computeVorticity findOmega;
+
+  AdaptTheMesh(SimulationData& s) : Operator(s), findOmega(s) {count=0;}
 
   void operator()(const double dt);
 

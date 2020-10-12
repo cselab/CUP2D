@@ -235,11 +235,16 @@ void SimulationData::dumpAll(std::string name)
       VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
       DMP.assign(CHI, VEL);
     }
+
+    const auto K1 = computeVorticity(*this); K1.run();
+    dumpTmp (name);
+
+
     //dumpChi  (name); // glued together: skip
     //dumpVel  (name); // glued together: skip
     dumpGlue(name);
     dumpPres (name);
-    dumpInvRho (name);
+    //dumpInvRho (name);
     //dumpTmp  (name); // usually signed dist is here
     //dumpUobj (name);
     //dumpForce(name);
