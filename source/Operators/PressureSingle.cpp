@@ -117,7 +117,6 @@ void PressureSingle::updatePressureRHS(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
 
-  //const Real h = sim.getH(), facDiv = 0.5*h/dt;
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
   #pragma omp parallel
   {
@@ -225,8 +224,6 @@ void PressureSingle::updatePressureRHS(const double dt) const
 void PressureSingle::pressureCorrection(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
-
-  //const Real h = sim.getH(), pFac = -0.5*dt/h;//, invDt = 1/dt;//sim.lambda;
 
   #pragma omp parallel
   {
