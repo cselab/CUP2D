@@ -17,7 +17,6 @@ void ComputeForces::operator()(const double dt)
 {
   const size_t Nblocks = velInfo.size();
 
-  //const Real NUoH = sim.nu / sim.getH(); // 2 nu / 2 h
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
 
   #pragma omp parallel

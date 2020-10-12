@@ -47,7 +47,6 @@ void advDiff::operator()(const double dt)
 
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
   //const Real G[]= {sim.gravity[0],sim.gravity[1]};
-  //const Real h = sim.getH();
   //const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h;
   //const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
   //const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
