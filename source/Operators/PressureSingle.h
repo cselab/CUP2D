@@ -15,6 +15,7 @@ class PoissonSolver;
 class Shape;
 
 #include "../Poisson/AMRSolver.h"
+#include "Cubism/FluxCorrection.h"
 
 class PressureSingle : public Operator
 {
@@ -25,6 +26,7 @@ class PressureSingle : public Operator
 
   //PoissonSolver * const pressureSolver;
   AMRSolver * pressureSolver;
+  cubism::FluxCorrection<ScalarGrid,ScalarBlock,ScalarLab> Corrector;
 
   void preventCollidingObstacles() const;
   void pressureCorrection(const double dt) const;

@@ -116,24 +116,84 @@ void PressureSingle::penalize(const double dt) const
 void PressureSingle::updatePressureRHS(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
+  //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+  //#pragma omp parallel
+  //{
+  //  VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
+  //  #pragma omp for schedule(static)
+  //  for (size_t i=0; i < Nblocks; i++) {
+  //    const Real h = velInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
+  //    velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
+  //    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
+  //    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+  //    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+  //      const Real divVx  = V(ix+1,iy).u[0] - V(ix-1,iy).u[0];
+  //      const Real divVy  = V(ix,iy+1).u[1] - V(ix,iy-1).u[1];
+  //      TMP(ix, iy).s = facDiv * (divVx + divVy);
+  //    }    
+  //}
+  Corrector.prepare(*(sim.tmp));
+  static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
 
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
   #pragma omp parallel
   {
     VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
     #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++) {
+    for (size_t i=0; i < Nblocks; i++)
+    {
       const Real h = velInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
       velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
       ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
         const Real divVx  = V(ix+1,iy).u[0] - V(ix-1,iy).u[0];
         const Real divVy  = V(ix,iy+1).u[1] - V(ix,iy-1).u[1];
         TMP(ix, iy).s = facDiv * (divVx + divVy);
       }
+
+      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[i].auxiliary);
+      ScalarBlock::ElementType * faceXm = nullptr;
+      ScalarBlock::ElementType * faceXp = nullptr;
+      ScalarBlock::ElementType * faceYm = nullptr;
+      ScalarBlock::ElementType * faceYp = nullptr;
+      if (tempCase != nullptr)
+      {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+      }
+      if (faceXm != nullptr)
+      {
+        int ix = 0;
+        for(int iy=0; iy<BSY; ++iy)
+          faceXm[iy].s = facDiv *(V(ix-1,iy).u[0] + V(ix,iy).u[0]) ;
+      }
+      if (faceXp != nullptr)
+      {
+        int ix = BSX-1;
+        for(int iy=0; iy<BSY; ++iy)
+          faceXp[iy].s = -facDiv *(V(ix+1,iy).u[0] + V(ix,iy).u[0]);
+      }
+      if (faceYm != nullptr)
+      {
+        int iy = 0;
+        for(int ix=0; ix<BSX; ++ix)
+          faceYm[ix].s = facDiv * (V(ix,iy-1).u[1] + V(ix,iy).u[1]);
+      }
+      if (faceYp != nullptr)
+      {
+        int iy = BSY-1;
+        for(int ix=0; ix<BSX; ++ix)
+          faceYp[ix].s = -facDiv * (V(ix,iy+1).u[1] + V(ix,iy).u[1]);
+      }
     }
   }
+  Corrector.FillBlockCases();
+  Corrector.Correct();
 
   const size_t nShapes = sim.shapes.size();
   Real * sumRHS, * posRHS, * negRHS;
@@ -174,7 +234,6 @@ void PressureSingle::updatePressureRHS(const double dt) const
       }
     }
   }
-
   //for (size_t j=0; j < nShapes && sim.verbose; j++)
   //printf("sum of udef src terms %e %e\n", sumRHS[j], absRHS[j]);
 
@@ -218,6 +277,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
       }
     }
   }
+
   free (sumRHS); free (posRHS); free (negRHS);
 }
 
