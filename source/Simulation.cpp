@@ -78,8 +78,8 @@ void Simulation::parseRuntime()
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
   sim.levelMax = parser("-levelMax").asInt(1);
-  sim.Rtol = 0.01 ;//parser("-Rtol").asDouble(1.0);
-  sim.Ctol = 0.001;//parser("-Ctol").asDouble(0.0);
+  sim.Rtol = parser("-Rtol").asDouble(1.0);
+  sim.Ctol = parser("-Ctol").asDouble(0.1);
 
   parser.unset_strict_mode();
   sim.extent = parser("-extent").asDouble(1);
