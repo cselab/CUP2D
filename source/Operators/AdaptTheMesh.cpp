@@ -63,7 +63,6 @@ void AdaptTheMesh::operator()(const double dt)
   vOld_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   dump_amr  .AdaptLikeOther <ScalarGrid>(*sim.chi);
   #ifdef PRECOND
-  ScalarAMR z_cg_amr   ( *sim.z_cg    ,Rtol, Ctol, verbose);
   z_cg_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   #endif
 
