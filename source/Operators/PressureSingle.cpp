@@ -132,6 +132,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
   //      TMP(ix, iy).s = facDiv * (divVx + divVy);
   //    }    
   //}
+  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   Corrector.prepare(*(sim.tmp));
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;

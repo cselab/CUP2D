@@ -25,7 +25,7 @@ class AMRSolver
 
   AMRSolver(SimulationData& s);
 
-  cubism::FluxCorrection<ScalarGrid,ScalarBlock,ScalarLab> Corrector;
+  cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   
   using bV = std::vector<cubism::BlockInfo>;
 
