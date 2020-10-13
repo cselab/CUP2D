@@ -153,8 +153,47 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
                            lab(ix,iy-1).s + 
                            lab(ix,iy+1).s - 4.0*lab(ix,iy).s );
         }
+
+        BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[i].auxiliary);
+        ScalarBlock::ElementType * faceXm = nullptr;
+        ScalarBlock::ElementType * faceXp = nullptr;
+        ScalarBlock::ElementType * faceYm = nullptr;
+        ScalarBlock::ElementType * faceYp = nullptr;
+        if (tempCase != nullptr)
+        {
+          faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+          faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+          faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+          faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+        }
+        if (faceXm != nullptr)
+        {
+          int ix = 0;
+          for(int iy=0; iy<BSY; ++iy)
+            faceXm[iy] = lab(ix,iy) - lab(ix-1,iy);
+        }
+        if (faceXp != nullptr)
+        {
+          int ix = BSX-1;
+          for(int iy=0; iy<BSY; ++iy)
+            faceXp[iy] = lab(ix,iy) - lab(ix+1,iy);
+        }
+        if (faceYm != nullptr)
+        {
+          int iy = 0;
+          for(int ix=0; ix<BSX; ++ix)
+            faceYm[ix] = lab(ix,iy) - lab(ix,iy-1);
+        }
+        if (faceYp != nullptr)
+        {
+          int iy = BSY-1;
+          for(int ix=0; ix<BSX; ++ix)
+            faceYp[ix] = lab(ix,iy) - lab(ix,iy+1);
+        }
       }
     }
+    Corrector.FillBlockCases();
+    Corrector.Correct();
 }
 
 
@@ -240,6 +279,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
 void AMRSolver::FindZ(std::vector<BlockInfo> & zInfo,std::vector<BlockInfo> & rInfo)
 {
   static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
   static constexpr int N   = BSX*BSY;
 
   #pragma omp parallel
@@ -302,7 +342,6 @@ void AMRSolver::solve()
 {
   sim.startProfiler("AMRSolver");
 
-
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
@@ -315,6 +354,8 @@ void AMRSolver::solve()
   std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp ->getBlocksInfo();
   std::vector<cubism::BlockInfo>& pInfo = sim.pOld->getBlocksInfo();
   std::vector<cubism::BlockInfo>& rInfo = sim.pRHS->getBlocksInfo();
+
+  Corrector.prepare(*sim.tmp);
   
   cub2rhs(tmpInfo);
 
@@ -354,7 +395,7 @@ void AMRSolver::solve()
 
   Dot_Product(rInfo,rInfo,rk_rk);
 
-#ifdef PRECOND
+ #ifdef PRECOND
   FindZ(zInfo,rInfo);
   Dot_Product(rInfo,zInfo,rk_zk);
   //p_{0} = r_{0}
@@ -365,7 +406,7 @@ void AMRSolver::solve()
     const ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock;
     p.copy(z);
   }
-#else
+ #else
   //p_{0} = r_{0}
   #pragma omp parallel for schedule(runtime)
   for (size_t i=0; i < Nblocks; i++)
@@ -374,7 +415,7 @@ void AMRSolver::solve()
     const ScalarBlock & __restrict__ r  = *(ScalarBlock*) rInfo[i].ptrBlock;
     p.copy(r);
   }
-#endif
+ #endif
  
   bool flag = false;
   
@@ -409,29 +450,28 @@ void AMRSolver::solve()
 
     Dot_Product(pInfo,tmpInfo,pAp);
 
-#ifdef PRECOND
+ #ifdef PRECOND
     alpha = rk_zk / (pAp + 1e-21);
-#else
+ #else
     alpha = rk_rk / (pAp + 1e-21);
-#endif
+ #endif
 
     Update_Vector1(xInfo, alpha,pInfo);//x_{k+1} <-- x_{k} + alpha * p_{k}
     Update_Vector1(rInfo,-alpha,tmpInfo);//r_{k+1} <-- r_{k} - alpha * tmp 
     Dot_Product(rInfo,rInfo,rkp1_rkp1);
     
-#ifdef PRECOND    
+ #ifdef PRECOND    
     FindZ(zInfo,rInfo);
     Dot_Product(rInfo,zInfo,rkp1_zkp1);
     beta = rkp1_zkp1 / (rk_zk + 1e-21);
     rk_zk = rkp1_zkp1;  
     Update_Vector(pInfo,zInfo,beta,pInfo);//p_{k+1} <-- r_{k+1} + beta * p_{k}
-#else
+ #else
     beta = rkp1_rkp1 / (rk_rk + 1e-21);
     Update_Vector(pInfo,rInfo,beta,pInfo);//p_{k+1} <-- r_{k+1} + beta * p_{k}
-#endif
+ #endif
     rk_rk = rkp1_rkp1;
   }
-
 
   if (flag)
   {
@@ -448,6 +488,3 @@ void AMRSolver::solve()
   sim.stopProfiler();
   std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }
-
-
-

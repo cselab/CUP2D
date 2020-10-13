@@ -9,6 +9,7 @@
 #pragma once
 
 #include "../Operator.h"
+#include "Cubism/FluxCorrection.h"
 
 class AMRSolver 
 {
@@ -24,6 +25,8 @@ class AMRSolver
 
   AMRSolver(SimulationData& s);
 
+  cubism::FluxCorrection<ScalarGrid,ScalarBlock,ScalarLab> Corrector;
+  
   using bV = std::vector<cubism::BlockInfo>;
 
   void Update_Vector (bV & aInfo, bV & bInfo, double c, bV & dInfo);
