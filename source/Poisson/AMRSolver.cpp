@@ -485,6 +485,10 @@ void AMRSolver::solve()
         x(ix,iy).s = sol(ix,iy).u[0]; 
     }
   }
+  else
+  {
+    err_min = err;
+  }
   sim.stopProfiler();
   std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }
