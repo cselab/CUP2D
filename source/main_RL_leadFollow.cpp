@@ -28,10 +28,10 @@ inline void resetIC(StefanFish* const a, Shape*const p,
                     smarties::Communicator*const c)
 {
   std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
-  std::uniform_real_distribution<double> disX(0.5, 3),  disY(-0.25, 0.25);
+  std::uniform_real_distribution<double> disX(1, 2),  disY(-0.5, 0.5);
   #if 1
   // cylFollow
-  const double SX = c->isTraining()? disX(c->getPRNG()) : 0.45;
+  const double SX = c->isTraining()? disX(c->getPRNG()) : 1.5;
   #else
   const double SX = c->isTraining()? disX(c->getPRNG()) : 0.5;
   #endif
@@ -58,7 +58,7 @@ inline bool isTerminal(const StefanFish*const a, const Shape*const p) {
   assert(X>0);
   #if 1
     // cylFollow
-    return std::fabs(Y)>1 || X<1 || X>5;
+    return std::fabs(Y)>1.5 || X<1 || X>6;
   #else
     // extended follow 
     // return std::fabs(Y)>1 || X<1 || X>3;
@@ -115,7 +115,7 @@ inline void app_main(
   // Second action affects Tp = (1+act[1])*Tperiod_0 (eg. halved if act[1]=-.5).
   // If too small Re=L^2*Tp/nu would increase too much, we allow it to
   //  double at most, therefore we set the bounds between -0.5 and 0.5.
-  std::vector<double> upper_action_bound{1.,.25}, lower_action_bound{-1.,-.25};
+  std::vector<double> upper_action_bound{1.,.5}, lower_action_bound{-1.,-.5};
   comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
   Simulation sim(argc, argv);
