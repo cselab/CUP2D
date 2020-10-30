@@ -119,8 +119,8 @@ class CurvatureFish : public FishData
     lastCurv = a[0]; // store action
 
     rlBendingScheduler.Turn(a[0], t_rlAction);
-    printf("Turning by %g at time %g with period %g.\n",
-           a[0], t_current, t_rlAction);
+    //printf("Turning by %g at time %g with period %g.\n",
+    //       a[0], t_current, t_rlAction);
 
     if (a.size()>1) // also modify the swimming period
     {
@@ -500,8 +500,8 @@ std::vector<double> StefanFish::state(Shape*const p) const
       }
       const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
       const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin);
-      printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-        pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
+      //printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
+      //  pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
       const Real* const udef = o->udef[iSkin[1]][iSkin[0]];
       const Real uSkin = u - omega * (pSkin[1]-centerOfMass[1]) + udef[0];
       const Real vSkin = v + omega * (pSkin[0]-centerOfMass[0]) + udef[1];
@@ -514,8 +514,8 @@ std::vector<double> StefanFish::state(Shape*const p) const
       const auto& sensBinfo = velInfo[holdingBlockID(pSens[0], pSens[1])];
       const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
       const std::array<int,2> iSens = safeIdInBlock(pSens, oSens);
-      printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-        pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
+      //printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
+      //  pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
       const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
       return std::array<Real, 2>{{b(iSens[0], iSens[1]).u[0],
                                   b(iSens[0], iSens[1]).u[1]}};
@@ -570,8 +570,8 @@ std::vector<double> StefanFish::state(Shape*const p) const
     S[13] = lowShear[1] * Tperiod / length;
     S[14] = topShear[0] * Tperiod / length;
     S[15] = topShear[1] * Tperiod / length;
-    printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n",
-      S[10],S[11], S[12],S[13], S[14],S[15]);
+    //printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n",
+    //  S[10],S[11], S[12],S[13], S[14],S[15]);
 
     return S;
   #endif
