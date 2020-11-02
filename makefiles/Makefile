@@ -48,7 +48,7 @@ compiler=intel
 include make.icc.flags
 endif
 
-bs ?= 32
+bs ?= 8
 nthreads ?= 24
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads)
 NVFLAGS+= -code=sm_60 -arch=compute_60
