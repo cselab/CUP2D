@@ -19,21 +19,26 @@ void SimulationData::allocateGrid()
   int levelStart = levelMax-1;
   int aux = pow(2,levelStart);
 
-  chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
-  dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax);
+  ScalarLab dummy;
+  const bool xperiodic = dummy.is_xperiodic();
+  const bool yperiodic = dummy.is_yperiodic();
+  const bool zperiodic = dummy.is_zperiodic();
+
+  chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
   #ifdef PRECOND
-  z_cg = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax);
+  z_cg = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   #endif
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();

@@ -288,6 +288,10 @@ public:
   static constexpr int sizeY = BlockType::sizeY;
   static constexpr int sizeZ = BlockType::sizeZ;
 
+  virtual bool is_xperiodic() override{ return false; }
+  virtual bool is_yperiodic() override{ return false; }
+  virtual bool is_zperiodic() override{ return false; }
+
   // Used for Boundary Conditions:
 
   // Apply bc on face of direction dir and side side (0 or 1):
