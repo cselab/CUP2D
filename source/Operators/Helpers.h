@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../Operator.h"
+#include "Cubism/FluxCorrection.h"
 
 class findMaxU
 {

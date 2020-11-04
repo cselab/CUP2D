@@ -41,9 +41,15 @@ void computeVorticity::run() const
 
 void computeDivergence::run() const
 {
+  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
+  Corrector.prepare(*(sim.tmp));
+  static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
+
   const size_t Nblocks = velInfo.size();
 
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   #pragma omp parallel
   {
     static constexpr int stenBeg [3] = {-1,-1,0}, stenEnd [3] = { 2, 2, 1};
@@ -54,14 +60,73 @@ void computeDivergence::run() const
     for (size_t i=0; i < Nblocks; i++)
     {
       const Real invH = 0.5 / tmpInfo[i].h_gridpoint;
+      const Real H = tmpInfo[i].h_gridpoint;
       velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
       auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+      auto& __restrict__ CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
 
       for(int y=0; y<VectorBlock::sizeY; ++y)
       for(int x=0; x<VectorBlock::sizeX; ++x)
-        O(x,y).s = invH * (V(x+1,y).u[0]-V(x-1,y).u[0] + V(x,y+1).u[1]-V(x,y-1).u[1]);
+      {
+        O(x,y).s = (1.0-CHI(x,y).s)*0.5*H*(V(x+1,y).u[0]-V(x-1,y).u[0] + V(x,y+1).u[1]-V(x,y-1).u[1]);
+      }
+
+      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[i].auxiliary);
+      ScalarBlock::ElementType * faceXm = nullptr;
+      ScalarBlock::ElementType * faceXp = nullptr;
+      ScalarBlock::ElementType * faceYm = nullptr;
+      ScalarBlock::ElementType * faceYp = nullptr;
+      if (tempCase != nullptr)
+      {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+      }
+      if (faceXm != nullptr)
+      {
+        int ix = 0;
+        for(int iy=0; iy<BSY; ++iy)
+          faceXm[iy].s = (1.0-CHI(ix,iy).s)*0.5*H *(V(ix-1,iy).u[0] + V(ix,iy).u[0]) ;
+      }
+      if (faceXp != nullptr)
+      {
+        int ix = BSX-1;
+        for(int iy=0; iy<BSY; ++iy)
+          faceXp[iy].s = -(1.0-CHI(ix,iy).s)*0.5*H*(V(ix+1,iy).u[0] + V(ix,iy).u[0]);
+      }
+      if (faceYm != nullptr)
+      {
+        int iy = 0;
+        for(int ix=0; ix<BSX; ++ix)
+          faceYm[ix].s = (1.0-CHI(ix,iy).s)*0.5*H* (V(ix,iy-1).u[1] + V(ix,iy).u[1]);
+      }
+      if (faceYp != nullptr)
+      {
+        int iy = BSY-1;
+        for(int ix=0; ix<BSX; ++ix)
+          faceYp[ix].s = -(1.0-CHI(ix,iy).s)*0.5*H* (V(ix,iy+1).u[1] + V(ix,iy).u[1]);
+      }
     }
   }
+
+  Corrector.FillBlockCases();
+  Corrector.Correct();
+
+
+  double sDtot = 0.0;
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+    for(int y=0; y<VectorBlock::sizeY; ++y)
+    for(int x=0; x<VectorBlock::sizeX; ++x)
+      sDtot += O(x,y).s;
+  }
+  std::cout << "Total div(V)="<<sDtot<<std::endl;
+  std::ofstream outfile;
+  outfile.open("div.txt", std::ios_base::app);
+  outfile << sim.time << " " << sDtot  << " " << Nblocks << "\n";
+  outfile.close();
 }
 
 void IC::operator()(const double dt)
