@@ -142,8 +142,7 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
       #pragma omp for schedule(runtime)
       for (size_t i=0; i < xInfo.size(); i++)
       {
-        lab.load(xInfo[i]); 
-  
+        lab.load(xInfo[i]);
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
         for(int iy=0; iy<BSY; ++iy)
         for(int ix=0; ix<BSX; ++ix)
@@ -199,11 +198,9 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
 
 #ifdef PRECOND
 
-double getA_local(int I1,int I2)
+double AMRSolver::getA_local(int I1,int I2)
 {
   static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
-
   int j1 = I1 / BSX;
   int i1 = I1 % BSX;
   int j2 = I2 / BSX;
@@ -337,7 +334,7 @@ void AMRSolver::FindZ(std::vector<BlockInfo> & zInfo,std::vector<BlockInfo> & rI
 #else
 AMRSolver::AMRSolver(SimulationData& s):sim(s){}
 #endif
-  
+
 void AMRSolver::solve()
 {
   sim.startProfiler("AMRSolver");
@@ -421,7 +418,7 @@ void AMRSolver::solve()
   
   int count = 0;
 
-  //for (size_t k = 1; k < Nsystem; k++)  
+  //for (size_t k = 1; k < Nsystem; k++)
   for (size_t k = 1; k < 3000; k++)
   {    
     count++;
@@ -442,18 +439,19 @@ void AMRSolver::solve()
       }
     }
 
-    if (err < max_error) break;
+    if (err < max_error && k > 5) break;
 
-    if (  err/(err_min+1e-21) > 5.0 ) break; //error grows, stop iterations!
+    if (  err/(err_min+1e-21) > 10.0 && k > 100) break; //error grows, stop iterations!
 
     Get_LHS(sim.tmp,sim.pOld); // tmp <-- A*p_{k}
 
     Dot_Product(pInfo,tmpInfo,pAp);
+    if ( std::fabs(pAp) < 1e-21) {std::cout << "CG:pAp is small"<< std::endl; break;}
 
  #ifdef PRECOND
-    alpha = rk_zk / (pAp + 1e-21);
+    alpha = rk_zk/pAp;
  #else
-    alpha = rk_rk / (pAp + 1e-21);
+    alpha = rk_rk/pAp;
  #endif
 
     Update_Vector1(xInfo, alpha,pInfo);//x_{k+1} <-- x_{k} + alpha * p_{k}
@@ -463,11 +461,11 @@ void AMRSolver::solve()
  #ifdef PRECOND    
     FindZ(zInfo,rInfo);
     Dot_Product(rInfo,zInfo,rkp1_zkp1);
-    beta = rkp1_zkp1 / (rk_zk + 1e-21);
+    beta = rkp1_zkp1 / rk_zk;
     rk_zk = rkp1_zkp1;  
     Update_Vector(pInfo,zInfo,beta,pInfo);//p_{k+1} <-- r_{k+1} + beta * p_{k}
  #else
-    beta = rkp1_rkp1 / (rk_rk + 1e-21);
+    beta = rkp1_rkp1 / rk_rk;
     Update_Vector(pInfo,rInfo,beta,pInfo);//p_{k+1} <-- r_{k+1} + beta * p_{k}
  #endif
     rk_rk = rkp1_rkp1;
@@ -489,6 +487,7 @@ void AMRSolver::solve()
   {
     err_min = err;
   }
+
   sim.stopProfiler();
   std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }

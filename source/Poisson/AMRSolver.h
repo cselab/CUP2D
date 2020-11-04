@@ -42,5 +42,6 @@ class AMRSolver
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
   double getA(int I1, int I2);
   void FindZ(std::vector<cubism::BlockInfo> & zInfo,std::vector<cubism::BlockInfo> & rInfo);
+  double getA_local(int I1,int I2);
   #endif
 };
