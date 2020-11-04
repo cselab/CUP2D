@@ -11,6 +11,7 @@
 
 #include "Definitions.h"
 #include "Cubism/Profiler.h"
+#define PRECOND
 
 class Shape;
 
