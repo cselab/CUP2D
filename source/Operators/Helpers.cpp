@@ -59,7 +59,6 @@ void computeDivergence::run() const
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
-      const Real invH = 0.5 / tmpInfo[i].h_gridpoint;
       const Real H = tmpInfo[i].h_gridpoint;
       velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
       auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
