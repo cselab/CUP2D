@@ -439,9 +439,10 @@ void AMRSolver::solve()
       }
     }
 
-    if (err < max_error && k > 5) break;
+    //if (err < max_error && k > 5) break;
+    if (err < max_error) break;
 
-    if (  err/(err_min+1e-21) > 10.0 && k > 100) break; //error grows, stop iterations!
+    if (  err/(err_min+1e-21) > 10.0 && k > 20) break; //error grows, stop iterations!
 
     Get_LHS(sim.tmp,sim.pOld); // tmp <-- A*p_{k}
 
