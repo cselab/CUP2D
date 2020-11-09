@@ -1,9 +1,9 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
+//  Created by Pascal Weber (webepasc@ethz.ch).
 //
 
 
@@ -71,10 +71,10 @@ void NacaData::computeMidline(const Real t, const Real dt)
 }
 
 Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
-  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1))  {
+  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.getH(), tRatio);
-  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f\n tAccel=%f",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel);
+  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f tAccel=%f dRot=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel, fixedCenterDist);
 }
 
 void Naca::create(const std::vector<BlockInfo>& vInfo) {
@@ -87,15 +87,19 @@ void Naca::resetAll() {
 
 void Naca::updateVelocity(double dt)
 {
-  Shape::updateVelocity(dt);
-
-  // x velocity can be either fixed from the start (then we follow the obst op
-  // pattern) or self propelled, here we do not touch it
   const Real arga = 2*M_PI*Fpitch*sim.time;
+  const Real angle = std::sin(2*M_PI*Fpitch*sim.time);
   omega = 2*M_PI*Fpitch*Apitch*std::cos(arga);
   if( sim.time < tAccel )
-    u = (sim.time/tAccel)*forcedu-(0.399421-0.106667)*length*std::cos(arga)*omega;
+  {
+    // linear and angular motion (due to rotation-axis != CoM)
+    u = (sim.time/tAccel)*forcedu - fixedCenterDist*length*omega*std::sin(angle);
+    v = (sim.time/tAccel)*forcedv + fixedCenterDist*length*omega*std::cos(angle);
+  }
   else
-    u = forcedu-(0.399421-0.106667)*length*std::cos(arga)*omega;
-  v = (0.399421-0.106667)*length*std::sin(arga)*omega;
+  {
+    // linear and angular motion (due to rotation-axis != CoM)
+    u = forcedu - fixedCenterDist*length*omega*std::sin(angle);
+    v = forcedv + fixedCenterDist*length*omega*std::cos(angle);
+  }
 }
