@@ -12,7 +12,7 @@ ifeq "$(findstring prod,$(config))" ""
 CPPFLAGS+= -g -O0
 ifeq "$(config)" "segf"
 CPPFLAGS+= -fsanitize=address
-LIBS+= -fsanitize=address
+LIBS+= -fsanitize=address -static-libasan
 endif
 ifeq "$(config)" "nans"
 CPPFLAGS+= -fsanitize=undefined
