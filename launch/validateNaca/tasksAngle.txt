@@ -1,0 +1,14 @@
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=01; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=01
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=02; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=02
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=03; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=03
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=04; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=04
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=05; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=05
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=06; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=06
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=07; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=07
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=08; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=08
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=09; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=09
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=10; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=10
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=11; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=11
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=12; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=12
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=13; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=13
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-theta=14

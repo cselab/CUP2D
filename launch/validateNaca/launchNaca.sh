@@ -12,4 +12,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -tdump 0 -nu 0.00001125 -tend 50 -poissonType c
 OBJECTS='NACA L=0.075 xpos=$XPOS angle=$ANGLE fixedCenterDist=0.299412 bFixed=0 xvel=0.15 Apitch=13.15 Fpitch=$FPITCH tAccel=1
 '
 
-source launchCommon.sh
+source ../launchCommon.sh
