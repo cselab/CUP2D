@@ -71,7 +71,7 @@ void NacaData::computeMidline(const Real t, const Real dt)
 }
 
 Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
-  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
+  : Fish(s,p,C), Apitch( p("-Apitch").asDouble(0.0)*M_PI/180 ), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.getH(), tRatio);
   printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f tAccel=%f dRot=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel, fixedCenterDist);
@@ -87,9 +87,9 @@ void Naca::resetAll() {
 
 void Naca::updateVelocity(double dt)
 {
-  const Real arga = 2*M_PI*Fpitch*sim.time;
-  const Real angle = std::sin(2*M_PI*Fpitch*sim.time);
-  omega = 2*M_PI*Fpitch*Apitch*std::cos(arga);
+  const Real omegaAngle = 2*M_PI*Fpitch;
+  const Real angle = Apitch*std::sin(omegaAngle*sim.time);
+  omega = Apitch*omegaAngle*std::cos(omegaAngle*sim.time);
   if( sim.time < tAccel )
   {
     // linear and angular motion (due to rotation-axis != CoM)
