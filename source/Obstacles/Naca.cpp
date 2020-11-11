@@ -27,7 +27,7 @@ class NacaData : public FishData
     const Real b = -0.1260;
     const Real c = -0.3516;
     const Real d =  0.2843;
-    const Real e = -0.1036; // instead of -0.1015 to ensure closing end
+    const Real e = -0.1015; // -0.1036 instead of -0.1015 to ensure closing end
     const Real t = tRatio*L; //NACA00{tRatio}
 
     if(s<0 or s>L) return 0;
