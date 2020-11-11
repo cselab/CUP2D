@@ -1,5 +1,14 @@
-OPTIONS="-bpdx 64 -bpdy 32 -tdump 0.1 -nu 0.000045 -tend 20 -poissonType cosine -iterativePensalization 0"
-OBJECTS='NACA L=0.15 xpos=0.25 bFixed=1 bForced=1 xvel=0.3 tAccel=5 Apitch=0.15 Fpitch=2.5
+BPDX=${BPDX:-16}
+BPDY=${BPDY:-8}
+ANGLE=${ANGLE:-0}
+FPITCH=${FPITCH:-1}
+XPOS=${XPOS:-0.2}
+
+# Re=1'000 <-> 0.00001125; Re=10'000 <-> 0.000001125
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -tdump 0.1 -nu 0.00001125 -tend 50 -poissonType cosine -iterativePensalization 1 -muteAll 0 -extent "
+# COM OF NACA AIRFOIL IS 0.399421, ROTATION AROUND 0.1, thus fixedCenterDist=0.299412 -> CoR=0.1550882
+# Xpos=0.2 in [0,1]x[0,0.5] domain; for validation Xpos= in [0,15]x[0,7.5]
+OBJECTS='NACA L=0.075 xpos=$XPOS angle=$ANGLE fixedCenterDist=0.299412 bFixed=0 xvel=0.15 Apitch=13.15 Fpitch=$FPITCH tAccel=1
 '
 
 source launchCommon.sh

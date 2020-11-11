@@ -31,6 +31,7 @@ struct SimulationData
   VectorGrid * vFluid= nullptr;
   ScalarGrid * tmp   = nullptr;
   VectorGrid * uDef  = nullptr;
+  VectorGrid * vOld  = nullptr;//used in implicit advection-diffusion
 
   DumpGrid   * dump  = nullptr;
 
@@ -70,6 +71,7 @@ struct SimulationData
   bool bVariableDensity = false;
   bool bStaggeredGrid = false;
   bool iterativePenalization = false;
+  bool implicit = false;
   // output
   // dumpFreq==0 means that this dumping frequency (in #steps) is not active
   int dumpFreq = 0;

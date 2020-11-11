@@ -69,7 +69,9 @@ OBJECTS = \
 		FishLibrary.o ArgumentParser.o PoissonSolver.o advDiffGravStaggered.o \
 		advDiffGrav.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o
+		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
+		NeuroKinematicFish.o advDiff_implicit_all.o LinearSolverDelta.o
+
 #Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
 
 ifneq ($(FFTW_ROOT),)
@@ -96,7 +98,7 @@ LIBS += -lcufft
 OBJECTS += CUDA_all.o
 CPPFLAGS += -DCUDAFFT
 
-LIBS += -L$(AMGX_DIR)/lib -lcublas -lcusparse -lcusolver -lamgx
+LIBS += -L$(AMGX_DIR)/lib -lamgx -lcublas -lcusparse -lcusolver -lnvToolsExt
 OBJECTS += AMGXdirichletVarRho.o
 CPPFLAGS += -DAMGX_POISSON -I$(AMGX_DIR)/include
 endif
@@ -185,3 +187,4 @@ CUDA_all.o: CUDA_all.cu
 clean:
 	rm -f simulation libsimulation.a
 	rm -f *.o *.d
+	rm leadFollow

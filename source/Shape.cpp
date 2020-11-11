@@ -254,7 +254,7 @@ void Shape::computeForces()
   //additive quantities:
   perimeter = 0; forcex = 0; forcey = 0; forcex_P = 0;
   forcey_P = 0; forcex_V = 0; forcey_V = 0; torque = 0;
-  torque_P = 0; torque_V = 0; drag = 0; thrust = 0;
+  torque_P = 0; torque_V = 0; drag = 0; thrust = 0; lift= 0; 
   Pout = 0; PoutBnd = 0; defPower = 0; defPowerBnd = 0; circulation = 0;
 
   for (auto & block : obstacleBlocks) if(block not_eq nullptr)
@@ -266,6 +266,7 @@ void Shape::computeForces()
     forcex_V += block->forcex_V;   forcey_V += block->forcey_V;
     torque_P += block->torque_P;   torque_V += block->torque_V;
     drag     += block->drag;       thrust   += block->thrust;
+    lift     += block->lift;
     Pout += block->Pout; defPowerBnd += block->defPowerBnd;
     PoutBnd += block->PoutBnd; defPower += block->defPower;
   }
@@ -311,12 +312,12 @@ void Shape::computeForces()
     std::stringstream &fileForce = logger.get_stream(ssF.str());
     if(sim.step==0)
       fileForce<<"time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc"
-                 " drag thrust perimeter circulation area_penal mass_penal"
+                 " drag thrust lift perimeter circulation area_penal mass_penal"
                  " forcex_penal forcey_penal torque_penal\n";
 
     fileForce<<sim.time<<" "<<forcex<<" "<<forcey<<" "<<forcex_P<<" "<<forcey_P
              <<" "<<forcex_V <<" "<<forcey_V<<" "<<torque <<" "<<torque_P<<" "
-             <<torque_V<<" "<<drag<<" "<<thrust<<" "<<perimeter<<" "
+             <<torque_V<<" "<<drag<<" "<<thrust<<" "<<lift<<" "<<perimeter<<" "
              <<circulation<<"\n";
 
     std::stringstream &filePower = logger.get_stream(ssP.str());

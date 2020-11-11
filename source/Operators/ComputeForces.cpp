@@ -91,7 +91,8 @@ void ComputeForces::operator()(const double dt)
           const Real forcePar = fXT * vel_unit[0] + fYT * vel_unit[1];
           O->thrust += .5*(forcePar + std::fabs(forcePar));
           O->drag   -= .5*(forcePar - std::fabs(forcePar));
-
+          const Real forcePerp = fXT * vel_unit[1] - fYT * vel_unit[0];
+          O->lift   += forcePerp;
           //power output (and negative definite variant which ensures no elastic energy absorption)
           // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
           const Real powOut = fXT * O->vx[k]    + fYT * O->vy[k];

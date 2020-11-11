@@ -17,6 +17,16 @@ cat <<EOF >daint_sbatch
 #SBATCH --ntasks-per-node=1
 #SBATCH --constraint=gpu
 
+# #SBATCH --account=s929
+# #SBATCH --job-name="${RUNNAME}"
+# #SBATCH --output=${RUNNAME}_out_%j.txt
+# #SBATCH --error=${RUNNAME}_err_%j.txt
+# #SBATCH --time=00:30:00
+# #SBATCH --nodes=1
+# #SBATCH --ntasks-per-node=1
+# #SBATCH --constraint=gpu
+# #SBATCH --partition=debug
+
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
 # #SBATCH --constraint=mc
