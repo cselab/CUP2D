@@ -22,4 +22,5 @@ class Naca: public Fish
   void resetAll() override;
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
+  void updateLabVelocity( int mSum[2], double uSum[2] ) override;
 };

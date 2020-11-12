@@ -89,17 +89,37 @@ void Naca::updateVelocity(double dt)
 {
   const Real omegaAngle = 2*M_PI*Fpitch;
   const Real angle = Apitch*std::sin(omegaAngle*sim.time);
+  // angular velocity
   omega = Apitch*omegaAngle*std::cos(omegaAngle*sim.time);
   if( sim.time < tAccel )
   {
-    // linear and angular motion (due to rotation-axis != CoM)
+    // linear velocity (due to rotation-axis != CoM)
     u = (sim.time/tAccel)*forcedu - fixedCenterDist*length*omega*std::sin(angle);
     v = (sim.time/tAccel)*forcedv + fixedCenterDist*length*omega*std::cos(angle);
   }
   else
   {
-    // linear and angular motion (due to rotation-axis != CoM)
+    // linear velocity (due to rotation-axis != CoM)
     u = forcedu - fixedCenterDist*length*omega*std::sin(angle);
     v = forcedv + fixedCenterDist*length*omega*std::cos(angle);
+  }
+  // std::cout << "u=" << u << ", v=" << v << "\n";
+}
+
+void Naca::updateLabVelocity( int nSum[2], double uSum[2] )
+{
+  if(bFixedx){
+   (nSum[0])++; 
+   if( sim.time < tAccel )
+    uSum[0] -= (sim.time/tAccel)*forcedu;
+   else 
+    uSum[0] -= forcedu; 
+  }
+  if(bFixedy){
+   (nSum[1])++; 
+   if( sim.time < tAccel )
+    uSum[1] -= (sim.time/tAccel)*forcedv;
+   else 
+    uSum[1] -= forcedv; 
   }
 }

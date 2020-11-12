@@ -181,7 +181,7 @@ class Shape
 
   virtual void removeMoments(const std::vector<cubism::BlockInfo>& vInfo);
 
-  void updateLabVelocity( int mSum[2], double uSum[2] );
+  virtual void updateLabVelocity( int mSum[2], double uSum[2] );
 
   void penalize();
 
