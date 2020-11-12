@@ -1,0 +1,11 @@
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=0.00; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=0.00
+
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=1.25; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=1.25
+
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=1.43; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=1.43
+
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=1.67; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=1.67
+
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=2.00; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=2.00
+
+export BPDX=48; export BPDY=24; export ANGLE=0; export FPITCH=2.5; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-freq=2.5

@@ -1,0 +1,13 @@
+export BPDX=16; export BPDY=8; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=16
+
+export BPDX=24; export BPDY=12; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=24
+
+export BPDX=32; export BPDY=16; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=32
+
+export BPDX=48; export BPDY=24; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=48
+
+export BPDX=64; export BPDY=32; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=64
+
+export BPDX=96; export BPDY=48; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=96
+
+export BPDX=128; export BPDY=64; export ANGLE=14; export FPITCH=0; export EXTENT=1; export XPOS=0.2; ./launchNaca.sh NACA-bpdx=128

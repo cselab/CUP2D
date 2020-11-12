@@ -1,0 +1,3 @@
+[@ ./ @] export BPDX=48; export BPDY=24; export ANGLE=13.15; export FPITCH=0; export EXTENT=1; export XPOS=0; ./launchNaca.sh NACA-extent=1
+[@ ./ @] export BPDX=96; export BPDY=48; export ANGLE=13.15; export FPITCH=0; export EXTENT=2; export XPOS=0; ./launchNaca.sh NACA-extent=2
+[@ ./ @] export BPDX=144; export BPDY=72; export ANGLE=13.15; export FPITCH=0; export EXTENT=3; export XPOS=0; ./launchNaca.sh NACA-extent=3
