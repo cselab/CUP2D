@@ -194,7 +194,6 @@ void PressureSingle::updatePressureRHS(const double dt) const
     }
   }
   Corrector.FillBlockCases();
-  Corrector.Correct();
 
   const size_t nShapes = sim.shapes.size();
   Real * sumRHS, * posRHS, * negRHS;

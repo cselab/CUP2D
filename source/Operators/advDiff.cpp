@@ -311,7 +311,6 @@ void advDiff::operator()(const double dt)
               }
     }   
     Corrector.FillBlockCases();
-    Corrector.Correct();
   }
 
 #pragma omp parallel

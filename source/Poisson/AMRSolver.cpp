@@ -192,7 +192,6 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
       }
     }
     Corrector.FillBlockCases();
-    Corrector.Correct();
 }
 
 

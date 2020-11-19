@@ -110,7 +110,6 @@ void computeDivergence::run() const
   }
 
   Corrector.FillBlockCases();
-  Corrector.Correct();
 
 
   double sDtot = 0.0;
