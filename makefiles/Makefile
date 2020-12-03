@@ -50,7 +50,7 @@ endif
 
 bs ?= 8
 nthreads ?= 24
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads)
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads) -DDIMENSION=2
 NVFLAGS+= -code=sm_60 -arch=compute_60
 
 BUILDDIR = .
