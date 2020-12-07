@@ -22,8 +22,6 @@
 #include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/UpdateObjectsStaggered.h"
-#include "Operators/advDiffGrav.h"
-#include "Operators/advDiffGravStaggered.h"
 #include "Operators/advDiff.h"
 #include "Operators/advDiff_implicit_all.h"
 #include "Operators/AdaptTheMesh.h"
@@ -200,25 +198,8 @@ void Simulation::init()
   
   if(sim.bVariableDensity)
   {
-    //pipeline.push_back( new FadeOut(sim) );
-    // do not employ Dodd and Ferrante. It just does not work:
-    sim.iterativePenalization = false;
-    sim.bStaggeredGrid = true;
-    #ifdef MULTI_CHI_DEFINITIONS
-      pipeline.push_back( new PutObjectsOnGridStaggered(sim) );
-    #else
-      pipeline.push_back( new PutObjectsOnGrid(sim) );
-    #endif
-    pipeline.push_back( new advDiffGravStaggered(sim) );
-    pipeline.push_back( new UpdateObjectsStaggered(sim) );
-    //pipeline.push_back( new PressureSingleStaggered(sim) );
-    pipeline.push_back( new PressureVarRho_proper(sim) );
-    //pipeline.push_back( new advDiffGrav(sim) );
-    //pipeline.push_back( new PressureVarRho_approx(sim) );
-    //pipeline.push_back( new PressureSingleStaggered(sim) );
-    //pipeline.push_back( new PressureVarRhoDifference(sim) );
-    //pipeline.push_back( new PressureVarRho_iterator(sim) );
-    //pipeline.push_back( new FadeOut(sim) );
+    std::cout << "Variable density not implemented for AMR. " << std::endl;
+    abort();
   }
   else
   {

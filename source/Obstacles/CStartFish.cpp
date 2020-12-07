@@ -450,7 +450,7 @@ std::vector<double> CStartFish::state(Shape*const p) const
     return S;
 #else
     S.resize(16);
-    const Real h = sim.getH(), invh = 1/h;
+    //const Real h = sim.getH(), invh = 1/h;
     const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
     // function that finds block id of block containing pos (x,y)
@@ -460,7 +460,7 @@ std::vector<double> CStartFish::state(Shape*const p) const
       {
         std::array<Real,2> MIN = I.pos<Real>(0, 0);
         for(int i=0; i<2; ++i)
-          MIN[i] -= 0.5 * h; // pos returns cell centers
+          MIN[i] -= 0.5 * I.h_gridpoint; // pos returns cell centers
         return MIN;
       };
 
@@ -469,7 +469,7 @@ std::vector<double> CStartFish::state(Shape*const p) const
         std::array<Real,2> MAX = I.pos<Real>(VectorBlock::sizeX-1,
                                              VectorBlock::sizeY-1);
         for(int i=0; i<2; ++i)
-          MAX[i] += 0.5 * h; // pos returns cell centers
+          MAX[i] += 0.5 * I.h_gridpoint; // pos returns cell centers
         return MAX;
       };
 
@@ -518,8 +518,9 @@ std::vector<double> CStartFish::state(Shape*const p) const
     // function that is probably unnecessary, unless pos is at block edge
     // then it makes the op stable without increasing complexity in the above
     const auto safeIdInBlock = [&](const std::array<Real,2> pos,
-                                   const std::array<Real,2> org)
+                                   const std::array<Real,2> org, BlockInfo & I)
     {
+      const Real invh = 1.0/I.h_gridpoint;
       const int indx = (int) std::round((pos[0] - org[0])*invh);
       const int indy = (int) std::round((pos[1] - org[1])*invh);
       const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
@@ -537,7 +538,7 @@ std::vector<double> CStartFish::state(Shape*const p) const
         fflush(0); abort();
       }
       const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin);
+      const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin, skinBinfo);
       printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
         pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
       const Real* const udef = o->udef[iSkin[1]][iSkin[0]];
@@ -551,7 +552,7 @@ std::vector<double> CStartFish::state(Shape*const p) const
     {
       const auto& sensBinfo = velInfo[holdingBlockID(pSens[0], pSens[1])];
       const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSens = safeIdInBlock(pSens, oSens);
+      const std::array<int,2> iSens = safeIdInBlock(pSens, oSens,sensBinfo);
       printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
         pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
       const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
