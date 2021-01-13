@@ -119,7 +119,8 @@ public:
 
     void burst(const Real t_current, const std::vector<double> &a) {
         // Current time must be later than time at which action should be performed.
-        assert(t_current >= t_rlAction);
+        // (PW) commented to resolve compilation error with config=debug
+        // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
@@ -160,7 +161,8 @@ public:
 
     void scoot(const Real t_current, const std::vector<double> &a) {
         // Current time must be later than time at which action should be performed.
-        assert(t_current >= t_rlAction);
+        // (PW) commented to resolve compilation error with config=debug
+        // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
@@ -201,7 +203,8 @@ public:
 
     void coast(const Real t_current, const std::vector<double> &a) {
     // Current time must be later than time at which action should be performed.
-    assert(t_current >= t_rlAction);
+    // (PW) commented to resolve compilation error with config=debug
+    // assert(t_current >= t_rlAction);
 
     // Fix the phase of the burst. Normally I should deduce the phase required based on the current
     // curvature configuration.

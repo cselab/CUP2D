@@ -161,7 +161,8 @@ public:
     void schedule(const Real t_current, const std::vector<double>&a)
     {
         // Current time must be later than time at which action should be performed.
-        assert(t_current >= t_rlAction);
+        // (PW) commented to resolve compilation error with config=debug
+        // assert(t_current >= t_rlAction);
 
         // Store last action into the older action placeholder
         oldrB3 = lastB3;
@@ -243,7 +244,8 @@ public:
     void scheduleCStart(const Real t_current, const std::vector<double>&a)
     {
         // Current time must be later than time at which action should be performed.
-        assert(t_current >= t_rlAction);
+        // (PW) commented to resolve compilation error with config=debug
+        // assert(t_current >= t_rlAction);
 
         // Store last action into the older action placeholder
         oldrB3 = lastB3;

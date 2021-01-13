@@ -145,9 +145,12 @@ class CurvatureFish : public FishData
   {
     const Real sb=.04*length, st=.95*length, wt=.01*length, wh=.04*length;
     if(s<0 or s>L) return 0;
-    return (s<sb ? std::sqrt(2*wh*s -s*s) :
+    const Real w = (s<sb ? std::sqrt(2*wh*s -s*s) :
            (s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),1) : // pow(.,2) is 3D
            (wt * (L-s)/(L-st))));
+    // std::cout << "s=" << s << ", w=" << w << std::endl;
+    assert( w >= 0 );
+    return w;
   }
 };
 
