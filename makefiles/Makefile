@@ -141,7 +141,7 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: simulation libcubism.a cubism.cflags.txt cubism.libs.txt
+all: simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 
 leadFollow: $(OBJECTS)
@@ -172,13 +172,13 @@ glider: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
-libcubism.a: $(OBJECTS)
+libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 
-cubism.cflags.txt:
+cup.cflags.txt:
 	echo $(CPPFLAGS) > cubism.cflags.txt
 
-cubism.libs.txt:
+cup.libs.txt:
 	echo $(LIBS) > cubism.libs.txt
 
 simulation: main.o $(OBJECTS)
@@ -194,5 +194,5 @@ CUDA_all.o: CUDA_all.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
-	rm -f simulation libsimulation.a
+	rm -f simulation libcup.a cup.cflags.txt cup.libs.txt
 	rm -f *.o *.d
