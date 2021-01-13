@@ -141,7 +141,7 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: simulation libcubism.a
+all: simulation libcubism.a cubism.cflags.txt cubism.libs.txt
 .DEFAULT: all;
 
 leadFollow: $(OBJECTS)
@@ -174,6 +174,12 @@ glider: $(OBJECTS)
 
 libcubism.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
+
+cubism.cflags.txt:
+	echo $(CPPFLAGS) > cubism.cflags.txt
+
+cubism.libs.txt:
+	echo $(LIBS) > cubism.libs.txt
 
 simulation: main.o $(OBJECTS)
 	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
