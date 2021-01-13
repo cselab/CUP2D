@@ -187,4 +187,3 @@ CUDA_all.o: CUDA_all.cu
 clean:
 	rm -f simulation libsimulation.a
 	rm -f *.o *.d
-	rm leadFollow
