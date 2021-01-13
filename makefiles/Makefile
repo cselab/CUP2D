@@ -141,7 +141,7 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: simulation
+all: simulation libcubism.a
 .DEFAULT: all;
 
 leadFollow: $(OBJECTS)
@@ -171,6 +171,9 @@ smartCyl: $(OBJECTS)
 glider: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
+
+libcubism.a: $(OBJECTS)
+	ar rcs $@ $(OBJECTS)
 
 simulation: main.o $(OBJECTS)
 	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
