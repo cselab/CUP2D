@@ -176,10 +176,10 @@ libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 
 cup.cflags.txt:
-	echo $(CPPFLAGS) > cubism.cflags.txt
+	echo $(CPPFLAGS) > cup.cflags.txt
 
 cup.libs.txt:
-	echo $(LIBS) > cubism.libs.txt
+	echo $(LIBS) > cup.libs.txt
 
 simulation: main.o $(OBJECTS)
 	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
