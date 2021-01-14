@@ -247,7 +247,6 @@ void Simulation::init()
 
   reset();
   sim.dt = 0;
-  sim.dumpAll("IC");
 }
 
 void Simulation::reset()
@@ -307,6 +306,8 @@ double Simulation::calcMaxTimestep()
 bool Simulation::advance(const double dt)
 {
   assert(dt>2.2e-16);
+  if( sim.step == 0 )
+    sim.dumpAll("IC");
   const bool bDump = sim.bDump();
 
   for (size_t c=0; c<pipeline.size(); c++) {
