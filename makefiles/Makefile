@@ -11,8 +11,12 @@ include make.macos
 endif
 
 # SET FLAGS FOR COMPILER
+ifneq ($(MPICXX),)
 CXX=$(MPICXX)
 LD=$(MPICXX)
+else
+ERROR += "MPICXX not set"
+endif
 
 ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
