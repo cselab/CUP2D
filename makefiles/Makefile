@@ -5,33 +5,12 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 
+# SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
 include make.macos
 endif
 
-ifneq "$(findstring panda,$(shell hostname))" ""
-include make.falcon
-endif
-ifneq "$(findstring falcon,$(shell hostname))" ""
-include make.falcon
-endif
-
-ifeq "$(findstring eu-,$(shell hostname))" "eu-"
-include make.euler
-endif
-ifneq "$(findstring euler,$(shell hostname))" ""
-include make.euler
-endif
-
-ifneq "$(findstring daint,$(shell hostname))" ""
-include make.daint
-endif
-
-ifneq "$(findstring barry,$(shell hostname))" ""
-include make.barry
-endif
-
-
+# SET FLAGS FOR COMPILER
 CXX=$(MPICXX)
 LD=$(MPICXX)
 
@@ -48,19 +27,17 @@ compiler=intel
 include make.icc.flags
 endif
 
+# SET FLAGS FOR CUBISM
 bs ?= 32
-nthreads ?= 24
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads)
-NVFLAGS+= -code=sm_60 -arch=compute_60
+nthreads ?= 12
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads) -I$(BUILDDIR)/../Cubism/include/
+NVFLAGS+= -code=sm_60 -arch=compute_60 -I$(BUILDDIR)/../Cubism/include/
 
+# SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
-CPPFLAGS += -I$(BUILDDIR)/../Cubism/include/
-NVFLAGS += -I$(BUILDDIR)/../Cubism/include/
-SRC_DIR = $(BUILDDIR)/../source/
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
+VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
-#OBJECTS = Simulation.o Definitions.o Shape.o ShapeLibrary.o ShapesSimple.o
-#advDiff_RK.o
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o PressureIterator_unif.o PressureIterator_approx.o \
@@ -72,69 +49,55 @@ OBJECTS = \
 		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
 		NeuroKinematicFish.o advDiff_implicit_all.o LinearSolverDelta.o
 
-#Penalization.o PressureIterator.o  PressureVarRho.o PressureSingleStaggered.o
-
-ifneq ($(FFTW_ROOT),)
-	# do not overwrite FFTW_ROOT
-else ifneq ($(FFTW3_ROOT_DIR),)
-	FFTW_ROOT = $(FFTW3_ROOT_DIR)
-else ifneq ($(FFTW_DIR),)
-	FFTW_ROOT = $(FFTW_DIR)/..
-endif
-ifneq ($(FFTW_ROOT),)
-	LIBS  += -L$(FFTW_ROOT)/lib
-	CPPFLAGS  += -I$(FFTW_ROOT)/include
-endif
-ifeq "$(precision)" "single"
-	CPPFLAGS += -D_FLOAT_PRECISION_
-	NVFLAGS += -D_FLOAT_PRECISION_
-	LIBS += -lfftw3f -lfftw3f_omp
-else
-	LIBS += -lfftw3  -lfftw3_omp
-endif
-
+# SET FLAGS FOR GPU-BASED SOLVERS
 ifneq "$(gpu)" "false"
-LIBS += -lcufft
-OBJECTS += CUDA_all.o
-CPPFLAGS += -DCUDAFFT
-
-LIBS += -L$(AMGX_DIR)/lib -lamgx -lcublas -lcusparse -lcusolver -lnvToolsExt
-OBJECTS += AMGXdirichletVarRho.o
-CPPFLAGS += -DAMGX_POISSON -I$(AMGX_DIR)/include
+LIBS += -lcufft -L$(AMGX_DIR)/lib -lamgx -lcublas -lcusparse -lcusolver -lnvToolsExt
+OBJECTS += CUDA_all.o AMGXdirichletVarRho.o
+CPPFLAGS += -DCUDAFFT -DAMGX_POISSON -I$(AMGX_DIR)/include
 endif
 
+# SET FLAGS FOR FFTW
+ifneq ($(FFTW_ROOT),)
+LIBS  += -L$(FFTW_ROOT)/lib
+CPPFLAGS  += -I$(FFTW_ROOT)/include
+else
+ERROR += "FFTW_ROOT not set"
+endif
+
+ifeq "$(precision)" "single"
+CPPFLAGS += -D_FLOAT_PRECISION_
+NVFLAGS += -D_FLOAT_PRECISION_
+LIBS += -lfftw3f -lfftw3f_omp
+else 
+LIBS += -lfftw3  -lfftw3_omp
+endif
+
+# SET FLAGS FOR HYPRE
 ifneq "$(hypre)" "false"
-	ifneq ($(HYPRE_ROOT),)
-		LIBS     += -L$(HYPRE_ROOT)/lib
-		CPPFLAGS += -I$(HYPRE_ROOT)/include
-	endif
-LIBS+= -lHYPRE
-CPPFLAGS += -DHYPREFFT
+ifneq ($(HYPRE_ROOT),)
+LIBS     += -L$(HYPRE_ROOT)/lib -lHYPRE
+CPPFLAGS += -I$(HYPRE_ROOT)/include -DHYPREFFT
+else
+ERROR += "HYPRE_ROOT not set"
 endif
-CPP_FILES = $(notdir $(OBJECTS:.o=.cpp))
-
-VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
-#  vpath %.cpp $(DIRS)
-#  vpath %.h   $(DIRS)
-
-ifneq "$(GSL_ROOT_DIR)" ""
-	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
-	LIBS += -L$(GSL_ROOT_DIR)/lib
 endif
-LIBS += -lgsl -lgslcblas
 
+# SET FLAGS FOR GSL
+ifneq ($(GSL_ROOT),)
+CPPFLAGS += -I$(GSL_ROOT)/include
+LIBS += -L$(GSL_ROOT)/lib -lgsl -lgslcblas
+else
+ERROR += "GSL_ROOT not set"
+endif
+
+# SET FLAGS FOR HDF5
 ifneq "$(hdf)" "false"
-	ifneq ($(HDF5_ROOT),)
-		# do not overwrite HDF5_ROOT
-  else ifneq ($(HDF5ROOT),)
-		HDF5_ROOT = $(HDF5ROOT)
-	endif
-	ifneq ($(HDF5_ROOT),)
-		LIBS     += -L$(HDF5_ROOT)/lib
-		CPPFLAGS += -I$(HDF5_ROOT)/include
-	endif
-	LIBS     += -lhdf5
-	CPPFLAGS += -DCUBISM_USE_HDF
+ifneq ($(HDF5_ROOT),)
+LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
+CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
+else
+ERROR += "HDF5_ROOT not set"
+endif
 endif
 
 ifneq ($(ERROR),)
@@ -144,6 +107,7 @@ endif
 all: simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 
+# COMPILATION INSTRUCTIONS FOR SMARTIES APPS
 leadFollow: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
@@ -172,6 +136,10 @@ glider: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
+# COMPILATION INSTRUCTIONS FOR STANDALONE APPLICATION OR AS LIBRARY
+simulation: main.o $(OBJECTS)
+	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
+
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 
@@ -181,9 +149,7 @@ cup.cflags.txt:
 cup.libs.txt:
 	echo $(LIBS) > cup.libs.txt
 
-simulation: main.o $(OBJECTS)
-	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
-
+# COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
@@ -193,6 +159,7 @@ simulation: main.o $(OBJECTS)
 CUDA_all.o: CUDA_all.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
+# COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
 	rm -f simulation libcup.a cup.cflags.txt cup.libs.txt
 	rm -f *.o *.d
