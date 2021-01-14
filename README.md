@@ -27,3 +27,15 @@ module load gnu mpich python fftw hdf5
 export HYPRE_ROOT=/home/novatig/hypre/build
 export GSL_ROOT=/usr
 ```
+
+## Installation
+
+With the above dependencies installed and associated environment variables set the code can be compiled by
+```
+cd makefiles
+make -j
+```
+
+## Running
+
+In order to run a simulation go to the launch directory for some preset cases
