@@ -234,7 +234,7 @@ void SimulationData::dumpAll(std::string name)
     //dumpVel  (name); // glued together: skip
     dumpGlue(name);
     dumpPres(name);
-    dumpInvRho(name);
+    //dumpInvRho(name);
     //dumpTmp (name);  // uncomment to dump vorticity
     //dumpUobj (name);
     //dumpForce(name);
