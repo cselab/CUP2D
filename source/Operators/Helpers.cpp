@@ -208,6 +208,8 @@ void Checker::run(std::string when) const
   const std::vector<BlockInfo>& pRHSInfo  = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
 
+  bool bAbort = false;
+
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++)
   {
@@ -226,86 +228,92 @@ void Checker::run(std::string when) const
     {
       if(std::isnan( VEL(ix,iy).u[0])) {
         printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf( VEL(ix,iy).u[0])) {
         printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(UDEF(ix,iy).u[0])) {
         printf("isnan(UDEF(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(UDEF(ix,iy).u[0])) {
         printf("isinf(UDEF(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(TMPV(ix,iy).u[0])) {
         printf("isnan(TMPV(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(TMPV(ix,iy).u[0])) {
         printf("isinf(TMPV(ix,iy).u[0]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan( VEL(ix,iy).u[1])) {
         printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf( VEL(ix,iy).u[1])) {
         printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(UDEF(ix,iy).u[1])) {
         printf("isnan(UDEF(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(UDEF(ix,iy).u[1])) {
         printf("isinf(UDEF(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(TMPV(ix,iy).u[1])) {
         printf("isnan(TMPV(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(TMPV(ix,iy).u[1])) {
         printf("isinf(TMPV(ix,iy).u[1]) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
-
       if(std::isnan( CHI(ix,iy).s   )) {
         printf("isnan( CHI(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf( CHI(ix,iy).s   )) {
         printf("isinf( CHI(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(PRES(ix,iy).s   )) {
         printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(PRES(ix,iy).s   )) {
         printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan( TMP(ix,iy).s   )) {
         printf("isnan( TMP(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf( TMP(ix,iy).s   )) {
         printf("isinf( TMP(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isnan(PRHS(ix,iy).s   )) {
         printf("isnan(PRHS(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
       if(std::isinf(PRHS(ix,iy).s   )) {
         printf("isinf(PRHS(ix,iy).s   ) %s\n", when.c_str());
-        fflush(0); abort();
+        bAbort = true;
       }
     }
+  }
+
+  if( bAbort )
+  {
+    sim.dumpAll("abort_");
+    fflush(0); 
+    abort();
   }
 }
 
