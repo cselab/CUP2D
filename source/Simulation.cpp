@@ -95,9 +95,6 @@ void Simulation::parseRuntime()
   // select Poisson solver
   sim.poissonType = parser("-poissonType").asString("");
 
-  // select numerical scheme for advection-diffusion step
-  sim.advDiffType = parser("-advDiffType").asString("");
-
   // boolean to enable iterative penalisation
   sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
 

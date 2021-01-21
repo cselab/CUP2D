@@ -67,7 +67,6 @@ struct SimulationData
   bool verbose = true;
   bool muteAll = false;
   std::string poissonType = "hypre";
-  std::string advDiffType = "quick"
   bool bVariableDensity = false;
   bool bStaggeredGrid = false;
   bool iterativePenalization = false;
