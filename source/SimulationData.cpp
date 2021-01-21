@@ -28,7 +28,6 @@ void SimulationData::allocateGrid()
   vFluid= new VectorGrid(bpdx, bpdy, 1, extent);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent);
-  vOld  = new VectorGrid(bpdx, bpdy, 1, extent);
 
   dump  = new DumpGrid(bpdx, bpdy, 1, extent);
 
