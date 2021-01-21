@@ -25,7 +25,6 @@
 #include "Operators/advDiffGrav.h"
 #include "Operators/advDiffGravStaggered.h"
 #include "Operators/advDiff.h"
-#include "Operators/advDiff_implicit_all.h"
 
 #include "Utils/FactoryFileLineParser.h"
 
@@ -93,19 +92,25 @@ void Simulation::parseRuntime()
   sim.path2file = parser("-file").asString("./");
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
 
+  // select Poisson solver
   sim.poissonType = parser("-poissonType").asString("");
+
+  // select numerical scheme for advection-diffusion step
+  sim.advDiffType = parser("-advDiffType").asString("");
+
+  // boolean to enable iterative penalisation
+  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
+
   // simulation settings
   sim.CFL = parser("-CFL").asDouble(0.1);
   sim.lambda = parser("-lambda").asDouble(1e3 / sim.CFL);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
-  sim.implicit = parser("-implicit").asInt(0);//fully implicit advection-diffusion
-
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
 
+  // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
-  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
   sim.muteAll = parser("-muteAll").asInt(0);//stronger silence, not even files
   if(sim.muteAll) sim.verbose = 0;
 }
@@ -223,10 +228,7 @@ void Simulation::init()
   {
     sim.bStaggeredGrid = false;
     pipeline.push_back( new PutObjectsOnGrid(sim) );
-    if(sim.implicit)
-        pipeline.push_back( new advDiff_implicit_all(sim) );
-    else
-        pipeline.push_back( new advDiff(sim) );
+    pipeline.push_back( new advDiff(sim) );
     //pipeline.push_back( new FadeOut(sim) );
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
@@ -282,12 +284,7 @@ double Simulation::calcMaxTimestep()
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
   sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
-  if (sim.implicit) //then we don't care about dtFourier, as diffusion is unconditionally stable. Also, we can use bigger values for sim.CFL
-  {
-    sim.dt = sim.CFL * std::min({dtCFL, dtBody});
-    std::cout << "Timestep bounds:" << dtCFL << " " << dtFourier << " " << dtBody << std::endl;
-  }
-
+  
   if (sim.step < 100)
   {
     const double x = (sim.step+1.0)/100;
