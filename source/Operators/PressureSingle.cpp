@@ -354,8 +354,10 @@ void PressureSingle::operator()(const double dt)
   //if( sim.bDump() ) {
   //  sim.dumpTmp("avemaria_");
   //}
+  sim.startProfiler("PSolve");
   pressureSolver->solve(tmpInfo, presInfo);
-
+  sim.stopProfiler();
+  
   sim.startProfiler("PCorrect");
   pressureCorrection(dt);
   sim.stopProfiler();

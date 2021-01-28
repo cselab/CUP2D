@@ -99,34 +99,34 @@ class FFTW_dirichlet : public PoissonSolver
   void solve(const std::vector<cubism::BlockInfo>& BSRC,
              const std::vector<cubism::BlockInfo>& BDST) override
   {
-    sim.startProfiler("FFTW_cub2fft");
+    // sim.startProfiler("FFTW_cub2fft");
     cub2rhs(BSRC);
-    sim.stopProfiler();
+    // sim.stopProfiler();
 
-    sim.startProfiler("FFTW_bwd");
+    // sim.startProfiler("FFTW_bwd");
     #ifndef _FLOAT_PRECISION_
       fftw_execute(fwd);
     #else // _FLOAT_PRECISION_
       fftwf_execute(fwd);
     #endif // _FLOAT_PRECISION_
-    sim.stopProfiler();
+    // sim.stopProfiler();
 
-    sim.startProfiler("FFTW_solve");
+    // sim.startProfiler("FFTW_solve");
       _solve();
       //_solveSpectral();
-    sim.stopProfiler();
+    // sim.stopProfiler();
 
-    sim.startProfiler("FFTW_fwd");
+    // sim.startProfiler("FFTW_fwd");
     #ifndef _FLOAT_PRECISION_
       fftw_execute(bwd);
     #else // _FLOAT_PRECISION_
       fftwf_execute(bwd);
     #endif // _FLOAT_PRECISION_
-    sim.stopProfiler();
+    // sim.stopProfiler();
 
-    sim.startProfiler("FFTW_fft2cub");
+    // sim.startProfiler("FFTW_fft2cub");
     sol2cub(BDST);
-    sim.stopProfiler();
+    // sim.stopProfiler();
   }
 
   ~FFTW_dirichlet() override
