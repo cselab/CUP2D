@@ -33,7 +33,7 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
   const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
   return advF * dVadv + difF * dVdif;
 }
-#else
+#else // use quick
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
   const Real advF, const Real difF, const int ix, const int iy)
 {
@@ -110,7 +110,7 @@ void advDiff::operator()(const double dt)
   {
     #if 0 // stencil for centered advection
     static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-    #else
+    #else // for quick
     static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
     #endif
 
