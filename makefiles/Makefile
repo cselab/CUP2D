@@ -1,6 +1,6 @@
 NVCC ?= nvcc
-hypre ?= true
-gpu ?= false
+hypre ?= true #false
+gpu ?= true #true
 hdf5 ?= true
 config ?= production
 precision ?= double
@@ -55,9 +55,9 @@ OBJECTS = \
 
 # SET FLAGS FOR GPU-BASED SOLVERS
 ifneq "$(gpu)" "false"
-LIBS += -lcufft -L$(AMGX_DIR)/lib -lamgx -lcublas -lcusparse -lcusolver -lnvToolsExt
-OBJECTS += CUDA_all.o AMGXdirichletVarRho.o
-CPPFLAGS += -DCUDAFFT -DAMGX_POISSON -I$(AMGX_DIR)/include
+LIBS += -lcufft -lcublas -lcusparse -lcusolver -lnvToolsExt #-L$(AMGX_DIR)/lib -lamgx
+OBJECTS += CUDA_all.o #AMGXdirichletVarRho.o
+CPPFLAGS += -DCUDAFFT #-DAMGX_POISSON -I$(AMGX_DIR)/include
 endif
 
 # SET FLAGS FOR FFTW
