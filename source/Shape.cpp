@@ -14,6 +14,8 @@
 #include <iomanip>
 using namespace cubism;
 
+#define EXPL_INTEGRATE_MOM
+
 static constexpr double EPS = std::numeric_limits<double>::epsilon();
 Real Shape::getMinRhoS() const { return rhoS; }
 Real Shape::getCharMass() const { return 0; }
@@ -24,6 +26,14 @@ bool Shape::bVariableDensity() const {
 
 void Shape::updateVelocity(double dt)
 {
+  #ifdef EXPL_INTEGRATE_MOM
+  if(not bForcedx  || sim.time > timeForced) 
+    u = ( fluidMomX + dt * appliedForceX ) / penalM;
+  if(not bForcedy  || sim.time > timeForced)
+    v = ( fluidMomY + dt * appliedForceY ) / penalM;
+  if(not bBlockang || sim.time > timeForced)
+    omega = ( fluidAngMom + dt * appliedTorque ) / penalJ;
+  #else  
   double A[3][3] = {
     {   penalM,       0, -penalDY },
     {        0,  penalM,  penalDX },
@@ -34,7 +44,7 @@ void Shape::updateVelocity(double dt)
     fluidMomY   + dt * appliedForceY,
     fluidAngMom + dt * appliedTorque
   };
-
+  
   if(bForcedx && sim.time < timeForced) {
                  A[0][1] = 0; A[0][2] = 0; b[0] = penalM * forcedu;
   }
@@ -56,6 +66,7 @@ void Shape::updateVelocity(double dt)
   if(not bForcedx  || sim.time > timeForced)  u     = gsl_vector_get(xgsl, 0);
   if(not bForcedy  || sim.time > timeForced)  v     = gsl_vector_get(xgsl, 1);
   if(not bBlockang || sim.time > timeForced)  omega = gsl_vector_get(xgsl, 2);
+  #endif
 }
 
 void Shape::updateLabVelocity( int nSum[2], double uSum[2] )
