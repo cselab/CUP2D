@@ -107,7 +107,7 @@ inline void app_main(
   // Second action affects Tp = (1+act[1])*Tperiod_0 (eg. halved if act[1]=-.5).
   // If too small Re=L^2*Tp/nu would increase too much, we allow it to
   //  double at most, therefore we set the bounds between -0.5 and 0.5.
-  std::vector<double> upper_action_bound{1.,.5}, lower_action_bound{-1.,-.5};
+  std::vector<double> upper_action_bound{1.,.25}, lower_action_bound{-1.,-.25};
   comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
   Simulation sim(argc, argv);
