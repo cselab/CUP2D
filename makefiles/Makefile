@@ -33,7 +33,7 @@ include make.icc.flags
 endif
 
 # SET FLAGS FOR CUBISM
-ifneq "$(amr)" "false"
+ifneq "$(amr)" "true"
 bs ?= 32
 else 
 bs ?= 8
