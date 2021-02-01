@@ -489,5 +489,5 @@ void AMRSolver::solve()
   }
 
   // sim.stopProfiler();
-  std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
+  // std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }

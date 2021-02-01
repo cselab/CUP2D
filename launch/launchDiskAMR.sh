@@ -2,8 +2,8 @@
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-4}
 LEVELS=${LEVELS:-3}
-RTOL=${RTOL-5.0}
-CTOL=${CTOL-1.0}
+RTOL=${RTOL-0.1}
+CTOL=${CTOL-0.01}
 EXTENT=${EXTENT:-1}
 CFL=${CFL:-0.5}
 # Defaults for Objects
