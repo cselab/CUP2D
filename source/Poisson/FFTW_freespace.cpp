@@ -16,19 +16,19 @@ void FFTW_freespace::solve(const std::vector<BlockInfo>& BSRC,
 {
   memset(buffer, 0, 2 * MY * MX_hat * sizeof(Real));
 
-  sim.startProfiler("FFTW_cub2fft");
+  // sim.startProfiler("FFTW_cub2fft");
   cub2rhs(BSRC);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("FFTW_fwd");
+  // sim.startProfiler("FFTW_fwd");
   #ifndef _FLOAT_PRECISION_
     fftw_execute(fwd);
   #else // _FLOAT_PRECISION_
     fftwf_execute(fwd);
   #endif // _FLOAT_PRECISION_
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("FFTW_solve");
+  // sim.startProfiler("FFTW_solve");
   {
     mycomplex * __restrict__ const in_out = (mycomplex *) buffer;
     const Real* __restrict__ const G_hat = m_kernel;
@@ -40,19 +40,19 @@ void FFTW_freespace::solve(const std::vector<BlockInfo>& BSRC,
       in_out[linidx][1] *= G_hat[linidx];
     }
   }
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("FFTW_bwd");
+  // sim.startProfiler("FFTW_bwd");
   #ifndef _FLOAT_PRECISION_
     fftw_execute(bwd);
   #else // _FLOAT_PRECISION_
     fftwf_execute(bwd);
   #endif // _FLOAT_PRECISION_
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("FFTW_fft2cub");
+  // sim.startProfiler("FFTW_fft2cub");
   sol2cub(BDST);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 }
 
 FFTW_freespace::~FFTW_freespace()

@@ -424,8 +424,11 @@ void PressureSingle::operator()(const double dt)
   //if( sim.bDump() ) {
   //  sim.dumpTmp("avemaria_");
   //}
-  pressureSolver->solve();
 
+  sim.startProfiler("PSolve");
+  pressureSolver->solve();
+  sim.stopProfiler();
+  
   sim.startProfiler("PCorrect");
   pressureCorrection(dt);
   sim.stopProfiler();

@@ -58,7 +58,7 @@ class Shape
 
   double perimeter=0, forcex=0, forcey=0, forcex_P=0, forcey_P=0;
   double forcex_V=0, forcey_V=0, torque=0, torque_P=0, torque_V=0;
-  double drag=0, thrust=0, circulation=0, Pout=0, PoutBnd=0, defPower=0;
+  double drag=0, thrust=0, lift=0, circulation=0, Pout=0, PoutBnd=0, defPower=0;
   double defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
 
   virtual void resetAll()
@@ -181,7 +181,7 @@ class Shape
 
   virtual void removeMoments(const std::vector<cubism::BlockInfo>& vInfo);
 
-  void updateLabVelocity( int mSum[2], double uSum[2] );
+  virtual void updateLabVelocity( int mSum[2], double uSum[2] );
 
   void penalize();
 

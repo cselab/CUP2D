@@ -1,4 +1,4 @@
-CPPFLAGS+= -std=c++14 -fopenmp -Wall
+CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
 LIBS+= -fopenmp
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
@@ -12,7 +12,7 @@ ifeq "$(findstring prod,$(config))" ""
 CPPFLAGS+= -g -O0
 ifeq "$(config)" "segf"
 CPPFLAGS+= -fsanitize=address
-LIBS+= -fsanitize=address
+LIBS+= -fsanitize=address -static-libasan
 endif
 ifeq "$(config)" "nans"
 CPPFLAGS+= -fsanitize=undefined

@@ -34,7 +34,6 @@ void SimulationData::allocateGrid()
   vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
   #ifdef PRECOND
@@ -47,15 +46,6 @@ void SimulationData::allocateGrid()
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
-
-  //const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;      };
-  //const auto isE = [&](const BlockInfo&I) { return I.index[0] == bpdx-1; };
-  //const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;      };
-  //const auto isN = [&](const BlockInfo&I) { return I.index[1] == bpdy-1; };
-  //const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-  //for (size_t i=0; i < velInfo.size(); i++)
-  //  if(isW(velInfo[i]) || isE(velInfo[i]) || isS(velInfo[i]) || isN(velInfo[i]))
-  //    boundaryInfoIDs.push_back(i);
 }
 
 void SimulationData::dumpGlue(std::string name) {
@@ -232,6 +222,7 @@ void SimulationData::dumpAll(std::string name)
     const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
     const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
     const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
+    //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i < velInfo.size(); i++)
     {
@@ -241,16 +232,15 @@ void SimulationData::dumpAll(std::string name)
       DMP.assign(CHI, VEL);
     }
 
+    // dump vorticity
     const auto K1 = computeVorticity(*this); K1.run();
     dumpTmp (name);
-
 
     //dumpChi  (name); // glued together: skip
     //dumpVel  (name); // glued together: skip
     dumpGlue(name);
-    dumpPres (name);
-    //dumpInvRho (name);
-    //dumpTmp  (name); // usually signed dist is here
+    dumpPres(name);
+    //dumpInvRho(name);
     //dumpUobj (name);
     //dumpForce(name);
     //dumpTmpV (name); // probably useless

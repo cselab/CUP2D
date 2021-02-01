@@ -23,7 +23,6 @@
 #include "Operators/ComputeForces.h"
 #include "Operators/UpdateObjectsStaggered.h"
 #include "Operators/advDiff.h"
-#include "Operators/advDiff_implicit_all.h"
 #include "Operators/AdaptTheMesh.h"
 
 #include "Utils/FactoryFileLineParser.h"
@@ -32,6 +31,8 @@
 #include "Obstacles/CarlingFish.h"
 #include "Obstacles/StefanFish.h"
 #include "Obstacles/CStartFish.h"
+#include "Obstacles/ZebraFish.h"
+#include "Obstacles/NeuroKinematicFish.h"
 #include "Obstacles/BlowFish.h"
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Glider.h"
@@ -75,6 +76,8 @@ void Simulation::parseRuntime()
   parser.set_strict_mode();
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
+
+  // parameters for AMR
   sim.levelMax = parser("-levelMax").asInt(1);
   sim.Rtol = parser("-Rtol").asDouble(1.0);
   sim.Ctol = parser("-Ctol").asDouble(0.1);
@@ -94,19 +97,22 @@ void Simulation::parseRuntime()
   sim.path2file = parser("-file").asString("./");
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
 
+  // select Poisson solver
   sim.poissonType = parser("-poissonType").asString("");
+
+  // boolean to enable iterative penalisation
+  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
+
   // simulation settings
   sim.CFL = parser("-CFL").asDouble(0.1);
   sim.lambda = parser("-lambda").asDouble(1e3 / sim.CFL);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
-  sim.implicit = parser("-implicit").asInt(0);//fully implicit advection-diffusion
-
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
 
+  // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
-  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
   sim.muteAll = parser("-muteAll").asInt(0);//stronger silence, not even files
   if(sim.muteAll) sim.verbose = 0;
 }
@@ -163,6 +169,10 @@ void Simulation::createShapes()
         shape = new StefanFish(       sim, ffparser, center);
       else if (objectName=="cstartfish")
         shape = new CStartFish(       sim, ffparser, center);
+      else if (objectName=="zebrafish")
+          shape = new ZebraFish(      sim, ffparser, center);
+      else if (objectName=="neurokinematicfish")
+          shape = new NeuroKinematicFish(      sim, ffparser, center);
       else if (objectName=="carlingfish")
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )
@@ -186,10 +196,9 @@ void Simulation::createShapes()
 
 void Simulation::init()
 {
-  //std::cout << "Ok1" << std::endl;
   parseRuntime();
   createShapes();
-  //std::cout << "Ok2" << std::endl;
+  
   pipeline.clear();
   {
     IC ic(sim);
@@ -205,10 +214,7 @@ void Simulation::init()
   {
     sim.bStaggeredGrid = false;
     pipeline.push_back( new PutObjectsOnGrid(sim) );
-    if(sim.implicit)
-        pipeline.push_back( new advDiff_implicit_all(sim) );
-    else
-        pipeline.push_back( new advDiff(sim) );
+    pipeline.push_back( new advDiff(sim) );
     //pipeline.push_back( new FadeOut(sim) );
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
@@ -237,7 +243,6 @@ void Simulation::init()
 
   reset();
   sim.dt = 0;
-  sim.dumpAll("IC");
 }
 
 void Simulation::reset()
@@ -269,21 +274,38 @@ double Simulation::calcMaxTimestep()
   assert(sim.uMax_measured>=0);
 
   const double h = sim.getH();
+  #if 0 // CFL condition for centered scheme
   const double dtFourier = h*h/sim.nu;
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
-  sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
-  if (sim.implicit) //then we don't care about dtFourier, as diffusion is unconditionally stable. Also, we can use bigger values for sim.CFL
-  {
-    sim.dt = sim.CFL * std::min({dtCFL, dtBody});
-    std::cout << "Timestep bounds:" << dtCFL << " " << dtFourier << " " << dtBody << std::endl;
-  }
+  #else // CFL for QUICK scheme
+  // stability condition sigma^2<=2d
+  const double dtBalance = sim.uMax_measured < 2.2e-16 ? 1 : 2*sim.nu / (sim.uMax_measured*sim.uMax_measured);
 
+  // stability condition sigma+4d<=2
+  const double coeffAdvection = sim.uMax_measured / h;
+  const double coeffDiffusion = 4*sim.nu / (h*h);
+  const double dtAbs     = 2*sim.CFL/(coeffAdvection+coeffDiffusion);
+  #endif
+
+  // ramp up CFL
   if (sim.step < 100)
   {
     const double x = (sim.step+1.0)/100;
     const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
+    #if 0
     sim.dt = rampCFL * std::min({dtCFL, dtFourier, dtBody});
+    #else
+    sim.dt = rampCFL * std::min({ dtBalance, dtAbs });
+    #endif
+  }
+  else
+  {
+    #if 0
+    sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
+    #else
+    sim.dt = sim.CFL*std::min({ dtBalance, dtAbs });
+    #endif
   }
 
   if(sim.verbose)
@@ -297,6 +319,8 @@ double Simulation::calcMaxTimestep()
 bool Simulation::advance(const double dt)
 {
   assert(dt>2.2e-16);
+  if( sim.step == 0 )
+    sim.dumpAll("IC");
   const bool bDump = sim.bDump();
 
   for (size_t c=0; c<pipeline.size(); c++) {

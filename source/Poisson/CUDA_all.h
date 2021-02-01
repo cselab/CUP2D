@@ -49,6 +49,7 @@ class CUDA_periodic : public PoissonSolver
 
   CUDA_periodic(SimulationData& s) : PoissonSolver(s, STRIDE)
   {
+    printf("Employing CUDA-based Poisson solver for periodic BC.\n");
     makePlan(fwd, MY, MX, cufftPlanFWD);
     makePlan(bwd, MY, MX, cufftPlanBWD);
     assert(2*sizeof(Real) == sizeof(cufftCmpT));
@@ -88,6 +89,7 @@ class CUDA_freespace : public PoissonSolver
   #define TOT_DOF_X s.vel->getBlocksPerDimension(0) * VectorBlock::sizeX
   CUDA_freespace(SimulationData& s) : PoissonSolver(s, TOT_DOF_X)
   {
+    printf("Employing CUDA-based Poisson solver for freespace BC.\n");
     makePlan(fwd, MY, MX, cufftPlanFWD);
     makePlan(bwd, MY, MX, cufftPlanBWD);
     assert(2*sizeof(Real) == sizeof(cufftCmpT));

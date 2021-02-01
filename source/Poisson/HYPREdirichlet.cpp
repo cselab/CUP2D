@@ -18,9 +18,9 @@ void HYPREdirichlet::solve(const std::vector<BlockInfo>& BSRC,
   HYPRE_Int ilower[2] = {0,0};
   HYPRE_Int iupper[2] = {(int)totNx-1, (int)totNy-1};
 
-  sim.startProfiler("HYPRE_cub2rhs");
+  // sim.startProfiler("HYPRE_cub2rhs");
   cub2rhs(BSRC);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
   if(not bPeriodic)
   {
@@ -34,30 +34,30 @@ void HYPREdirichlet::solve(const std::vector<BlockInfo>& BSRC,
     buffer[totNx*(totNy-1) + totNx-1-SHIFT] -= pLast;
   }
 
-  sim.startProfiler("HYPRE_setBoxV");
+  // sim.startProfiler("HYPRE_setBoxV");
   #ifdef _FLOAT_PRECISION_
     std::copy(buffer, buffer + totNy*totNx, dbuffer);
   #endif // else buffer == dbuffer
   HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, dbuffer);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("HYPRE_solve");
+  // sim.startProfiler("HYPRE_solve");
   if (solver == "gmres")
     HYPRE_StructGMRESSolve(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   else if (solver == "smg")
     HYPRE_StructSMGSolve(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   else
     HYPRE_StructPCGSolve(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("HYPRE_getBoxV");
+  // sim.startProfiler("HYPRE_getBoxV");
   HYPRE_StructVectorGetBoxValues(hypre_sol, ilower, iupper, dbuffer);
   #ifdef _FLOAT_PRECISION_
     std::copy(dbuffer, dbuffer + totNy*totNx, buffer);
   #endif
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("HYPRE_sol2cub");
+  // sim.startProfiler("HYPRE_sol2cub");
   {
     double avgP = 0;
     const double fac = 1.0 / (totNx * totNy);
@@ -71,7 +71,7 @@ void HYPREdirichlet::solve(const std::vector<BlockInfo>& BSRC,
   }
   sol2cub(BDST);
 
-  sim.stopProfiler();
+  // sim.stopProfiler();
 }
 
 #define STRIDE s.vel->getBlocksPerDimension(0) * VectorBlock::sizeX

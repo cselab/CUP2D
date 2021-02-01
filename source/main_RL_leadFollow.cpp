@@ -27,18 +27,16 @@ using namespace cubism;
 inline void resetIC(StefanFish* const a, Shape*const p,
                     smarties::Communicator*const c)
 {
+  // CAREFULL, this assumes a [0,1]x[0,0.5] domain!
   std::uniform_real_distribution<double> disA(-20./180.*M_PI, 20./180.*M_PI);
-  std::uniform_real_distribution<double> disX(1, 2),  disY(-0.5, 0.5);
-  #if 1
-  // cylFollow
-  const double SX = c->isTraining()? disX(c->getPRNG()) : 1.5;
-  #else
+  std::uniform_real_distribution<double> disX(0.2, 0.4),  disY(-0.1, 0.1);
+
   const double SX = c->isTraining()? disX(c->getPRNG()) : 0.5;
-  #endif
   const double SY = c->isTraining()? disY(c->getPRNG()) : 0.00;
   const double SA = c->isTraining()? disA(c->getPRNG()) : 0.00;
-  double C[2] = { p->center[0] + (1+SX)*a->length,
-                  p->center[1]     + SY*a->length };
+
+  double C[2] = { p->center[0] + SX,
+                  p->center[1] + SY };
   p->centerOfMass[1] = p->center[1] - ( C[1] - p->center[1] );
   p->center[1] = p->center[1] - ( C[1] - p->center[1] );
   a->setCenterOfMass(C);
@@ -52,24 +50,18 @@ inline void setAction(StefanFish* const agent,
   agent->act(t, act);
 }
 
-inline bool isTerminal(const StefanFish*const a, const Shape*const p) {
-  const double X = ( a->center[0] - p->center[0] )/ a->length;
-  const double Y = ( a->center[1] - p->center[1] )/ a->length;
-  assert(X>0);
-  #if 1
-    // cylFollow
-    return std::fabs(Y)>1.5 || X<1 || X>6;
-  #else
-    // extended follow 
-    // return std::fabs(Y)>1 || X<1 || X>3;
-    // restricted follow
-    return std::fabs(Y)>0.75 || X<1 || X>2;
-  #endif
+inline bool isTerminal(const StefanFish*const a, const Shape*const p)
+{
+  // CAREFULL, this assumes a [0,1]x[0,0.5] domain!
+  const double X = ( a->center[0] - p->center[0] );
+  const double Y = ( a->center[1] - p->center[1] );
+
+  return std::fabs(Y)>0.15 || X<0.15 || X>0.7;
 }
 
 inline double getReward(const StefanFish* const a, const Shape*const p) {
   //double efficiency = a->reward(); version using member-function (PW)
-  return isTerminal(a, p)? -10 : a->EffPDefBnd; //efficiency;
+  return isTerminal(a, p)? -100 : a->EffPDefBnd; //efficiency;
 }
 
 inline bool checkNaN(std::vector<double>& state, double& reward)
@@ -115,7 +107,7 @@ inline void app_main(
   // Second action affects Tp = (1+act[1])*Tperiod_0 (eg. halved if act[1]=-.5).
   // If too small Re=L^2*Tp/nu would increase too much, we allow it to
   //  double at most, therefore we set the bounds between -0.5 and 0.5.
-  std::vector<double> upper_action_bound{1.,.5}, lower_action_bound{-1.,-.5};
+  std::vector<double> upper_action_bound{1.,.25}, lower_action_bound{-1.,-.25};
   comm->setActionScales(upper_action_bound, lower_action_bound, true);
 
   Simulation sim(argc, argv);
@@ -175,8 +167,9 @@ inline void app_main(
       std::vector<double> state = agent->state(object);
       double reward = getReward(agent,object);
 
-      if (agentOver || checkNaN(state, reward) ) {
-        printf("Agent failed at x=%.02f, y=%.02f \n",agent->center[0],agent->center[1]); fflush(0);
+      bool bNaN = checkNaN(state, reward);
+      if (agentOver || bNaN ) {
+        printf("Agent failed at x=%.02f, y=%.02f.. agentOver=%d, bNaN=%d  t \n",agent->center[0],agent->center[1], agentOver, bNaN); fflush(0);
         comm->sendTermState(state, reward);
         break;
       }

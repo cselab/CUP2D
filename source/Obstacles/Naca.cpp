@@ -27,79 +27,82 @@ class NacaData : public FishData
     const Real b = -0.1260;
     const Real c = -0.3516;
     const Real d =  0.2843;
-    const Real e = -0.1036; // instead of -0.1015 to ensure closing end
+    const Real e = -0.1015; // -0.1036 instead of -0.1015 to ensure closing end
     const Real t = tRatio*L; //NACA00{tRatio}
 
     if(s<0 or s>L) return 0;
     const Real p = s/L;
-    return 5*t* (a*std::sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+    const Real w = 5*t*(a*std::sqrt(p) + b*p + c*p*p + d*p*p*p + e*p*p*p*p);
+    // std::cout << "s=" << s << ", w=" << w << std::endl;
+    assert( w >= 0 );
+    return w;
   }
 };
 
 void NacaData::computeMidline(const Real t, const Real dt)
 {
-  rX[0] = rY[0] = vX[0] = vY[0] = 0;
+  // TODO: For NACA the midline is static
+  rX[0] = rY[0] = vX[0] = vY[0] = norX[0] = vNorX[0] = vNorY[0] = 0.0;
+  vNorY[0] = 1.0;
 
   #pragma omp parallel for schedule(static)
   for(int i=1; i<Nm; ++i) {
-    rY[i] = vX[i] = vY[i] = 0;
-    rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-  }
-
-  #pragma omp parallel for schedule(static)
-  for(int i=1; i<Nm; ++i) {
-    const Real dy = rY[i]-rY[i-1], ds = rS[i]-rS[i-1];
-    const Real dx = std::sqrt(ds*ds-dy*dy);
-    assert(dx>0);
-    const Real dVy = vY[i]-vY[i-1];
-    const Real dVx = - dy/dx * dVy; // ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
-
+    // only x-coordinate of midline varies
+    const Real dx = std::fabs(rS[i]-rS[i-1]);
     rX[i] = dx;
-    vX[i] = dVx;
-    norX[ i-1] = -dy/ds;
-    norY[ i-1] =  dx/ds;
-    vNorX[i-1] = -dVy/ds;
-    vNorY[i-1] =  dVx/ds;
+    // rest 0
+    rY[i] = vX[i] = vY[i] = norX[i] = vNorX[i] = vNorY[i] = 0.0;
+    // thus normal is
+    norY[i] = 1.0;
   }
 
-  for(int i=1; i<Nm; ++i) { rX[i] += rX[i-1]; vX[i] += vX[i-1]; }
-
-  norX[Nm-1] = norX[Nm-2];
-  norY[Nm-1] = norY[Nm-2];
-  vNorX[Nm-1] = vNorX[Nm-2];
-  vNorY[Nm-1] = vNorY[Nm-2];
+  for(int i=1; i<Nm; ++i){
+    rX[i] += rX[i-1];
+  }
 }
 
 Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
-  : Fish(s,p,C), Apitch(p("-Apitch").asDouble(0.0)), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
+  : Fish(s,p,C), Apitch( p("-Apitch").asDouble(0.0)*M_PI/180 ), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.getH(), tRatio);
-  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f tAccel=%f dRot=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, tAccel, fixedCenterDist);
-}
-
-void Naca::create(const std::vector<BlockInfo>& vInfo) {
-  Fish::create(vInfo);
-}
-
-void Naca::resetAll() {
-  Fish::resetAll();
+  printf("NacaFoil Nm=%d L=%f t=%f A=%f w=%f xvel=%f yvel=%f tAccel=%f fixedCenterDist=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, forcedu, forcedv, tAccel, fixedCenterDist);
 }
 
 void Naca::updateVelocity(double dt)
 {
-  const Real arga = 2*M_PI*Fpitch*sim.time;
-  const Real angle = std::sin(2*M_PI*Fpitch*sim.time);
-  omega = 2*M_PI*Fpitch*Apitch*std::cos(arga);
+  const Real omegaAngle = 2*M_PI*Fpitch;
+  const Real angle = Apitch*std::sin(omegaAngle*sim.time);
+  // angular velocity
+  omega = Apitch*omegaAngle*std::cos(omegaAngle*sim.time);
   if( sim.time < tAccel )
   {
-    // linear and angular motion (due to rotation-axis != CoM)
+    // linear velocity (due to rotation-axis != CoM)
     u = (sim.time/tAccel)*forcedu - fixedCenterDist*length*omega*std::sin(angle);
     v = (sim.time/tAccel)*forcedv + fixedCenterDist*length*omega*std::cos(angle);
   }
   else
   {
-    // linear and angular motion (due to rotation-axis != CoM)
+    // linear velocity (due to rotation-axis != CoM)
     u = forcedu - fixedCenterDist*length*omega*std::sin(angle);
     v = forcedv + fixedCenterDist*length*omega*std::cos(angle);
+  }
+  // std::cout << "u=" << u << ", v=" << v << "\n";
+}
+
+void Naca::updateLabVelocity( int nSum[2], double uSum[2] )
+{
+  if(bFixedx){
+   (nSum[0])++; 
+   if( sim.time < tAccel )
+    uSum[0] -= (sim.time/tAccel)*forcedu;
+   else 
+    uSum[0] -= forcedu; 
+  }
+  if(bFixedy){
+   (nSum[1])++; 
+   if( sim.time < tAccel )
+    uSum[1] -= (sim.time/tAccel)*forcedv;
+   else 
+    uSum[1] -= forcedv; 
   }
 }

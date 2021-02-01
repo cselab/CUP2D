@@ -336,7 +336,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s){}
 
 void AMRSolver::solve()
 {
-  sim.startProfiler("AMRSolver");
+  // sim.startProfiler("AMRSolver");
 
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
@@ -488,6 +488,6 @@ void AMRSolver::solve()
     err_min = err;
   }
 
-  sim.stopProfiler();
+  // sim.stopProfiler();
   std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }
