@@ -97,11 +97,11 @@ void UpdateObjects::preventCollidingObstacles() const
     printf("%lu hit %lu in [%f %f] with dir:[%f %f] DU:[%f %f] proj:%f\n",
         i, j, CX, CY, NX, NY, hitVelX, hitVelY, projVel); fflush(0);
     if(projVel<=0) continue; // vel goes away from coll: no need to bounce
-    const bool iForcedX = shapes[i]->bForcedx && sim.time<shapes[i]->timeForced;
-    const bool iForcedY = shapes[i]->bForcedy && sim.time<shapes[i]->timeForced;
-    const bool iForcedA = shapes[i]->bBlockang&& sim.time<shapes[i]->timeForced;
-    const bool jForcedX = shapes[j]->bForcedx && sim.time<shapes[j]->timeForced;
-    const bool jForcedY = shapes[j]->bForcedy && sim.time<shapes[j]->timeForced;
+    const bool iForcedX = shapes[i]->bForcedx && sim.time<shapes[i]->timeForcedx;
+    const bool iForcedY = shapes[i]->bForcedy && sim.time<shapes[i]->timeForcedy;
+    const bool iForcedA = shapes[i]->bBlockang&& sim.time<shapes[i]->timeForcedang;
+    const bool jForcedX = shapes[j]->bForcedx && sim.time<shapes[j]->timeForcedx;
+    const bool jForcedY = shapes[j]->bForcedy && sim.time<shapes[j]->timeForcedy;
 
     const Real iInvMassX = iForcedX? 0 : 1/shapes[i]->M; // forced == inf mass
     const Real iInvMassY = iForcedY? 0 : 1/shapes[i]->M;

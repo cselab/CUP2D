@@ -27,11 +27,11 @@ bool Shape::bVariableDensity() const {
 void Shape::updateVelocity(double dt)
 {
   #ifdef EXPL_INTEGRATE_MOM
-  if(not bForcedx  || sim.time > timeForced) 
+  if(not bForcedx  || sim.time > timeForcedx) 
     u = ( fluidMomX + dt * appliedForceX ) / penalM;
-  if(not bForcedy  || sim.time > timeForced)
+  if(not bForcedy  || sim.time > timeForcedy)
     v = ( fluidMomY + dt * appliedForceY ) / penalM;
-  if(not bBlockang || sim.time > timeForced)
+  if(not bBlockang || sim.time > timeForcedang)
     omega = ( fluidAngMom + dt * appliedTorque ) / penalJ;
   #else  
   double A[3][3] = {
@@ -45,13 +45,13 @@ void Shape::updateVelocity(double dt)
     fluidAngMom + dt * appliedTorque
   };
   
-  if(bForcedx && sim.time < timeForced) {
+  if(bForcedx && sim.time < timeForcedx) {
                  A[0][1] = 0; A[0][2] = 0; b[0] = penalM * forcedu;
   }
-  if(bForcedy && sim.time < timeForced) {
+  if(bForcedy && sim.time < timeForcedy) {
     A[1][0] = 0;              A[1][2] = 0; b[1] = penalM * forcedv;
   }
-  if(bBlockang && sim.time < timeForced) {
+  if(bBlockang && sim.time < timeForcedang) {
     A[2][0] = 0; A[2][1] = 0;              b[2] = penalJ * forcedomega;
   }
 
@@ -63,9 +63,9 @@ void Shape::updateVelocity(double dt)
   gsl_linalg_LU_decomp (& Agsl.matrix, permgsl, & sgsl);
   gsl_linalg_LU_solve (& Agsl.matrix, permgsl, & bgsl.vector, xgsl);
 
-  if(not bForcedx  || sim.time > timeForced)  u     = gsl_vector_get(xgsl, 0);
-  if(not bForcedy  || sim.time > timeForced)  v     = gsl_vector_get(xgsl, 1);
-  if(not bBlockang || sim.time > timeForced)  omega = gsl_vector_get(xgsl, 2);
+  if(not bForcedx  || sim.time > timeForcedx)   u     = gsl_vector_get(xgsl, 0);
+  if(not bForcedy  || sim.time > timeForcedy)   v     = gsl_vector_get(xgsl, 1);
+  if(not bBlockang || sim.time > timeForcedang) omega = gsl_vector_get(xgsl, 2);
   #endif
 }
 
@@ -353,7 +353,9 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   bBlockang( p("-bBlockAng").asBool(bForcedx || bForcedy) ),
   forcedu( - p("-xvel").asDouble(0) ), forcedv( - p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)), bDumpSurface(p("-dumpSurf").asInt(0)),
-  timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
+  timeForcedx(p("-timeForcedx").asDouble(std::numeric_limits<double>::max())),
+  timeForcedy(p("-timeForcedy").asDouble(std::numeric_limits<double>::max())),
+  timeForcedang(p("-timeForcedang").asDouble(std::numeric_limits<double>::max()))
   {}
 
 Shape::~Shape()
