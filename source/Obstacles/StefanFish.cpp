@@ -415,42 +415,27 @@ std::vector<double> StefanFish::state(Shape*const p) const
     return S;
   #else
     S.resize(16);
-    const Real h = sim.getH(), invh = 1/h;
+
     const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
     // function that finds block id of block containing pos (x,y)
     const auto holdingBlockID = [&](const Real x, const Real y)
     {
-      const auto getMin = [&]( const BlockInfo&I )
-      {
-        std::array<Real,2> MIN = I.pos<Real>(0, 0);
-        for(int i=0; i<2; ++i)
-          MIN[i] -= 0.5 * h; // pos returns cell centers
-        return MIN;
-      };
-
-      const auto getMax = [&]( const BlockInfo&I )
-      {
-        std::array<Real,2> MAX = I.pos<Real>(VectorBlock::sizeX-1,
-                                             VectorBlock::sizeY-1);
-        for(int i=0; i<2; ++i)
-          MAX[i] += 0.5 * h; // pos returns cell centers
-        return MAX;
-      };
-
-      const auto holdsPoint = [&](const std::array<Real,2> MIN, std::array<Real,2> MAX,
-                                  const Real X,const Real Y)
-      {
-        // this may return true for 2 blocks if (X,Y) overlaps with edges
-        return X >= MIN[0] && Y >= MIN[1] && X <= MAX[0] && Y <= MAX[1];
-      };
-
       std::vector<std::pair<double, int>> distsBlocks(velInfo.size());
       for(size_t i=0; i<velInfo.size(); ++i)
       {
-        std::array<Real,2> MIN = getMin(velInfo[i]);
-        std::array<Real,2> MAX = getMax(velInfo[i]);
-        if( holdsPoint(MIN, MAX, x, y) )
+        const Real h = velInfo[i].h_gridpoint;
+
+        std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
+        for(int j=0; j<2; ++j)
+          MIN[i] -= 0.5 * h; // pos returns cell centers
+
+        std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
+        for(int j=0; j<2; ++j)
+          MAX[i] += 0.5 * h; // pos returns cell centers
+
+        // std::cout << "x=" << x << ", y=" << y << ", MIN[0]=" << MIN[0] << ", MIN[1]" << MIN[1] << ", MAX[0]=" << MAX[0] << ", MAX[1]=" << MAX[1] << std::endl;
+        if( x >= MIN[0] && y >= MIN[1] && x <= MAX[0] && y <= MAX[1] )
         {
         // handler to select obstacle block
           const auto& skinBinfo = velInfo[i];
@@ -483,7 +468,8 @@ std::vector<double> StefanFish::state(Shape*const p) const
     // function that is probably unnecessary, unless pos is at block edge
     // then it makes the op stable without increasing complexity in the above
     const auto safeIdInBlock = [&](const std::array<Real,2> pos,
-                                   const std::array<Real,2> org)
+                                   const std::array<Real,2> org,
+                                   const Real invh )
     {
       const int indx = (int) std::round((pos[0] - org[0])*invh);
       const int indy = (int) std::round((pos[1] - org[1])*invh);
@@ -495,14 +481,18 @@ std::vector<double> StefanFish::state(Shape*const p) const
     // return fish velocity at a point on the fish skin:
     const auto skinVel = [&](const std::array<Real,2> pSkin)
     {
-      const auto& skinBinfo = velInfo[holdingBlockID(pSkin[0], pSkin[1])];
+      const int blockId = holdingBlockID(pSkin[0], pSkin[1]);
+      const auto& skinBinfo = velInfo[blockId];
+
+      const Real h = velInfo[blockId].h_gridpoint, invh = 1/h;
+
       const auto *const o = obstacleBlocks[skinBinfo.blockID];
       if (o == nullptr) {
         printf("ABORT: skin point is outside allocated obstacle blocks\n");
         fflush(0); abort();
       }
       const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin);
+      const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin, invh);
       //printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
       //  pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
       const Real* const udef = o->udef[iSkin[1]][iSkin[0]];
@@ -514,9 +504,13 @@ std::vector<double> StefanFish::state(Shape*const p) const
     // return flow velocity at point of flow sensor:
     const auto sensVel = [&](const std::array<Real,2> pSens)
     {
-      const auto& sensBinfo = velInfo[holdingBlockID(pSens[0], pSens[1])];
+      const int blockId = holdingBlockID(pSens[0], pSens[1]);
+      const auto& sensBinfo = velInfo[blockId];
+
+      const Real h = velInfo[blockId].h_gridpoint, invh = 1/h;
+
       const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
-      const std::array<int,2> iSens = safeIdInBlock(pSens, oSens);
+      const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
       //printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
       //  pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
       const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
@@ -538,6 +532,10 @@ std::vector<double> StefanFish::state(Shape*const p) const
       // first point of the two skins is the same
       // normal should be almost the same: take the mean
       const std::array<Real,2> pSkin = {DU.xSurf[0], DU.ySurf[0]};
+      const int blockId = holdingBlockID(pSkin[0], pSkin[1]);
+
+      const Real h = velInfo[blockId].h_gridpoint, invh = 1/h;
+
       const Real normX = (DU.normXSurf[0] + DL.normXSurf[0]) / 2;
       const Real normY = (DU.normYSurf[0] + DL.normYSurf[0]) / 2;
       const std::array<Real,2> pSens = {pSkin[0] + h * normX,
@@ -551,6 +549,9 @@ std::vector<double> StefanFish::state(Shape*const p) const
     {
       const auto& D = a==0? myFish->upperSkin : myFish->lowerSkin;
       const std::array<Real,2> pSkin = {D.midX[iHeadSide], D.midY[iHeadSide]};
+      const int blockId = holdingBlockID(pSkin[0], pSkin[1]);
+      const Real h = velInfo[blockId].h_gridpoint, invh = 1/h;
+
       const Real normX = D.normXSurf[iHeadSide], normY = D.normYSurf[iHeadSide];
       const std::array<Real,2> pSens = {pSkin[0] + h * normX,
                                         pSkin[1] + h * normY};
