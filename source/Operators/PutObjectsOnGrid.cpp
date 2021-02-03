@@ -84,7 +84,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
         //const Real shift = h;
         static constexpr Real shift = 0;
         const Real ssdf = sdf[iy][ix] + shift; // negative outside
-        if (ssdf > +2*h || ssdf < -2*h) continue; // no need to compute gradChi
+        if (ssdf > +h || ssdf < -h) continue; // no need to compute gradChi
 
         {
           const double distPx = (ix+1==_BS_? SDIST(ix+1,iy).s : sdf[iy][ix+1]) + shift;
