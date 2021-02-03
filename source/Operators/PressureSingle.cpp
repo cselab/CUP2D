@@ -96,7 +96,11 @@ void PressureSingle::penalize(const double dt) const
       #ifndef EXPL_INTEGRATE_MOM
         const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
       #else
+        #if 0 // do not use mollified chi here
         const Real alpha = 1 - X[iy][ix];
+        #else
+        const Real alpha = X[iy][ix] > 0 ? 0 : 1;
+        #endif
       #endif
 
       const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
