@@ -94,12 +94,16 @@ void PressureSingle::penalize(const double dt) const
 
       Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
       #ifndef EXPL_INTEGRATE_MOM
+        #if 0 // do not use mollified chi here
         const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        #else
+        const Real alpha = 1/(1 + sim.lambda * dt);
+        #endif
       #else
         #if 0 // do not use mollified chi here
         const Real alpha = 1 - X[iy][ix];
         #else
-        const Real alpha = X[iy][ix] > 0 ? 0 : 1;
+        const Real alpha = 0;
         #endif
       #endif
 
