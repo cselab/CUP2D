@@ -53,9 +53,9 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
 
 Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
 {
- std::cout<<"===============================================================\n";
- std::cout<<"                  Flow past a falling obstacle                 \n";
- std::cout<<"===============================================================\n";
+ // std::cout<<"===============================================================\n";
+ // std::cout<<"                  Flow past a falling obstacle                 \n";
+ // std::cout<<"===============================================================\n";
  parser.print_args();
 }
 
@@ -70,8 +70,9 @@ Simulation::~Simulation()
 
 void Simulation::parseRuntime()
 {
+  // restart simulation from files?
   sim.bRestart = parser("-restart").asBool(false);
-  std::cout << "bRestart is " << sim.bRestart << std::endl;
+  // std::cout << "bRestart is " << sim.bRestart << std::endl;
 
   // initialize grid
   parser.set_strict_mode();
@@ -165,9 +166,9 @@ void Simulation::createShapes()
       else if (objectName=="cstartfish")
         shape = new CStartFish(       sim, ffparser, center);
       else if (objectName=="zebrafish")
-          shape = new ZebraFish(      sim, ffparser, center);
+        shape = new ZebraFish(      sim, ffparser, center);
       else if (objectName=="neurokinematicfish")
-          shape = new NeuroKinematicFish(      sim, ffparser, center);
+        shape = new NeuroKinematicFish(      sim, ffparser, center);
       else if (objectName=="carlingfish")
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )
@@ -191,14 +192,18 @@ void Simulation::createShapes()
 
 void Simulation::init()
 {
+  // parse simulation parameters
   parseRuntime();
+
+  // parse and create shapes
   createShapes();
 
-  pipeline.clear();
-  {
-    IC ic(sim);
-    ic(0);
-  }
+  // initialize flow field (or restart field+shapes)
+  IC ic(sim);
+  ic(0);
+
+  // create computational pipeline
+  // pipeline.clear();
   if(sim.bVariableDensity)
   {
     //pipeline.push_back( new FadeOut(sim) );
@@ -244,26 +249,36 @@ void Simulation::init()
   for (size_t c=0; c<pipeline.size(); c++)
     std::cout << "\t" << pipeline[c]->getName() << "\n";
 
-  reset();
-  sim.dt = 0;
+  // reset();
+  // sim.dt = 0;
+  // put objects on grid
+  (*pipeline[0])(0);
+
+  // impose initial vel of object on field
+  if( not sim.bRestart ){
+    ApplyObjVel initVel(sim);
+    initVel(0);
+  }
 }
 
 void Simulation::reset()
 {
-   sim.resetAll();
-   IC ic(sim);
-   ic(0);
-   // put objects on grid
-   (*pipeline[0])(0);
-   ApplyObjVel initVel(sim);
-   initVel(0);
+  sim.resetAll();
+  IC ic(sim);
+  ic(0);
+  // put objects on grid
+  (*pipeline[0])(0);
+
+  // impose initial vel of object on field
+  ApplyObjVel initVel(sim);
+  initVel(0);
 }
 
 void Simulation::simulate()
 {
   while (1)
   {
-    sim.startProfiler("DT");
+    sim.startProfiler("dt");
     const double dt = calcMaxTimestep();
     sim.stopProfiler();
     if (advance(dt)) break;
@@ -272,6 +287,7 @@ void Simulation::simulate()
 
 double Simulation::calcMaxTimestep()
 {
+  // compute maximal value of velocity
   const auto findMaxU_op = findMaxU(sim);
   sim.uMax_measured = findMaxU_op.run();
   assert(sim.uMax_measured>=0);
@@ -322,19 +338,22 @@ double Simulation::calcMaxTimestep()
 bool Simulation::advance(const double dt)
 {
   assert(dt>2.2e-16);
+  // dump inital condition
   if( sim.step == 0 )
     sim.dumpAll("IC");
-  const bool bDump = sim.bDump();
 
+  // perform simulation-timestep
   for (size_t c=0; c<pipeline.size(); c++) {
     (*pipeline[c])(sim.dt);
-    //sim.dumpAll( pipeline[c]->getName() );
   }
 
   sim.time += sim.dt;
   sim.step++;
 
-  //dump some time steps every now and then
+  // determine whether it is time to dump
+  const bool bDump = sim.bDump();
+
+  // dump
   sim.startProfiler("Dump");
   if(bDump) {
     sim.registerDump();
@@ -342,8 +361,10 @@ bool Simulation::advance(const double dt)
   }
   sim.stopProfiler();
 
+  // determine whether simulation ends
   const bool bOver = sim.bOver();
 
+  // print profiler before ending simulation or every 50 steps if verbose
   if (bOver || (sim.step % 50 == 0 && sim.verbose) ) sim.printResetProfiler();
 
   return bOver;

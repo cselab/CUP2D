@@ -104,6 +104,9 @@ struct SimulationData
   void printResetProfiler();
   ~SimulationData();
 
+  void writeRestartFiles();
+  void readRestartFiles();
+
   void dumpChi   (std::string name);
   void dumpPres  (std::string name);
   void dumpPrhs  (std::string name);

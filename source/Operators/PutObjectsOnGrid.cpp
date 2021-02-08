@@ -198,7 +198,6 @@ void PutObjectsOnGrid::operator()(const double dt)
   }
   sim.stopProfiler();
 
-
   // 1) update objects' position (advect)
   sim.startProfiler("Obj_move");
   int nSum[2] = {0, 0}; double uSum[2] = {0, 0};

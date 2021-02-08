@@ -171,6 +171,9 @@ class Shape
   virtual bool bVariableDensity() const;
   virtual void outputSettings(std::ostream &outStream) const;
 
+  virtual void saveRestart( FILE * f );
+  virtual void loadRestart( FILE * f );
+
   struct Integrals {
     const double x, y, m, j, u, v, a;
     Integrals(double _x, double _y, double _m, double _j, double _u, double _v, double _a) :

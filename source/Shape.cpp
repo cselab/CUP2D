@@ -31,6 +31,9 @@ void Shape::updateVelocity(double dt)
     u = ( fluidMomX + dt * appliedForceX ) / penalM;
   if(not bForcedy  || sim.time > timeForcedy)
     v = ( fluidMomY + dt * appliedForceY ) / penalM;
+  // funky forcing to break symmetry for vortex shedding
+  // if( bForcedy && sim.step == 10000 )
+  //   v = 0;
   if(not bBlockang || sim.time > timeForcedang)
     omega = ( fluidAngMom + dt * appliedTorque ) / penalJ;
   #else  
@@ -338,6 +341,34 @@ void Shape::computeForces()
     filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
              <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
   }
+}
+
+void Shape::saveRestart( FILE * f ){
+  assert(f != NULL);
+  fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
+  fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );
+  fprintf(f, "xlab:  %20.20e\n", labCenterOfMass[0]);
+  fprintf(f, "ylab:  %20.20e\n", labCenterOfMass[1]);
+  fprintf(f, "u:     %20.20e\n", u                 );
+  fprintf(f, "v:     %20.20e\n", v                 );
+  fprintf(f, "omega: %20.20e\n", omega             );
+}
+
+void Shape::loadRestart( FILE * f ){
+  assert(f != NULL);
+  bool ret = true;
+  ret = ret && 1==fscanf(f, "x:     %le\n", &centerOfMass[0]   );
+  ret = ret && 1==fscanf(f, "y:     %le\n", &centerOfMass[1]   );
+  ret = ret && 1==fscanf(f, "xlab:  %le\n", &labCenterOfMass[0]);
+  ret = ret && 1==fscanf(f, "ylab:  %le\n", &labCenterOfMass[1]);
+  ret = ret && 1==fscanf(f, "u:     %le\n", &u                 );
+  ret = ret && 1==fscanf(f, "v:     %le\n", &v                 );
+  ret = ret && 1==fscanf(f, "omega: %le\n", &omega             );
+  if( (not ret) ) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+  printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", centerOfMass[0], centerOfMass[1], labCenterOfMass[0], labCenterOfMass[1], u, v, omega);
 }
 
 Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :

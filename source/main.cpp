@@ -17,7 +17,7 @@ int main(int argc, char **argv)
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
 
-  for(int i=0; i<argc; i++) {printf("%s\n",argv[i]); fflush(0);}
+  // for(int i=0; i<argc; i++) {printf("%s\n",argv[i]); fflush(0);}
   std::cout
   <<"=======================================================================\n";
   std::cout

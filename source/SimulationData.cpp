@@ -12,6 +12,7 @@
 #include <Cubism/HDF5Dumper.h>
 
 #include <iomanip>
+
 using namespace cubism;
 
 void SimulationData::allocateGrid()
@@ -46,9 +47,75 @@ void SimulationData::allocateGrid()
       boundaryInfoIDs.push_back(i);
 }
 
+void SimulationData::writeRestartFiles(){
+  // write restart file for field
+  FILE * fField = fopen("field.restart", "w");
+  if (fField == NULL) {
+    printf("Could not write %s. Aborting...\n", "field.restart");
+    fflush(0); abort();
+  }
+  assert(fField != NULL);
+  fprintf(fField, "time: %20.20e\n",  time);
+  fprintf(fField, "stepid: %d\n",     step);
+  fprintf(fField, "uinfx: %20.20e\n", uinfx);
+  fprintf(fField, "uinfy: %20.20e\n", uinfy);
+  fclose(fField);
+
+  // write restart file for shapes
+  for(Shape * const shape : shapes){
+    std::stringstream ssR;
+    ssR << "shape_" << shape->obstacleID << ".restart";
+    FILE * fShape = fopen(ssR.str().c_str(), "w");
+    if (fShape == NULL) {
+      printf("Could not write %s. Aborting...\n", ssR.str().c_str());
+      fflush(0); abort();
+    }
+    shape->saveRestart( fShape );
+    fclose(fShape);
+  }
+}
+
+void SimulationData::readRestartFiles(){
+  // read restart file for field
+  FILE * fField = fopen("field.restart", "r");
+  if (fField == NULL) {
+    printf("Could not read %s. Aborting...\n", "field.restart");
+    fflush(0); abort();
+  }
+  assert(fField != NULL);
+  printf("Reading %s...\n", "field.restart");
+  bool ret = true;
+  ret = ret && 1==fscanf(fField, "time: %le\n",   &time);
+  ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
+  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &uinfx);
+  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &uinfy);
+  fclose(fField);
+  if( (not ret) || step<0 || time<0) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+  printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n", time, step, uinfx, uinfy);
+  nextDumpTime = time + dumpTime;
+
+  // read restart file for shapes
+  for(Shape * const shape : shapes){
+    std::stringstream ssR;
+    ssR << "shape_" << shape->obstacleID << ".restart";
+    FILE * fShape = fopen(ssR.str().c_str(), "r");
+    if (fShape == NULL) {
+      printf("Could not read %s. Aborting...\n", ssR.str().c_str());
+      fflush(0); abort();
+    }
+    printf("Reading %s...\n", ssR.str().c_str());
+    shape->loadRestart( fShape );
+    fclose(fShape);
+  }
+}
+
+
 void SimulationData::dumpGlue(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerGlue, float, DumpGrid>(*(dump), time,
+  DumpHDF5<StreamerGlue, Real, DumpGrid>(*(dump), time,
     "velChi_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpChi(std::string name) {
@@ -217,6 +284,8 @@ void SimulationData::dumpAll(std::string name)
   }
   else
   {
+    writeRestartFiles();
+
     const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
     const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
     const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
