@@ -14,7 +14,7 @@ RADIUS=${RADIUS:-0.0375}
 # Re=100 <-> 0.0001125; Re=1'000 <-> 0.00001125; Re=2'500 <-> 0.0000045; Re=5'000 <-> 0.00000225; Re=7'500 <-> 0.0000015; Re=10'000 <-> 0.000001125
 NU=${NU:-0.0001125}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 100 -poissonType dirichlet -iterativePensalization 0 -muteAll 0 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0 -nu $NU -tend 10 -poissonType dirichlet -iterativePensalization 0 -muteAll 1 -verbose 0"
 # bForced, tAccel is needed here!
 OBJECTS="disk radius=$RADIUS angle=$ANGLE xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0"
 
