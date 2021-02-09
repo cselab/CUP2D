@@ -204,6 +204,8 @@ void Simulation::init()
     IC ic(sim);
     ic(0);
   }
+
+  pipeline.push_back( new AdaptTheMesh(sim) );
   
   if(sim.bVariableDensity)
   {
@@ -232,8 +234,6 @@ void Simulation::init()
     //pipeline.push_back( new FadeOut(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
-
-  pipeline.push_back( new AdaptTheMesh(sim) );
 
   std::cout << "Operator ordering:\n";
   for (size_t c=0; c<pipeline.size(); c++)

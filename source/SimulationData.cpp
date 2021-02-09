@@ -233,8 +233,8 @@ void SimulationData::dumpAll(std::string name)
     }
 
     // dump vorticity
-    const auto K1 = computeVorticity(*this); K1.run();
-    dumpTmp (name);
+    // const auto K1 = computeVorticity(*this); K1.run();
+    // dumpTmp (name);
 
     //dumpChi  (name); // glued together: skip
     //dumpVel  (name); // glued together: skip

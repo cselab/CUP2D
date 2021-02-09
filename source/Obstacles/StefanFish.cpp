@@ -367,8 +367,8 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
   }
 
   // to debug and check state function, but requires an other obstacle
-  //const int indCurrAct = (time + sim.dt)/(Tperiod/2);
-  //if(time < indCurrAct*Tperiod/2) state(sim.shapes[0]);
+  // const int indCurrAct = (time + sim.dt)/(Tperiod/2);
+  // if(time < indCurrAct*Tperiod/2) state(sim.shapes[0]);
 
   Fish::create(vInfo);
 }
@@ -428,11 +428,11 @@ std::vector<double> StefanFish::state(Shape*const p) const
 
         std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
         for(int j=0; j<2; ++j)
-          MIN[i] -= 0.5 * h; // pos returns cell centers
+          MIN[j] -= 0.5 * h; // pos returns cell centers
 
         std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
         for(int j=0; j<2; ++j)
-          MAX[i] += 0.5 * h; // pos returns cell centers
+          MAX[j] += 0.5 * h; // pos returns cell centers
 
         // std::cout << "x=" << x << ", y=" << y << ", MIN[0]=" << MIN[0] << ", MIN[1]" << MIN[1] << ", MAX[0]=" << MAX[0] << ", MAX[1]=" << MAX[1] << std::endl;
         if( x >= MIN[0] && y >= MIN[1] && x <= MAX[0] && y <= MAX[1] )
