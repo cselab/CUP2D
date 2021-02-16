@@ -650,14 +650,6 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
         // Activate the 0th node
         this->neuroSignalVec_coarse.at(numActiveSpikes-1).at(0) = aCmd;
     }
-
-
-
-
-
-
-
-
 };
 
 template<int Npoints>
@@ -727,13 +719,5 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints>
 //        synapses.at(static_cast<int>(std::ceil(static_cast<float>(Npoints + 1)/2.0) - 1.0)).excite(t_spike, -aCmd);
 //        printf("Activated synapse 0 and synapse %d", static_cast<int>(std::ceil(static_cast<float>(Npoints + 1)/2.0) - 1.0));
     }
-
-
-
-
-
-
-
-
 };
 }

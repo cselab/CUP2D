@@ -10,15 +10,15 @@ CFL=${CFL:-0.5}
 XPOS0=${XPOS0:-0.2}
 ANGLE0=${ANGLE0:-20}
 XVEL0=${XVEL0:-0.15}
-RADIUS0=${RADIUS0:-0.0375}
-# Defaults for Halfdisk
-LENGTH1=${XPOS1:-0.2}
-PERIOD1=${PERIOD1:-1}
+RADIUS0=${RADIUS0:-0.06} #0.0375
+# Defaults for Fish
+LENGTH1=${LENGTH1:-0.2}
+PERIOD1=${PERIOD1:-0.5}
 XPOS1=${XPOS1:-0.5}
-# Cylinder Re=1'000 <-> 0.00001125; Re=10'000 <-> 0.000001125
-NU=${NU:-0.00001125}
+# Cylinder Re=100 <-> 0.0001125; Re=1'000 <-> 0.00001125; Re=10'000 <-> 0.000001125
+NU=${NU:-0.0001125}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 10 -poissonType dirichlet -iterativePensalization 0 -muteAll 0 -verbose 1"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 100 -poissonType dirichlet -iterativePensalization 0 -muteAll 0 -verbose 0"
 # bForced, tAccel is needed here!
 OBJECTS="halfDisk radius=$RADIUS0 angle=$ANGLE0 xpos=$XPOS0 bForced=1 bFixed=1 xvel=$XVEL0 tAccel=5
 stefanfish L=$LENGTH1 T=$PERIOD1 xpos=$XPOS1"

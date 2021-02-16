@@ -18,23 +18,14 @@ class Disk : public Shape
  public:
   Disk(SimulationData& s, cubism::ArgumentParser& p, double C[2] ) :
   Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
-  tAccel( p("-tAccel").asDouble(-1) ) {
-    printf("Created a Disk with: R:%f rho:%f tAccel:%f\n",radius,rhoS,tAccel);
-  }
+  tAccel( p("-tAccel").asDouble(-1) )
+  {}
 
   Real getCharLength() const override
   {
     return 2 * radius;
   }
   Real getCharMass() const override { return M_PI * radius * radius; }
-
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "Disk\n";
-    outStream << "radius " << radius << std::endl;
-
-    Shape::outputSettings(outStream);
-  }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
@@ -49,23 +40,14 @@ class HalfDisk : public Shape
  public:
   HalfDisk( SimulationData& s, cubism::ArgumentParser& p, double C[2] ) :
   Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
-  tAccel( p("-tAccel").asDouble(-1) ) {
-    printf("Created a half Disk with: R:%f rho:%f\n",radius,rhoS);
-  }
+  tAccel( p("-tAccel").asDouble(-1) )
+  {}
 
   Real getCharLength() const override
   {
     return 2 * radius;
   }
   Real getCharMass() const override { return M_PI * radius * radius / 2; }
-
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "HalfDisk\n";
-    outStream << "radius " << radius << std::endl;
-
-    Shape::outputSettings(outStream);
-  }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
@@ -90,24 +72,14 @@ class Ellipse : public Shape
   Ellipse(SimulationData&s, cubism::ArgumentParser&p, double C[2]) :
     Shape(s,p,C),
     semiAxis{ (Real) p("-semiAxisX").asDouble(.1),
-              (Real) p("-semiAxisY").asDouble(.2) } {
-    printf("Created ellipse semiAxis:[%f %f] rhoS:%f a:%f b:%f velscale:%f lengthscale:%f timescale:%f torquescale:%f\n", semiAxis[0], semiAxis[1], rhoS, majax, minax, velscale, lengthscale, timescale, torquescale); fflush(0);
-  }
+              (Real) p("-semiAxisY").asDouble(.2) } 
+    {}
 
   Real getCharLength() const  override
   {
     return 2 * std::max(semiAxis[1],semiAxis[0]);
   }
   Real getCharMass() const override { return M_PI * semiAxis[1] * semiAxis[0]; }
-
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "Ellipse\n";
-    outStream << "semiAxisX " << semiAxis[0] << "\n";
-    outStream << "semiAxisY " << semiAxis[1] << "\n";
-
-    Shape::outputSettings(outStream);
-  }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 };
@@ -147,16 +119,6 @@ class DiskVarDensity : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "DiskVarDensity\n";
-    outStream << "radius " << radius << "\n";
-    outStream << "rhoTop " << rhoTop << "\n";
-    outStream << "rhoBot " << rhoBot << "\n";
-
-    Shape::outputSettings(outStream);
-  }
 };
 
 class EllipseVarDensity : public Shape
@@ -196,15 +158,4 @@ class EllipseVarDensity : public Shape
    }
 
    void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-
-   void outputSettings(std::ostream &outStream) const override
-   {
-     outStream << "Ellipse\n";
-     outStream << "semiAxisX " << semiAxisX << "\n";
-     outStream << "semiAxisY " << semiAxisY << "\n";
-     outStream << "rhoTop " << rhoTop << "\n";
-     outStream << "rhoBot " << rhoBot << "\n";
-
-     Shape::outputSettings(outStream);
-   }
 };

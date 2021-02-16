@@ -8,7 +8,7 @@
 
 
 #include "Naca.h"
-#include "FishLibrary.h"
+#include "FishData.h"
 #include "FishUtilities.h"
 
 using namespace cubism;

@@ -167,7 +167,6 @@ class Shape
 
   virtual Real getMinRhoS() const;
   virtual bool bVariableDensity() const;
-  virtual void outputSettings(std::ostream &outStream) const;
 
   struct Integrals {
     const double x, y, m, j, u, v, a;

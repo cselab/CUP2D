@@ -8,7 +8,7 @@
 
 
 #include "Fish.h"
-#include "FishLibrary.h"
+#include "FishData.h"
 //#include <sstream>
 //#include <iomanip>
 
@@ -19,29 +19,19 @@ using namespace cubism;
 
 void Fish::create(const std::vector<BlockInfo>& vInfo)
 {
-  // clear deformation velocities
-  for(auto & entry : obstacleBlocks) delete entry;
+  //// 0) clear obstacle blocks
+  for(auto & entry : obstacleBlocks) 
+    delete entry;
   obstacleBlocks.clear();
-  // STRATEGY
-  // 1. update midline
-  // 2. integrate to find CoM, angular velocity, etc
-  // 3. shift midline to CoM frame: zero internal linear momentum and angular momentum
 
-  // 4. split the fish into segments (according to s)
-  // 5. rotate the segments to computational frame (comp CoM and angle)
-  // 6. for each Block in the domain, find those segments that intersect it
-  // 7. for each of those blocks, allocate a DeformingObstacleBlock
-
-  // 8. put the 2D shape on the grid: SDF-P2M for sdf, normal P2M for udef
-
+  //// 1) Update Midline and compute surface
   assert(myFish!=nullptr);
-  // 1.
   profile(push_start("midline"));
   myFish->computeMidline(sim.time, sim.dt);
   myFish->computeSurface();
   profile(pop_stop());
 
-  // 2. and 3.
+  //// 2) Integrate Linear and Angular Momentum and shift Fish accordingly
   profile(push_start("2dmoments"));
   // returns area, CoM_internal, vCoM_internal:
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
@@ -72,6 +62,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
 
+  //// 3) Create Bounding Boxes around Fish
   //- performance of create seems to decrease if VolumeSegment_OBB are bigger
   //- this code groups segments together and finds a bounding box (maximal
   //  x and y coords) to then be able to check intersection with cartesian grid
@@ -99,17 +90,15 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
       bbox[1][0] = std::min(bbox[1][0], minY);
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
-
-    // 4.
     const Real DD = 2*vInfo[0].h_gridpoint; //two points on each side
     //const Real safe_distance = info.h_gridpoint; // one point on each side
     AreaSegment*const tAS=new AreaSegment(std::make_pair(idx,next_idx),bbox,DD);
-    //5.
     tAS->changeToComputationalFrame(center, orientation);
     vSegments[i] = tAS;
   }
   profile(pop_stop());
 
+  //// 4) Interpolate shape with computational grid
   profile(push_start("intersect"));
   const auto N = vInfo.size();
   std::vector<std::vector<AreaSegment*>*> segmentsPerBlock (N, nullptr);
@@ -123,7 +112,6 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
     info.pos(pStart, 0, 0);
     info.pos(pEnd, ScalarBlock::sizeX-1, ScalarBlock::sizeY-1);
 
-    // 6.
     for(size_t s=0; s<vSegments.size(); ++s)
       if(vSegments[s]->isIntersectingWithAABB(pStart,pEnd))
       {
@@ -132,7 +120,6 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
         segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
       }
 
-    // 7.
     // allocate new blocks if necessary
     if(segmentsPerBlock[info.blockID] not_eq nullptr)
     {
@@ -147,7 +134,6 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   assert(segmentsPerBlock.size() == obstacleBlocks.size());
   profile(pop_stop());
 
-  // 8.
   #pragma omp parallel
   {
     const PutFishOnBlocks putfish(*myFish, center, orientation);

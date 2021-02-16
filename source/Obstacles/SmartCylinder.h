@@ -39,14 +39,6 @@ class SmartCylinder : public Shape
   Real getCharMass() const override { return M_PI * radius*radius; }
   #endif
 
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "Disk\n";
-    outStream << "radius " << radius << std::endl;
-
-    Shape::outputSettings(outStream);
-  }
-
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updatePosition(double dt) override;
   void updateVelocity(double dt) override;

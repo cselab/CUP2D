@@ -17,7 +17,7 @@ void AdaptTheMesh::operator()(const double dt)
   double Rtol = sim.Rtol;
   double Ctol = sim.Ctol;
 
-  bool verbose = true;
+  bool verbose = sim.verbose;
   ScalarAMR tmp_amr   ( *sim.tmp    ,Rtol, Ctol, verbose);//refine according to tmp (which is vorticity magnitude)
 
   verbose = false;

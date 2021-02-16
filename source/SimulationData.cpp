@@ -14,6 +14,18 @@
 #include <iomanip>
 using namespace cubism;
 
+void SimulationData::resetAll()
+{
+  for(const auto& shape : shapes) shape->resetAll();
+  time = 0;
+  step = 0;
+  uinfx = 0;
+  uinfy = 0;
+  nextDumpTime = 0;
+  _bDump = false;
+  bPing = false;
+}
+
 void SimulationData::allocateGrid()
 {
   int levelStart = levelMax-1;
@@ -45,7 +57,7 @@ void SimulationData::allocateGrid()
   //assume all blockinfos have same h at the start!!!
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
-  printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
+  // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 }
 
 void SimulationData::dumpGlue(std::string name) {
@@ -98,18 +110,6 @@ void SimulationData::dumpInvRho(std::string name) {
     "invRho_" + ss.str(), path4serialization);
 }
 
-void SimulationData::resetAll()
-{
-  for(const auto& shape : shapes) shape->resetAll();
-  time = 0;
-  step = 0;
-  uinfx = 0;
-  uinfy = 0;
-  nextDumpTime = 0;
-  _bDump = false;
-  bPing = false;
-}
-
 void SimulationData::registerDump()
 {
   nextDumpTime += dumpTime;
@@ -128,8 +128,8 @@ void SimulationData::checkVariableDensity()
   bVariableDensity = false;
   for(const auto& shape : shapes)
     bVariableDensity = bVariableDensity || shape->bVariableDensity();
-  if( bVariableDensity) std::cout << "Using variable density solver\n";
-  if(!bVariableDensity) std::cout << "Using constant density solver\n";
+  if( bVariableDensity) std::cout << "[CUP2D] Shape with variable density found\n";
+  if(!bVariableDensity) std::cout << "[CUP2D] No shape with variable density found\n";
 }
 
 double SimulationData::maxSpeed() const
@@ -188,18 +188,18 @@ bool SimulationData::bDump()
 
 void SimulationData::startProfiler(std::string name)
 {
-  //std::cout << name << std::endl;
   Checker check (*this);
   check.run("before" + name);
-
-    profiler->push_start(name);
+  profiler->push_start(name);
 }
+
 void SimulationData::stopProfiler()
 {
     //Checker check (*this);
     //check.run("after" + profiler->currentAgentName());
     profiler->pop_stop();
 }
+
 void SimulationData::printResetProfiler()
 {
     profiler->printSummary();
@@ -208,6 +208,7 @@ void SimulationData::printResetProfiler()
 
 void SimulationData::dumpAll(std::string name)
 {
+  startProfiler("Dump");
   if(bStaggeredGrid)
   {
     const auto K1 = computeVorticity(*this); K1.run();
@@ -245,4 +246,5 @@ void SimulationData::dumpAll(std::string name)
     //dumpForce(name);
     //dumpTmpV (name); // probably useless
   }
+  stopProfiler();
 }

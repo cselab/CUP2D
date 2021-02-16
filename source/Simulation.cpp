@@ -52,9 +52,12 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
 
 Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
 {
- std::cout<<"===============================================================\n";
- std::cout<<"                  Flow past a falling obstacle                 \n";
- std::cout<<"===============================================================\n";
+  std::cout
+  <<"=======================================================================\n";
+  std::cout
+  <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
+  std::cout
+  <<"=======================================================================\n";
  parser.print_args();
 }
 
@@ -67,41 +70,103 @@ Simulation::~Simulation()
   }
 }
 
+void Simulation::init()
+{
+  // parse field variables
+  std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
+  parseRuntime();
+  // allocate the grid
+  if(sim.verbose)
+    std::cout << "[CUP2D] Allocating Grid..." << std::endl;
+  sim.allocateGrid();
+  // create shapes
+  if(sim.verbose)
+    std::cout << "[CUP2D] Creating Shapes..." << std::endl;
+  createShapes();
+  // impose field initial condition
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
+  IC ic(sim);
+  ic(0);
+  // create compute pipeline
+  if(sim.verbose)
+    std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
+  pipeline.push_back( new AdaptTheMesh(sim) );
+
+  if(sim.bVariableDensity)
+  {
+    std::cout << "Variable density not implemented for AMR. " << std::endl;
+    abort();
+  }
+  else
+  {
+    sim.bStaggeredGrid = false;
+    pipeline.push_back( new PutObjectsOnGrid(sim) );
+    pipeline.push_back( new advDiff(sim) );
+    //pipeline.push_back( new FadeOut(sim) );
+    //pipeline.push_back( new PressureVarRho(sim) );
+    //pipeline.push_back( new PressureVarRho_proper(sim) );
+
+    if(sim.iterativePenalization)
+    {
+      std::cout << "Iterative Penalization with AMR not ready." << std::endl;
+      abort();
+      pipeline.push_back( new PressureIterator_unif(sim) );
+    }
+    else {
+      pipeline.push_back( new PressureSingle(sim) );
+      //pipeline.push_back( new UpdateObjects(sim) );
+    }
+    //pipeline.push_back( new FadeOut(sim) );
+  }
+  pipeline.push_back( new ComputeForces(sim) );
+
+  std::cout << "[CUP2D] Operator ordering:\n";
+  for (size_t c=0; c<pipeline.size(); c++)
+    std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
+
+  // Initial PutObjectToGrid
+  std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
+  (*pipeline[1])(0);
+  // initial compression of the grid
+  std::cout << "[CUP2D] Initial Compression of Grid\n";
+  for( int i = 0; i<sim.levelMax; i++ )
+    (*pipeline[0])(0);
+  // PutObjectToGrid for compressed grid
+  std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
+  (*pipeline[1])(0);
+  // impose velocity of obstacles
+  std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0);
+}
+
 void Simulation::parseRuntime()
 {
+  // restart the simulation?
   sim.bRestart = parser("-restart").asBool(false);
-  std::cout << "bRestart is " << sim.bRestart << std::endl;
 
-  // initialize grid
   parser.set_strict_mode();
+
+  // set initial number of blocks
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
 
-  // parameters for AMR
-  sim.levelMax = parser("-levelMax").asInt(1);
-  sim.Rtol = parser("-Rtol").asDouble(1.0);
-  sim.Ctol = parser("-Ctol").asDouble(0.1);
+  // set number of refinement levels
+  sim.levelMax = parser("-levelMax").asInt();
+
+  // set tolerance for refinement/compression according to vorticity magnitude
+  sim.Rtol = parser("-Rtol").asDouble();
+  sim.Ctol = parser("-Ctol").asDouble();
 
   parser.unset_strict_mode();
+
+  // set simulation extent
   sim.extent = parser("-extent").asDouble(1);
-  sim.allocateGrid();
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
   sim.endTime = parser("-tend").asDouble(0);
-
-  // output parameters
-  sim.dumpFreq = parser("-fdump").asInt(0);
-  sim.dumpTime = parser("-tdump").asDouble(0);
-
-  sim.path2file = parser("-file").asString("./");
-  sim.path4serialization = parser("-serialization").asString(sim.path2file);
-
-  // select Poisson solver
-  sim.poissonType = parser("-poissonType").asString("");
-
-  // boolean to enable iterative penalisation
-  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
 
   // simulation settings
   sim.CFL = parser("-CFL").asDouble(0.1);
@@ -111,9 +176,21 @@ void Simulation::parseRuntime()
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
 
+  // output parameters
+  sim.dumpFreq = parser("-fdump").asInt(0);
+  sim.dumpTime = parser("-tdump").asDouble(0);
+  sim.path2file = parser("-file").asString("./");
+  sim.path4serialization = parser("-serialization").asString(sim.path2file);
+
+  // select Poisson solver
+  sim.poissonType = parser("-poissonType").asString("");
+
+  // boolean to enable iterative penalisation
+  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
+
   // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
-  sim.muteAll = parser("-muteAll").asInt(0);//stronger silence, not even files
+  sim.muteAll = parser("-muteAll").asInt(0);
   if(sim.muteAll) sim.verbose = 0;
 }
 
@@ -127,18 +204,14 @@ void Simulation::createShapes()
   while (std::getline(descriptors, lines))
   {
     std::replace(lines.begin(), lines.end(), '_', ' ');
-    // Two options! Either we have list of lines each containing a description
-    // of an obstacle (like factory files or CUP3D factory-descriptor)
-    // Or we have an argument list that looks like -shapes foo;bar. Splitter
-    // will create a vector of strings, the first containing foo and the second
-    // bar so that they can be parsed separately. Reason being that in many
-    // situations \n will not be read as line escape but as backslash n.
     const std::vector<std::string> vlines = split(lines, ',');
+
     for (const auto& line: vlines)
     {
       std::istringstream line_stream(line);
       std::string objectName;
-      std::cout << line << std::endl;
+      if( sim.verbose )
+        std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
       // Comments and empty lines ignored:
       if(objectName.empty() or objectName[0]=='#') continue;
@@ -178,7 +251,9 @@ void Simulation::createShapes()
       else if ( objectName=="NACA" )
         shape = new Naca(             sim, ffparser, center);
       else {
-        std::cout << "FATAL - shape is not recognized!" << std::endl; abort();
+        std::cout << "FATAL - shape is not recognized!" << std::endl; 
+        fflush(0);
+        abort();
       }
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
@@ -187,82 +262,54 @@ void Simulation::createShapes()
   }
 
   if( sim.shapes.size() ==  0) {
-    std::cout << "FATAL - Did not create any obstacles." << std::endl; abort();
-  }
-
-  //now that shapes are created, we know whether we need variable rho solver:
-  sim.checkVariableDensity();
-}
-
-void Simulation::init()
-{
-  parseRuntime();
-  createShapes();
-  
-  pipeline.clear();
-  {
-    IC ic(sim);
-    ic(0);
-  }
-
-  pipeline.push_back( new AdaptTheMesh(sim) );
-  
-  if(sim.bVariableDensity)
-  {
-    std::cout << "Variable density not implemented for AMR. " << std::endl;
+    std::cout << "FATAL - Did not create any obstacles." << std::endl;
+    fflush(0);
     abort();
   }
-  else
-  {
-    sim.bStaggeredGrid = false;
-    pipeline.push_back( new PutObjectsOnGrid(sim) );
-    pipeline.push_back( new advDiff(sim) );
-    //pipeline.push_back( new FadeOut(sim) );
-    //pipeline.push_back( new PressureVarRho(sim) );
-    //pipeline.push_back( new PressureVarRho_proper(sim) );
 
-    if(sim.iterativePenalization)
-    {
-      std::cout << "Iterative Penalization with AMR not ready." << std::endl;
-      abort();
-      pipeline.push_back( new PressureIterator_unif(sim) );
-    }
-    else {
-      pipeline.push_back( new PressureSingle(sim) );
-      //pipeline.push_back( new UpdateObjects(sim) );
-    }
-    //pipeline.push_back( new FadeOut(sim) );
-  }
-  pipeline.push_back( new ComputeForces(sim) );
-
-  std::cout << "Operator ordering:\n";
-  for (size_t c=0; c<pipeline.size(); c++)
-    std::cout << "\t" << pipeline[c]->getName() << "\n";
-
-  std::cout << std::endl;
-
-  reset();
-  sim.dt = 0;
+  // check if we have variable rho object:
+  sim.checkVariableDensity();
 }
 
 void Simulation::reset()
 {
-   sim.resetAll();
-   IC ic(sim);
-   ic(0);
-   // put objects on grid
-   (*pipeline[0])(0);
-   ApplyObjVel initVel(sim);
-   initVel(0);
+  // reset field variables and shapes
+  if(sim.verbose)
+    std::cout << "[CUP2D] Resetting Field Variables and Shapes..." << std::endl;
+  sim.resetAll();
+  // impose field initial condition
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
+  IC ic(sim);
+  ic(0);
+  // Initial PutObjectToGrid
+  std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
+  (*pipeline[1])(0);
+  // initial compression of the grid
+  std::cout << "[CUP2D] Initial Compression of Grid\n";
+  for( int i = 0; i<sim.levelMax; i++ )
+    (*pipeline[0])(0);
+  // PutObjectToGrid for compressed grid
+  std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
+  (*pipeline[1])(0);
+  // impose velocity of obstacles
+  std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0);
 }
 
 void Simulation::simulate()
 {
+  if(sim.verbose){
+    std::cout
+  <<"=======================================================================\n";
+    std::cout << "[CUP2D] Starting Simulation..." << std::endl;
+  }
   while (1)
   {
-    sim.startProfiler("DT");
+    // sim.startProfiler("DT");
     const double dt = calcMaxTimestep();
-    sim.stopProfiler();
+    // sim.stopProfiler();
     if (advance(dt)) break;
   }
 }
@@ -308,9 +355,10 @@ double Simulation::calcMaxTimestep()
     #endif
   }
 
-  if(sim.verbose)
-    printf("step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f\n",
-      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured);
+  std::cout
+  <<"=======================================================================\n";
+    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f\n",
+      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured); 
 
   if(sim.dlm > 0) sim.lambda = sim.dlm / sim.dt;
   return sim.dt;
@@ -319,29 +367,52 @@ double Simulation::calcMaxTimestep()
 bool Simulation::advance(const double dt)
 {
   assert(dt>2.2e-16);
-  if( sim.step == 0 )
+  if( sim.step == 0 ){
+    if(sim.verbose)
+      std::cout << "[CUP2D] dumping IC...\n";
     sim.dumpAll("IC");
+  }
   const bool bDump = sim.bDump();
 
   for (size_t c=0; c<pipeline.size(); c++) {
+    if(sim.verbose)
+      std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
     (*pipeline[c])(sim.dt);
     //sim.dumpAll( pipeline[c]->getName() );
   }
 
+  // For debuging state function
+  // Shape *object = getShapes()[0];
+  // StefanFish *agent = dynamic_cast<StefanFish *>(getShapes()[1]);
+  // auto state = agent->state(object);
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // std::cout << "[CUP2D] Computed state:" << std::endl;
+  // for( auto s : state )
+  //   std::cout << s << std::endl;
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+
+
   sim.time += sim.dt;
   sim.step++;
 
-  //dump some time steps every now and then
-  sim.startProfiler("Dump");
-  if(bDump) {
+  // dump field
+  if( bDump ) {
+    if(sim.verbose)
+      std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
-    sim.dumpAll("avemaria_");
+    sim.dumpAll("avemaria_"); 
   }
-  sim.stopProfiler();
 
   const bool bOver = sim.bOver();
 
-  if (bOver || (sim.step % 50 == 0 && sim.verbose) ) sim.printResetProfiler();
+  if (bOver){
+    std::cout
+  <<"=======================================================================\n";
+    std::cout << "[CUP2D] Simulation Over... Profiling information:\n";
+    sim.printResetProfiler();
+    std::cout
+  <<"=======================================================================\n";
+  }
 
   return bOver;
 }

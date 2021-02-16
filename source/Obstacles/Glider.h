@@ -71,14 +71,6 @@ class Glider : public Shape
   }
   Real getCharMass() const override { return M_PI * semiAxis[0] * semiAxis[1]; }
 
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "Glider\n";
-    outStream << "axes " << semiAxis[0] <<" "<< semiAxis[1] << std::endl;
-
-    Shape::outputSettings(outStream);
-  }
-
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
   void computeForces() override;

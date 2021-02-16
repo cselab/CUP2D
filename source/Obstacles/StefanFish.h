@@ -26,6 +26,14 @@ class StefanFish: public Fish
 
   // member functions for state/reward
   std::vector<double> state(Shape*const p) const;
-  double reward() const;
+
+  // Helpers for State function
+  size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
+
+  std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
+
+  std::array<Real, 2> skinVel(const std::array<Real,2> pSkin, const std::vector<cubism::BlockInfo>& velInfo) const;
+
+  std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
 
 };

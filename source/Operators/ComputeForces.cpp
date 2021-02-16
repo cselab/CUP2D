@@ -15,6 +15,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 //
 void ComputeForces::operator()(const double dt)
 {
+  sim.startProfiler("ComputeForces");
   const size_t Nblocks = velInfo.size();
 
   static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
@@ -112,6 +113,7 @@ void ComputeForces::operator()(const double dt)
 
   // finalize partial sums
   for(Shape * const shape : sim.shapes) shape->computeForces();
+  sim.stopProfiler();
 }
 
 ComputeForces::ComputeForces(SimulationData& s) : Operator(s) { }

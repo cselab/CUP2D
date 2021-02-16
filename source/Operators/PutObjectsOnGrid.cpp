@@ -191,9 +191,11 @@ void PutObjectsOnGrid::operator()(const double dt)
 {
   const size_t Nblocks = velInfo.size();
 
-  // TODO I NEED SIGNED DISTANCE PER OBSTACLE
-  // 0) clear chi^t and udef^t
-  sim.startProfiler("ObjGrid_clear");
+  sim.startProfiler("PutObjectsGrid");
+  //// 0) clear fields related to obstacle
+  if(sim.verbose)
+    std::cout << "[CUP2D] - clear..." << std::endl;
+  // sim.startProfiler("PutObjectsOnGrid - clear");
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++) {
     ( (ScalarBlock*)   chiInfo[i].ptrBlock )->clear();
@@ -201,47 +203,59 @@ void PutObjectsOnGrid::operator()(const double dt)
     ( (VectorBlock*)  uDefInfo[i].ptrBlock )->clear();
     ( (ScalarBlock*)invRhoInfo[i].ptrBlock )->set(1);
   }
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
 
-  // 1) update objects' position (advect)
-  sim.startProfiler("Obj_move");
+  //// 1) update objects' position
+  if(sim.verbose)
+    std::cout << "[CUP2D] - move..." << std::endl;
+  // sim.startProfiler("PutObjectsOnGrid - move");
+  // 1a) Update laboratory frame of reference
   int nSum[2] = {0, 0}; double uSum[2] = {0, 0};
-  for(Shape * const shape : sim.shapes) shape->updateLabVelocity(nSum, uSum);
+  for(Shape * const shape : sim.shapes) 
+    shape->updateLabVelocity(nSum, uSum);
   if(nSum[0]>0) sim.uinfx = uSum[0]/nSum[0];
   if(nSum[1]>0) sim.uinfy = uSum[1]/nSum[1];
-
+  // 1b) Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
   for(Shape * const shape : sim.shapes)
   {
-    // Check if shape is outside the domain extent.
     shape->updatePosition(dt);
+
+    // .. and check if shape is outside the simulation domain
     double p[2] = {0,0};
     shape->getCentroid(p);
     const auto& extent = sim.extents;
     if (p[0]<0 || p[0]>extent[0] || p[1]<0 || p[1]>extent[1]) {
-      printf("Body out of domain [0,%f]x[0,%f] CM:[%e,%e]\n",
+      printf("[CUP2D] ABORT: Body out of domain [0,%f]x[0,%f] CM:[%e,%e]\n",
         extent[0], extent[1], p[0], p[1]);
-      exit(0);
+      fflush(0);
+      abort();
     }
   }
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  // 2) put objects' signed dist function and udef on the obstacle blocks:
-  sim.startProfiler("ObjGrid_make");
-  for(const auto& shape : sim.shapes) shape->create(tmpInfo);
-  sim.stopProfiler();
+  //// 2) Compute signed dist function and udef
+  if(sim.verbose)
+    std::cout << "[CUP2D] - signed dist..." << std::endl;
+  // sim.startProfiler("PutObjectsOnGrid - signed dist");
+  for(const auto& shape : sim.shapes) 
+    shape->create(tmpInfo);
+  // sim.stopProfiler();
 
-  // 3) for each obstacle, from signed distance, put new chi on blocks
-  sim.startProfiler("ObjGrid_chi");
-  for(const auto& shape : sim.shapes) putChiOnGrid( shape );
-  sim.stopProfiler();
+  //// 3) Compute chi
+  if(sim.verbose)
+    std::cout << "[CUP2D] - chi..." << std::endl;
+  // sim.startProfiler("PutObjectsOnGrid - chi");
+  for(const auto& shape : sim.shapes) 
+    putChiOnGrid( shape );
+  // sim.stopProfiler();
 
-  // 4) remove moments from characteristic function and put on grid U_s
-  sim.startProfiler("ObjGrid_uobj");
+  //// 4) remove moments from characteristic function and put on grid U_s
+  if(sim.verbose)
+    std::cout << "[CUP2D] - Us..." << std::endl;
+  // sim.startProfiler("PutObjectsOnGrid - Us");
   for(const auto& shape : sim.shapes) {
-    shape->removeMoments(chiInfo); // now that we have CHI, remove moments
-    // put actual vel on the object vel grid
-    //if(sim.bStaggeredGrid) putObjectVelOnGridStaggered(shape); else
+    shape->removeMoments(chiInfo);
     putObjectVelOnGrid(shape);
   }
   sim.stopProfiler();

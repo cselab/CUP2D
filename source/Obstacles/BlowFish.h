@@ -53,10 +53,4 @@ class BlowFish : public Shape
     const bool bBot = std::fabs(rhoBot-1.)>std::numeric_limits<Real>::epsilon();
     return bTop || bBot;
   }
-
-  void outputSettings(std::ostream &outStream) const override
-  {
-    outStream << "BlowFish\n";
-    Shape::outputSettings(outStream);
-  }
 };

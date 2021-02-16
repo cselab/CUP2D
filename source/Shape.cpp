@@ -98,8 +98,7 @@ void Shape::updatePosition(double dt)
 
   if(sim.dt <= 0) return;
 
-  if(sim.verbose)
-    printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
+  printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
       " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
   if(not sim.muteAll)
   {
@@ -113,16 +112,6 @@ void Shape::updatePosition(double dt)
         <<u<<" "<<v<<" "<<omega<<" "<<M<<" "<<J<<" "<<fluidMomX/penalM<<" "
         <<fluidMomY/penalM<<" "<<fluidAngMom/penalJ<<"\n";
   }
-}
-
-void Shape::outputSettings(std::ostream &outStream) const
-{
-  outStream << "centerX " << center[0] << "\n";
-  outStream << "centerY " << center[1] << "\n";
-  outStream << "centerMassX " << centerOfMass[0] << "\n";
-  outStream << "centerMassY " << centerOfMass[1] << "\n";
-  outStream << "orientation " << orientation << "\n";
-  outStream << "rhoS " << rhoS << "\n";
 }
 
 Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
@@ -343,7 +332,7 @@ void Shape::computeForces()
 Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   sim(s), origC{C[0],C[1]}, origAng( p("-angle").asDouble(0)*M_PI/180 ),
   center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),
-  rhoS( p("-rhoS").asDouble(1) ),
+  rhoS(      p("-rhoS").asDouble(1) ),
   bFixed(    p("-bFixed").asBool(false) ),
   bFixedx(   p("-bFixedx" ).asBool(bFixed) ),
   bFixedy(   p("-bFixedy" ).asBool(bFixed) ),
@@ -351,8 +340,10 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   bForcedx(  p("-bForcedx").asBool(bForced)),
   bForcedy(  p("-bForcedy").asBool(bForced)),
   bBlockang( p("-bBlockAng").asBool(bForcedx || bForcedy) ),
-  forcedu( - p("-xvel").asDouble(0) ), forcedv( - p("-yvel").asDouble(0) ),
-  forcedomega(-p("-angvel").asDouble(0)), bDumpSurface(p("-dumpSurf").asInt(0)),
+  forcedu(  -p("-xvel").asDouble(0) ),
+  forcedv(  -p("-yvel").asDouble(0) ),
+  forcedomega(-p("-angvel").asDouble(0)),
+  bDumpSurface(p("-dumpSurf").asInt(0)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
   {}
 

@@ -416,32 +416,32 @@ void PressureSingle::preventCollidingObstacles() const
 
 void PressureSingle::operator()(const double dt)
 {
-  sim.startProfiler("Prhs");
+  sim.startProfiler("Pressure");
   updatePressureRHS(dt);
   //fadeoutBorder(dt);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
   //if( sim.bDump() ) {
   //  sim.dumpTmp("avemaria_");
   //}
 
-  sim.startProfiler("PSolve");
+  // sim.startProfiler("PSolve");
   pressureSolver->solve();
-  sim.stopProfiler();
+  // sim.stopProfiler();
   
-  sim.startProfiler("PCorrect");
+  // sim.startProfiler("PCorrect");
   pressureCorrection(dt);
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("integrateMoms");
+  // sim.startProfiler("integrateMoms");
   for(Shape * const shape : sim.shapes) {
     integrateMomenta(shape);
     shape->updateVelocity(dt);
   }
   preventCollidingObstacles();
-  sim.stopProfiler();
+  // sim.stopProfiler();
 
-  sim.startProfiler("penalize");
+  // sim.startProfiler("penalize");
   penalize(dt);
   sim.stopProfiler();
 }
