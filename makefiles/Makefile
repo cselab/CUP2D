@@ -54,7 +54,7 @@ OBJECTS = \
 		PressureSingle.o PressureIterator_unif.o PressureIterator_approx.o \
 		HYPREdirichlet.o FFTW_freespace.o PutObjectsOnGrid.o UpdateObjects.o \
 		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
-		FishLibrary.o ArgumentParser.o PoissonSolver.o  \
+		FishData.o ArgumentParser.o PoissonSolver.o  \
 		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
 		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
