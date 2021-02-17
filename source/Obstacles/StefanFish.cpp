@@ -320,8 +320,6 @@ std::vector<double> StefanFish::state(Shape*const p) const
 // function that finds block id of block containing pos (x,y)
 size_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
 {
-  // std::vector<std::pair<double, int>> distsBlocks(velInfo.size());
-  // std::cout << "obstacleBlocks.size()=" << obstacleBlocks.size() << "vs velInfo.size()=" << velInfo.size() << std::endl;
   for(size_t i=0; i<velInfo.size(); ++i)
   {
     // get gridspacing in block
@@ -340,34 +338,12 @@ size_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vecto
     // check whether point is inside block
     if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
-      // std::cout << "Block min=(" << MIN[0] << ", " << MIN[1] << "), max=(" << MAX[0] << ", " << MAX[1] << ")" << std::endl;
       // select obstacle block
       if(obstacleBlocks[i] != nullptr ){
         return i;
       }
     }
-    // otherwise measure distance to block
-    // std::array<Real, 4> WENS;
-    // WENS[0] = MIN[0] - x;
-    // WENS[1] = x - MAX[0];
-    // WENS[2] = MIN[1] - y;
-    // WENS[3] = y - MAX[1];
-    // const Real dist = *std::max_element(WENS.begin(),WENS.end());
-    // distsBlocks[i].first = dist;
-    // distsBlocks[i].second = i;
   }
-  // and return closest block that is not nullpointer
-  // std::sort(distsBlocks.begin(), distsBlocks.end());
-  // std::reverse(distsBlocks.begin(), distsBlocks.end());
-  // for( auto distBlock: distsBlocks )
-  // {
-  //   // handler to select obstacle block
-  //   std::cout << "in weirdo loop " << std::endl;
-  //   fflush(0); abort();
-  //   const auto& skinBinfo = velInfo[distBlock.second];
-  //   const auto *const o = obstacleBlocks[skinBinfo.blockID];
-  //   if(o != nullptr ) return (int) distBlock.second;
-  // }
   printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pos[0], pos[1]);
   fflush(0); abort();
   return 0;

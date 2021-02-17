@@ -128,8 +128,10 @@ void SimulationData::checkVariableDensity()
   bVariableDensity = false;
   for(const auto& shape : shapes)
     bVariableDensity = bVariableDensity || shape->bVariableDensity();
-  if( bVariableDensity) std::cout << "[CUP2D] Shape with variable density found\n";
-  if(!bVariableDensity) std::cout << "[CUP2D] No shape with variable density found\n";
+  if( verbose ){
+    if( bVariableDensity) std::cout << "[CUP2D] Shape with variable density found\n";
+    if(!bVariableDensity) std::cout << "[CUP2D] No shape with variable density found\n";
+  }
 }
 
 double SimulationData::maxSpeed() const
