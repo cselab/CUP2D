@@ -19,6 +19,7 @@ module swap PrgEnv-cray PrgEnv-gnu;
 module load cray-hdf5-parallel cray-fftw cray-petsc cudatoolkit GSL cray-python
 export HYPRE_ROOT=/users/novatig/hypre/build
 export GSL_ROOT=/apps/daint/UES/jenkins/7.0.UP02/gpu/easybuild/software/GSL/2.5-CrayGNU-20.08
+export MPICXX=CC
 ```
 
 On Panda/Falcon:
