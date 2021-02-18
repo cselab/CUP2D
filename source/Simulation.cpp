@@ -133,7 +133,7 @@ void Simulation::init()
   // initial compression of the grid
   if(sim.verbose)
     std::cout << "[CUP2D] Initial Compression of Grid\n";
-  for( int i = 0; i<10*sim.levelMax; i++ )
+  for( int i = 0; i<sim.levelMax; i++ )
     (*pipeline[0])(0);
   // PutObjectToGrid for compressed grid
   if(sim.verbose)
@@ -294,7 +294,7 @@ void Simulation::reset()
   // initial compression of the grid
   if(sim.verbose)
     std::cout << "[CUP2D] Initial Compression of Grid\n";
-  for( int i = 0; i<2*sim.levelMax; i++ )
+  for( int i = 0; i<sim.levelMax; i++ )
     (*pipeline[0])(0);
   // PutObjectToGrid for compressed grid
   if(sim.verbose)
