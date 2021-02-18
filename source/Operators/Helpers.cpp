@@ -306,83 +306,83 @@ void Checker::run(std::string when) const
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
       if(std::isnan( VEL(ix,iy).u[0])) {
-        printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf( VEL(ix,iy).u[0])) {
-        printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(UDEF(ix,iy).u[0])) {
-        printf("isnan(UDEF(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isnan(UDEF(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(UDEF(ix,iy).u[0])) {
-        printf("isinf(UDEF(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isinf(UDEF(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(TMPV(ix,iy).u[0])) {
-        printf("isnan(TMPV(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isnan(TMPV(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(TMPV(ix,iy).u[0])) {
-        printf("isinf(TMPV(ix,iy).u[0]) %s\n", when.c_str());
+        // printf("isinf(TMPV(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan( VEL(ix,iy).u[1])) {
-        printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf( VEL(ix,iy).u[1])) {
-        printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(UDEF(ix,iy).u[1])) {
-        printf("isnan(UDEF(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isnan(UDEF(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(UDEF(ix,iy).u[1])) {
-        printf("isinf(UDEF(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isinf(UDEF(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(TMPV(ix,iy).u[1])) {
-        printf("isnan(TMPV(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isnan(TMPV(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(TMPV(ix,iy).u[1])) {
-        printf("isinf(TMPV(ix,iy).u[1]) %s\n", when.c_str());
+        // printf("isinf(TMPV(ix,iy).u[1]) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan( CHI(ix,iy).s   )) {
-        printf("isnan( CHI(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isnan( CHI(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf( CHI(ix,iy).s   )) {
-        printf("isinf( CHI(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isinf( CHI(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(PRES(ix,iy).s   )) {
-        printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(PRES(ix,iy).s   )) {
-        printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan( TMP(ix,iy).s   )) {
-        printf("isnan( TMP(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isnan( TMP(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf( TMP(ix,iy).s   )) {
-        printf("isinf( TMP(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isinf( TMP(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isnan(PRHS(ix,iy).s   )) {
-        printf("isnan(PRHS(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isnan(PRHS(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
       if(std::isinf(PRHS(ix,iy).s   )) {
-        printf("isinf(PRHS(ix,iy).s   ) %s\n", when.c_str());
+        // printf("isinf(PRHS(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
     }
@@ -390,6 +390,7 @@ void Checker::run(std::string when) const
 
   if( bAbort )
   {
+    std::cout << "[CUP2D] Detected Errorous Field Values. Dumping the field and aborting..." << std::endl;
     sim.dumpAll("abort_");
     fflush(0); 
     abort();
