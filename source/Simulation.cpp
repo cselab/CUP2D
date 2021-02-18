@@ -126,13 +126,8 @@ void Simulation::init()
       std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
   }
 
-  // Initial PutObjectToGrid
-  initialAdaptMesh();
-  // impose velocity of obstacles
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-  ApplyObjVel initVel(sim);
-  initVel(0);
+  // Put Object on Intially defined Mesh and impose obstacle velocities
+  startObstacles();
 }
 
 void Simulation::parseRuntime()
@@ -276,16 +271,24 @@ void Simulation::reset()
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
-  // Put Object on Intially defined Mesh
-  initialAdaptMesh();
-  // impose velocity of obstacles
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-  ApplyObjVel initVel(sim);
-  initVel(0);
+  // Put Object on Intially defined Mesh and impose obstacle velocities
+  startObstacles();
 }
 
-void Simulation::initialAdaptMesh()
+void Simulation::resetRL()
+{
+  // reset simulation (not shape)
+  if(sim.verbose)
+    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
+  sim.resetAll();
+  // impose field initial condition
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
+  IC ic(sim);
+  ic(0);
+}
+
+void Simulation::startObstacles()
 {
   // Initial PutObjectToGrid
   if(sim.verbose)
@@ -300,6 +303,11 @@ void Simulation::initialAdaptMesh()
   if(sim.verbose)
     std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
   (*pipeline[1])(0);
+    // impose velocity of obstacles
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0);
 }
 
 void Simulation::simulate()

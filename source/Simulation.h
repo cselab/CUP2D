@@ -31,8 +31,9 @@ public:
   ~Simulation();
 
   void reset();
+  void resetRL();
   void init();
-  void initialAdaptMesh();
+  void startObstacles();
   void simulate();
   double calcMaxTimestep();
   bool advance(const double DT);
