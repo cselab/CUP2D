@@ -32,6 +32,7 @@ public:
 
   void reset();
   void init();
+  void initialAdaptMesh();
   void simulate();
   double calcMaxTimestep();
   bool advance(const double DT);

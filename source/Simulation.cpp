@@ -127,18 +127,7 @@ void Simulation::init()
   }
 
   // Initial PutObjectToGrid
-  if(sim.verbose)
-    std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
-  (*pipeline[1])(0);
-  // initial compression of the grid
-  if(sim.verbose)
-    std::cout << "[CUP2D] Initial Compression of Grid\n";
-  for( int i = 0; i<sim.levelMax; i++ )
-    (*pipeline[0])(0);
-  // PutObjectToGrid for compressed grid
-  if(sim.verbose)
-    std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
-  (*pipeline[1])(0);
+  initialAdaptMesh();
   // impose velocity of obstacles
   if(sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
@@ -287,6 +276,17 @@ void Simulation::reset()
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
+  // Put Object on Intially defined Mesh
+  initialAdaptMesh();
+  // impose velocity of obstacles
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0);
+}
+
+void Simulation::initialAdaptMesh()
+{
   // Initial PutObjectToGrid
   if(sim.verbose)
     std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
@@ -300,11 +300,6 @@ void Simulation::reset()
   if(sim.verbose)
     std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
   (*pipeline[1])(0);
-  // impose velocity of obstacles
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-  ApplyObjVel initVel(sim);
-  initVel(0);
 }
 
 void Simulation::simulate()
@@ -394,14 +389,15 @@ bool Simulation::advance(const double dt)
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
   // For debuging state function SMARTCYLINDER
-  // SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
-  // std::vector<double> target{0.8,0.5};
-  // auto state = agent->state( target );
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-  // std::cout << "[CUP2D] Computed state:" << std::endl;
-  // for( auto s : state )
-  //   std::cout << s << std::endl;
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  reset();
+  SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
+  std::vector<double> target{0.8,0.5};
+  auto state = agent->state( target );
+  std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  std::cout << "[CUP2D] Computed state:" << std::endl;
+  for( auto s : state )
+    std::cout << s << std::endl;
+  std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
   for (size_t c=0; c<pipeline.size(); c++) {
     if(sim.verbose)

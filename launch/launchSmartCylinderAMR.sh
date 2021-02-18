@@ -11,7 +11,7 @@ XPOS=${XPOS:-0.2}
 RADIUS=${RADIUS:-0.06}
 NU=${NU:-0.000018}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 10 -poissonType dirichlet -iterativePensalization 0 -muteAll 0 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 10 -poissonType dirichlet -iterativePensalization 0 -muteAll 0 -verbose 1"
 # bForced, tAccel is needed here!
 OBJECTS="smartDisk radius=$RADIUS xpos=$XPOS"
 
