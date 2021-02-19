@@ -397,15 +397,14 @@ bool Simulation::advance(const double dt)
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
   // For debuging state function SMARTCYLINDER
-  reset();
-  SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
-  std::vector<double> target{0.8,0.5};
-  auto state = agent->state( target );
-  std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-  std::cout << "[CUP2D] Computed state:" << std::endl;
-  for( auto s : state )
-    std::cout << s << std::endl;
-  std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
+  // std::vector<double> target{0.8,0.5};
+  // auto state = agent->state( target );
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // std::cout << "[CUP2D] Computed state:" << std::endl;
+  // for( auto s : state )
+  //   std::cout << s << std::endl;
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
   for (size_t c=0; c<pipeline.size(); c++) {
     if(sim.verbose)
