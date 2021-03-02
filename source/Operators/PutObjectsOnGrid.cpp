@@ -48,7 +48,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
         // here I read SDF to deal with obstacles sharing block
-        if (sdf[iy][ix] > +2*h || sdf[iy][ix] < -2*h)
+        if (sdf[iy][ix] > +h || sdf[iy][ix] < -h)
         {
           X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
         }
