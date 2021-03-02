@@ -116,31 +116,36 @@ void PressureSingle::penalize(const double dt) const
 void PressureSingle::updatePressureRHS(const double dt) const
 {
   const size_t Nblocks = velInfo.size();
-  //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-  //#pragma omp parallel
-  //{
-  //  VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
-  //  #pragma omp for schedule(static)
-  //  for (size_t i=0; i < Nblocks; i++) {
-  //    const Real h = velInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
-  //    velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
-  //    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-  //    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-  //    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-  //      const Real divVx  = V(ix+1,iy).u[0] - V(ix-1,iy).u[0];
-  //      const Real divVy  = V(ix,iy+1).u[1] - V(ix,iy-1).u[1];
-  //      TMP(ix, iy).s = facDiv * (divVx + divVy);
-  //    }    
-  //}
+  static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+  #if 0 // NO FLUX CORRECTION
+  static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+  #pragma omp parallel
+  {
+   VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
+   #pragma omp for schedule(static)
+   for (size_t i=0; i < Nblocks; i++) {
+     const Real h = velInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
+     velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
+     ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
+     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+       const Real divVx  = V(ix+1,iy).u[0] - V(ix-1,iy).u[0];
+       const Real divVy  = V(ix,iy+1).u[1] - V(ix,iy-1).u[1];
+       TMP(ix, iy).s = facDiv * (divVx + divVy);
+     }    
+  }
+  #else // FLUX CORRECTION
+  // compute grad(u**)
   FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   Corrector.prepare(*(sim.tmp));
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
-  static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
   #pragma omp parallel
   {
+    // load vector lab for Velocity field
     VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
+
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
     {
@@ -194,91 +199,118 @@ void PressureSingle::updatePressureRHS(const double dt) const
     }
   }
   Corrector.FillBlockCases();
+  #endif
 
-  const size_t nShapes = sim.shapes.size();
-  Real * sumRHS, * posRHS, * negRHS;
-  sumRHS = (Real*) calloc(nShapes, sizeof(Real));
-  posRHS = (Real*) calloc(nShapes, sizeof(Real));
-  negRHS = (Real*) calloc(nShapes, sizeof(Real));
-
-  #pragma omp parallel reduction(+: sumRHS[:nShapes], posRHS[:nShapes], negRHS[:nShapes])
-  {
-    ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    for (size_t j=0; j < nShapes; j++) {
-      const Shape * const shape = sim.shapes[j];
-      const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
-
-      chiLab. load( chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
-      const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
-      auto & __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-        if (CHI(ix,iy).s > chi[iy][ix]) continue;
-        const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
-        const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
-        const Real srcBulk = - chi[iy][ix] * TMP(ix, iy).s;
-        sumRHS[j] += srcBulk;
-        TMP(ix, iy).s += srcBulk;
-
-        #ifdef UNIFORM_CORRECT
-          posRHS[j] += velInfo[i].h_gridpoint * velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx + gradXy*gradXy);
-        #else
-          const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
-          posRHS[j] += isPerim * TMP(ix, iy).s * (TMP(ix, iy).s>0);
-          negRHS[j] -= isPerim * TMP(ix, iy).s * (TMP(ix, iy).s<0);
-        #endif
-      }
-    }
-  }
-  //for (size_t j=0; j < nShapes && sim.verbose; j++)
-  //printf("sum of udef src terms %e %e\n", sumRHS[j], absRHS[j]);
-
+  // compute chi*grad(udef)
+  assert( Nblocks == uDefInfo.size() );
   #pragma omp parallel
   {
-    ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
-
+    // load vector lab for deformation velocity field
+    VectorLab uDefLab; uDefLab.prepare( *(sim.uDef), stenBeg, stenEnd, 0);
+    
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++)
-    for (size_t j=0; j < nShapes; j++)
     {
-      const Shape * const shape = sim.shapes[j];
-      #ifdef UNIFORM_CORRECT
-        const Real corr = sumRHS[j] / std::max(posRHS[j], EPS);
-      #else
-        const Real corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
-        const Real corr = sumRHS[j] / std::max(corrDenom, EPS);
-      #endif
-      const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
-
-      const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
+      const Real h = uDefInfo[i].h_gridpoint, facDiv = 0.5*h/dt;
+      uDefLab.load(uDefInfo[i], 0); const auto & __restrict__ UDEF   = uDefLab;
       ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-      chiLab.load(chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
-
+      ScalarBlock& __restrict__ CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        if (CHI(ix,iy).s > chi[iy][ix]) continue;
-        const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
-        const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
-        #ifdef UNIFORM_CORRECT
-          TMP(ix, iy).s -= corr * velInfo[i].h_gridpoint*velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx+gradXy*gradXy);
-        #else
-          const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
-          if      (isPerim and TMP(ix, iy).s > 0 and corr > 0)
-            TMP(ix, iy).s -= corr * TMP(ix, iy).s;
-          else if (isPerim and TMP(ix, iy).s < 0 and corr < 0)
-            TMP(ix, iy).s += corr * TMP(ix, iy).s;
-        #endif
+        const Real divUdefX  = UDEF(ix+1,iy).u[0] - UDEF(ix-1,iy).u[0];
+        const Real divUdefY  = UDEF(ix,iy+1).u[1] - UDEF(ix,iy-1).u[1];
+        const Real chi = CHI(ix,iy).s;
+        TMP(ix, iy).s -= facDiv * chi *(divUdefX + divUdefY);
       }
+      // no corrector necessary as shapes are on uniform blocks
     }
   }
+  
+  // compute sum chi(grad udef)
+  // Real * sumRHS, * posRHS, * negRHS;
+  // sumRHS = (Real*) calloc(nShapes, sizeof(Real));
+  // posRHS = (Real*) calloc(nShapes, sizeof(Real));
+  // negRHS = (Real*) calloc(nShapes, sizeof(Real));
 
-  free (sumRHS); free (posRHS); free (negRHS);
+  // #pragma omp parallel reduction(+: sumRHS[:nShapes], posRHS[:nShapes], negRHS[:nShapes])
+  // {
+  //   ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
+  //   #pragma omp for schedule(static)
+  //   for (size_t i=0; i < Nblocks; i++)
+  //   for (size_t j=0; j < nShapes; j++) {
+  //     const Shape * const shape = sim.shapes[j];
+  //     const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
+  //     if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
+
+  //     chiLab. load( chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
+  //     const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
+  //     auto & __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
+
+  //     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+  //     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+  //       if (CHI(ix,iy).s > chi[iy][ix]) continue;
+  //       const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
+  //       const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
+  //       const Real srcBulk = - chi[iy][ix] * TMP(ix, iy).s;
+  //       sumRHS[j] += srcBulk;
+  //       TMP(ix, iy).s += srcBulk;
+
+  //       #ifdef UNIFORM_CORRECT
+  //         posRHS[j] += velInfo[i].h_gridpoint * velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx + gradXy*gradXy);
+  //       #else
+  //         const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
+  //         posRHS[j] += isPerim * TMP(ix, iy).s * (TMP(ix, iy).s>0);
+  //         negRHS[j] -= isPerim * TMP(ix, iy).s * (TMP(ix, iy).s<0);
+  //       #endif
+  //     }
+  //   }
+  // }
+  // //for (size_t j=0; j < nShapes && sim.verbose; j++)
+  // //printf("sum of udef src terms %e %e\n", sumRHS[j], absRHS[j]);
+
+  // #pragma omp parallel
+  // {
+  //   ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
+
+  //   #pragma omp for schedule(static)
+  //   for (size_t i=0; i < Nblocks; i++)
+  //   for (size_t j=0; j < nShapes; j++)
+  //   {
+  //     const Shape * const shape = sim.shapes[j];
+  //     #ifdef UNIFORM_CORRECT
+  //       const Real corr = sumRHS[j] / std::max(posRHS[j], EPS);
+  //     #else
+  //       const Real corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
+  //       const Real corr = sumRHS[j] / std::max(corrDenom, EPS);
+  //     #endif
+  //     const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+  //     if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
+
+  //     const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
+  //     ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
+  //     chiLab.load(chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
+
+  //     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+  //     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+  //     {
+  //       if (CHI(ix,iy).s > chi[iy][ix]) continue;
+  //       const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
+  //       const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
+  //       #ifdef UNIFORM_CORRECT
+  //         TMP(ix, iy).s -= corr * velInfo[i].h_gridpoint*velInfo[i].h_gridpoint * std::sqrt(gradXx*gradXx+gradXy*gradXy);
+  //       #else
+  //         const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
+  //         if      (isPerim and TMP(ix, iy).s > 0 and corr > 0)
+  //           TMP(ix, iy).s -= corr * TMP(ix, iy).s;
+  //         else if (isPerim and TMP(ix, iy).s < 0 and corr < 0)
+  //           TMP(ix, iy).s += corr * TMP(ix, iy).s;
+  //       #endif
+  //     }
+  //   }
+  // }
+
+  // free (sumRHS); free (posRHS); free (negRHS);
 }
 
 void PressureSingle::pressureCorrection(const double dt) const
@@ -417,32 +449,27 @@ void PressureSingle::preventCollidingObstacles() const
 void PressureSingle::operator()(const double dt)
 {
   sim.startProfiler("Pressure");
-  updatePressureRHS(dt);
-  //fadeoutBorder(dt);
-  // sim.stopProfiler();
 
-  //if( sim.bDump() ) {
-  //  sim.dumpTmp("avemaria_");
-  //}
-
-  // sim.startProfiler("PSolve");
-  pressureSolver->solve();
-  // sim.stopProfiler();
-  
-  // sim.startProfiler("PCorrect");
-  pressureCorrection(dt);
-  // sim.stopProfiler();
-
-  // sim.startProfiler("integrateMoms");
+  // update velocity of obstacle
   for(Shape * const shape : sim.shapes) {
     integrateMomenta(shape);
     shape->updateVelocity(dt);
   }
+  // take care if two obstacles collide
   preventCollidingObstacles();
-  // sim.stopProfiler();
 
-  // sim.startProfiler("penalize");
+  // apply penalisation force
   penalize(dt);
+
+  // compute pressure RHS
+  updatePressureRHS(dt);
+
+  // solve Poisson equation
+  pressureSolver->solve();
+
+  // apply pressure correction
+  pressureCorrection(dt);
+
   sim.stopProfiler();
 }
 
