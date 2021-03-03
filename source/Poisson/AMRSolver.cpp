@@ -353,7 +353,7 @@ void AMRSolver::solve()
 
   Corrector.prepare(*sim.tmp);
   
-  cub2rhs(tmpInfo);
+  // cub2rhs(tmpInfo);
 
   #ifdef PRECOND
   std::vector<cubism::BlockInfo>& zInfo = sim.z_cg->getBlocksInfo();
