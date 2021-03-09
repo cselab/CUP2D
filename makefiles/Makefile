@@ -56,8 +56,8 @@ OBJECTS = \
 		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
 		FishData.o ArgumentParser.o PoissonSolver.o  \
 		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
-		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
+		HYPREdirichletVarRho.o PressureVarRho_proper.o \
+		Naca.o CStartFish.o ZebraFish.o \
 		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
 
 # SET FLAGS FOR GPU-BASED SOLVERS

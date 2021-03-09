@@ -76,7 +76,6 @@ struct SimulationData
   bool muteAll = false;
   std::string poissonType = "hypre";
   bool bVariableDensity = false;
-  bool bStaggeredGrid = false;
   bool iterativePenalization = false;
 
   // output

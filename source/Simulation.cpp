@@ -18,10 +18,8 @@
 #include "Operators/PressureIterator_unif.h"
 #include "Operators/PressureIterator_approx.h"
 #include "Operators/PutObjectsOnGrid.h"
-#include "Operators/PutObjectsOnGridStaggered.h"
 #include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
-#include "Operators/UpdateObjectsStaggered.h"
 #include "Operators/advDiff.h"
 #include "Operators/AdaptTheMesh.h"
 
@@ -100,7 +98,6 @@ void Simulation::init()
   }
   else
   {
-    sim.bStaggeredGrid = false;
     pipeline.push_back( new PutObjectsOnGrid(sim) );
     pipeline.push_back( new advDiff(sim) );
     //pipeline.push_back( new FadeOut(sim) );

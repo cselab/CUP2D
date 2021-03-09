@@ -211,42 +211,30 @@ void SimulationData::printResetProfiler()
 void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
-  if(bStaggeredGrid)
+  const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
+  const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
+  //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
+  #pragma omp parallel for schedule(static)
+  for (size_t i=0; i < velInfo.size(); i++)
   {
-    const auto K1 = computeVorticity(*this); K1.run();
-    dumpTmp (name);
-    //const auto K2 = computeDivergence(*this); K2.run();
-    //dumpTmp (name+"div");
-    dumpPres (name);
-    dumpInvRho (name);
+    VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
+    ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
+    VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
+    DMP.assign(CHI, VEL);
   }
-  else
-  {
-    const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
-    const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-    const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
-    //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
-    #pragma omp parallel for schedule(static)
-    for (size_t i=0; i < velInfo.size(); i++)
-    {
-      VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
-      ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
-      VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
-      DMP.assign(CHI, VEL);
-    }
 
-    // dump vorticity
-    const auto K1 = computeVorticity(*this); K1.run();
-    dumpTmp (name);
+  // dump vorticity
+  const auto K1 = computeVorticity(*this); K1.run();
+  dumpTmp (name);
 
-    //dumpChi  (name); // glued together: skip
-    //dumpVel  (name); // glued together: skip
-    dumpGlue(name);
-    dumpPres(name);
-    //dumpInvRho(name);
-    //dumpUobj (name);
-    //dumpForce(name);
-    //dumpTmpV (name); // probably useless
-  }
+  //dumpChi  (name); // glued together: skip
+  //dumpVel  (name); // glued together: skip
+  dumpGlue(name);
+  dumpPres(name);
+  //dumpInvRho(name);
+  //dumpUobj (name);
+  //dumpForce(name);
+  //dumpTmpV (name); // probably useless
   stopProfiler();
 }
