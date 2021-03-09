@@ -100,7 +100,6 @@ void Simulation::init()
   {
     pipeline.push_back( new PutObjectsOnGrid(sim) );
     pipeline.push_back( new advDiff(sim) );
-    //pipeline.push_back( new FadeOut(sim) );
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
 
@@ -114,7 +113,6 @@ void Simulation::init()
       pipeline.push_back( new PressureSingle(sim) );
       //pipeline.push_back( new UpdateObjects(sim) );
     }
-    //pipeline.push_back( new FadeOut(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
   if(sim.verbose){

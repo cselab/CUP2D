@@ -176,59 +176,6 @@ void IC::operator()(const double dt)
   }
 }
 
-void FadeOut::operator()(const double dt)
-{
-  const size_t Nblocks = velInfo.size();
-
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
-  static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
-  const auto isW = [&](const BlockInfo& info) {
-    return info.index[0] == 0;
-  };
-  const auto isE = [&](const BlockInfo& info) {
-    return info.index[0] == sim.bpdx-1;
-  };
-  const auto isS = [&](const BlockInfo& info) {
-    return info.index[1] == 0;
-  };
-  const auto isN = [&](const BlockInfo& info) {
-    return info.index[1] == sim.bpdy-1;
-  };
-  const Real uinfx = sim.uinfx, uinfy = sim.uinfy;
-  const Real normU = std::max( std::sqrt(uinfx*uinfx + uinfy*uinfy), EPS );
-  const Real coefW = std::min((Real)1, std::max(normU+uinfx, (Real)0) /normU);
-  const Real coefE = std::min((Real)1, std::max(normU-uinfx, (Real)0) /normU);
-  const Real coefS = std::min((Real)1, std::max(normU+uinfy, (Real)0) /normU);
-  const Real coefN = std::min((Real)1, std::max(normU-uinfy, (Real)0) /normU);
-
-  #pragma omp parallel for schedule(dynamic)
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
-    if( isW(velInfo[i]) ) // west
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy) {
-        VEL(BX, iy).u[0] -= coefW * VEL(BX, iy).u[0];
-        VEL(BX, iy).u[1] -= coefW * VEL(BX, iy).u[1];
-      }
-    if( isE(velInfo[i]) ) // east
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy) {
-        VEL(EX, iy).u[0] -= coefE * VEL(EX, iy).u[0];
-        VEL(EX, iy).u[1] -= coefE * VEL(EX, iy).u[1];
-      }
-    if( isS(velInfo[i]) ) // south
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-        VEL(ix, BY).u[0] -= coefS * VEL(ix, BY).u[0];
-        VEL(ix, BY).u[1] -= coefS * VEL(ix, BY).u[1];
-      }
-    if( isN(velInfo[i]) ) // north
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-        VEL(ix, EY).u[0] -= coefN * VEL(ix, EY).u[0];
-        VEL(ix, EY).u[1] -= coefN * VEL(ix, EY).u[1];
-      }
-  }
-}
-
 Real findMaxU::run() const
 {
   const size_t Nblocks = velInfo.size();
