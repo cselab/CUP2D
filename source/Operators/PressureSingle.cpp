@@ -456,7 +456,7 @@ void PressureSingle::operator()(const double dt)
     shape->updateVelocity(dt);
   }
   // take care if two obstacles collide
-  preventCollidingObstacles();
+  // preventCollidingObstacles(); (needs to be fixed)
 
   // apply penalisation force
   penalize(dt);
