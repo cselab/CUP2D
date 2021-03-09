@@ -21,7 +21,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
 
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
   double _x=0, _y=0, _m=0;
-  //double udefoutflow=0, udefoutnorm=0; // , udefoutflow, udefoutnorm
   #pragma omp parallel reduction(+ : _x, _y, _m)
   {
     static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
@@ -37,7 +36,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
 
       distlab.load(tmpInfo[i], 0); // loads signed distance field with ghosts
-      const ScalarLab& __restrict__ SDIST = distlab;
+
       auto & __restrict__ CHI  = *(ScalarBlock*)    chiInfo[i].ptrBlock;
       auto & __restrict__ IRHO = *(ScalarBlock*) invRhoInfo[i].ptrBlock;
       CHI_MAT & __restrict__ X = o.chi;
@@ -54,19 +53,20 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
         }
         else
         {
-          const double distPx = ix+1 == _BS_ ? SDIST(ix+1,iy).s : sdf[iy][ix+1];
-          const double distMx = ix   == 0    ? SDIST(ix-1,iy).s : sdf[iy][ix-1];
-          const double distPy = iy+1 == _BS_ ? SDIST(ix,iy+1).s : sdf[iy+1][ix];
-          const double distMy = iy   == 0    ? SDIST(ix,iy-1).s : sdf[iy-1][ix];
-          const double IplusX = distPx<0? 0:distPx, IminuX = distMx<0? 0:distMx;
-          const double IplusY = distPy<0? 0:distPy, IminuY = distMy<0? 0:distMy;
-
-          const double gradIX= i2h*(IplusX-IminuX), gradIY= i2h*(IplusY-IminuY);
-          const double gradUX= i2h*(distPx-distMx), gradUY= i2h*(distPy-distMy);
-
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY;
-          const double denum = 1 / ( gradUSq<EPS ? EPS : gradUSq );
-          X[iy][ix] = (gradIX*gradUX + gradIY*gradUY) * denum;
+          const double distPx = distlab(ix+1,iy).s;
+          const double distMx = distlab(ix-1,iy).s;
+          const double distPy = distlab(ix,iy+1).s;
+          const double distMy = distlab(ix,iy-1).s;
+          const double IplusX = std::max(0.0,distPx);
+          const double IminuX = std::max(0.0,distMx);
+          const double IplusY = std::max(0.0,distPy);
+          const double IminuY = std::max(0.0,distMy);
+          const double gradIX = IplusX-IminuX;
+          const double gradIY = IplusY-IminuY;
+          const double gradUX = distPx-distMx;
+          const double gradUY = distPy-distMy;
+          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
+          X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
 
         // an other partial
@@ -83,30 +83,23 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           _m += rho[iy][ix] * X[iy][ix] * h*h;
         }
 
-        // allows shifting the SDF outside the body:
-        //const Real shift = h;
-        static constexpr Real shift = 0;
-        const Real ssdf = sdf[iy][ix] + shift; // negative outside
-        if (ssdf > +2*h || ssdf < -2*h) continue; // no need to compute gradChi
-
+        if (sdf[iy][ix] > h || sdf[iy][ix] < -h) continue; // no need to compute gradChi
         {
-          const double distPx = (ix+1==_BS_? SDIST(ix+1,iy).s : sdf[iy][ix+1]) + shift;
-          const double distMx = (ix  ==0   ? SDIST(ix-1,iy).s : sdf[iy][ix-1]) + shift;
-          const double distPy = (iy+1==_BS_? SDIST(ix,iy+1).s : sdf[iy+1][ix]) + shift;
-          const double distMy = (iy  ==0   ? SDIST(ix,iy-1).s : sdf[iy-1][ix]) + shift;
-
+          const double distPx = distlab(ix+1,iy).s;
+          const double distMx = distlab(ix-1,iy).s;
+          const double distPy = distlab(ix,iy+1).s;
+          const double distMy = distlab(ix,iy-1).s;
           const auto HplusX = std::fabs(distPx)<EPS? (double).5 :(distPx<0?0:1);
           const auto HminuX = std::fabs(distMx)<EPS? (double).5 :(distMx<0?0:1);
           const auto HplusY = std::fabs(distPy)<EPS? (double).5 :(distPy<0?0:1);
           const auto HminuY = std::fabs(distMy)<EPS? (double).5 :(distMy<0?0:1);
-
-          const double gradUX= i2h*(distPx-distMx), gradUY= i2h*(distPy-distMy);
-          const double gradHX=     (HplusX-HminuX), gradHY=     (HplusY-HminuY);
-
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY;
-          const double denum = 1 / ( gradUSq<EPS ? EPS : gradUSq );
+          const double gradUX = i2h*(distPx-distMx);
+          const double gradUY = i2h*(distPy-distMy);
+          const double gradHX =     (HplusX-HminuX);
+          const double gradHY =     (HplusY-HminuY);
+          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
           //fac is 1/2h of gradH times h^2 to make \int_v D*gradU = \int_s norm
-          const double D = fac*(gradHX*gradUX + gradHY*gradUY) * denum;
+          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
           o.write(ix, iy, D, gradUX, gradUY);
           //if(D>0) { //
           //  const double norx = -D*gradUX, nory = -D*gradUY;
