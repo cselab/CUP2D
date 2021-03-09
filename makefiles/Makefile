@@ -1,10 +1,3 @@
-NVCC ?= nvcc
-hypre ?= true #false
-gpu ?= true #true
-hdf5 ?= true
-config ?= production
-precision ?= double
-
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
 include make.macos
@@ -53,11 +46,30 @@ OBJECTS = \
 		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
 		NeuroKinematicFish.o
 
-# SET FLAGS FOR GPU-BASED SOLVERS
-ifneq "$(gpu)" "false"
+# IF WANTED, SET FLAGS FOR GPU-BASED SOLVERS
+ifeq ($(gpu),true)
 LIBS += -lcufft -lcublas -lcusparse -lcusolver -lnvToolsExt #-L$(AMGX_DIR)/lib -lamgx
 OBJECTS += CUDA_all.o #AMGXdirichletVarRho.o
 CPPFLAGS += -DCUDAFFT #-DAMGX_POISSON -I$(AMGX_DIR)/include
+endif
+
+# IF WANTED, SET FLAGS FOR HYPRE
+ifeq ($(hypre),true)
+ifneq ($(HYPRE_ROOT),)
+LIBS     += -L$(HYPRE_ROOT)/lib -lHYPRE
+CPPFLAGS += -I$(HYPRE_ROOT)/include -DHYPREFFT
+else
+ERROR += "HYPRE_ROOT not set"
+endif
+endif
+
+# IF WANTED USE SINGLE PRECISION
+ifeq ($(precision),single)
+CPPFLAGS += -D_FLOAT_PRECISION_
+NVFLAGS += -D_FLOAT_PRECISION_
+LIBS += -lfftw3f -lfftw3f_omp
+else 
+LIBS += -lfftw3  -lfftw3_omp
 endif
 
 # SET FLAGS FOR FFTW
@@ -66,24 +78,6 @@ LIBS  += -L$(FFTW_ROOT)/lib
 CPPFLAGS  += -I$(FFTW_ROOT)/include
 else
 ERROR += "FFTW_ROOT not set"
-endif
-
-ifeq "$(precision)" "single"
-CPPFLAGS += -D_FLOAT_PRECISION_
-NVFLAGS += -D_FLOAT_PRECISION_
-LIBS += -lfftw3f -lfftw3f_omp
-else 
-LIBS += -lfftw3  -lfftw3_omp
-endif
-
-# SET FLAGS FOR HYPRE
-ifneq "$(hypre)" "false"
-ifneq ($(HYPRE_ROOT),)
-LIBS     += -L$(HYPRE_ROOT)/lib -lHYPRE
-CPPFLAGS += -I$(HYPRE_ROOT)/include -DHYPREFFT
-else
-ERROR += "HYPRE_ROOT not set"
-endif
 endif
 
 # SET FLAGS FOR GSL
@@ -95,13 +89,11 @@ ERROR += "GSL_ROOT not set"
 endif
 
 # SET FLAGS FOR HDF5
-ifneq "$(hdf)" "false"
 ifneq ($(HDF5_ROOT),)
 LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
 CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
 else
 ERROR += "HDF5_ROOT not set"
-endif
 endif
 
 ifneq ($(ERROR),)
