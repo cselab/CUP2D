@@ -138,7 +138,7 @@ void advDiff::operator()(const double dt)
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
       if(isW(velInfo[i])) 
-        for(int iy=-2; iy<VectorBlock::sizeY+3; ++iy)
+        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy)
         for(int ix=-2; ix<0                   ; ++ix)
         {
           V(ix,iy).u[0] *= fadeW;
@@ -147,23 +147,23 @@ void advDiff::operator()(const double dt)
 
       if(isS(velInfo[i]))
         for(int iy=-2; iy<0                   ; ++iy) 
-        for(int ix=-2; ix<VectorBlock::sizeX+3; ++ix) 
+        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix) 
         {
           V(ix,iy).u[0] *= fadeS;
           V(ix,iy).u[1] *= fadeS;
         }
 
       if(isE(velInfo[i]))
-        for(int iy=-2; iy<VectorBlock::sizeY+3; ++iy) 
-        for(int ix=VectorBlock::sizeX; ix<VectorBlock::sizeX+3; ++ix) 
+        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy) 
+        for(int ix=VectorBlock::sizeX; ix<VectorBlock::sizeX+2; ++ix) 
         {
           V(ix,iy).u[0] *= fadeE;
           V(ix,iy).u[1] *= fadeE;
         }
 
       if(isN(velInfo[i]))
-        for(int iy=VectorBlock::sizeY; iy<VectorBlock::sizeY+3; ++iy) 
-        for(int ix=-2; ix<VectorBlock::sizeX+3; ++ix)
+        for(int iy=VectorBlock::sizeY; iy<VectorBlock::sizeY+2; ++iy) 
+        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix)
         {
           V(ix,iy).u[0] *= fadeN;
           V(ix,iy).u[1] *= fadeN;
