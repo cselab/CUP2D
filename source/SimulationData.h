@@ -33,7 +33,6 @@ struct SimulationData
   #endif
 
   VectorGrid * tmpV  = nullptr;
-  VectorGrid * vFluid= nullptr;
   ScalarGrid * tmp   = nullptr;
   VectorGrid * uDef  = nullptr;
 
@@ -76,7 +75,6 @@ struct SimulationData
   bool muteAll = false;
   std::string poissonType = "hypre";
   bool bVariableDensity = false;
-  bool iterativePenalization = false;
 
   // output
   // dumpFreq==0 means that this dumping frequency (in #steps) is not active

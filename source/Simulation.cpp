@@ -15,8 +15,6 @@
 #include "Operators/Helpers.h"
 #include "Operators/PressureSingle.h"
 #include "Operators/PressureVarRho_proper.h"
-#include "Operators/PressureIterator_unif.h"
-#include "Operators/PressureIterator_approx.h"
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
@@ -103,16 +101,8 @@ void Simulation::init()
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
 
-    if(sim.iterativePenalization)
-    {
-      std::cout << "Iterative Penalization with AMR not ready." << std::endl;
-      abort();
-      pipeline.push_back( new PressureIterator_unif(sim) );
-    }
-    else {
-      pipeline.push_back( new PressureSingle(sim) );
-      //pipeline.push_back( new UpdateObjects(sim) );
-    }
+    pipeline.push_back( new PressureSingle(sim) );
+    //pipeline.push_back( new UpdateObjects(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
   if(sim.verbose){
@@ -168,9 +158,6 @@ void Simulation::parseRuntime()
 
   // select Poisson solver
   sim.poissonType = parser("-poissonType").asString("");
-
-  // boolean to enable iterative penalisation
-  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
 
   // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);

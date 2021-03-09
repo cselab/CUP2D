@@ -43,7 +43,6 @@ void SimulationData::allocateGrid()
   pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
@@ -160,7 +159,6 @@ SimulationData::~SimulationData()
   if(chi not_eq nullptr) delete chi;
   if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
-  if(vFluid not_eq nullptr) delete vFluid;
   if(pRHS not_eq nullptr) delete pRHS;
   if(tmpV not_eq nullptr) delete tmpV;
   if(invRho not_eq nullptr) delete invRho;
