@@ -29,7 +29,61 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
     const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
     return advF * dVadv + difF * dVdif;
 }
-#else // use quick
+#endif
+
+#if 0 // use third oder upwind
+static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
+{
+    const Real ucc  = V(ix  , iy).u[0];
+    const Real vcc  = V(ix, iy  ).u[1];
+    const Real up1x = V(ix+1, iy).u[0];
+    const Real up1y = V(ix, iy+1).u[0];
+    const Real ul1x = V(ix-1, iy).u[0];
+    const Real ul1y = V(ix, iy-1).u[0];
+    const Real vp1y = V(ix, iy+1).u[1];
+    const Real vl1x = V(ix-1, iy).u[1];
+    const Real up2x = V(ix+2, iy).u[0];
+    const Real up2y = V(ix, iy+2).u[0];
+    const Real ul2x = V(ix-2, iy).u[0];
+    const Real ul2y = V(ix, iy-2).u[0];
+    const Real VadvU = (vp1y + V(ix-1,iy+1).u[1] + vcc + vl1x)/4 + uinf[1];
+    const Real UadvU = ucc + uinf[0];
+    const Real dudx = UadvU>0 ?          2*up1x + 3*ucc - 6*ul1x + ul2x
+                              : - up2x + 6*up1x - 3*ucc - 2*ul1x;
+    const Real dudy = VadvU>0 ?          2*up1y + 3*ucc - 6*ul1y + ul2y
+                              : - up2y + 6*up1y - 3*ucc - 2*ul1y;
+    const Real dUadv = UadvU * dudx + VadvU * dudy;
+    const Real dUdif = up1x + up1y + ul1x + ul1y - 4 * ucc;
+    return advF*dUadv + difF*dUdif;
+}
+
+static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
+{
+    const Real ucc  = V(ix  , iy).u[0];
+    const Real vcc  = V(ix, iy  ).u[1];
+    const Real up1x = V(ix+1, iy).u[0];
+    const Real ul1y = V(ix, iy-1).u[0];
+    const Real vp1x = V(ix+1, iy).u[1];
+    const Real vp1y = V(ix, iy+1).u[1];
+    const Real vl1x = V(ix-1, iy).u[1];
+    const Real vl1y = V(ix, iy-1).u[1];
+    const Real vp2x = V(ix+2, iy).u[1];
+    const Real vp2y = V(ix, iy+2).u[1];
+    const Real vl2x = V(ix-2, iy).u[1];
+    const Real vl2y = V(ix, iy-2).u[1];
+    const Real UadvV = (up1x + V(ix+1,iy-1).u[0] + ucc + ul1y)/4 + uinf[0];
+    const Real VadvV = vcc + uinf[1];
+    const Real dvdx = UadvV>0 ?          2*vp1x + 3*vcc - 6*vl1x + vl2x
+                              : - vp2x + 6*vp1x - 3*vcc - 2*vl1x;
+    const Real dvdy = VadvV>0 ?          2*vp1y + 3*vcc - 6*vl1y + vl2y
+                              : - vp2y + 6*vp1y - 3*vcc - 2*vl1y;
+    const Real dVadv = UadvV * dvdx + VadvV * dvdy;
+    const Real dVdif = vp1x + vp1y + vl1x + vl1y - 4 * vcc;
+    return advF*dVadv + difF*dVdif;
+}
+#endif
+
+#if 1 // use quick
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
   const Real advF, const Real difF, const int ix, const int iy)
 {
@@ -85,48 +139,48 @@ void advDiff::operator()(const double dt)
     sim.startProfiler("advDiff");
 
     static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
-    // static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
 
     const size_t Nblocks = velInfo.size();
     const Real UINF[2]= {sim.uinfx, sim.uinfy};
-    // const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
+    const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
 
     #pragma omp parallel
     {
         #if 0 // stencil for centered advection
         static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-        #else // for quick
+        #else // for quick and 3rd order upwind
         static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
         #endif
         VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
         #pragma omp for schedule(static)
         for (size_t i=0; i < Nblocks; i++)
         {
-            // int aux = 1<<velInfo[i].level;
-            // const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-            // const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
-            // const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-            // const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
+            int aux = 1<<velInfo[i].level;
+            const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+            const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
+            const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+            const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
 
             const Real h = velInfo[i].h_gridpoint;
             // //const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h; //central differences coefficients
             const Real dfac = (sim.nu/h)*(dt/h),  afac = -dt/h/6.0;
             // // const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
-            // const Real fac = 1; // no CFL dependence on BC
-            // const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-            // const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
-            // const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
-            // const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
-            // const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
+            const Real fac = 1; // no CFL dependence on BC
+            const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
+            const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+            const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+            const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+            const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
 
             vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
             VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
-            // if(isW(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(BX-1,iy), fadeW);
-            // if(isS(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,BY-1), fadeS);
-            // if(isE(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(EX+1,iy), fadeE);
-            // if(isN(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,EY+1), fadeN);
+            if(isW(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(BX-1,iy), fadeW);
+            if(isS(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,BY-1), fadeS);
+            if(isE(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(EX+1,iy), fadeE);
+            if(isN(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,EY+1), fadeN);
 
             for(int iy=0; iy<BSY; ++iy) for(int ix=0; ix<BSX; ++ix)
             {
@@ -151,10 +205,10 @@ void advDiff::operator()(const double dt)
         const bool isS = velInfo[i].index[1] == 0;
         const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
         const double h = velInfo[i].h_gridpoint;
-        if (isW) for(int iy=0; iy<BSY; ++iy) IF += - h * V(BX,iy).u[0];
-        if (isE) for(int iy=0; iy<BSY; ++iy) IF +=   h * V(EX,iy).u[0];
-        if (isS) for(int ix=0; ix<BSX; ++ix) IF += - h * V(ix,BY).u[1];
-        if (isN) for(int ix=0; ix<BSX; ++ix) IF +=   h * V(ix,EY).u[1];
+        if (isW) for(int iy=0; iy<BSY; ++iy) IF -= h * V(BX,iy).u[0];
+        if (isE) for(int iy=0; iy<BSY; ++iy) IF += h * V(EX,iy).u[0];
+        if (isS) for(int ix=0; ix<BSX; ++ix) IF -= h * V(ix,BY).u[1];
+        if (isN) for(int ix=0; ix<BSX; ++ix) IF += h * V(ix,EY).u[1];
     }
 
     const double H = sim.getH();
