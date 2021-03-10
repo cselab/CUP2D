@@ -10,11 +10,9 @@
 #include "Simulation.h"
 
 #include <Cubism/HDF5Dumper.h>
-//#include <ZBinDumper.h>
 
 #include "Operators/Helpers.h"
 #include "Operators/PressureSingle.h"
-#include "Operators/PressureVarRho_proper.h"
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"

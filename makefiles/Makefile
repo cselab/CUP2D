@@ -52,45 +52,16 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o \
-		HYPREdirichlet.o FFTW_freespace.o PutObjectsOnGrid.o \
+		PutObjectsOnGrid.o \
 		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
-		FishData.o ArgumentParser.o PoissonSolver.o  \
+		FishData.o ArgumentParser.o \
 		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
-		HYPREdirichletVarRho.o PressureVarRho_proper.o \
 		Naca.o CStartFish.o ZebraFish.o \
 		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
-
-# SET FLAGS FOR GPU-BASED SOLVERS
-ifneq "$(gpu)" "false"
-LIBS += -lcufft -lcublas -lcusparse -lcusolver -lnvToolsExt #-L$(AMGX_DIR)/lib -lamgx
-OBJECTS += CUDA_all.o #AMGXdirichletVarRho.o
-CPPFLAGS += -DCUDAFFT #-DAMGX_POISSON -I$(AMGX_DIR)/include
-endif
-
-# SET FLAGS FOR FFTW
-ifneq ($(FFTW_ROOT),)
-LIBS  += -L$(FFTW_ROOT)/lib
-CPPFLAGS  += -I$(FFTW_ROOT)/include
-else
-ERROR += "FFTW_ROOT not set"
-endif
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
 NVFLAGS += -D_FLOAT_PRECISION_
-LIBS += -lfftw3f -lfftw3f_omp
-else 
-LIBS += -lfftw3  -lfftw3_omp
-endif
-
-# SET FLAGS FOR HYPRE
-ifneq "$(hypre)" "false"
-ifneq ($(HYPRE_ROOT),)
-LIBS     += -L$(HYPRE_ROOT)/lib -lHYPRE
-CPPFLAGS += -I$(HYPRE_ROOT)/include -DHYPREFFT
-else
-ERROR += "HYPRE_ROOT not set"
-endif
 endif
 
 # SET FLAGS FOR GSL
