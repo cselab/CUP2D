@@ -16,7 +16,6 @@
 #include "Operators/PressureSingle.h"
 #include "Operators/PressureVarRho_proper.h"
 #include "Operators/PutObjectsOnGrid.h"
-#include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
 #include "Operators/AdaptTheMesh.h"
@@ -102,7 +101,6 @@ void Simulation::init()
     //pipeline.push_back( new PressureVarRho_proper(sim) );
 
     pipeline.push_back( new PressureSingle(sim) );
-    //pipeline.push_back( new UpdateObjects(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
   if(sim.verbose){
