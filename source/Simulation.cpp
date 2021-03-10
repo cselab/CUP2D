@@ -140,7 +140,7 @@ void Simulation::parseRuntime()
 
   // simulation settings
   sim.CFL = parser("-CFL").asDouble(0.1);
-  sim.lambda = parser("-lambda").asDouble(1e3 / sim.CFL);
+  sim.lambda = parser("-lambda").asDouble(1e6);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;

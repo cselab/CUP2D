@@ -14,7 +14,7 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
-#define EXPL_INTEGRATE_MOM
+//#define EXPL_INTEGRATE_MOM
 
 void PressureSingle::integrateMomenta(Shape * const shape) const
 {

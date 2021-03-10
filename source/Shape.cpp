@@ -14,7 +14,7 @@
 #include <iomanip>
 using namespace cubism;
 
-#define EXPL_INTEGRATE_MOM
+//#define EXPL_INTEGRATE_MOM
 
 static constexpr double EPS = std::numeric_limits<double>::epsilon();
 Real Shape::getMinRhoS() const { return rhoS; }
