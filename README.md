@@ -28,6 +28,35 @@ export HYPRE_ROOT=/home/novatig/hypre/build
 export GSL_ROOT=/usr
 ```
 
+On Barry:
+```
+module load gnu/8.2.0 mpich python fftw hdf5
+```
+Install GSL:
+```
+wget 'ftp://ftp.gnu.org/gnu/gsl/gsl-2.6.tar.gz'; check
+tar -xzvf gsl-2.6.tar.gz ; check
+cd gsl-2.6
+mkdir -p $HOME/gsl
+./configure --prefix=$HOME/gsl; check
+make -j; check
+make install; check
+```
+Install Cubism:
+```
+module load gnu/8.2.0 mpich python fftw hdf5
+export LD_LIBRARY_PATH=$HOME/gsl/lib:${LD_LIBRARY_PATH}
+export GSL_ROOT=$HOME/gsl
+cd makefiles
+make -j
+```
+
+
+
+
+
+
+
 ## Installation
 
 With the above dependencies installed and associated environment variables set the code can be compiled by
