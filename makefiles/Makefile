@@ -51,13 +51,9 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		PressureSingle.o \
-		PutObjectsOnGrid.o \
-		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
-		FishData.o ArgumentParser.o \
-		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
-		Naca.o CStartFish.o ZebraFish.o \
-		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
+		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
+		FishData.o ArgumentParser.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
@@ -137,9 +133,6 @@ cup.libs.txt:
 
 %.d: %.cpp
 	$(CXX) $(CPPFLAGS) -c -MD $<
-
-CUDA_all.o: CUDA_all.cu
-	nvcc $(NVFLAGS) -c $< -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
