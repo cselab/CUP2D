@@ -138,7 +138,6 @@ void IC::operator()(const double dt)
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& pRHSInfo  = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
-  const std::vector<BlockInfo>& iRhoInfo  = sim.invRho->getBlocksInfo();
 
   const size_t Nblocks = velInfo.size();
 
@@ -159,7 +158,6 @@ void IC::operator()(const double dt)
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       ScalarBlock& PRHS= *(ScalarBlock*) pRHSInfo[i].ptrBlock; PRHS.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
-      ScalarBlock& IRHO= *(ScalarBlock*) iRhoInfo[i].ptrBlock; IRHO.set(1);
       assert(velInfo[i].blockID ==  uDefInfo[i].blockID);
       assert(velInfo[i].blockID ==   chiInfo[i].blockID);
       assert(velInfo[i].blockID ==  presInfo[i].blockID);
@@ -183,16 +181,14 @@ Real findMaxU::run() const
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
   ///*
   #ifdef ZERO_TOTAL_MOM
-  const std::vector<BlockInfo>& iRhoInfo  = sim.invRho->getBlocksInfo();
   Real momX = 0, momY = 0, totM = 0; 
   #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
   for (size_t i=0; i < Nblocks; i++) {
     const Real h = velInfo[i].h_gridpoint;
-    const ScalarBlock& IRHO= *(ScalarBlock*) iRhoInfo[i].ptrBlock;
     const VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-      const Real facMom = h*h / IRHO(ix,iy).s;
+      const Real facMom = h*h;
       momX += facMom * VEL(ix,iy).u[0];
       momY += facMom * VEL(ix,iy).u[1];
       totM += facMom;

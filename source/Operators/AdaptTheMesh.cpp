@@ -24,7 +24,6 @@ void AdaptTheMesh::operator()(const double dt)
   ScalarAMR chi_amr   ( *sim.chi    ,0.01, 0.0 , verbose);
   VectorAMR vel_amr   ( *sim.vel    ,Rtol, Ctol, verbose);
   ScalarAMR pres_amr  ( *sim.pres   ,Rtol, Ctol, verbose);
-  ScalarAMR invRho_amr( *sim.invRho ,Rtol, Ctol, verbose);
   VectorAMR uDef_amr  ( *sim.uDef   ,Rtol, Ctol, verbose);  
   MeshAdaptation_basic<DumpGrid> dump_amr( *sim.dump);  
   
@@ -39,7 +38,6 @@ void AdaptTheMesh::operator()(const double dt)
   chi_amr   .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
   vel_amr   .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
   pres_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  invRho_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
   uDef_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
   dump_amr  .AdaptLikeOther <ScalarGrid>(*sim.tmp);
   #ifdef PRECOND
@@ -56,7 +54,6 @@ void AdaptTheMesh::operator()(const double dt)
   tmp_amr   .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   vel_amr   .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   pres_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  invRho_amr.AdaptLikeOther1<ScalarGrid>(*sim.chi);
   uDef_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   dump_amr  .AdaptLikeOther <ScalarGrid>(*sim.chi);
   #ifdef PRECOND
@@ -74,7 +71,6 @@ void AdaptTheMesh::operator()(const double dt)
   sim.pres  ->SortBlocks();
   sim.pOld  ->SortBlocks();
   sim.pRHS  ->SortBlocks();
-  sim.invRho->SortBlocks();
   sim.tmpV  ->SortBlocks();
   sim.tmp   ->SortBlocks();
   sim.uDef  ->SortBlocks();

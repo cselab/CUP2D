@@ -41,7 +41,6 @@ void SimulationData::allocateGrid()
   pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
@@ -103,11 +102,6 @@ void SimulationData::dumpTmpV(std::string name) {
   DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,
     "tmpV_" + ss.str(), path4serialization);
 }
-void SimulationData::dumpInvRho(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerScalar, float, ScalarGrid>(*(invRho), time,
-    "invRho_" + ss.str(), path4serialization);
-}
 
 void SimulationData::registerDump()
 {
@@ -161,7 +155,6 @@ SimulationData::~SimulationData()
   if(pres not_eq nullptr) delete pres;
   if(pRHS not_eq nullptr) delete pRHS;
   if(tmpV not_eq nullptr) delete tmpV;
-  if(invRho not_eq nullptr) delete invRho;
   if(pOld not_eq nullptr) delete pOld;
   if(tmp not_eq nullptr) delete tmp;
   while( not shapes.empty() ) {

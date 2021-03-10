@@ -38,7 +38,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       distlab.load(tmpInfo[i], 0); // loads signed distance field with ghosts
 
       auto & __restrict__ CHI  = *(ScalarBlock*)    chiInfo[i].ptrBlock;
-      auto & __restrict__ IRHO = *(ScalarBlock*) invRhoInfo[i].ptrBlock;
       CHI_MAT & __restrict__ X = o.chi;
       const CHI_MAT & __restrict__ rho = o.rho;
       const CHI_MAT & __restrict__ sdf = o.dist;
@@ -73,7 +72,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
         if(X[iy][ix] >= CHI(ix,iy).s)
         {
            CHI(ix,iy).s = X[iy][ix];
-          IRHO(ix,iy).s = X[iy][ix]/rho[iy][ix] + (1-X[iy][ix])*IRHO(ix,iy).s;
         }
         if(X[iy][ix] > 0)
         {
@@ -194,7 +192,6 @@ void PutObjectsOnGrid::operator()(const double dt)
     ( (ScalarBlock*)   chiInfo[i].ptrBlock )->clear();
     ( (ScalarBlock*)   tmpInfo[i].ptrBlock )->set(-1);
     ( (VectorBlock*)  uDefInfo[i].ptrBlock )->clear();
-    ( (ScalarBlock*)invRhoInfo[i].ptrBlock )->set(1);
   }
   // sim.stopProfiler();
 
