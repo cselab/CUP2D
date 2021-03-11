@@ -41,9 +41,7 @@ void SimulationData::allocateGrid()
   pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pRHS  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  invRho= new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  vFluid= new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
@@ -104,11 +102,6 @@ void SimulationData::dumpTmpV(std::string name) {
   DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,
     "tmpV_" + ss.str(), path4serialization);
 }
-void SimulationData::dumpInvRho(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerScalar, float, ScalarGrid>(*(invRho), time,
-    "invRho_" + ss.str(), path4serialization);
-}
 
 void SimulationData::registerDump()
 {
@@ -160,10 +153,8 @@ SimulationData::~SimulationData()
   if(chi not_eq nullptr) delete chi;
   if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
-  if(vFluid not_eq nullptr) delete vFluid;
   if(pRHS not_eq nullptr) delete pRHS;
   if(tmpV not_eq nullptr) delete tmpV;
-  if(invRho not_eq nullptr) delete invRho;
   if(pOld not_eq nullptr) delete pOld;
   if(tmp not_eq nullptr) delete tmp;
   while( not shapes.empty() ) {
@@ -211,42 +202,30 @@ void SimulationData::printResetProfiler()
 void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
-  if(bStaggeredGrid)
+  const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
+  const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
+  //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
+  #pragma omp parallel for schedule(static)
+  for (size_t i=0; i < velInfo.size(); i++)
   {
-    const auto K1 = computeVorticity(*this); K1.run();
-    dumpTmp (name);
-    //const auto K2 = computeDivergence(*this); K2.run();
-    //dumpTmp (name+"div");
-    dumpPres (name);
-    dumpInvRho (name);
+    VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
+    ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
+    VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
+    DMP.assign(CHI, VEL);
   }
-  else
-  {
-    const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
-    const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-    const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
-    //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
-    #pragma omp parallel for schedule(static)
-    for (size_t i=0; i < velInfo.size(); i++)
-    {
-      VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
-      ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
-      VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
-      DMP.assign(CHI, VEL);
-    }
 
-    // dump vorticity
-    const auto K1 = computeVorticity(*this); K1.run();
-    dumpTmp (name);
+  // dump vorticity
+  const auto K1 = computeVorticity(*this); K1.run();
+  dumpTmp (name);
 
-    //dumpChi  (name); // glued together: skip
-    //dumpVel  (name); // glued together: skip
-    dumpGlue(name);
-    dumpPres(name);
-    //dumpInvRho(name);
-    //dumpUobj (name);
-    //dumpForce(name);
-    //dumpTmpV (name); // probably useless
-  }
+  //dumpChi  (name); // glued together: skip
+  //dumpVel  (name); // glued together: skip
+  dumpGlue(name);
+  dumpPres(name);
+  //dumpInvRho(name);
+  //dumpUobj (name);
+  //dumpForce(name);
+  //dumpTmpV (name); // probably useless
   stopProfiler();
 }

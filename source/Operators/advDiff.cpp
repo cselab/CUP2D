@@ -9,27 +9,53 @@
 
 using namespace cubism;
 
-#if 0 //central differences (unstable!)
+#if 1 // 3rd-order upwind
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
-    const Real upx = V(ix+1, iy).u[0], upy = V(ix, iy+1).u[0];
-    const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
-    const Real ulx = V(ix-1, iy).u[0], uly = V(ix, iy-1).u[0];
-    const Real dUadv = (ucc+uinf[0]) * (upx-ulx) + (vcc+uinf[1]) * (upy-uly);
-    const Real dUdif = upx + upy + ulx + uly - 4 *ucc;
-    return advF * dUadv + difF * dUdif;
+  const Real u    = V(ix,iy).u[0];
+  const Real v    = V(ix,iy).u[1];
+  const Real UU   = u + uinf[0];
+  const Real VV   = v + uinf[1];
+
+  const Real up1x = V(ix+1,iy).u[0];
+  const Real up2x = V(ix+2,iy).u[0];
+  const Real um1x = V(ix-1,iy).u[0];
+  const Real um2x = V(ix-2,iy).u[0];
+  const Real dudx = UU>0 ? (2*up1x + 3*u - 6*um1x + um2x) : (-up2x + 6*up1x - 3*u - 2*um1x);
+
+  const Real up1y = V(ix,iy+1).u[0];
+  const Real up2y = V(ix,iy+2).u[0];
+  const Real um1y = V(ix,iy-1).u[0];
+  const Real um2y = V(ix,iy-2).u[0];
+  const Real dudy = VV>0 ? (2*up1y + 3*u - 6*um1y + um2y) : (-up2y + 6*up1y - 3*u - 2*um1y);
+
+  return advF*(UU*dudx+VV*dudy) + difF*(up1x + up1y + um1x + um1y - 4*u);
 }
 
 static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
-    const Real vpx = V(ix+1, iy).u[1], vpy = V(ix, iy+1).u[1];
-    const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
-    const Real vlx = V(ix-1, iy).u[1], vly = V(ix, iy-1).u[1];
-    const Real dVadv = (ucc+uinf[0]) * (vpx-vlx) + (vcc+uinf[1]) * (vpy-vly);
-    const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-    return advF * dVadv + difF * dVdif;
+  const Real u    = V(ix,iy).u[0];
+  const Real v    = V(ix,iy).u[1];
+  const Real UU   = u + uinf[0];
+  const Real VV   = v + uinf[1];
+
+  const Real vp1x = V(ix+1,iy).u[1];
+  const Real vp2x = V(ix+2,iy).u[1];
+  const Real vm1x = V(ix-1,iy).u[1];
+  const Real vm2x = V(ix-2,iy).u[1];
+  const Real dvdx = UU>0 ? (2*vp1x + 3*v - 6*vm1x + vm2x) : (-vp2x + 6*vp1x - 3*v - 2*vm1x);
+
+  const Real vp1y = V(ix,iy+1).u[1];
+  const Real vp2y = V(ix,iy+2).u[1];
+  const Real vm1y = V(ix,iy-1).u[1];
+  const Real vm2y = V(ix,iy-2).u[1];
+  const Real dvdy = VV>0 ? (2*vp1y + 3*v - 6*vm1y + vm2y) : (-vp2y + 6*vp1y - 3*v - 2*vm1y);
+
+  return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
 }
-#else // use quick
+
+#else //QUICK scheme
+
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
   const Real advF, const Real difF, const int ix, const int iy)
 {
@@ -82,98 +108,114 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
 
 void advDiff::operator()(const double dt)
 {
-    sim.startProfiler("advDiff");
+  sim.startProfiler("advDiff");
+  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+  const size_t Nblocks = velInfo.size();
+  const Real UINF[2]= {sim.uinfx, sim.uinfy};
+  const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
+  const Real fadeW= 1 - std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeS= 1 - std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
+  const Real fadeE= 1 - std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
+  const Real fadeN= 1 - std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
 
-    static constexpr int BSX = VectorBlock::sizeX, BSY = VectorBlock::sizeY;
-    // static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-    static constexpr int BX=0, EX=BSX-1, BY=0, EY=BSY-1;
+  #pragma omp parallel
+  {
+    static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
+    VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
 
-    const size_t Nblocks = velInfo.size();
-    const Real UINF[2]= {sim.uinfx, sim.uinfy};
-    // const auto fade = [&](VectorElement&B,const Real F) { B.u[0]*=F; B.u[1]*=F; };
-
-    #pragma omp parallel
+    #pragma omp for
+    for (size_t i=0; i < Nblocks; i++)
     {
-        #if 0 // stencil for centered advection
-        static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-        #else // for quick
-        static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
-        #endif
-        VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
-        #pragma omp for schedule(static)
-        for (size_t i=0; i < Nblocks; i++)
+      int aux = 1<<velInfo[i].level;
+      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
+      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
+      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
+      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
+      const Real h = velInfo[i].h;
+      const Real dfac = (sim.nu/h)*(dt/h);
+      const Real afac = -dt/h/6.0;
+      vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
+      VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+
+      if(isW(velInfo[i])) 
+        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy)
+        for(int ix=-2; ix<0                   ; ++ix)
         {
-            // int aux = 1<<velInfo[i].level;
-            // const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-            // const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
-            // const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-            // const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
-
-            const Real h = velInfo[i].h_gridpoint;
-            // //const Real dfac = (sim.nu/h)*(dt/h), afac = -0.5*dt/h; //central differences coefficients
-            const Real dfac = (sim.nu/h)*(dt/h),  afac = -dt/h/6.0;
-            // // const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
-            // const Real fac = 1; // no CFL dependence on BC
-            // const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-            // const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
-            // const Real fadeS= 1 - fac * std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
-            // const Real fadeE= 1 - fac * std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
-            // const Real fadeN= 1 - fac * std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
-
-            vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
-            VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-
-            // if(isW(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(BX-1,iy), fadeW);
-            // if(isS(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,BY-1), fadeS);
-            // if(isE(velInfo[i])) for(int iy=-1; iy<=BSY; ++iy) fade(V(EX+1,iy), fadeE);
-            // if(isN(velInfo[i])) for(int ix=-1; ix<=BSX; ++ix) fade(V(ix,EY+1), fadeN);
-
-            for(int iy=0; iy<BSY; ++iy) for(int ix=0; ix<BSX; ++ix)
-            {
-              TMP(ix,iy).u[0] = V(ix,iy).u[0] + dU_adv_dif(V,UINF,afac,dfac,ix,iy);
-              TMP(ix,iy).u[1] = V(ix,iy).u[1] + dV_adv_dif(V,UINF,afac,dfac,ix,iy);
-            }
+          V(ix,iy).u[0] *= fadeW;
+          V(ix,iy).u[1] *= fadeW;
         }
+
+      if(isS(velInfo[i]))
+        for(int iy=-2; iy<0                   ; ++iy) 
+        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix) 
+        {
+          V(ix,iy).u[0] *= fadeS;
+          V(ix,iy).u[1] *= fadeS;
+        }
+
+      if(isE(velInfo[i]))
+        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy) 
+        for(int ix=VectorBlock::sizeX; ix<VectorBlock::sizeX+2; ++ix) 
+        {
+          V(ix,iy).u[0] *= fadeE;
+          V(ix,iy).u[1] *= fadeE;
+        }
+
+      if(isN(velInfo[i]))
+        for(int iy=VectorBlock::sizeY; iy<VectorBlock::sizeY+2; ++iy) 
+        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix)
+        {
+          V(ix,iy).u[0] *= fadeN;
+          V(ix,iy).u[1] *= fadeN;
+        }
+
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        TMP(ix,iy).u[0] = V(ix,iy).u[0] + dU_adv_dif(V,UINF,afac,dfac,ix,iy);
+        TMP(ix,iy).u[1] = V(ix,iy).u[1] + dV_adv_dif(V,UINF,afac,dfac,ix,iy);
+      }
     }
+  }
 
-    // Copy TMP to V and store inflow correction
-    Real IF = 0.0;
-    #pragma omp parallel for schedule(static) reduction(+ : IF)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-        VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
-        const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-        V.copy(T);
+  // Copy TMP to V and store inflow correction
+  Real IF = 0.0;
+  #pragma omp parallel for reduction(+ : IF)
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    V.copy(T);
+    const int aux = 1<<velInfo[i].level;
+    const bool isW = velInfo[i].index[0] == 0;
+    const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
+    const bool isS = velInfo[i].index[1] == 0;
+    const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
+    const double h = velInfo[i].h;
+    if (isW) for(int iy=0; iy<VectorBlock::sizeY; ++iy) IF -= h * V(0,iy).u[0];
+    if (isS) for(int ix=0; ix<VectorBlock::sizeX; ++ix) IF -= h * V(ix,0).u[1];
+    if (isE) for(int iy=0; iy<VectorBlock::sizeY; ++iy) IF += h * V(VectorBlock::sizeX-1,iy).u[0];
+    if (isN) for(int ix=0; ix<VectorBlock::sizeX; ++ix) IF += h * V(ix,VectorBlock::sizeY-1).u[1];
+  }
 
-        const int aux = 1<<velInfo[i].level;
-        const bool isW = velInfo[i].index[0] == 0;
-        const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
-        const bool isS = velInfo[i].index[1] == 0;
-        const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
-        const double h = velInfo[i].h_gridpoint;
-        if (isW) for(int iy=0; iy<BSY; ++iy) IF += - h * V(BX,iy).u[0];
-        if (isE) for(int iy=0; iy<BSY; ++iy) IF +=   h * V(EX,iy).u[0];
-        if (isS) for(int ix=0; ix<BSX; ++ix) IF += - h * V(ix,BY).u[1];
-        if (isN) for(int ix=0; ix<BSX; ++ix) IF +=   h * V(ix,EY).u[1];
-    }
+  const double H = sim.getH();//returns smallest grid spacing, at finest refinement level
+  const Real corr = IF/H/( 2*VectorBlock::sizeY*sim.bpdy*(1<<(sim.levelMax-1)) 
+                         + 2*VectorBlock::sizeX*sim.bpdx*(1<<(sim.levelMax-1)) );
 
-    const double H = sim.getH();
-    const Real corr = IF/H/( 2*BSY*sim.bpdy*(1<<(sim.levelMax-1)) + 2*BSX*sim.bpdx*(1<<(sim.levelMax-1)) );
-
-    // Apply correction
-    #pragma omp parallel for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-        int aux = 1<<velInfo[i].level;
-        const bool isW = velInfo[i].index[0] == 0;
-        const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
-        const bool isS = velInfo[i].index[1] == 0;
-        const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
-        VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
-        if(isW) for(int iy=0; iy<BSY; ++iy) V(BX,iy).u[0] += corr;
-        if(isE) for(int iy=0; iy<BSY; ++iy) V(EX,iy).u[0] -= corr;
-        if(isS) for(int ix=0; ix<BSX; ++ix) V(ix,BY).u[1] += corr;
-        if(isN) for(int ix=0; ix<BSX; ++ix) V(ix,EY).u[1] -= corr;
-    }
-    sim.stopProfiler();
+  // Apply correction
+  #pragma omp parallel for schedule(static)
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    int aux = 1<<velInfo[i].level;
+    const bool isW = velInfo[i].index[0] == 0;
+    const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
+    const bool isS = velInfo[i].index[1] == 0;
+    const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
+    VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
+    if(isW) for(int iy=0; iy<VectorBlock::sizeY; ++iy) V(0,iy).u[0] += corr;
+    if(isS) for(int ix=0; ix<VectorBlock::sizeX; ++ix) V(ix,0).u[1] += corr;
+    if(isE) for(int iy=0; iy<VectorBlock::sizeY; ++iy) V(VectorBlock::sizeX-1,iy).u[0] -= corr;
+    if(isN) for(int ix=0; ix<VectorBlock::sizeX; ++ix) V(ix,VectorBlock::sizeY-1).u[1] -= corr;
+  }
+  sim.stopProfiler();
 }

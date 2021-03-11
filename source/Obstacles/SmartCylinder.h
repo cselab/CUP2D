@@ -24,6 +24,11 @@ class SmartCylinder : public Shape
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
   void updatePosition(double dt) override;
+  virtual void resetAll() override
+  {
+    Shape::resetAll();
+    energy = 0; 
+  }
 
   Real getCharLength() const override
   {

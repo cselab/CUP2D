@@ -14,7 +14,7 @@
 #include <iomanip>
 using namespace cubism;
 
-#define EXPL_INTEGRATE_MOM
+//#define EXPL_INTEGRATE_MOM
 
 static constexpr double EPS = std::numeric_limits<double>::epsilon();
 Real Shape::getMinRhoS() const { return rhoS; }
@@ -235,7 +235,7 @@ void Shape::diagnostics()
         const double uDiff = b(ix,iy).u - (u -omega*p[1] +udef[0]);
         const double vDiff = b(ix,iy).v - (v +omega*p[0] +udef[1]);
         _a += Xs;
-        _m += Xs / b(ix,iy).invRho;
+        _m += Xs;
         _x += uDiff*Xs;
         _y += vDiff*Xs;
         _t += (p[0]*vDiff-p[1]*uDiff)*Xs;

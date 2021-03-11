@@ -78,19 +78,6 @@ endif
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
 NVFLAGS += -D_FLOAT_PRECISION_
-LIBS += -lfftw3f -lfftw3f_omp
-else 
-LIBS += -lfftw3  -lfftw3_omp
-endif
-
-# SET FLAGS FOR HYPRE
-ifneq "$(hypre)" "false"
-ifneq ($(HYPRE_ROOT),)
-LIBS     += -L$(HYPRE_ROOT)/lib -lHYPRE
-CPPFLAGS += -I$(HYPRE_ROOT)/include -DHYPREFFT
-else
-ERROR += "HYPRE_ROOT not set"
-endif
 endif
 
 # SET FLAGS FOR GSL
@@ -166,9 +153,6 @@ cup.libs.txt:
 
 %.d: %.cpp
 	$(CXX) $(CPPFLAGS) -c -MD $<
-
-CUDA_all.o: CUDA_all.cu
-	nvcc $(NVFLAGS) -c $< -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:

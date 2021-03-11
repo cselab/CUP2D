@@ -10,18 +10,11 @@
 #include "Simulation.h"
 
 #include <Cubism/HDF5Dumper.h>
-//#include <ZBinDumper.h>
 
 #include "Operators/Helpers.h"
 #include "Operators/PressureSingle.h"
-#include "Operators/PressureVarRho_proper.h"
-#include "Operators/PressureIterator_unif.h"
-#include "Operators/PressureIterator_approx.h"
 #include "Operators/PutObjectsOnGrid.h"
-#include "Operators/PutObjectsOnGridStaggered.h"
-#include "Operators/UpdateObjects.h"
 #include "Operators/ComputeForces.h"
-#include "Operators/UpdateObjectsStaggered.h"
 #include "Operators/advDiff.h"
 #include "Operators/AdaptTheMesh.h"
 
@@ -101,24 +94,12 @@ void Simulation::init()
   }
   else
   {
-    sim.bStaggeredGrid = false;
     pipeline.push_back( new PutObjectsOnGrid(sim) );
     pipeline.push_back( new advDiff(sim) );
-    //pipeline.push_back( new FadeOut(sim) );
     //pipeline.push_back( new PressureVarRho(sim) );
     //pipeline.push_back( new PressureVarRho_proper(sim) );
 
-    if(sim.iterativePenalization)
-    {
-      std::cout << "Iterative Penalization with AMR not ready." << std::endl;
-      abort();
-      pipeline.push_back( new PressureIterator_unif(sim) );
-    }
-    else {
-      pipeline.push_back( new PressureSingle(sim) );
-      //pipeline.push_back( new UpdateObjects(sim) );
-    }
-    //pipeline.push_back( new FadeOut(sim) );
+    pipeline.push_back( new PressureSingle(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
   if(sim.verbose){
@@ -160,7 +141,7 @@ void Simulation::parseRuntime()
 
   // simulation settings
   sim.CFL = parser("-CFL").asDouble(0.1);
-  sim.lambda = parser("-lambda").asDouble(1e3 / sim.CFL);
+  sim.lambda = parser("-lambda").asDouble(1e6);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
@@ -174,9 +155,6 @@ void Simulation::parseRuntime()
 
   // select Poisson solver
   sim.poissonType = parser("-poissonType").asString("");
-
-  // boolean to enable iterative penalisation
-  sim.iterativePenalization = parser("-iterativePenalization").asInt(0);
 
   // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
