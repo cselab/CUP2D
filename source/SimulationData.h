@@ -25,7 +25,6 @@ struct SimulationData
 
   ScalarGrid * pres  = nullptr;
   ScalarGrid * pOld  = nullptr;
-  ScalarGrid * pRHS  = nullptr;
   
   #ifdef PRECOND
   ScalarGrid * z_cg = nullptr;

@@ -336,6 +336,9 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s){}
 
 void AMRSolver::solve()
 {
+
+
+
   // sim.startProfiler("AMRSolver");
 
   static constexpr int BSX = VectorBlock::sizeX;
@@ -349,9 +352,28 @@ void AMRSolver::solve()
   std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
   std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp ->getBlocksInfo();
   std::vector<cubism::BlockInfo>& pInfo = sim.pOld->getBlocksInfo();
-  std::vector<cubism::BlockInfo>& rInfo = sim.pRHS->getBlocksInfo();
+  std::vector<cubism::BlockInfo>& rInfo = sim.chi->getBlocksInfo();
 
   Corrector.prepare(*sim.tmp);
+
+
+  std::vector<double> SavedFields( xInfo.size()*BSX*BSY* 4);
+  #pragma omp parallel for
+  for(size_t i=0; i< xInfo.size(); i++)
+  {
+      ScalarBlock& x0 = *(ScalarBlock*)xInfo  [i].ptrBlock;
+      ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
+      ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
+      ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4     ] = x0(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 1 ] = x1(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 2 ] = x2(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 3 ] = x3(ix,iy).s;
+      }
+  }
   
   // cub2rhs(tmpInfo);
 
@@ -488,6 +510,23 @@ void AMRSolver::solve()
     err_min = err;
   }
 
+  #pragma omp parallel for
+  for(size_t i=0; i< xInfo.size(); i++)
+  {
+      ScalarBlock& x0 = *(ScalarBlock*)xInfo  [i].ptrBlock;
+      ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
+      ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
+      ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+        x0(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4     ];
+        x1(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 1 ];
+        x2(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 2 ];
+        x3(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 3 ];
+      }
+  }
+  
   // sim.stopProfiler();
   // std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }
