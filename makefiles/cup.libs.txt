@@ -1,0 +1,1 @@
+-fopenmp -lcufft -lcublas -lcusparse -lcusolver -lnvToolsExt -L/opt/cray/pe/fftw/3.3.8.7/haswell/lib -lfftw3 -lfftw3_omp -L/users/novatig/hypre/build/lib -lHYPRE -L/apps/daint/UES/jenkins/7.0.UP02/gpu/easybuild/software/GSL/2.5-CrayGNU-19.08/lib -lgsl -lgslcblas -L/opt/cray/pe/hdf5-parallel/1.12.0.0/GNU/8.2/lib -lhdf5

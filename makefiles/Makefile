@@ -58,7 +58,7 @@ OBJECTS = \
 		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
 		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
 		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
-		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
+		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
 
 # SET FLAGS FOR GPU-BASED SOLVERS
 ifneq "$(gpu)" "false"
@@ -107,7 +107,7 @@ ifneq ($(HDF5_ROOT),)
 LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
 CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
 else
-ERROR += "HDF5_ROOT not set"
+ERROR += "HDF5_ROOT not set"ShapesSimple
 endif
 endif
 

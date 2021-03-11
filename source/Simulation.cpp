@@ -37,6 +37,7 @@
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Glider.h"
 #include "Obstacles/Naca.h"
+#include "Obstacles/Windmill.h"
 
 //#include <regex>
 #include <algorithm>
@@ -239,6 +240,8 @@ void Simulation::createShapes()
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )
         shape = new Naca(             sim, ffparser, center);
+      else if (objectName=="windmill")
+        shape = new Windmill(         sim, ffparser, center);
       else {
         std::cout << "FATAL - shape is not recognized!" << std::endl; 
         fflush(0);
