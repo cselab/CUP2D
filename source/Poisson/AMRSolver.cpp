@@ -361,17 +361,15 @@ void AMRSolver::solve()
   #pragma omp parallel for
   for(size_t i=0; i< xInfo.size(); i++)
   {
-      ScalarBlock& x0 = *(ScalarBlock*)xInfo  [i].ptrBlock;
       ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
       ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
       ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4     ] = x0(ix,iy).s;
-        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 1 ] = x1(ix,iy).s;
-        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 2 ] = x2(ix,iy).s;
-        SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 3 ] = x3(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3     ] = x1(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 1 ] = x2(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 2 ] = x3(ix,iy).s;
       }
   }
   
@@ -513,17 +511,15 @@ void AMRSolver::solve()
   #pragma omp parallel for
   for(size_t i=0; i< xInfo.size(); i++)
   {
-      ScalarBlock& x0 = *(ScalarBlock*)xInfo  [i].ptrBlock;
       ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
       ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
       ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        x0(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4     ];
-        x1(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 1 ];
-        x2(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 2 ];
-        x3(ix,iy).s = SavedFields[ i*(BSX*BSY*4) + iy*(BSX*4) + ix*4 + 3 ];
+        x1(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3    ];
+        x2(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 1];
+        x3(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 2];
       }
   }
   
