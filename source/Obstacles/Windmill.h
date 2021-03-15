@@ -28,11 +28,11 @@ class Windmill : public Shape
   void updatePosition(double dt) override;
   
   void act( double action );
-  double reward( std::array<Real,2> target, std::array<Real,2> target_vel, double C = 10);
-  std::array<Real,2> state();
+  double reward( std::array<Real,2> target, std::vector<double> target_vel, double C = 10);
+  std::vector<double> state();
 
   // Helpers for State function
-  std::array<Real,2> average(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
+  std::vector<double> average(std::array<Real, 2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
 
   std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
   
