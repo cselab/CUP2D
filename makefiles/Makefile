@@ -51,29 +51,9 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		PressureSingle.o PressureIterator_unif.o PressureIterator_approx.o \
-		HYPREdirichlet.o FFTW_freespace.o PutObjectsOnGrid.o UpdateObjects.o \
-		advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
-		FishData.o ArgumentParser.o PoissonSolver.o  \
-		BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
-		HYPREdirichletVarRho.o PressureVarRho_proper.o UpdateObjectsStaggered.o \
-		PutObjectsOnGridStaggered.o Naca.o CStartFish.o ZebraFish.o \
-		NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
-
-# SET FLAGS FOR GPU-BASED SOLVERS
-ifneq "$(gpu)" "false"
-LIBS += -lcufft -lcublas -lcusparse -lcusolver -lnvToolsExt #-L$(AMGX_DIR)/lib -lamgx
-OBJECTS += CUDA_all.o #AMGXdirichletVarRho.o
-CPPFLAGS += -DCUDAFFT #-DAMGX_POISSON -I$(AMGX_DIR)/include
-endif
-
-# SET FLAGS FOR FFTW
-ifneq ($(FFTW_ROOT),)
-LIBS  += -L$(FFTW_ROOT)/lib
-CPPFLAGS  += -I$(FFTW_ROOT)/include
-else
-ERROR += "FFTW_ROOT not set"
-endif
+		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
+		FishData.o ArgumentParser.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
@@ -94,7 +74,7 @@ ifneq ($(HDF5_ROOT),)
 LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
 CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
 else
-ERROR += "HDF5_ROOT not set"ShapesSimple
+ERROR += "HDF5_ROOT not set"
 endif
 endif
 
