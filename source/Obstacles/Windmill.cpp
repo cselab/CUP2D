@@ -102,64 +102,42 @@ void Windmill::updatePosition(double dt)
 }
 
 // action: change torque on windmill
-void Windmill::act( std::vector<double> action )
+void Windmill::act( double action )
 {
-  if(action.size() != 1){
-    std::cout << "One action required, torque applied to the object.";
-    fflush(0);
-    abort();
-  }
-  appliedTorque = action[0];
+  // if(action.size() != 1){
+  //   std::cout << "One action required, torque applied to the object.";
+  //   fflush(0);
+  //   abort();
+  // }
+  appliedTorque = action;
 }
 
 // reward : how close flow at one point is to wanted flow - energy used 
-double Windmill::reward( std::vector<double> target, std::vector<double> target_vel, const std::vector<cubism::BlockInfo>& velInfo, double C = 10)
+double Windmill::reward( std::array<Real,2> target, std::array<Real,2> target_vel, double C)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
   double r_energy = -appliedTorque*omega*sim.dt; 
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
-  std::vector<Real, 2> avg = average(target, velinfo);
-  diff_flow += (target_vel[0] - avg[0])^2 + (target_vel[1] - avg[1])^2;
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  std::array<Real,2> avg = average(target, velInfo);
+  diff_flow += std::pow(target_vel[0] - avg[0], 2) +std::pow(target_vel[1] - avg[1], 2);
   double r_flow = (C / sim.time) * diff_flow;
   return r_energy + r_flow;
 }
 
 
-
-std::vector<double> Windmill::state(std::vector<double> target)
+std::array<Real,2> Windmill::state()
 {
   // state of a windmill is the angle and angular velocity
-  
 
   // intitialize state vector
-  std::vector<double> state(4+2*NSENSORS);
+  std::array<Real,2> state;
 
-  // relative x position
-  state[0] = target[0]-centerOfMass[0];
-  // relative y position
-  state[1] = target[1]-centerOfMass[1];
-  // update dist
-  dist = std::sqrt( state[0]*state[0] + state[1]*state[1] );
-  // current x-velocity
-  state[2] = u;
-  // current y-velocity
-  state[3] = v;
+  // angle
+  state[0] = orientation;
 
-  for(size_t sens = 0; sens<NSENSORS; sens++)
-  {
-    // equally spaced sensors
-    const Real theta = sens * 2 * M_PI / NSENSORS;
-    const Real cosTheta = std::cos(theta), sinTheta = std::sin(theta);
-    const std::array<Real,2> position{centerOfMass[0] - 1.1 * smajax * cosTheta, centerOfMass[1] + 1.1 * smajax * sinTheta};
-
-    // Get velInfo
-    const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-    // get velocity at sensor location
-    std::array<Real,2> vSens = sensVel( position, velInfo );
-    // subtract surface velocity from sensor velocity
-    state[4+2*sens]   = vSens[0] - u;
-    state[4+2*sens+1] = vSens[1] - v;
-  }
+  // ang vel
+  state[1] = omega;
 
   return state;
 }
@@ -167,7 +145,7 @@ std::vector<double> Windmill::state(std::vector<double> target)
 /* helpers to compute sensor information */
 
 // average function
-std::array<Real, 2> Windmill::average(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const
+std::array<Real,2> Windmill::average(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const
 {
   // average velocity in a cube of 10 points per direction around the point pSens
 
@@ -199,10 +177,10 @@ std::array<Real, 2> Windmill::average(const std::array<Real,2> pSens, const std:
     for (ssize_t j(-5); j < 6; ++j)
     {
       avgX += V(iSens[0] + i, iSens[1] + j).u[0];
-      avgY +0 V(iSens[0] + i, iSens[1] + j).u[1];
+      avgY += V(iSens[0] + i, iSens[1] + j).u[1];
     }
   
-  return std::array<Real, 2> {avgX, avgY};
+  return std::array<Real,2> {avgX, avgY};
 
 }
 
