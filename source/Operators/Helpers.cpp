@@ -136,7 +136,6 @@ void IC::operator()(const double dt)
   //const std::vector<BlockInfo>& forceInfo = sim.force->getBlocksInfo();
 
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo>& pRHSInfo  = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
 
   const size_t Nblocks = velInfo.size();
@@ -156,14 +155,12 @@ void IC::operator()(const double dt)
       //VectorBlock&    F= *(VectorBlock*)forceInfo[i].ptrBlock;    F.clear();
 
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
-      ScalarBlock& PRHS= *(ScalarBlock*) pRHSInfo[i].ptrBlock; PRHS.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       assert(velInfo[i].blockID ==  uDefInfo[i].blockID);
       assert(velInfo[i].blockID ==   chiInfo[i].blockID);
       assert(velInfo[i].blockID ==  presInfo[i].blockID);
       //assert(velInfo[i].blockID == forceInfo[i].blockID);
       assert(velInfo[i].blockID ==   tmpInfo[i].blockID);
-      assert(velInfo[i].blockID ==  pRHSInfo[i].blockID);
       assert(velInfo[i].blockID ==  tmpVInfo[i].blockID);
       //for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       //for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
@@ -227,7 +224,6 @@ void Checker::run(std::string when) const
   //const std::vector<BlockInfo>& forceInfo = sim.force->getBlocksInfo();
 
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo>& pRHSInfo  = sim.pRHS->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
 
   bool bAbort = false;
@@ -242,7 +238,6 @@ void Checker::run(std::string when) const
     //VectorBlock&    F= *(VectorBlock*)forceInfo[i].ptrBlock;
 
     ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-    ScalarBlock& PRHS= *(ScalarBlock*) pRHSInfo[i].ptrBlock;
     VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
@@ -318,14 +313,6 @@ void Checker::run(std::string when) const
       }
       if(std::isinf( TMP(ix,iy).s   )) {
         // printf("isinf( TMP(ix,iy).s   ) %s\n", when.c_str());
-        bAbort = true;
-      }
-      if(std::isnan(PRHS(ix,iy).s   )) {
-        // printf("isnan(PRHS(ix,iy).s   ) %s\n", when.c_str());
-        bAbort = true;
-      }
-      if(std::isinf(PRHS(ix,iy).s   )) {
-        // printf("isinf(PRHS(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
       }
     }

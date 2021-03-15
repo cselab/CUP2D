@@ -49,15 +49,13 @@ elif [ ${HOST:0:3} == 'eu-' ] ; then
 
 export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
 BASEPATH="$SCRATCH/CubismUP_2D"
-NCPUSTR=`lscpu | grep "Core"`
-#export OMP_NUM_THREADS=${NCPUSTR: -3}
-export OMP_NUM_THREADS=36
+export OMP_NUM_THREADS=36 #set to 128 for other Euler nodes
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
-mpirun -n 1 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
 bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150] span[ptile=${OMP_NUM_THREADS}]" mpirun -n 1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 fi

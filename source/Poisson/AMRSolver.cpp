@@ -336,6 +336,9 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s){}
 
 void AMRSolver::solve()
 {
+
+
+
   // sim.startProfiler("AMRSolver");
 
   static constexpr int BSX = VectorBlock::sizeX;
@@ -349,9 +352,26 @@ void AMRSolver::solve()
   std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
   std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp ->getBlocksInfo();
   std::vector<cubism::BlockInfo>& pInfo = sim.pOld->getBlocksInfo();
-  std::vector<cubism::BlockInfo>& rInfo = sim.pRHS->getBlocksInfo();
+  std::vector<cubism::BlockInfo>& rInfo = sim.chi->getBlocksInfo();
 
   Corrector.prepare(*sim.tmp);
+
+
+  std::vector<double> SavedFields( xInfo.size()*BSX*BSY* 4);
+  #pragma omp parallel for
+  for(size_t i=0; i< xInfo.size(); i++)
+  {
+      ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
+      ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
+      ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3     ] = x1(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 1 ] = x2(ix,iy).s;
+        SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 2 ] = x3(ix,iy).s;
+      }
+  }
   
   // cub2rhs(tmpInfo);
 
@@ -488,6 +508,21 @@ void AMRSolver::solve()
     err_min = err;
   }
 
+  #pragma omp parallel for
+  for(size_t i=0; i< xInfo.size(); i++)
+  {
+      ScalarBlock& x1 = *(ScalarBlock*)tmpInfo[i].ptrBlock;
+      ScalarBlock& x2 = *(ScalarBlock*)pInfo  [i].ptrBlock;
+      ScalarBlock& x3 = *(ScalarBlock*)rInfo  [i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+        x1(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3    ];
+        x2(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 1];
+        x3(ix,iy).s = SavedFields[ i*(BSX*BSY*3) + iy*(BSX*3) + ix*3 + 2];
+      }
+  }
+  
   // sim.stopProfiler();
   // std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 }

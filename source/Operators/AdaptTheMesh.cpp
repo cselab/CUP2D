@@ -21,13 +21,12 @@ void AdaptTheMesh::operator()(const double dt)
   ScalarAMR tmp_amr   ( *sim.tmp    ,Rtol, Ctol, verbose);//refine according to tmp (which is vorticity magnitude)
 
   verbose = false;
-  ScalarAMR chi_amr   ( *sim.chi    ,0.01, 0.0 , verbose);
+  ScalarAMR chi_amr   ( *sim.chi    ,0.05, 0.01 , verbose);
   VectorAMR vel_amr   ( *sim.vel    ,Rtol, Ctol, verbose);
   ScalarAMR pres_amr  ( *sim.pres   ,Rtol, Ctol, verbose);
   VectorAMR uDef_amr  ( *sim.uDef   ,Rtol, Ctol, verbose);  
   MeshAdaptation_basic<DumpGrid> dump_amr( *sim.dump);  
   
-  ScalarAMR pRHS_amr  ( *sim.pRHS   ,Rtol, Ctol, verbose);
   VectorAMR tmpV_amr  ( *sim.tmpV   ,Rtol, Ctol, verbose);
 
   //ScalarAMR pOld_amr  ( *sim.pOld   ,Rtol, Ctol, verbose); 
@@ -44,7 +43,6 @@ void AdaptTheMesh::operator()(const double dt)
   MeshAdaptation_basic<ScalarGrid> z_cg_amr( *sim.z_cg);  
   z_cg_amr  .AdaptLikeOther<ScalarGrid>(*sim.tmp);
   #endif
-  pRHS_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
   tmpV_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
 
   //pOld_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
@@ -60,7 +58,6 @@ void AdaptTheMesh::operator()(const double dt)
   z_cg_amr  .AdaptLikeOther<ScalarGrid>(*sim.chi);
   #endif
 
-  pRHS_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
   tmpV_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
 
   //pOld_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
@@ -70,7 +67,6 @@ void AdaptTheMesh::operator()(const double dt)
   sim.vel   ->SortBlocks();
   sim.pres  ->SortBlocks();
   sim.pOld  ->SortBlocks();
-  sim.pRHS  ->SortBlocks();
   sim.tmpV  ->SortBlocks();
   sim.tmp   ->SortBlocks();
   sim.uDef  ->SortBlocks();
