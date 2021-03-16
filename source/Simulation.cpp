@@ -117,11 +117,13 @@ void Simulation::parseRuntime()
   // restart the simulation?
   sim.bRestart = parser("-restart").asBool(false);
 
-  //parser.set_strict_mode();
+  parser.set_strict_mode();
 
   // set initial number of blocks
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
+
+  parser.unset_strict_mode();
 
   // set number of refinement levels
   sim.levelMax = parser("-levelMax").asInt(0);
