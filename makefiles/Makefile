@@ -40,8 +40,7 @@ bs ?= 8
 CPPFLAGS+= -DDIMENSION=2
 endif
 
-nthreads ?= 12
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -DNTHREADS=$(nthreads) -I$(BUILDDIR)/../Cubism/include/ 
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ 
 NVFLAGS+= -code=sm_60 -arch=compute_60 -I$(BUILDDIR)/../Cubism/include/
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
