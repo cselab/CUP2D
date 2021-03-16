@@ -10,6 +10,65 @@
 
 using namespace cubism;
 
+
+void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
+{
+   static constexpr int BSX = VectorBlock::sizeX;
+   static constexpr int BSY = VectorBlock::sizeY;
+   static constexpr int N   = BSX*BSY;
+
+   #pragma omp parallel
+   {
+     int tid = omp_get_thread_num();
+     #pragma omp for schedule(runtime)
+     for (size_t i=0; i < zInfo.size(); i++)
+     {
+       //ScalarBlock & __restrict__ r  = *(ScalarBlock*) rInfo[i].ptrBlock;
+       ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock;
+
+       //1. z = L^{-1}r
+       for (int I = 0; I < N ; I++)
+       {
+         double rhs = 0.0;
+         for (size_t jj = 0 ; jj < L_row[tid][I].size(); jj++)
+         {
+           int J = L_row[tid][I][jj].first;
+           double LIJ = L_row[tid][I][jj].second;
+
+           int iy = J / BSX;
+           int ix = J % BSX;
+           rhs += LIJ*z(ix,iy).s;
+         }
+         int iy = I / BSX;
+         int ix = I % BSX;
+         z(ix,iy).s = (z(ix,iy).s - rhs) *Ld[tid][I];//
+       }
+
+       //2. z = L^T{-1}r
+       for (int I = N-1; I >= 0 ; I--)
+       {
+         double rhs = 0.0;
+         for (size_t jj = 0 ; jj < L_col[tid][I].size(); jj++)
+         {
+           int J = L_col[tid][I][jj].first;
+           double LJI = L_col[tid][I][jj].second;
+
+           int iy = J / BSX;
+           int ix = J % BSX;
+           rhs += LJI*z(ix,iy).s;
+         }
+         int iy = I / BSX;
+         int ix = I % BSX;
+         z(ix,iy).s = (z(ix,iy).s - rhs) *Ld[tid][I];
+       }
+
+       for (int iy=0;iy<BSY;iy++)
+         for (int ix=0;ix<BSX;ix++)
+           z(ix,iy).s = -z(ix,iy).s;
+     }
+   }
+}
+
 void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
 {
     static constexpr int BSX = VectorBlock::sizeX;
@@ -82,7 +141,80 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     Corrector.FillBlockCases();
 }
 
-AMRSolver::AMRSolver(SimulationData& s):sim(s){}
+double AMRSolver::getA_local(int I1,int I2)
+{
+   static constexpr int BSX = VectorBlock::sizeX;
+   int j1 = I1 / BSX;
+   int i1 = I1 % BSX;
+   int j2 = I2 / BSX;
+   int i2 = I2 % BSX;
+   if (i1==i2 && j1==j2)
+   {
+     return 4.0;
+   }
+   else if (abs(i1-i2) + abs(j1-j2) == 1)
+   {
+     return -1.0;
+   }
+   else
+   {
+     return 0.0;
+   }
+}
+
+AMRSolver::AMRSolver(SimulationData& s):sim(s)
+{
+   std::vector<std::vector<double>> L;
+
+   int BSX = VectorBlock::sizeX;
+   int BSY = VectorBlock::sizeY;
+   int N = BSX*BSY;
+   L.resize(N);
+
+   for (int i = 0 ; i<N ; i++)
+   {
+     L[i].resize(i+1);
+   }
+   for (int i = 0 ; i<N ; i++)
+   {
+     double s1=0;
+     for (int k=0; k<=i-1; k++)
+       s1 += L[i][k]*L[i][k];
+     L[i][i] = sqrt(getA_local(i,i) - s1);
+     for (int j=i+1; j<N; j++)
+     {
+       double s2 = 0;
+       for (int k=0; k<=i-1; k++)
+         s2 += L[i][k]*L[j][k];
+       L[j][i] = (getA_local(j,i)-s2) / L[i][i];
+     }
+   }
+   L_row.resize(omp_get_max_threads());
+   L_col.resize(omp_get_max_threads());
+   Ld.resize(omp_get_max_threads());
+   #pragma omp parallel
+   {
+     int tid = omp_get_thread_num();
+     L_row[tid].resize(N);
+     L_col[tid].resize(N);
+
+     for (int i = 0 ; i<N ; i++)
+     {
+       Ld[tid].push_back(1.0/L[i][i]);
+       for (int j = 0 ; j < i ; j++)
+       {
+         if ( abs(L[i][j]) > 1e-10 ) L_row[tid][i].push_back({j,L[i][j]});
+       }
+     }
+     for (int j = 0 ; j<N ; j++)
+     {
+       for (int i = j ; i < N ; i++)
+       {
+         if ( abs(L[i][j]) > 1e-10 ) L_col[tid][j].push_back({i,L[i][j]});
+       }
+     }
+   }
+}
 
 void AMRSolver::solve()
 {
@@ -230,7 +362,7 @@ void AMRSolver::solve()
         z(ix,iy).s = pv(ix,iy).u[0];
       }
     }
-    //getZ();
+    getZ(zInfo);
 
     //5. v = A z
     //6. alpha = rho_i / (rhat_0,v_i)
@@ -274,7 +406,7 @@ void AMRSolver::solve()
     }
 
 
-    //getZ();
+    getZ(zInfo);
     Get_LHS(sim.tmp,sim.pOld); // t <-- Az //t stored in AxVector
 
     //12. omega = ...

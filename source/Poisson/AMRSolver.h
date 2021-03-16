@@ -24,5 +24,12 @@ class AMRSolver
   cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   void solve();
   void Get_LHS (ScalarGrid * lhs, ScalarGrid * x);
-  void getZ(){};
+
+    std::vector<std::vector<double>> Ld;
+    std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
+    std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+    double getA(int I1, int I2);
+    void getZ(std::vector<cubism::BlockInfo> & zInfo);
+    double getA_local(int I1,int I2);
+
 };
