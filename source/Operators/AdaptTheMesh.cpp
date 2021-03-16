@@ -32,47 +32,33 @@ void AdaptTheMesh::operator()(const double dt)
   //ScalarAMR pOld_amr  ( *sim.pOld   ,Rtol, Ctol, verbose); 
   MeshAdaptation_basic<ScalarGrid> pOld_amr(*sim.pOld);  
 
+  tmp_amr .AdaptTheMesh();
+  chi_amr .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  vel_amr .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  pres_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  uDef_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  dump_amr.AdaptLikeOther <ScalarGrid>(*sim.tmp);
+  tmpV_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  //pOld_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  pOld_amr.AdaptLikeOther <ScalarGrid>(*sim.tmp);
 
-  tmp_amr   .AdaptTheMesh();
-  chi_amr   .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  vel_amr   .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  pres_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  uDef_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  dump_amr  .AdaptLikeOther <ScalarGrid>(*sim.tmp);
-  #ifdef PRECOND
-  MeshAdaptation_basic<ScalarGrid> z_cg_amr( *sim.z_cg);  
-  z_cg_amr  .AdaptLikeOther<ScalarGrid>(*sim.tmp);
-  #endif
-  tmpV_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
+  chi_amr .AdaptTheMesh();
+  tmp_amr .AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  vel_amr .AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  pres_amr.AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  uDef_amr.AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  dump_amr.AdaptLikeOther <ScalarGrid>(*sim.chi);
+  tmpV_amr.AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  //pOld_amr.AdaptLikeOther1<ScalarGrid>(*sim.chi);
+  pOld_amr.AdaptLikeOther <ScalarGrid>(*sim.chi);
 
-  //pOld_amr  .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  pOld_amr  .AdaptLikeOther<ScalarGrid>(*sim.tmp);
-
-  chi_amr   .AdaptTheMesh();
-  tmp_amr   .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  vel_amr   .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  pres_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  uDef_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  dump_amr  .AdaptLikeOther <ScalarGrid>(*sim.chi);
-  #ifdef PRECOND
-  z_cg_amr  .AdaptLikeOther<ScalarGrid>(*sim.chi);
-  #endif
-
-  tmpV_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-
-  //pOld_amr  .AdaptLikeOther1<ScalarGrid>(*sim.chi);
-  pOld_amr  .AdaptLikeOther<ScalarGrid>(*sim.chi);
-
-  sim.chi   ->SortBlocks();
-  sim.vel   ->SortBlocks();
-  sim.pres  ->SortBlocks();
-  sim.pOld  ->SortBlocks();
-  sim.tmpV  ->SortBlocks();
-  sim.tmp   ->SortBlocks();
-  sim.uDef  ->SortBlocks();
-  sim.dump  ->SortBlocks();
-  #ifdef PRECOND
-  sim.z_cg  ->SortBlocks();
-  #endif
+  sim.chi ->SortBlocks();
+  sim.vel ->SortBlocks();
+  sim.pres->SortBlocks();
+  sim.pOld->SortBlocks();
+  sim.tmpV->SortBlocks();
+  sim.tmp ->SortBlocks();
+  sim.uDef->SortBlocks();
+  sim.dump->SortBlocks();
   sim.stopProfiler();
 }

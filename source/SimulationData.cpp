@@ -45,10 +45,6 @@ void SimulationData::allocateGrid()
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
-  #ifdef PRECOND
-  z_cg = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  #endif
-
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
   //assume all blockinfos have same h at the start!!!

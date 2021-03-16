@@ -11,7 +11,6 @@
 
 #include "Definitions.h"
 #include "Cubism/Profiler.h"
-#define PRECOND
 
 class Shape;
 
@@ -21,19 +20,11 @@ struct SimulationData
 
   ScalarGrid * chi   = nullptr;
   VectorGrid * vel   = nullptr;
-  //std::vector<size_t> boundaryInfoIDs;
-
   ScalarGrid * pres  = nullptr;
   ScalarGrid * pOld  = nullptr;
-  
-  #ifdef PRECOND
-  ScalarGrid * z_cg = nullptr;
-  #endif
-
   VectorGrid * tmpV  = nullptr;
   ScalarGrid * tmp   = nullptr;
   VectorGrid * uDef  = nullptr;
-
   DumpGrid   * dump  = nullptr;
 
   void allocateGrid();
