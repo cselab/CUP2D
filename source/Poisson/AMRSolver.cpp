@@ -190,8 +190,8 @@ void AMRSolver::solve()
   double alpha = 1.0;
   double omega = 1.0;
   const double eps = 1e-21;
-  const double max_error = 1e-13;
-  const double max_rel_error = 1e-18;
+  const double max_error = 1e-10;
+  const double max_rel_error = 1e-3;
   double min_norm = 1e50;
   double rho_m1;
   double init_norm=norm;
