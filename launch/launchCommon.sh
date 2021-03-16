@@ -57,7 +57,7 @@ cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
-bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150] span[ptile=${OMP_NUM_THREADS}]" mpirun -n 1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
+bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 fi
 
 ###################################################################################################
