@@ -142,7 +142,6 @@ void AMRSolver::solve()
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 5 ] = x45(ix,iy).u[1];
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 6 ] = x67(ix,iy).u[0];
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 7 ] = x67(ix,iy).u[1];
-      x0(ix,iy).s = 0.0;
     }
   }
 
@@ -183,8 +182,6 @@ void AMRSolver::solve()
   }
   const size_t Nsystem = BSX*BSY*Nblocks;
   norm = std::sqrt(norm)/Nsystem;
-
-  std::cout << "-------------->[Poisson] : initial norm = " << norm << std::endl;
 
   std::vector <Real> x_opt (Nsystem);
 
