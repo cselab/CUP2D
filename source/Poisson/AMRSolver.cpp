@@ -259,7 +259,7 @@ void AMRSolver::solve()
     //8. 
     //9. s = r_{i-1}-alpha * v_i
     //10. z = K_2^{-1} s
-    #pragma omp parallel
+    #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
       ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
@@ -276,7 +276,6 @@ void AMRSolver::solve()
       }
     }
 
-//    std::cout << "alpha = " << alpha << " beta=" << beta << " rho=" << rho << " " << rho_m1 << std::endl;
 
     //getZ();
     Get_LHS(sim.tmp,sim.pOld); // t <-- Az //t stored in AxVector
@@ -310,7 +309,6 @@ void AMRSolver::solve()
       ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
       ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
       VectorBlock & __restrict__ r = *(VectorBlock*) rInfo[i].ptrBlock;
-      //VectorBlock & __restrict__ pv= *(VectorBlock*)pvInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
@@ -320,9 +318,6 @@ void AMRSolver::solve()
       }
     }
     norm = std::sqrt(norm) / Nsystem;
-
-    if (k%100==0) std::cout << k << " " << norm << std::endl;
-
 
     if (norm < min_norm)
     {
@@ -340,7 +335,6 @@ void AMRSolver::solve()
       }
     }
 
-    //if (k==1) init_norm = norm;
     if (norm / (init_norm+eps) > 2.0 && k > 10)
     {
       useXopt = true;
@@ -368,8 +362,6 @@ void AMRSolver::solve()
     }
   }
 
-
-
   double avg = 0;
   for (size_t i=0; i < Nblocks; i++)
   {
@@ -381,10 +373,6 @@ void AMRSolver::solve()
     }
   }
   avg/=(Nblocks*BSX*BSY);
-  std::cout << "avg="<<avg<<std::endl;
-
-
-
 
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
