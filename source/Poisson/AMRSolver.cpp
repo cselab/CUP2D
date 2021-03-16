@@ -338,7 +338,7 @@ void AMRSolver::solve()
       std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;
       break;
     }
-    if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > 3 )
+    if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
     {
       std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
       break;
@@ -395,7 +395,7 @@ void AMRSolver::solve()
     }
   }
 
-
+  if (iter_min > 1) iter_min --;
 
 
 }
