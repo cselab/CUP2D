@@ -40,6 +40,7 @@ struct SimulationData
   int bpdx = 0;
   int bpdy = 0;
   int levelMax = 1; //max refinement level + 1
+  int levelStart = 0;
   double Rtol = 0.0;
   double Ctol = 0.0;
 

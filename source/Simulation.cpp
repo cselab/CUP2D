@@ -124,7 +124,9 @@ void Simulation::parseRuntime()
   sim.bpdy = parser("-bpdy").asInt();
 
   // set number of refinement levels
-  sim.levelMax = parser("-levelMax").asInt();
+  sim.levelMax = parser("-levelMax").asInt(0);
+  sim.levelStart = parser("-levelStart").asInt(-1);
+  if (sim.levelStart == -1) sim.levelStart = sim.levelMax - 1;
 
   // set tolerance for refinement/compression according to vorticity magnitude
   sim.Rtol = parser("-Rtol").asDouble();

@@ -28,7 +28,6 @@ void SimulationData::resetAll()
 
 void SimulationData::allocateGrid()
 {
-  int levelStart = levelMax-1;
   int aux = pow(2,levelStart);
 
   ScalarLab dummy;
