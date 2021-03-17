@@ -335,7 +335,7 @@ double Simulation::calcMaxTimestep()
   #endif
 
   // ramp up CFL
-  const int rampup = 1000;
+  const int rampup = 100;
   if (sim.step < rampup)
   {
     const double x = (sim.step+1.0)/rampup;
