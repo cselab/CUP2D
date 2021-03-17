@@ -47,7 +47,8 @@ struct ScalarElement
   inline void set(const Real v) { s = v; }
   inline void copy(const ScalarElement& c) { s = c.s; }
   //ScalarElement(const ScalarElement& c) = delete;
-  ScalarElement& operator=(const ScalarElement& c) { s = c.s; return *this; }
+  // ScalarElement& operator=(const ScalarElement& c) { s = c.s; return *this; }
+  ScalarElement& operator=(const ScalarElement& c) = default;
 
   ScalarElement &operator*=(const Real a)
   {
@@ -129,10 +130,12 @@ struct VectorElement
     for(int i=0; i<DIM; ++i) u[i] = c.u[i];
   }
   //VectorElement(const VectorElement& c) = delete;
-  VectorElement& operator=(const VectorElement& c) {
-    for(int i=0; i<DIM; ++i) u[i] = c.u[i];
-    return *this;
-  }
+  // VectorElement& operator=(const VectorElement& c) {
+  //   for(int i=0; i<DIM; ++i) u[i] = c.u[i];
+  //   return *this;
+  // }
+  VectorElement& operator=(const VectorElement& c) = default;
+  
   VectorElement &operator*=(const Real a)
   {
     for(int i=0; i<DIM; ++i)
