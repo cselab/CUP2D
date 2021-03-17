@@ -10,7 +10,7 @@ void AdaptTheMesh::operator()(const double dt)
 
   sim.startProfiler("AdaptTheMesh");
 
-//  if (count % 1000 == 0) {auto K = computeDivergence(sim); K.run();}
+  //{auto K = computeDivergence(sim); K.run();}
 
   findOmega.run();//store vorticity in tmp
   {
@@ -35,28 +35,24 @@ void AdaptTheMesh::operator()(const double dt)
   double Ctol = sim.Ctol;
 
   bool verbose = sim.verbose;
-  ScalarAMR tmp_amr   ( *sim.tmp    ,Rtol, Ctol, verbose);//refine according to tmp (which is vorticity magnitude)
-  ScalarAMR chi_amr   ( *sim.chi    ,0.05, 0.01 , verbose);
+  ScalarAMR tmp_amr ( *sim.tmp ,Rtol,Ctol,verbose);//refine according to tmp (vorticity magnitude)
   verbose = false;
-  VectorAMR vel_amr   ( *sim.vel    ,Rtol, Ctol, verbose);
-  ScalarAMR pres_amr  ( *sim.pres   ,Rtol, Ctol, verbose);
-  VectorAMR uDef_amr  ( *sim.uDef   ,Rtol, Ctol, verbose);  
-  MeshAdaptation_basic<DumpGrid> dump_amr( *sim.dump);  
-  
-  VectorAMR tmpV_amr  ( *sim.tmpV   ,Rtol, Ctol, verbose);
-
-  //ScalarAMR pOld_amr  ( *sim.pOld   ,Rtol, Ctol, verbose); 
-  MeshAdaptation_basic<ScalarGrid> pOld_amr(*sim.pOld);  
+  ScalarAMR chi_amr ( *sim.chi ,0.05,0.01,verbose);
+  VectorAMR vel_amr ( *sim.vel ,Rtol,Ctol,verbose);
+  ScalarAMR pres_amr( *sim.pres,Rtol,Ctol,verbose);
+  VectorAMR uDef_amr( *sim.uDef,Rtol,Ctol,verbose);
+  VectorAMR tmpV_amr( *sim.tmpV,Rtol,Ctol,verbose);
+  MeshAdaptation_basic<DumpGrid,ScalarGrid> dump_amr( *sim.dump);
+  MeshAdaptation_basic<ScalarGrid> pOld_amr(*sim.pOld);
 
   tmp_amr .AdaptTheMesh();
-  chi_amr .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  vel_amr .AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  pres_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  uDef_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  dump_amr.AdaptLikeOther <ScalarGrid>(*sim.tmp);
-  tmpV_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  //pOld_amr.AdaptLikeOther1<ScalarGrid>(*sim.tmp);
-  pOld_amr.AdaptLikeOther <ScalarGrid>(*sim.tmp);
+  chi_amr .AdaptLikeOther(*sim.tmp);
+  vel_amr .AdaptLikeOther(*sim.tmp);
+  pres_amr.AdaptLikeOther(*sim.tmp);
+  uDef_amr.AdaptLikeOther(*sim.tmp);
+  dump_amr.AdaptLikeOther(*sim.tmp);
+  tmpV_amr.AdaptLikeOther(*sim.tmp);
+  pOld_amr.AdaptLikeOther(*sim.tmp);
 
   sim.chi ->SortBlocks();
   sim.vel ->SortBlocks();

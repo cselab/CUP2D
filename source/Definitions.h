@@ -463,7 +463,7 @@ using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
 using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
 
 using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
-using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab>;
+using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab,ScalarGrid>;
 
 /*
 template<> class BlockLabOpen<ScalarBlock, std::allocator> : public cubism::BlockLab<ScalarBlock, std::allocator>
