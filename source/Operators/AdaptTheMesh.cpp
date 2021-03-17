@@ -37,13 +37,13 @@ void AdaptTheMesh::operator()(const double dt)
   bool verbose = sim.verbose;
   ScalarAMR tmp_amr ( *sim.tmp ,Rtol,Ctol,verbose);//refine according to tmp (vorticity magnitude)
   verbose = false;
-  //ScalarAMR chi_amr ( *sim.chi ,0.05,0.01,verbose);
+  ScalarAMR chi_amr ( *sim.chi ,0.05,0.01,verbose);
   VectorAMR vel_amr ( *sim.vel ,Rtol,Ctol,verbose);
   ScalarAMR pres_amr( *sim.pres,Rtol,Ctol,verbose);
   //VectorAMR uDef_amr( *sim.uDef,Rtol,Ctol,verbose);
   //VectorAMR tmpV_amr( *sim.tmpV,Rtol,Ctol,verbose);
 
-  MeshAdaptation_basic<ScalarGrid,ScalarGrid> chi_amr(*sim.chi );
+  //MeshAdaptation_basic<ScalarGrid,ScalarGrid> chi_amr(*sim.chi );
   MeshAdaptation_basic<VectorGrid,ScalarGrid>tmpV_amr(*sim.tmpV);
   MeshAdaptation_basic<VectorGrid,ScalarGrid>uDef_amr(*sim.uDef);
   MeshAdaptation_basic<  DumpGrid,ScalarGrid>dump_amr(*sim.dump);
