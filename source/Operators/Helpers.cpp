@@ -218,7 +218,6 @@ void Checker::run(std::string when) const
 {
   const size_t Nblocks = velInfo.size();
 
-  const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
   bool bAbort = false;
 
