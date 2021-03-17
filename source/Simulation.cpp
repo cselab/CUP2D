@@ -85,7 +85,6 @@ void Simulation::init()
   // create compute pipeline
   if(sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
-  pipeline.push_back( new AdaptTheMesh(sim) );
 
   if(sim.bVariableDensity)
   {
@@ -102,6 +101,9 @@ void Simulation::init()
     pipeline.push_back( new PressureSingle(sim) );
   }
   pipeline.push_back( new ComputeForces(sim) );
+
+  pipeline.push_back( new AdaptTheMesh(sim) );
+
   if(sim.verbose){
     std::cout << "[CUP2D] Operator ordering:\n";
     for (size_t c=0; c<pipeline.size(); c++)
@@ -278,16 +280,16 @@ void Simulation::startObstacles()
   // Initial PutObjectToGrid
   if(sim.verbose)
     std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
-  (*pipeline[1])(0);
+  (*pipeline[0])(0);
   // initial compression of the grid
   if(sim.verbose)
     std::cout << "[CUP2D] Initial Compression of Grid\n";
   for( int i = 0; i<sim.levelMax; i++ )
-    (*pipeline[0])(0);
+    (*pipeline[pipeline.size()-1])(0);
   // PutObjectToGrid for compressed grid
   if(sim.verbose)
     std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
-  (*pipeline[1])(0);
+  (*pipeline[0])(0);
     // impose velocity of obstacles
   if(sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
