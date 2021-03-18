@@ -37,7 +37,6 @@ using Real = float;
 #define _DIM_ 2
 #endif//_BS_
 
-#define BC_KILL_FAC 100
 
 struct ScalarElement
 {
@@ -316,9 +315,13 @@ public:
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = 
+      (2.0/1.5)*cb->Access(
             ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
+            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 )
+     -(0.5/1.5)*cb->Access(
+            ( dir==0? (side==0? 1: sizeX-2):ix ) - stenBeg[0],
+            ( dir==1? (side==0? 1: sizeY-2):iy ) - stenBeg[1], 0 );
     }
     else
     {
@@ -376,6 +379,107 @@ public:
   BlockLabOpen(): cubism::BlockLab<BlockType,allocator>(){}
   BlockLabOpen(const BlockLabOpen&) = delete;
   BlockLabOpen& operator=(const BlockLabOpen&) = delete;
+
+  const ElementType& operator()(const int ix, const int iy) const {
+    return this->read(ix,iy,0);
+  }
+  ElementType& operator()(const int ix, const int iy) {
+    return this->m_cacheBlock->Access(ix - this->m_stencilStart[0],
+                                      iy - this->m_stencilStart[1], 0);
+  }
+};
+
+template<typename BlockType,
+         template<typename X> class allocator = std::allocator>
+class BlockLabDirichlet: public cubism::BlockLab<BlockType, allocator>
+{
+public:
+  using ElementType = typename BlockType::ElementType;
+  static constexpr int sizeX = BlockType::sizeX;
+  static constexpr int sizeY = BlockType::sizeY;
+  static constexpr int sizeZ = BlockType::sizeZ;
+
+  virtual bool is_xperiodic() override{ return false; }
+  virtual bool is_yperiodic() override{ return false; }
+  virtual bool is_zperiodic() override{ return false; }
+
+  // Used for Boundary Conditions:
+
+  // Apply bc on face of direction dir and side side (0 or 1):
+  template<int dir, int side> void applyBCface(bool coarse=false)
+  {
+    if (!coarse)
+    {
+      auto * const cb = this->m_cacheBlock;
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int* const stenBeg = this->m_stencilStart;
+      const int* const stenEnd = this->m_stencilEnd;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
+
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
+                     : sizeX +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
+                     : sizeY +  stenEnd[1]-1;
+
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+    }
+    else
+    {
+      auto * const cb = this->m_CoarsenedBlock;
+
+      const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
+                         (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
+                         (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
+      const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
+                         (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
+                         (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
+
+      const int* const stenBeg = sI;
+      const int* const stenEnd = eI;
+
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : stenBeg[0];
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : stenBeg[1];
+
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 )
+                     : sizeX/2 +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 )
+                     : sizeY/2 +  stenEnd[1]-1;
+
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+    }
+  }
+
+  // Called by Cubism:
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
+  {
+    if (!coarse)
+    {
+      if( info.index[0]==0 )           this->template applyBCface<0,0>();
+      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
+      if( info.index[1]==0 )           this->template applyBCface<1,0>();
+      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+    }
+    else
+    {
+      if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
+      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
+      if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
+      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+    }
+
+
+  }
+
+  BlockLabDirichlet(): cubism::BlockLab<BlockType,allocator>(){}
+  BlockLabDirichlet(const BlockLabDirichlet&) = delete;
+  BlockLabDirichlet& operator=(const BlockLabDirichlet&) = delete;
 
   const ElementType& operator()(const int ix, const int iy) const {
     return this->read(ix,iy,0);
@@ -462,29 +566,10 @@ using VectorBlock = GridBlock<VectorElement>;
 using VectorGrid = cubism::Grid<VectorBlock, std::allocator>;
 using ScalarGrid = cubism::Grid<ScalarBlock, std::allocator>;
 using DumpGrid = cubism::Grid<VelChiGlueBlock, std::allocator>;
-using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
+//using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
+using VectorLab = BlockLabDirichlet<VectorBlock, std::allocator>;
 using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
 
 using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab,ScalarGrid>;
 
-/*
-template<> class BlockLabOpen<ScalarBlock, std::allocator> : public cubism::BlockLab<ScalarBlock, std::allocator>
-{
-public:
-  Real& operator()(const int ix, const int iy) {
-    return this->m_cacheBlock->Access(
-        ix - this->m_stencilStart[0],
-        iy - this->m_stencilStart[1], 0).s;
-  }
-};
-template<> class BlockLabOpen<VectorBlock, std::allocator> : public cubism::BlockLab<VectorBlock, std::allocator>
-{
-public:
-  Real& operator()(const int ix, const int iy, const int dir) {
-    return this->m_cacheBlock->Access(
-        ix - this->m_stencilStart[0],
-        iy - this->m_stencilStart[1], 0).u[dir];
-  }
-};
-*/
