@@ -132,7 +132,7 @@ std::vector<double>  Windmill::state()
   // state of a windmill is the angle and angular velocity
 
   // intitialize state vector
-  std::vector<double> state;
+  std::vector<double> state(2);
 
   // angle
   state[0] = orientation;
