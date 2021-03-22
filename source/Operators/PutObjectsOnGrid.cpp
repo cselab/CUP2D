@@ -31,7 +31,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
     {
       if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
 
-      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
+      const Real h = chiInfo[i].h_gridpoint;
 
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
 
