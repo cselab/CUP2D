@@ -109,14 +109,8 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
 void advDiff::operator()(const double dt)
 {
   sim.startProfiler("advDiff");
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
-  const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
-  const Real fadeW= 1 - std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeS= 1 - std::pow(std::max(UINF[1], (Real)0)/norUinf, 2);
-  const Real fadeE= 1 - std::pow(std::min(UINF[0], (Real)0)/norUinf, 2);
-  const Real fadeN= 1 - std::pow(std::min(UINF[1], (Real)0)/norUinf, 2);
 
   #pragma omp parallel
   {
@@ -126,48 +120,11 @@ void advDiff::operator()(const double dt)
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
     {
-      int aux = 1<<velInfo[i].level;
-      const auto isW = [&](const BlockInfo&I) { return I.index[0] == 0;          };
-      const auto isE = [&](const BlockInfo&I) { return I.index[0] == aux*sim.bpdx-1; };
-      const auto isS = [&](const BlockInfo&I) { return I.index[1] == 0;          };
-      const auto isN = [&](const BlockInfo&I) { return I.index[1] == aux*sim.bpdy-1; };
       const Real h = velInfo[i].h;
       const Real dfac = (sim.nu/h)*(dt/h);
       const Real afac = -dt/h/6.0;
       vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-
-      if(isW(velInfo[i])) 
-        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy)
-        for(int ix=-2; ix<0                   ; ++ix)
-        {
-          V(ix,iy).u[0] *= fadeW;
-          V(ix,iy).u[1] *= fadeW;
-        }
-
-      if(isS(velInfo[i]))
-        for(int iy=-2; iy<0                   ; ++iy) 
-        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix) 
-        {
-          V(ix,iy).u[0] *= fadeS;
-          V(ix,iy).u[1] *= fadeS;
-        }
-
-      if(isE(velInfo[i]))
-        for(int iy=-2; iy<VectorBlock::sizeY+2; ++iy) 
-        for(int ix=VectorBlock::sizeX; ix<VectorBlock::sizeX+2; ++ix) 
-        {
-          V(ix,iy).u[0] *= fadeE;
-          V(ix,iy).u[1] *= fadeE;
-        }
-
-      if(isN(velInfo[i]))
-        for(int iy=VectorBlock::sizeY; iy<VectorBlock::sizeY+2; ++iy) 
-        for(int ix=-2; ix<VectorBlock::sizeX+2; ++ix)
-        {
-          V(ix,iy).u[0] *= fadeN;
-          V(ix,iy).u[1] *= fadeN;
-        }
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
@@ -201,7 +158,6 @@ void advDiff::operator()(const double dt)
   const double H = sim.getH();//returns smallest grid spacing, at finest refinement level
   const Real corr = IF/H/( 2*VectorBlock::sizeY*sim.bpdy*(1<<(sim.levelMax-1)) 
                          + 2*VectorBlock::sizeX*sim.bpdx*(1<<(sim.levelMax-1)) );
-
   // Apply correction
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++)
