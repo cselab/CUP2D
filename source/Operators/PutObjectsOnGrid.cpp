@@ -41,11 +41,9 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       CHI_MAT & __restrict__ X = o.chi;
       const CHI_MAT & __restrict__ rho = o.rho;
       const CHI_MAT & __restrict__ sdf = o.dist;
-      //UDEFMAT & __restrict__ udef = o.udef;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        // here I read SDF to deal with obstacles sharing block
         if (sdf[iy][ix] > +h || sdf[iy][ix] < -h)
         {
           X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
@@ -80,7 +78,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           _y += rho[iy][ix] * X[iy][ix] * h*h * (p[1] - shape->centerOfMass[1]);
           _m += rho[iy][ix] * X[iy][ix] * h*h;
         }
-
+#if 0 //not so accurate as it assumes H(0) = 0.5 for mollified Heaviside
         if (sdf[iy][ix] > h || sdf[iy][ix] < -h) continue; // no need to compute gradChi
         {
           const double distPx = distlab(ix+1,iy).s;
@@ -106,38 +104,59 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           //  udefoutnorm += norx*norx + nory*nory;
           //}
         }
-
+#endif
       }
     }
   }
+
+
   if(_m > EPS) {
     shape->centerOfMass[0] += _x/_m;
     shape->centerOfMass[1] += _y/_m;
     shape->M = _m;
   } else printf("PutObjectsOnGrid _m is too small!\n");
 
-  for (auto & o : OBLOCK) if(o not_eq nullptr) o->allocate_surface();
-  /*
-  const Real outflowCorr = udefoutflow / std::max(udefoutnorm, EPS);
-  double udefoutpost = 0;
-  #pragma omp parallel for schedule(dynamic, 1) reduction(+ : udefoutpost)
-  for (size_t j=0; j < Nblocks; ++j)
+#if 1 //more accurate, uses actual values of mollified Heaviside
+  #pragma omp parallel
   {
-    if(OBLOCK[chiInfo[j].blockID] == nullptr) continue; //obst not in block
-    ObstacleBlock& o = * OBLOCK[chiInfo[j].blockID];
-    UDEFMAT & __restrict__ udef = o.udef;
-
-    for(size_t i=0; i < o.n_surfPoints; ++i)
+    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+    ScalarLab chilab; chilab.prepare(*(sim.chi), stenBeg, stenEnd, 0);
+    ScalarLab distlab; distlab.prepare(*(sim.tmp), stenBeg, stenEnd, 0);
+    #pragma omp for
+    for (size_t i=0; i < Nblocks; i++)
     {
-      const int ix = o.surface[i]->ix, iy = o.surface[i]->iy;
-      const Real norx = o.surface[i]->dchidx, nory = o.surface[i]->dchidy;
-      udef[iy][ix][0] -= outflowCorr * norx; //h^2 already premultiplied
-      udef[iy][ix][1] -= outflowCorr * nory; //    in dchidx/dchidy
-      udefoutpost += udef[iy][ix][0]*norx + udef[iy][ix][1]*nory;
+      if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
+
+      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
+
+      ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
+      chilab.load (chiInfo[i], 0);
+      distlab.load(tmpInfo[i], 0);
+
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+          const double distPx = distlab(ix+1,iy).s;
+          const double distMx = distlab(ix-1,iy).s;
+          const double distPy = distlab(ix,iy+1).s;
+          const double distMy = distlab(ix,iy-1).s;
+          const auto HplusX = chilab(ix+1,iy).s;
+          const auto HminuX = chilab(ix-1,iy).s;
+          const auto HplusY = chilab(ix,iy+1).s;
+          const auto HminuY = chilab(ix,iy-1).s;
+          const double gradUX = i2h*(distPx-distMx);
+          const double gradUY = i2h*(distPy-distMy);
+          const double gradHX =     (HplusX-HminuX);
+          const double gradHY =     (HplusY-HminuY);
+          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
+          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
+          o.write(ix, iy, D, gradUX, gradUY);
+      }
     }
   }
-  //printf("udefoutflow %e udefoutpost %e \n", udefoutflow,udefoutpost);
-  */
+#endif
+
+  for (auto & o : OBLOCK) if(o not_eq nullptr) o->allocate_surface();
 }
 
 void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
