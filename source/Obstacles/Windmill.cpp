@@ -171,15 +171,15 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens, const std::vect
   VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
   vellab.load(velInfo[blockId], 0); VectorLab & __restrict__ V = vellab;
 
-  double avgX=0;
-  double avgY=0;
+  double avgX=0.0;
+  double avgY=0.0;
 
-  for (ssize_t i(-5); i < 6; ++i)
-    for (ssize_t j(-5); j < 6; ++j)
-    {
-      avgX += V(iSens[0] + i, iSens[1] + j).u[0];
-      avgY += V(iSens[0] + i, iSens[1] + j).u[1];
-    }
+  for (ssize_t i = -5; i < 6; ++i)
+  for (ssize_t j = -5; j < 6; ++j)
+  {
+    avgX += V(iSens[0] + i, iSens[1] + j).u[0];
+    avgY += V(iSens[0] + i, iSens[1] + j).u[1];
+  }
   
   return std::vector<double> {avgX, avgY};
 
@@ -233,13 +233,11 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
     // std::cout << "MIN=(" << MIN[0] << ", " << MIN[1] << "); MAX=(" << MAX[0] << ", " << MAX[1] << ")\n"; 
     if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
-      // select obstacle block
-      if(obstacleBlocks[i] != nullptr ){
-        return i;
-      }
+      // select block
+      return i;
     }
   }
-  printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pos[0], pos[1]);
+  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", pos[0], pos[1]);
   fflush(0); abort();
   return 0;
 };
