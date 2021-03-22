@@ -31,18 +31,15 @@ class Windmill : public Shape
   double reward( std::array<Real,2> target, std::vector<double> target_vel, double C = 10);
   std::vector<double> state();
 
-  // Helpers for State function
+  // Helpers for reward function
   std::vector<double> average(std::array<Real, 2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
-
-  std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
   
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
   std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
 
-  Real getCharLength() const // have to have this method otherwise class is virtual
+  Real getCharLength() const override
   {
-    return 0;
+    return semiAxis[0] >= semiAxis[1] ? 2*semiAxis[0] : 2*semiAxis[1];
   }
-
 };
