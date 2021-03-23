@@ -18,15 +18,26 @@ void AdaptTheMesh::operator()(const double dt)
     const std::vector<BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
     const std::vector<BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
     const size_t Nblocks = tmpInfo.size();
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
+
+    #pragma omp parallel
     {
-      auto& __restrict__ TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-      auto& __restrict__ CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
-      for(int y=0; y<VectorBlock::sizeY; ++y)
-      for(int x=0; x<VectorBlock::sizeX; ++x)
+      static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+      ScalarLab chilab;
+      chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
+      #pragma omp parallel for
+      for (size_t i=0; i < Nblocks; i++)
       {
-        if (CHI(x,y).s > 0.01) TMP(x,y).s = 1e10;
+        chilab.load(chiInfo[i], 0);
+        auto& __restrict__ TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+        const double i2h = 0.5/chiInfo[i].h;
+        for(int y=0; y<VectorBlock::sizeY; ++y)
+        for(int x=0; x<VectorBlock::sizeX; ++x)
+        {
+          const double dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
+          const double dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
+          const double norm = dcdx*dcdx+dcdy*dcdy;
+          if (norm > 0.1) TMP(x,y).s = 1e10;
+        }
       }
     }
   }
