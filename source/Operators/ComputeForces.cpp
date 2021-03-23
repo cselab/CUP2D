@@ -69,6 +69,7 @@ void ComputeForces::operator()(const double dt)
           const Real D12 = NUoH/2 * (V(ix  ,iy+1).u[0] - V(ix  ,iy-1).u[0]
                                     +V(ix+1,iy  ).u[1] - V(ix-1,iy  ).u[1]);
 #else //"lifted" surface: derivatives make no sense when the values used are in the object, so we take one-sided stencils with values outside of the object
+
           Real nx = O->surface[k]->dchidx;
           Real ny = O->surface[k]->dchidy;
           Real norm = std::sqrt(nx*nx+ny*ny);
@@ -76,6 +77,10 @@ void ComputeForces::operator()(const double dt)
           ny /= norm;
           double dx = nx*(h);
           double dy = ny*(h);
+          if      (dx < 0) dx -= 0.5*h;
+          else if (dx > 0) dx += 0.5*h;
+          if      (dy < 0) dy -= 0.5*h;
+          else if (dy > 0) dy += 0.5*h;
           const int x = ix + dx/h;
           const int y = iy + dy/h;
           const double dudx = nx > 0 ? (p0*V(x,iy).u[0]+p1*V(x+1,iy).u[0]+p2*V(x+2,iy).u[0]) : (m0*V(x,iy).u[0]+m1*V(x-1,iy).u[0]+m2*V(x-2,iy).u[0]);
