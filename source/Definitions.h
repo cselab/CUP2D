@@ -312,16 +312,11 @@ public:
                      : sizeX +  stenEnd[0]-1;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
                      : sizeY +  stenEnd[1]-1;
-
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = 
-      (2.0/1.5)*cb->Access(
-            ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 )
-     -(0.5/1.5)*cb->Access(
-            ( dir==0? (side==0? 1: sizeX-2):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 1: sizeY-2):iy ) - stenBeg[1], 0 );
+      {
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).s = 0.0;
+      }
     }
     else
     {
@@ -346,12 +341,9 @@ public:
                      : sizeX/2 +  stenEnd[0]-1;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 )
                      : sizeY/2 +  stenEnd[1]-1;
-
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = cb->Access(
-            ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 );
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).s = 0.0;
     }
   }
 
@@ -360,20 +352,18 @@ public:
   {
     if (!coarse)
     {
-      if( info.index[0]==0 )           this->template applyBCface<0,0>();
-      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
-      if( info.index[1]==0 )           this->template applyBCface<1,0>();
-      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+        if( info.index[0]==0 )           this->template applyBCface<0,0>();
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
+        if( info.index[1]==0 )           this->template applyBCface<1,0>();
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
     }
     else
     {
-      if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
-      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
-      if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
-      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+        if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
+        if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
     }
-
-
   }
 
   BlockLabOpen(): cubism::BlockLab<BlockType,allocator>(){}
@@ -421,10 +411,12 @@ public:
                      : sizeX +  stenEnd[0]-1;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
                      : sizeY +  stenEnd[1]-1;
-
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+      {
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).u[0] = 0.0;
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).u[1] = 0.0;
+      }
     }
     else
     {
@@ -452,7 +444,10 @@ public:
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+      {
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).u[0] = 0.0;
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).u[1] = 0.0;
+      }
     }
   }
 
@@ -473,8 +468,6 @@ public:
       if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
       if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
     }
-
-
   }
 
   BlockLabDirichlet(): cubism::BlockLab<BlockType,allocator>(){}
@@ -560,7 +553,6 @@ struct StreamerGlue
 };
 ////////////////////////////////////////////////////////////////////////////////
 
-
 using ScalarBlock = GridBlock<ScalarElement>;
 using VectorBlock = GridBlock<VectorElement>;
 using VectorGrid = cubism::Grid<VectorBlock, std::allocator>;
@@ -572,4 +564,3 @@ using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
 
 using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab,ScalarGrid>;
-
