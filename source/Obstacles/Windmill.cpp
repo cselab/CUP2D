@@ -117,12 +117,14 @@ void Windmill::act( double action )
 double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_vel, double C)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  double r_energy = -appliedTorque*omega*sim.dt; 
+  double r_energy = -appliedTorque*abs(omega)*sim.dt; 
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   std::vector<double>  avg = average(target, velInfo);
   diff_flow += std::pow(target_vel[0] - avg[0], 2) +std::pow(target_vel[1] - avg[1], 2);
   double r_flow = (C / sim.time) * diff_flow;
+  printf("Energy_reward: %g \n Flow_reward: %g \n", r_energy, r_flow);
+  //std::cout<<"Energy_reward: "<<r_energy<<"\n Flow_reward: "<<r_flow<<std::endl;
   return r_energy + r_flow;
 }
 
