@@ -38,11 +38,4 @@ class SmartCylinder : public Shape
   void act( std::vector<double> action );
   double reward( std::vector<double> target );
   std::vector<double> state( std::vector<double> target );
-
-  // Helpers for State function
-  std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
-  
-  size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
-
-  std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
 };
