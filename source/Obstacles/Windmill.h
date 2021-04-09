@@ -7,18 +7,19 @@ class Windmill : public Shape
   const Real semiAxis[2]; 
   const Real smajax = std::max(semiAxis[0], semiAxis[1]);
   const Real sminax = std::min(semiAxis[0], semiAxis[1]);
-
-  Real diff_flow = 0;
+  const Real windscale = std::sqrt(sim.uinfx*sim.uinfx+ sim.uinfy*sim.uinfy);
+  const Real lengthscale = getCharLength();
+  // ideal period of spin for constant wind speed
 
  public:
 
   Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
-  {}
+  {
+  }
 
   void resetAll() override
   {
-    diff_flow = 0;
     // reset all other variables
     Shape::resetAll();
   }

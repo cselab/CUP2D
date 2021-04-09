@@ -84,24 +84,36 @@ void Windmill::updatePosition(double dt)
 
 void Windmill::act( double action )
 {
-  appliedTorque = action;
+  // dimensionful applied torque from dimensionless action, divide by second squared
+  appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
 }
 
 double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_vel, double C)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  double r_energy = -appliedTorque*abs(omega)*sim.dt; 
+  // need characteristic energy
+  double r_energy = -abs(appliedTorque*omega)*sim.dt;
+  r_energy /= (lengthscale*windscale);
 
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   // compute average
   std::vector<double>  avg = average(target, velInfo);
   // compute norm of difference beween target and average velocity
-  diff_flow += std::pow(target_vel[0] - avg[0], 2) +std::pow(target_vel[1] - avg[1], 2);
-  double r_flow = (C / sim.time) * diff_flow;
+  printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
+
+  double diff_flow = std::sqrt((target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]));
+
+  // double diff_flow = std::pow(target_vel[0] - avg[0], 2) +std::pow(target_vel[1] - avg[1], 2);
+
+  //need characteristic speed
+  double r_flow = - diff_flow;
+  r_flow /= windscale;
+
+  printf("Diff_flow: %g \n", diff_flow);
   printf("Energy_reward: %g \n Flow_reward: %g \n", r_energy, r_flow);
   //std::cout<<"Energy_reward: "<<r_energy<<"\n Flow_reward: "<<r_flow<<std::endl;
-  return r_energy + r_flow;
+  return C*r_energy + r_flow;
 }
 
 
@@ -113,8 +125,8 @@ std::vector<double>  Windmill::state()
   // angle
   state[0] = orientation;
 
-  // angular velocity
-  state[1] = omega;
+  // angular velocity, dimensionless so multiply by seconds
+  state[1] = omega * (lengthscale/windscale);
 
   return state;
 }
@@ -148,13 +160,16 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens, const std::vect
   double avgX=0.0;
   double avgY=0.0;
 
-  // average velocity in a cube of 10 points per direction around the point of interest
+  // average velocity in a cube of 11 points per direction around the point of interest (5 on each side)
   for (ssize_t i = -5; i < 6; ++i)
   for (ssize_t j = -5; j < 6; ++j)
   {
     avgX += V(iSens[0] + i, iSens[1] + j).u[0];
     avgY += V(iSens[0] + i, iSens[1] + j).u[1];
   }
+
+  avgX/=121.0;
+  avgY/=121.0;
   
   return std::vector<double> {avgX, avgY};
 }
