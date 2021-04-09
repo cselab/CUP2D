@@ -19,8 +19,8 @@ void ComputeForces::operator()(const double dt)
   const size_t Nblocks = velInfo.size();
 
   //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-  //static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
-  static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
+  static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
+  //static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
 
   #pragma omp parallel
   {
@@ -81,8 +81,8 @@ void ComputeForces::operator()(const double dt)
           else if (dx > 0) dx += 0.5*h;
           if      (dy < 0) dy -= 0.5*h;
           else if (dy > 0) dy += 0.5*h;
-          const int x = ix + dx/h;
-          const int y = iy + dy/h;
+          const int x = ix + (int)(dx/h);
+          const int y = iy + (int)(dy/h);
           const double dudx = nx > 0 ? (p0*V(x,iy).u[0]+p1*V(x+1,iy).u[0]+p2*V(x+2,iy).u[0]) : (m0*V(x,iy).u[0]+m1*V(x-1,iy).u[0]+m2*V(x-2,iy).u[0]);
           const double dvdx = nx > 0 ? (p0*V(x,iy).u[1]+p1*V(x+1,iy).u[1]+p2*V(x+2,iy).u[1]) : (m0*V(x,iy).u[1]+m1*V(x-1,iy).u[1]+m2*V(x-2,iy).u[1]);
           const double dvdy = ny > 0 ? (p0*V(ix,y).u[1]+p1*V(ix,y+1).u[1]+p2*V(ix,y+2).u[1]) : (m0*V(ix,y).u[1]+m1*V(ix,y-1).u[1]+m2*V(ix,y-2).u[1]);
