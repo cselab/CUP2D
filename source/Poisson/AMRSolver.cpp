@@ -313,7 +313,7 @@ void AMRSolver::solve()
     }
   }
   const size_t Nsystem = BSX*BSY*Nblocks;
-  norm = std::sqrt(norm)/Nsystem;
+  norm = std::sqrt(norm);
 
   std::vector <Real> x_opt (Nsystem);
 
@@ -322,31 +322,61 @@ void AMRSolver::solve()
   double alpha = 1.0;
   double omega = 1.0;
   const double eps = 1e-21;
-  const double max_error = 1e-10;
-  const double max_rel_error = 1e-3;
+  const double max_error = sim.PoissonTol;
+  const double max_rel_error = 1e-3;//sim.step < 100 ? 1e-3 : 1e-2;
   double min_norm = 1e50;
   double rho_m1;
   double init_norm=norm;
   bool useXopt = false;
   int iter_opt = 0;
 
+  bool serious_breakdown = false;
+  
   //5. start iterations
-  for (size_t k = 0 ; k < 10000; k++)
+  for (size_t k = 0 ; k < 500; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
     rho_m1 = rho;
     rho = 0.0;
-    #pragma omp parallel for reduction(+:rho)
+    double norm_1 = 0.0;
+    double norm_2 = 0.0;
+    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
     for(size_t i=0; i< Nblocks; i++)
     {
       const VectorBlock & __restrict__ r    = *(VectorBlock*) rInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
         rho += r(ix,iy).u[0] * r(ix,iy).u[1];
+        norm_1 += r(ix,iy).u[0] * r(ix,iy).u[0];
+        norm_2 += r(ix,iy).u[1] * r(ix,iy).u[1];
+      }
     }
     double beta = rho / (rho_m1+eps) * alpha / (omega+eps);
 
+    norm_1 = sqrt(norm_1);
+    norm_2 = sqrt(norm_2);
+    double cosTheta = rho/norm_1/norm_2; 
+    serious_breakdown = std::fabs(cosTheta) < 1e-8;
+    if (serious_breakdown)
+    {
+        beta = 0.0;
+        rho = 0.0;
+        #pragma omp parallel for reduction(+:rho)
+        for(size_t i=0; i< Nblocks; i++)
+        {
+            VectorBlock & __restrict__ r    = *(VectorBlock*) rInfo[i].ptrBlock;
+            for(int iy=0; iy<VectorBlock::sizeY; iy++)
+            for(int ix=0; ix<VectorBlock::sizeX; ix++)
+            {
+                r(ix,iy).u[1] = r(ix,iy).u[0];
+                rho += r(ix,iy).u[0]*r(ix,iy).u[1];
+            }
+        }
+        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
+                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
+    }
     //3. p_{k} = r_{k-1} + beta*(p_{k-1}-omega *v_{k-1})
     //4. z = K_2 ^{-1} p
     #pragma omp parallel for
@@ -446,10 +476,11 @@ void AMRSolver::solve()
         norm+= r(ix,iy).u[0]*r(ix,iy).u[0]; 
       }
     }
-    norm = std::sqrt(norm) / Nsystem;
+    norm = std::sqrt(norm);
 
     if (norm < min_norm)
     {
+      useXopt = true;
       iter_opt = k;
       min_norm = norm;
       #pragma omp parallel for
