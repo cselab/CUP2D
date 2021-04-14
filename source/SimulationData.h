@@ -60,6 +60,7 @@ struct SimulationData
 
   double dt = 0;
   double CFL = 0.1;
+  double PoissonTol = 1e-4;//poisson eq. absolute error tolerance
 
   bool verbose = true;
   bool muteAll = false;
