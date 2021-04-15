@@ -153,7 +153,7 @@ void Simulation::parseRuntime()
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
 
   // poisson solver parameters
-  sim.PoissonTol = parser("-poissonTol").asDouble(1e-4);
+  sim.PoissonTol = parser("-poissonTol").asDouble(1e-7);
   sim.PoissonRelTol = parser("-poissonRelTol").asDouble(1e-3);
 
   // output parameters
