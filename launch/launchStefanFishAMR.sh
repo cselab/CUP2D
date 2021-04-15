@@ -14,7 +14,7 @@ PERIOD=${PERIOD:-1}
 NU=${NU:-0.0000004}
 
 # Re=1'000 <-> 0.0000049; Re=10'000 <-> 0.00000049
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 50 -muteAll 0 -verbose 1"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 50 -muteAll 0 -verbose 1 -poissonTol 1e-13"
 OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 
