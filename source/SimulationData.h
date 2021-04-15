@@ -42,7 +42,7 @@ struct SimulationData
   std::array<Real,2> extents;
 
   // cfl condition
-  double CFL = 0.1;
+  double CFL;
 
   // simulation ending parameters
   int nsteps;
@@ -62,7 +62,7 @@ struct SimulationData
 
   // poisson solver parameters
   double PoissonTol;    // absolute error tolerance
-  double PoissonRelTol; // relative error tolerance
+  double PoissonTolRel; // relative error tolerance
 
   // output setting
   int dumpFreq;

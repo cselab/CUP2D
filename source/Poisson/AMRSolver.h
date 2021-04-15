@@ -24,6 +24,7 @@ class AMRSolver
   cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   void solve();
   void Get_LHS (ScalarGrid * lhs, ScalarGrid * x);
+  void Jacobi (int iter_max);
 
   std::vector<std::vector<double>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
