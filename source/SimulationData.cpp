@@ -192,26 +192,26 @@ void SimulationData::printResetProfiler()
 void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
-  const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
-  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-  const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
+  // const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
+  // const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
+  // const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
   //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i < velInfo.size(); i++)
-  {
-    VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
-    ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
-    VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
-    DMP.assign(CHI, VEL);
-  }
+  // #pragma omp parallel for schedule(static)
+  // for (size_t i=0; i < velInfo.size(); i++)
+  // {
+  //   VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
+  //   ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
+  //   VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
+  //   DMP.assign(CHI, VEL);
+  // }
 
   // dump vorticity
   const auto K1 = computeVorticity(*this); K1.run();
   dumpTmp (name);
 
-  //dumpChi  (name); // glued together: skip
+  dumpChi  (name); // glued together: skip
   //dumpVel  (name); // glued together: skip
-  dumpGlue(name);
+  // dumpGlue(name);
   dumpPres(name);
   //dumpInvRho(name);
   //dumpUobj (name);

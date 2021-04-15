@@ -65,7 +65,6 @@ struct SimulationData
 
   bool verbose = true;
   bool muteAll = false;
-  std::string poissonType = "hypre";
   bool bVariableDensity = false;
 
   // output
