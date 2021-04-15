@@ -1,10 +1,6 @@
-NVCC ?= nvcc
-hypre ?= true #false
-gpu ?= false #true
 hdf5 ?= true
 config ?= production
 precision ?= double
-amr ?= true
 
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
@@ -33,15 +29,7 @@ include make.icc.flags
 endif
 
 # SET FLAGS FOR CUBISM
-ifneq "$(amr)" "true"
-bs ?= 32
-else 
-bs ?= 8
-CPPFLAGS+= -DDIMENSION=2
-endif
-
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ 
-NVFLAGS+= -code=sm_60 -arch=compute_60 -I$(BUILDDIR)/../Cubism/include/
+CPPFLAGS+= -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
@@ -51,7 +39,7 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
-		FishData.o ArgumentParser.o BlowFish.o StefanFish.o CarlingFish.o ComputeForces.o \
+		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
 
 ifeq "$(precision)" "single"
@@ -89,10 +77,6 @@ leadFollow: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
-blowfish: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
 cStart: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
@@ -102,10 +86,6 @@ zebrafish: $(OBJECTS)
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
 neurokinematicfish: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
-smartCyl: $(OBJECTS)
 	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
 	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 

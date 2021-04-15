@@ -166,7 +166,6 @@ class Shape
   }
 
   virtual Real getMinRhoS() const;
-  virtual bool bVariableDensity() const;
 
   struct Integrals {
     const double x, y, m, j, u, v, a;

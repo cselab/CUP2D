@@ -23,7 +23,6 @@ void SimulationData::resetAll()
   uinfy = 0;
   nextDumpTime = 0;
   _bDump = false;
-  bPing = false;
 }
 
 void SimulationData::allocateGrid()
@@ -103,17 +102,6 @@ double SimulationData::minRho() const
   for(const auto& shape : shapes)
     minR = std::min( (double) shape->getMinRhoS(), minR );
   return minR;
-}
-
-void SimulationData::checkVariableDensity()
-{
-  bVariableDensity = false;
-  for(const auto& shape : shapes)
-    bVariableDensity = bVariableDensity || shape->bVariableDensity();
-  if( verbose ){
-    if( bVariableDensity) std::cout << "[CUP2D] Shape with variable density found\n";
-    if(!bVariableDensity) std::cout << "[CUP2D] No shape with variable density found\n";
-  }
 }
 
 double SimulationData::maxSpeed() const
