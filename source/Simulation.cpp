@@ -160,9 +160,6 @@ void Simulation::parseRuntime()
   sim.path2file = parser("-file").asString("./");
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
 
-  // select Poisson solver
-  sim.poissonType = parser("-poissonType").asString("");
-
   // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
   sim.muteAll = parser("-muteAll").asInt(0);
