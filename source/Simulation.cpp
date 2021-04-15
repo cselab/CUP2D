@@ -152,7 +152,8 @@ void Simulation::parseRuntime()
   sim.nu = parser("-nu").asDouble(1e-2);
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
-  sim.PoissonTol = parser("-poissonTol").asDouble(1e-4); //poisson eq. error tolerance
+  sim.PoissonTol = parser("-poissonTol").asDouble(1e-6); //poisson eq. error tolerance
+  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4); //poisson eq. relative error tolerance
 
   // output parameters
   sim.dumpFreq = parser("-fdump").asInt(0);

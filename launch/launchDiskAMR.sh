@@ -1,7 +1,7 @@
 # Defaults for Options
 BPDX=${BPDX:-16}
 BPDY=${BPDY:-16}
-LEVELS=${LEVELS:-4}
+LEVELS=${LEVELS:-6}
 RTOL=${RTOL-0.1}
 CTOL=${CTOL-0.01}
 EXTENT=${EXTENT:-4}
@@ -11,9 +11,9 @@ XPOS=${XPOS:-1.2}
 XVEL=${XVEL:-0.2}
 RADIUS=${RADIUS:-0.1}
 # Re=40 <-> NU=0.001; Re=550 <-> NU=0.00007272727273; Re=3000 <-> NU=0.00001333333333; Re=9'500 <-> NU=0.000004210526316; Re=40'000 <-> 0.000001; Re=100'000 <-> NU=0.0000004
-NU=${NU:-0.0000004}
+NU=${NU:-0.001}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 3 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-13"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 3 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4"
 OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0"
 
 source launchCommon.sh
