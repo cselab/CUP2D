@@ -120,7 +120,7 @@ void computeDivergence::run() const
     for(int x=0; x<VectorBlock::sizeX; ++x)
       sDtot += O(x,y).s;
   }
-  std::cout << "Total div(V)="<<sDtot<<std::endl;
+  // std::cout << "Total div(V)="<<sDtot<<std::endl;
   std::ofstream outfile;
   outfile.open("div.txt", std::ios_base::app);
   outfile << sim.time << " " << sDtot  << " " << Nblocks << "\n";

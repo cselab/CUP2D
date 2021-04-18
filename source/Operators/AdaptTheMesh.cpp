@@ -10,7 +10,9 @@ void AdaptTheMesh::operator()(const double dt)
 
   sim.startProfiler("AdaptTheMesh");
 
-  //{auto K = computeDivergence(sim); K.run();}
+  // Write total divergence and number of blocks to file
+  auto K = computeDivergence(sim); 
+  K.run();
 
   findOmega.run();//store vorticity in tmp
   {

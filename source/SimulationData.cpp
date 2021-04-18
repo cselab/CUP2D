@@ -23,7 +23,6 @@ void SimulationData::resetAll()
   uinfy = 0;
   nextDumpTime = 0;
   _bDump = false;
-  bPing = false;
 }
 
 void SimulationData::allocateGrid()
@@ -105,17 +104,6 @@ double SimulationData::minRho() const
   return minR;
 }
 
-void SimulationData::checkVariableDensity()
-{
-  bVariableDensity = false;
-  for(const auto& shape : shapes)
-    bVariableDensity = bVariableDensity || shape->bVariableDensity();
-  if( verbose ){
-    if( bVariableDensity) std::cout << "[CUP2D] Shape with variable density found\n";
-    if(!bVariableDensity) std::cout << "[CUP2D] No shape with variable density found\n";
-  }
-}
-
 double SimulationData::maxSpeed() const
 {
   double maxS = 0;
@@ -192,26 +180,26 @@ void SimulationData::printResetProfiler()
 void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
-  const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
-  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-  const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
+  // const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
+  // const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
+  // const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
   //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i < velInfo.size(); i++)
-  {
-    VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
-    ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
-    VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
-    DMP.assign(CHI, VEL);
-  }
+  // #pragma omp parallel for schedule(static)
+  // for (size_t i=0; i < velInfo.size(); i++)
+  // {
+  //   VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
+  //   ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
+  //   VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
+  //   DMP.assign(CHI, VEL);
+  // }
 
   // dump vorticity
   const auto K1 = computeVorticity(*this); K1.run();
   dumpTmp (name);
 
-  //dumpChi  (name); // glued together: skip
+  dumpChi  (name); // glued together: skip
   //dumpVel  (name); // glued together: skip
-  dumpGlue(name);
+  // dumpGlue(name);
   dumpPres(name);
   //dumpInvRho(name);
   //dumpUobj (name);

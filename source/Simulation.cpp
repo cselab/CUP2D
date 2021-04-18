@@ -26,7 +26,6 @@
 #include "Obstacles/CStartFish.h"
 #include "Obstacles/ZebraFish.h"
 #include "Obstacles/NeuroKinematicFish.h"
-#include "Obstacles/BlowFish.h"
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Glider.h"
 #include "Obstacles/Naca.h"
@@ -87,22 +86,10 @@ void Simulation::init()
   if(sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  if(sim.bVariableDensity)
-  {
-    std::cout << "Variable density not implemented for AMR. " << std::endl;
-    abort();
-  }
-  else
-  {
-    pipeline.push_back( new PutObjectsOnGrid(sim) );
-    pipeline.push_back( new advDiff(sim) );
-    //pipeline.push_back( new PressureVarRho(sim) );
-    //pipeline.push_back( new PressureVarRho_proper(sim) );
-
-    pipeline.push_back( new PressureSingle(sim) );
-  }
+  pipeline.push_back( new PutObjectsOnGrid(sim) );
+  pipeline.push_back( new advDiff(sim) );
+  pipeline.push_back( new PressureSingle(sim) );
   pipeline.push_back( new ComputeForces(sim) );
-
   pipeline.push_back( new AdaptTheMesh(sim) );
 
   if(sim.verbose){
@@ -120,50 +107,61 @@ void Simulation::parseRuntime()
   // restart the simulation?
   sim.bRestart = parser("-restart").asBool(false);
 
+  /* parameters that have to be given */
+  /************************************/
   parser.set_strict_mode();
 
   // set initial number of blocks
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
 
-  parser.unset_strict_mode();
+  // maximal number of refinement levels
+  sim.levelMax = parser("-levelMax").asInt();
 
-  // set number of refinement levels
-  sim.levelMax = parser("-levelMax").asInt(0);
-  sim.levelStart = parser("-levelStart").asInt(-1);
-  if (sim.levelStart == -1) sim.levelStart = sim.levelMax - 1;
-
-  // set tolerance for refinement/compression according to vorticity magnitude
-  sim.Rtol = parser("-Rtol").asDouble();
+  // refinement/compression tolerance for voriticy magnitude
+  sim.Rtol = parser("-Rtol").asDouble(); 
   sim.Ctol = parser("-Ctol").asDouble();
 
   parser.unset_strict_mode();
+  /************************************/
+  /************************************/
 
-  // set simulation extent
+  // initial level of refinement
+  sim.levelStart = parser("-levelStart").asInt(-1);
+  if (sim.levelStart == -1) sim.levelStart = sim.levelMax - 1;
+
+  // simulation extent
   sim.extent = parser("-extent").asDouble(1);
+
+  // CFL number
+  sim.CFL = parser("-CFL").asDouble(0.1);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
   sim.endTime = parser("-tend").asDouble(0);
 
-  // simulation settings
-  sim.CFL = parser("-CFL").asDouble(0.1);
+  // penalisation coefficient
   sim.lambda = parser("-lambda").asDouble(1e6);
+
+  // constant for explicit penalisation lambda=dlm/dt
   sim.dlm = parser("-dlm").asDouble(0);
+
+  // kinematic viscocity
   sim.nu = parser("-nu").asDouble(1e-2);
+
+  // parameter for free-space BC
   sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
   sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
+
+  // poisson solver parameters
+  sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
+  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
 
   // output parameters
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
   sim.path2file = parser("-file").asString("./");
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
-
-  // select Poisson solver
-  sim.poissonType = parser("-poissonType").asString("");
-
-  // set output vebosity
   sim.verbose = parser("-verbose").asInt(1);
   sim.muteAll = parser("-muteAll").asInt(0);
   if(sim.muteAll) sim.verbose = 0;
@@ -205,12 +203,6 @@ void Simulation::createShapes()
         shape = new HalfDisk(         sim, ffparser, center);
       else if (objectName=="ellipse")
         shape = new Ellipse(          sim, ffparser, center);
-      else if (objectName=="diskVarDensity")
-        shape = new DiskVarDensity(   sim, ffparser, center);
-      else if (objectName=="ellipseVarDensity")
-        shape = new EllipseVarDensity(sim, ffparser, center);
-      else if (objectName=="blowfish")
-        shape = new BlowFish(         sim, ffparser, center);
       else if (objectName=="glider")
         shape = new Glider(           sim, ffparser, center);
       else if (objectName=="stefanfish")
@@ -243,9 +235,6 @@ void Simulation::createShapes()
     fflush(0);
     abort();
   }
-
-  // check if we have variable rho object:
-  sim.checkVariableDensity();
 }
 
 void Simulation::reset()

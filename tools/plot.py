@@ -11,8 +11,12 @@ import numpy as np
 from progress.bar import Bar
 import pickle, pprint
 import argparse
+import seaborn as sns
+sns.set_theme()
 
 ################################## UTILS ##################################
+colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+
 def lighten_color(color, amount=0.5):
     """
     Lightens the given color by multiplying (1-luminosity) by the given amount.
@@ -72,6 +76,188 @@ class HandlerDashedLines(HandlerLineCollection):
         return leglines
 ###########################################################################
 
+def plotDragTime( root, runname, speed, radius, i ):
+  data    = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+  time    = data[:,0]*speed/radius
+  totDrag = data[:,1]/(radius*speed*speed)
+
+  #### uncomment if you want to plot pressure/viscous drag separately ####
+  #presDrag = -data[:,3] / (radius*speed*speed)
+  #viscDrag = -data[:,5] / (radius*speed*speed)
+  #plt.plot(time, presDrag, color=lighten_color(colors[i],1.2))# , label=runname+", $C_p$")
+  #plt.plot(time, viscDrag, color=lighten_color(colors[i],1.4))# , label=runname+", $C_v$")
+  ########################################################################
+
+  #### uncomment and adapt i to levelMax for which you want to plot the result ####
+  # if i == 5:
+  #   plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label="present (9 levels)" )# , label=runname+", $C_D")
+  #################################################################################
+
+  # for disk
+  # plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label=runname)
+  # for naca
+  plt.plot(time, totDrag,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
+  plt.grid()
+  
+def plotLiftTime( root, runname, speed, radius, i ):
+  data    = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+  time    = data[:,0]*speed/radius
+  totDrag = data[:,2]/(radius*speed*speed)
+
+  # all angles
+  # plt.plot(time, totDrag,  color=lighten_color("blue",0.25+i/20), label=runname)
+  # before shedding i=0,..,6
+  plt.plot(time, totDrag,  color=lighten_color("blue",0.25+i/4), label="$\\alpha$={:0d}".format(i))
+  plt.grid()
+
+def plotDragTimeCylinder():
+  cases = [ "Re40", "Re550", "Re3000", "Re9500", "Re40000", "Re100000"]
+  # cfl = ["0.02", "0.06", "0.2"]
+  for case in cases:
+    # case   = "Re100000"
+    cfl    = "0.06"
+    levels = "04" 
+
+    if case != "Re100000":
+      validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
+      data = np.loadtxt(validationPath, delimiter=",")
+
+    rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/CUPamr/"
+    rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
+
+    runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
+    # runname = ["disk"+case+"_levels"+levels+"_cfl0.02", "disk"+case+"_levels"+levels+"_cfl0.06", "disk"+case+"_levels"+levels+"_cfl0.2" ]
+
+    speed = 0.2
+    radius = 0.1
+    for i in range( len(runname) ):
+      plotDragTime( rootPROJECT, runname[i], speed, radius, i )
+
+    if case == "Re40000":
+      plt.plot(data[:,0], data[:,1], "--k", label="Rossinelli et al. (2015)")
+    elif case != "Re100000":
+      plt.plot(data[:,0], data[:,1], "2k", label="Koumoutsakos et al. (1995)")
+
+
+    plt.ylim([0,8])
+    plt.xlim([0,10])
+    plt.xlabel("Time $T=tu_\infty/r$")
+    plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+def plotDragTimeNaca():
+  levels = "05"
+  case = np.arange(7)
+
+  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
+  # data = np.loadtxt(validationPath, delimiter=",")
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+
+  speed = 0.2
+  charlength = 0.1 #1/2 chordlength
+  for i in range( len(runname) ):
+    plotDragTime( rootSCRATCH, runname[i], speed, charlength, i )
+
+  plt.ylim([0,0.2])
+  plt.xlim([0,100])
+  plt.xlabel("Time $T=2tu_\infty/c$")
+  plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
+  plt.grid()
+  plt.legend()
+  plt.show()
+
+def plotLiftTimeNaca():
+  levels = "05"
+  case = np.arange(7)
+
+  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
+  # data = np.loadtxt(validationPath, delimiter=",")
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+
+  speed = 0.2
+  charlength = 0.1 #1/2 chordlength
+  for i in range( len(runname) ):
+    plotLiftTime( rootSCRATCH, runname[i], speed, charlength, i )
+
+  plt.ylim([0,0.5])
+  plt.xlim([0,100])
+  plt.xlabel("Time $T=2tu_\infty/c$")
+  plt.ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
+  plt.grid()
+  plt.legend()
+  plt.show()
+
+def plotDragLiftTimeNaca():
+  levels = "07"
+  # case = np.arange(7)
+  # case = np.arange(7,14)
+  case = np.arange(31)
+
+  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
+  # data = np.loadtxt(validationPath, delimiter=",")
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+
+  speed = 0.2
+  charlength = 0.1 #1/2 chordlength
+  for i in range( len(runname) ):
+    plotDragTime( rootSCRATCH, runname[i], speed, charlength, i )
+    plotLiftTime( rootSCRATCH, runname[i], speed, charlength, i )
+
+  plt.ylim([-1,1])
+  plt.xlim([0,40])
+  plt.xlabel("Time $T=2tu_\infty/c$")
+  plt.ylabel("Force Coefficients $C_{D/L}=2F_{x/y}/cu_\infty^2$")
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.tight_layout()
+  # plt.legend()
+  plt.show()
+
+def plotDragAngleNaca():
+  levels = "07"
+  case = np.arange(31)
+
+  validationPath = "/project/s929/pweber/nacaValidationData/Re1000.txt"
+  validData = np.loadtxt(validationPath, delimiter=",")
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+
+  speed = 0.2
+  charlength = 0.1 #1/2 chordlength
+
+  quotient = []
+  for run in runname:
+    data = np.loadtxt(rootSCRATCH+run+"/forceValues_0.dat", skiprows=1)
+    time = data[:,0]*speed/charlength
+    drag = data[:,1]/(charlength*speed*speed)
+    lift = -data[:,2]/(charlength*speed*speed)
+    quotient.append( np.mean(lift[-40000:]) / np.mean(drag[-40000:]) )
+
+  plt.plot( case, quotient, label="present")
+  plt.plot( validData[:,0], validData[:,1], "2k", label="Kurtulus (2016)")
+  plt.xlabel("Angle $\\alpha$")
+  plt.ylabel("Force Coefficient $C_L/C_D$")
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.tight_layout()
+  # plt.legend()
+  plt.show()
+
 def plotSwimmerSpeed():
   # Helper function to rotate
   def rotate( x, y, theta ):
@@ -79,275 +265,122 @@ def plotSwimmerSpeed():
     yRot = x*np.sin(-theta) + y*np.cos(-theta)
     return xRot, yRot
 
-  Ts = [0.16, 0.2, 0.25, 0.33, 0.5, 1]
-  colorsGreen = []
-  colorsBlue = []
-  velx = []
-  vely = []
-  bar = Bar('Processing', max=len(Ts))
-  for T in Ts:
-    data = np.loadtxt("validation/Swimmer/T={:.02f}/velocity_0.dat".format(T),skiprows=1)
-    time = data[:,0]
-    phi = data[:,6]
-    xvel = data[:,7]
-    yvel = data[:,8]
-    
-    indices = (time>T/2) & (time<11+T/2)
-    timeRestricted = time[indices]
-    xvelRestricted = xvel[indices]
-    yvelRestricted = yvel[indices]
-    
-    phiAverages = []
-    uAverages = []
-    vAverages = []
-    xVelCorr = []
-    yVelCorr = []
-    for t, u, v in zip(timeRestricted, xvelRestricted, yvelRestricted):
-      indices = (time>t-T/2) & (time<t+T/2)
-      phiAverage = np.mean(phi[indices])
-      phiAverages.append( phiAverage )
-      xRot, yRot = rotate( u, v, phiAverage )
-      xVelCorr.append(xRot)
-      yVelCorr.append(yRot)
-    
-    xVelCorr = np.array(xVelCorr)
-    yVelCorr = np.array(yVelCorr)
-    indicesRestricted = (timeRestricted>T) & (timeRestricted<11)
-    timeSuperRestricted = timeRestricted[indicesRestricted]
-    for t in timeSuperRestricted:
-      indices = (timeRestricted>t-T/2) & (timeRestricted<t+T/2)
-      uAverages.append( np.mean( xVelCorr[indices] ) )
-      vAverages.append( np.mean( yVelCorr[indices] ) )
-   
-    uAverages = np.array( uAverages )
-    vAverages = np.array( vAverages ) 
-    #plt.plot(time, -xvel, color='green', linestyle='dashed')
-    #plt.plot(time, yvel, color='blue' , linestyle='dashed')
-    #plt.plot(time, phi,  color='red'  , linestyle='dashed')
-    # colorGreen = lighten_color("green",T)
-    # colorsGreen.append(colorGreen)
-    # colorBlue = lighten_color("blue",T)
-    # colorsBlue.append(colorBlue)
-
-    #plt.plot(timeRestricted, -xVelCorr, color=colorGreen)
-    #plt.plot(timeRestricted, yVelCorr, color=colorBlue)
-    #plt.plot(timeRestricted, phiAverages,  color='darkred', label='$\phi$')
-    # plt.plot(timeSuperRestricted, -uAverages, color=colorGreen)
-    # plt.plot(timeSuperRestricted, vAverages, color=colorBlue)
-  
-    velx.append(-uAverages[-1])
-    # vely.append(vAverages[-1])
-
-    bar.next()
-  bar.finish()
-  
-  # numValues = len(Ts)
-  # line = [[(0, 0)]]
-  # style = ["solid"]
-  # lc1 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsGreen)
-  # lc2 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsBlue)
-  # # create the legend
-  # plt.legend([lc1, lc2], ['$U_{\parallel}$', '$U_{\perp}$'], handler_map={type(lc1): HandlerDashedLines()},
-  #         handlelength=2.5, handleheight=3, ncol=2)
-  plt.plot(Ts, velx, "k.")
-  plt.xlabel("$T$")
-  plt.ylabel("$U_{\parallel}$")
-  plt.show()
-  #plt.savefig("SwimmerVelocity.png", dpi=300, bbox_inches="tight")
-
-stId = 5
-
-def plotDragLift():
-  fig, axs = plt.subplots(1, 3, figsize=(14.5, 5)) #, sharey=True)
-  # load data
-  tRampup = 0.15
-  tCutoffLower = 20
-  tCutoffUpper = 40
-  startAngle = 0 #8
-  endAngle = 7 #14
-  thetas = np.arange(startAngle,endAngle+1)
-  # create containers
-  meanDrag     = []
-  stdDrag      = []
-  meanLift     = []
-  stdLift      = []
-  meanQuotient = []
-  stdQuotient  = []
-  colorsGreen = []
-  colorsBlue  = []
-  bar = Bar('Processing', max=len(thetas))
-  for theta in thetas:
-    data = np.loadtxt("validation/NACA/theta/bpdx=96/forceValues_theta={:02d}.dat".format(theta), skiprows=1)
-    # plot instantaneous quantities
-    colorGreen = lighten_color("green",0.3+theta/5) #-1.2+theta/5
-    colorsGreen.append(colorGreen)
-    colorBlue = lighten_color("blue",0.3+theta/5)   #-1.2+theta/5
-    colorsBlue.append(colorBlue)
-    tThresholdIdxRampup = [i for i, x in enumerate(data[:,0] < tRampup) if not x][0]
-    tThresholdIdxLower = [i for i, x in enumerate(data[:,0] < tCutoffLower) if not x][0]
-    tThresholdIdxUpper = [i for i, x in enumerate(data[:,0] < tCutoffUpper) if not x][0]
-    axs[0].plot(data[tThresholdIdxRampup:tThresholdIdxLower,0], data[tThresholdIdxRampup:tThresholdIdxLower,10], color=colorGreen)
-    axs[0].plot(data[tThresholdIdxRampup:tThresholdIdxLower,0], data[tThresholdIdxRampup:tThresholdIdxLower,12], color=colorBlue)
-    axs[0].ticklabel_format(scilimits=(0,0),axis='y')
-    # compute mean quantities
-    meanDrag.append(np.mean(data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    stdDrag.append(np.std(data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    meanLift.append(np.mean(data[tThresholdIdxLower:tThresholdIdxUpper,12]))
-    stdLift.append(np.std(data[tThresholdIdxLower:tThresholdIdxUpper,12]))
-    meanQuotient.append(np.mean(-data[tThresholdIdxLower:tThresholdIdxUpper,12]/data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    stdQuotient.append(np.std(-data[tThresholdIdxLower:tThresholdIdxUpper,12]/data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    bar.next()
-  bar.finish()
-  
-  # plot mean quantities
-  axs[1].errorbar(thetas, meanDrag, stdDrag, marker=".", capsize=1.5, label="Drag $F_D$", color="green")
-  axs[1].errorbar(thetas, meanLift, stdLift, marker=".", capsize=1.5, label="Lift $F_L$", color="blue")
-  axs[1].ticklabel_format(scilimits=(0,0),axis='y')
-
-  axs[2].errorbar(thetas, meanQuotient, stdQuotient, marker=".", capsize=1.5,  color="black")
-
-  # setup axis configuration
-  axs[0].set_xlabel("time t [s]")
-  axs[0].set_ylabel("${F_D}$ and ${F_L}$")
-  # axs[0].set_ylim([-0.0011,0.0004])
-  # make list of one line -- doesn't matter what the coordinates are
-  line = [[(0, 0)]]
-  style = ["solid"]
-  # set up the proxy artist
-  numValues = endAngle - startAngle + 1
-  lc1 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsGreen)
-  lc2 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsBlue)
-  # create the legend
-  axs[0].legend([lc1, lc2], ['Drag', 'Lift'], handler_map={type(lc1): HandlerDashedLines()},
-          handlelength=2.5, handleheight=3, ncol=2)
-  
-  axs[1].set_xlabel("angle $\\theta$ [deg]")
-  axs[1].set_ylabel("$\\overline{F_D}$ and $\\overline{F_L}$")
-  axs[1].legend(frameon=False) #bbox_to_anchor=(0.5, -0.1), ncol=2, 
-  axs[1].xaxis.set_major_locator(MultipleLocator(5))
-  axs[1].xaxis.set_minor_locator(MultipleLocator(1))
-  axs[1].set_xlim([0,30])
-  
-  axs[2].set_xlabel("angle $\\theta$ [deg]")
-  axs[2].set_ylabel("$\\overline{F_L/F_D}$")
-  axs[2].xaxis.set_major_locator(MultipleLocator(5))
-  axs[2].xaxis.set_minor_locator(MultipleLocator(1))
-  axs[2].yaxis.set_major_locator(MultipleLocator(1))
-  axs[2].yaxis.set_minor_locator(MultipleLocator(0.1))
-  axs[2].set_ylim([0,7])
-  axs[2].set_xlim([0,30])
-  # axs[2].set_yticks(meanQuotient[:7]+[meanQuotient[9]] +[meanQuotient[-2]])
-  # axs[2].tick_params(axis='both', which='major', labelsize=6)
-  axs[2].grid( b = True, axis = "y" )
-  
-  # fig.subplots_adjust(wspace=0, hspace=0)
-
-  plt.tight_layout( w_pad = 0 )
-  # plt.show()
-  plt.savefig( "LiftDrag.eps", transparent=True)
-
-def plotConvergence():
-  fig, axs = plt.subplots(1, 3, figsize=(14.5, 5)) #, sharey=True)
-  fig.title("$\\theta=14$ deg", fontsize=16)
-  gridSizes = [ 24, 32, 48, 64, 96, 128 ]
-  numValues = len(gridSizes)
-  # load data
-  tCutoffLower = 10
-  tCutoffUpper = 24
-  # create containers
-  meanDrag     = []
-  stdDrag      = []
-  meanLift     = []
-  stdLift      = []
-  meanQuotient = []
-  stdQuotient  = []
-  colorsGreen = []
-  colorsBlue  = []
-  bar = Bar('Processing', max=numValues)
-  for i, gridSize in enumerate(gridSizes):
-    data = np.loadtxt("validation/resolution/forceValues_bpdx={}.dat".format(gridSize), skiprows=1)
-    # plot instantaneous quantities
-    colorGreen = lighten_color("green",0.8+i/5)
-    colorsGreen.append(colorGreen)
-    colorBlue = lighten_color("blue",0.8+i/5)
-    colorsBlue.append(colorBlue)
-    tThresholdIdxLower = [i for i, x in enumerate(data[:,0] < tCutoffLower) if not x][0]
-    tThresholdIdxUpper = [i for i, x in enumerate(data[:,0] < tCutoffUpper) if not x][0]
-    axs[0].plot(data[:tThresholdIdxLower,0], data[:tThresholdIdxLower,10], color=colorGreen)
-    axs[0].plot(data[:tThresholdIdxLower,0], data[:tThresholdIdxLower,12], color=colorBlue)
-    axs[0].ticklabel_format(scilimits=(0,0),axis='y')
-    # compute mean quantities
-    meanDrag.append(np.mean(data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    stdDrag.append(np.std(data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    meanLift.append(np.mean(data[tThresholdIdxLower:tThresholdIdxUpper,12]))
-    stdLift.append(np.std(data[tThresholdIdxLower:tThresholdIdxUpper,12]))
-    meanQuotient.append(np.mean(-data[tThresholdIdxLower:tThresholdIdxUpper,12]/data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    stdQuotient.append(np.std(-data[tThresholdIdxLower:tThresholdIdxUpper,12]/data[tThresholdIdxLower:tThresholdIdxUpper,10]))
-    bar.next()
-  bar.finish()
-  
-  # plot mean quantities
-  axs[1].errorbar(gridSizes, meanDrag, stdDrag, marker=".", capsize=1.5, label="Drag C_D", color="green")
-  axs[1].errorbar(gridSizes, meanLift, stdLift, marker=".", capsize=1.5, label="Lift C_L", color="blue")
-  axs[1].ticklabel_format(scilimits=(0,0),axis='y')
-
-  axs[2].errorbar(gridSizes, meanQuotient, stdQuotient, marker=".", capsize=1.5,  color="black")
-
-  # set axis labels
-  axs[0].set_xlabel("time t [s]")
-  axs[0].set_ylabel("${C_D}$ and ${C_L}$")
-  # make list of one line -- doesn't matter what the coordinates are
-  line = [[(0, 0)]]
-  style = ["solid"]
-  # set up the proxy artist
-  lc1 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsGreen)
-  lc2 = mcol.LineCollection(numValues * line, linestyles=numValues * style, colors=colorsBlue)
-  # create the legend
-  axs[0].legend([lc1, lc2], ['Drag', 'Lift'], handler_map={type(lc1): HandlerDashedLines()},
-          handlelength=2.5, handleheight=3,frameon=False)
-  
-  axs[1].set_xlabel("bpdx")
-  axs[1].set_ylabel("$\\overline{C_D}$ and $\\overline{C_L}$")
-  axs[1].legend(frameon=False) #bbox_to_anchor=(0.5, -0.1), ncol=2, 
-  axs[1].set_xticks(gridSizes, rotation=45)
-
-  axs[2].set_xlabel("bpdx")
-  axs[2].set_ylabel("$\\overline{C_L/C_D}$")
-  axs[2].set_xticks(gridSizes, rotation=45)
-  
-  # fig.subplots_adjust(wspace=0, hspace=0)
-
-  plt.tight_layout( ) #w_pad = 0.1 )
-  # plt.show()
-  plt.savefig( "GridConvergence.eps", transparent=True)
-
-def plotDragTime( root, runname, speed, radius ):
-  data = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  time = data[:,0]
-  drag = data[:,10]
-  drag = drag/(radius*speed*speed)
-  plt.plot(time, drag, label=runname+", $C_D(t=10)=${}".format(drag[-1]))
-  plt.ylim([1.5,2.5])
-  # plt.xlim([0,10])
-  plt.xlabel("time $t$")
-  plt.ylabel("Drag Coefficient $C_D=F/ru_\infty^2$")
-  plt.grid()
-  # plt.title("$C_D(t=10)=${}".format(drag[-1]))
-  
-
-
-if __name__ == '__main__':
-  # plotSwimmerSpeed( )
-  # plotCoM()
-  # plotDragLift()
-  # plotConvergence()
+  case = ["Re100", "Re158", "Re251", "Re398", "Re631", "Re1000", "Re1585", "Re2512", "Re3981", "Re6310", "Re10000", "Re100000"]
+  # case = ["Re100"]
+  levels = "05"
+  L = 0.2
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-  rootPROJECT = "/project/s929/pweber/"
-  # runname = ["diskRe40_32x16_levelMax=1", "diskRe40_48x24_levelMax=1", "diskRe40_64x32_levelMax=1", "diskRe40_96x48_levelMax=1", "diskRe40_128x64_levelMax=1", "diskRe40_8x4_levelMax=3", "diskRe40_8x4_levelMax=4", "diskRe40_8x4_levelMax=5", "diskRe40_6x3_levelMax=4", "diskRe40_6x3_levelMax=5"]
-  runname = ["diskRe40_128x64_levelMax=1", "diskRe40_8x4_levelMax=5"]
-  speed = 0.15
-  radius = 0.0375
-  for i in range( len(runname) ):
-    plotDragTime( rootSCRATCH, runname[i], speed, radius )
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "stefanFish{}_levels".format(Re)+levels for Re in case ]
+
+  for i, run in enumerate(runname):
+    data = np.loadtxt(rootSCRATCH+run+"/velocity_0.dat", skiprows=1)
+    time = data[:,0]
+    angle= data[:,6]
+    u    = data[:,7] / L
+    v    = data[:,8] / L
+
+    # compute average quantities (in [T/2,..,])
+    indices = (time>1/2) & (time<25-1/2)
+    timeAv  = time[indices]
+        # plot rawdata
+    plt.plot( timeAv, u[indices], color="blue" , linestyle="--", alpha=0.2 )
+    plt.plot( timeAv, v[indices], color="green", linestyle="--", alpha=0.2 )
+    uAv     = []
+    vAv     = []
+    angleAv = []
+    for t in timeAv:
+      indices = (time>t-1/2) & (time<t+1/2)
+      angleAverage = np.mean( angle[indices] )
+      uAverage = np.mean( u[indices] )
+      vAverage = np.mean( v[indices] )
+      uAvRot, vAvRot = rotate( uAverage, vAverage, angleAverage )
+      angleAv.append( angleAverage )
+      uAv.append( uAvRot )
+      vAv.append( vAvRot )
+
+    plt.plot(timeAv, uAv, color="blue" , label="$v_{\parallel}$")
+    plt.plot(timeAv, vAv, color="green", label="$v_{\perp}$")
+    # plt.plot(timeAv, angleAv)
+
+
+    # plt.plot( time, angle )
+    plt.xlabel("Time $t$")
+    plt.ylabel("Velocity $v/(L/T)$")
+    plt.grid(b=True, which='major', color="white", linestyle='-')
+    plt.tight_layout()
+    plt.title(case[i])
+    # plt.legend()
+    plt.show()
+
+def plotSwimmerScaling():
+  # Helper function to rotate
+  def rotate( x, y, theta ):
+    xRot = x*np.cos(-theta) - y*np.sin(-theta)
+    yRot = x*np.sin(-theta) + y*np.cos(-theta)
+    return xRot, yRot
+
+  # Re=10 <-> NU=0.004; Re=100 <-> NU=0.0004; Re=158 <-> NU=0.000253165; Re=251 <-> NU=0.000159363; Re=398 <-> NU=0.000100503; Re=631 <-> NU=0.0000633914; Re=1000 <-> NU=0.00004; Re=1585 <-> NU=0.0000252366; Re=2512 <-> NU=0.0000159236; Re=3981 <-> NU=0.0000100477; Re=6310 <-> NU=0.00000633914; Re=10'000 <-> NU=0.000004; Re=100'000 <-> NU=0.0000004
+  case = ["Re100", "Re158", "Re251", "Re398", "Re631", "Re1000", "Re1585", "Re2512", "Re3981", "Re6310", "Re10000"] #, "Re100000"]
+  nu = [0.0004, 0.000253165, 0.000159363, 0.000100503, 0.0000633914, 0.00004, 0.0000252366, 0.0000159236, 0.0000100477, 0.00000633914, 0.000004] #, 0.0000004]
+  L = 0.2
+  omega = 2*np.pi
+  A = 5.7*L
+  # case = ["Re100"]
+  levels = "06"
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+
+  runname = [ "stefanFish{}_levels".format(Re)+levels for Re in case ]
+
+  Re = []
+  Sw = []
+  for i, run in enumerate(runname):
+    data = np.loadtxt(rootSCRATCH+run+"/velocity_0.dat", skiprows=1)
+    time = data[:,0]
+    angle= data[:,6]
+    u    = data[:,7]
+    v    = data[:,8]
+
+    # compute average quantities (in [T/2,..,])
+    indices = (time>1/2) & (time<25-1/2)
+    timeAv  = time[indices]
+    
+
+    t = timeAv[-1]
+    indices = (time>-1/2) & (time<t+1/2)
+    uAverage = np.mean( u[indices] )
+    vAverage = np.mean( v[indices] )
+    U = np.sqrt( uAverage**2 + vAverage**2 )
+
+    ReEff = U*L/nu[i]
+    SwEff = omega*A*L/nu[i]
+    
+    Re.append(ReEff)
+    Sw.append(SwEff)
+
+
+  SwValues = 10**np.arange(3,7)
+  plt.plot( SwValues, SwValues/70,     color="red",   linewidth=1, linestyle="-", label="$Sw\sim Re$") 
+  plt.plot( SwValues, SwValues**(4/3)/3500, color="black", linewidth=1, linestyle="-", label="$Sw\sim Re^{4/3}$") 
+  plt.plot( Sw, Re, "ko" )
+  plt.xscale("log")
+  plt.yscale("log")
+  plt.xlabel("Sw")
+  plt.ylabel("Re")
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.tight_layout()
   plt.legend()
   plt.show()
+
+if __name__ == '__main__':
+  # plotDragLift()
+  # plotDragTimeCylinder()
+  # plotDragTimeNaca()
+  # plotLiftTimeNaca()
+  # plotDragLiftTimeNaca()
+  # plotDragAngleNaca()
+  # plotSwimmerSpeed( )
+  plotSwimmerScaling()
