@@ -37,13 +37,6 @@ void ComputeForces::operator()(const double dt)
         vel_norm>0? (Real) shape->v / vel_norm : (Real)0
       };
 
-      const Real p0 = -1.5;
-      const Real p1 =  2.0;
-      const Real p2 = -0.5;
-      const Real m0 =  1.5;
-      const Real m1 = -2.0;
-      const Real m2 =  0.5;
-
       #pragma omp for schedule(static)
       for (size_t i=0; i < Nblocks; ++i)
       {
