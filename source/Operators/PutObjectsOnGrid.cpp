@@ -44,6 +44,9 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
+        #if 1
+        X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
+        #else //Towers mollified Heaviside
         if (sdf[iy][ix] > +h || sdf[iy][ix] < -h)
         {
           X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
@@ -65,6 +68,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
+        #endif
 
         // an other partial
         if(X[iy][ix] >= CHI(ix,iy).s)
@@ -78,37 +82,9 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           _y += rho[iy][ix] * X[iy][ix] * h*h * (p[1] - shape->centerOfMass[1]);
           _m += rho[iy][ix] * X[iy][ix] * h*h;
         }
-#if 0 //not so accurate as it assumes H(0) = 0.5 for mollified Heaviside
-        if (sdf[iy][ix] > h || sdf[iy][ix] < -h) continue; // no need to compute gradChi
-        {
-          const double distPx = distlab(ix+1,iy).s;
-          const double distMx = distlab(ix-1,iy).s;
-          const double distPy = distlab(ix,iy+1).s;
-          const double distMy = distlab(ix,iy-1).s;
-          const auto HplusX = std::fabs(distPx)<EPS? (double).5 :(distPx<0?0:1);
-          const auto HminuX = std::fabs(distMx)<EPS? (double).5 :(distMx<0?0:1);
-          const auto HplusY = std::fabs(distPy)<EPS? (double).5 :(distPy<0?0:1);
-          const auto HminuY = std::fabs(distMy)<EPS? (double).5 :(distMy<0?0:1);
-          const double gradUX = i2h*(distPx-distMx);
-          const double gradUY = i2h*(distPy-distMy);
-          const double gradHX =     (HplusX-HminuX);
-          const double gradHY =     (HplusY-HminuY);
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
-          //fac is 1/2h of gradH times h^2 to make \int_v D*gradU = \int_s norm
-          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
-          o.write(ix, iy, D, gradUX, gradUY);
-          //if(D>0) { //
-          //  const double norx = -D*gradUX, nory = -D*gradUY;
-          //  assert(std::sqrt(norx*norx + nory*nory) <= 1);
-          //  udefoutflow += udef[iy][ix][0]*norx + udef[iy][ix][1]*nory;
-          //  udefoutnorm += norx*norx + nory*nory;
-          //}
-        }
-#endif
       }
     }
   }
-
 
   if(_m > EPS) {
     shape->centerOfMass[0] += _x/_m;
@@ -132,10 +108,11 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
       chilab.load (chiInfo[i], 0);
       distlab.load(tmpInfo[i], 0);
-
+      const CHI_MAT & __restrict__ sdf = o.dist;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
+          if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) continue;
           const double distPx = distlab(ix+1,iy).s;
           const double distMx = distlab(ix-1,iy).s;
           const double distPy = distlab(ix,iy+1).s;
