@@ -82,10 +82,10 @@ def plotDragTime( root, runname, speed, radius, i ):
   totDrag = data[:,1]/(radius*speed*speed)
 
   #### uncomment if you want to plot pressure/viscous drag separately ####
-  #presDrag = -data[:,3] / (radius*speed*speed)
-  #viscDrag = -data[:,5] / (radius*speed*speed)
-  #plt.plot(time, presDrag, color=lighten_color(colors[i],1.2))# , label=runname+", $C_p$")
-  #plt.plot(time, viscDrag, color=lighten_color(colors[i],1.4))# , label=runname+", $C_v$")
+  presDrag = data[:,3] / (radius*speed*speed)
+  viscDrag = data[:,5] / (radius*speed*speed)
+  plt.plot(time, presDrag, color=lighten_color(colors[i],1.4), label=runname+", $C_p$")
+  plt.plot(time, viscDrag, color=lighten_color(colors[i],0.6), label=runname+", $C_v$")
   ########################################################################
 
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
@@ -94,9 +94,9 @@ def plotDragTime( root, runname, speed, radius, i ):
   #################################################################################
 
   # for disk
-  # plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label=runname)
+  plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label=runname)
   # for naca
-  plt.plot(time, totDrag,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
+  # plt.plot(time, totDrag,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
   plt.grid()
   
 def plotLiftTime( root, runname, speed, radius, i ):
@@ -111,36 +111,65 @@ def plotLiftTime( root, runname, speed, radius, i ):
   plt.grid()
 
 def plotDragTimeCylinder():
-  cases = [ "Re40", "Re550", "Re3000", "Re9500", "Re40000", "Re100000"]
-  # cfl = ["0.02", "0.06", "0.2"]
+  # "The initial flow past an impulsively started circular cylinder", W. M. Collins and S. C. R. Dennis (1973)
+  def dragCollinsDennis( Re, t ):
+    k = 2*np.sqrt(2*t/Re)
+    fricDrag = np.pi*(1/np.sqrt(2*Re*t))*(2.257+k-0.141*k**2+0.062*k**3 - (0.092-1.6*k+6.9*k**2-22.7*k**3)*t**2 - (0.074-1.24*k+12.12*k**2+24.35*k**3)*t**4 + (0.008+0.196*k)*t**6 )
+    presDrag = np.pi*(1/np.sqrt(2*Re*t))*(2.257+k-0.141*k**2+(4.59-22.1*k+78.8*k**2)*t**2 + (2.68-40.5*k+219.3*k**3)*t**4 + 0.894*t**6 )
+    # print("diff:", presDrag-fricDrag)
+    # equation (80) + (81)
+    return fricDrag+presDrag
+    # equation (82)
+    # return 2*np.sqrt( 8*np.pi/(2*Re*t) )
+
+  # "Initial flow field over an impulsively started circular cylinder". M. Bar-Lev and H. T. Yang (1975)
+  def dragBarLevYang( Re, t ):
+    # full expansion from paper
+    fricDrag = 2*np.sqrt(np.pi/(Re*t)) + np.pi/Re+15/2*np.sqrt(np.pi*t/Re)/Re - 2*t*np.sqrt(np.pi*t/Re)*(((108*np.sqrt(3)-89)/(30*np.pi)+128/(135*np.pi**2)-11/12)+3*(64/(45*np.pi**2)+(27*np.sqrt(3)-11)/(30*np.pi)-7/12))
+    presDrag = 2*np.sqrt(np.pi/(Re*t)) + np.pi/Re*(9-15/np.sqrt(np.pi))+15/2*np.sqrt(np.pi*t/Re)/Re + 2*t*np.sqrt(np.pi*t/Re)*(((108*np.sqrt(3)-89)/(30*np.pi)+128/(135*np.pi**2)-11/12)+3*(64/(45*np.pi**2)+(27*np.sqrt(3)-11)/(30*np.pi)-7/12))
+    # print("diff:", presDrag-fricDrag)
+    # return tot-drag=fricDrag + presDrag
+    return 4*np.sqrt( np.pi/(Re*t) ) + np.pi*(9-15/np.sqrt(np.pi))/Re
+
+
+  cases = [ "9500" ] #, "550", "3000", "9500" ] #, "Re550", "Re3000", "Re9500"] #, "Re40000", "Re100000"]
+  cfl = "0.02" #["0.02", "0.06", "0.2"]
   for case in cases:
-    # case   = "Re100000"
-    cfl    = "0.06"
-    levels = "04" 
+    levels = "8"
+    poisson= "4"
 
-    if case != "Re100000":
-      validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
-      data = np.loadtxt(validationPath, delimiter=",")
+    # if case != "Re100000":
+    #   validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
+    #   data = np.loadtxt(validationPath, delimiter=",")
 
-    rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/CUPamr/"
+    rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
     rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
 
-    runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
+    runname = ["diskRe"+case+"_levels8_poissonTol9"]
+    # runname = [ "diskRe"+case+"_poissonTol11" ]
+    # runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
     # runname = ["disk"+case+"_levels"+levels+"_cfl0.02", "disk"+case+"_levels"+levels+"_cfl0.06", "disk"+case+"_levels"+levels+"_cfl0.2" ]
+    # "disk"+case+"_levels"+levels+"_poissonTol5", "disk"+case+"_levels"+levels+"_poissonTol6", 
+    # runname = ["disk"+case+"_levels"+levels+"_poissonTol7", "disk"+case+"_levels"+levels+"_poissonTol8", "disk"+case+"_levels"+levels+"_poissonTol9" ]
+    # "disk"+case+"_levels"+levels+"_poissonTol4", 
+    # runname = ["disk"+case+"_levels5_poissonTol"+poisson, "disk"+case+"_levels6_poissonTol"+poisson, "disk"+case+"_levels7_poissonTol"+poisson]
 
     speed = 0.2
     radius = 0.1
     for i in range( len(runname) ):
       plotDragTime( rootPROJECT, runname[i], speed, radius, i )
 
-    if case == "Re40000":
-      plt.plot(data[:,0], data[:,1], "--k", label="Rossinelli et al. (2015)")
-    elif case != "Re100000":
-      plt.plot(data[:,0], data[:,1], "2k", label="Koumoutsakos et al. (1995)")
+    time = np.linspace(0,0.1,501)
+    plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
+    plt.plot( time, dragBarLevYang( int(case), time ), linestyle="--", color="grey", label="Bar-Lev and Yang (1975)")
+    # if case == "Re40000":
+    #   plt.plot(data[:,0], data[:,1], "--k", label="Rossinelli et al. (2015)")
+    # elif case != "Re100000":
+    #   plt.plot(data[:,0], data[:,1], "2k", label="Koumoutsakos et al. (1995)")
 
 
     plt.ylim([0,8])
-    plt.xlim([0,10])
+    plt.xlim([0,0.1])
     plt.xlabel("Time $T=tu_\infty/r$")
     plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
     plt.grid()
@@ -331,7 +360,7 @@ def plotSwimmerScaling():
   levels = "06"
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/stefanFish/"
 
   runname = [ "stefanFish{}_levels".format(Re)+levels for Re in case ]
 
@@ -375,12 +404,101 @@ def plotSwimmerScaling():
   plt.legend()
   plt.show()
 
+def plotBlocksTime():
+  cases   = [ "Re40", "Re550", "Re3000", "Re9500"]
+  root    = "/scratch/snx3000/pweber/CUP2D/"
+  speed = 0.2
+  radius = 0.1
+  nEff = 16*8*2*2*2*2*2
+  for case in cases:
+    runname = "disk"+case+"_levels6_poissonTol4"
+    data = np.loadtxt(root+runname+"/div.txt", skiprows=5)
+    time = data[:,0]*speed/radius
+    numGridpoints = data[:,2]*64 
+    plt.plot( time, numGridpoints, label=case)
+    plt.grid()
+    print("compression factor"+case, nEff*nEff/np.mean(numGridpoints))
+
+  plt.hlines(y=nEff*nEff, xmin=0, xmax=10, color="black", linestyles="dashed", label="$N_{eff}$", zorder=10)
+  plt.xlabel("Time $T=tu/r$")
+  plt.ylabel("Number of Gridpoints")
+  plt.yscale("log")
+  plt.legend(facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+  plt.grid(b=True, which='minor', color="white", linestyle='-')
+  plt.tight_layout()
+  plt.show()
+
+def gridRefiment():
+  def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+  cases  = [ "Re9500"]
+  levels = ["09", "04", "05", "06", "07", "08" ]
+  root    = "/scratch/snx3000/pweber/CUP2D/"
+  root    = "/project/s929/pweber/CUP2Damr/disk/"
+  speed = 0.2
+  radius = 0.1
+  for case in cases:
+    h = []
+    error = []
+    for level in levels:
+      # runname = "disk"+case+"_levels"+level+"_poissonTol6"
+      runname = "disk"+case+"_levels"+level+"_cfl0.2"
+
+      # gridData = np.loadtxt(root+runname+"/div.txt", skiprows=5)
+      # timeGridpoints = gridData[:,0]*speed/radius
+      # numGridpoints = gridData[:,2]*64
+
+      forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+      time    = forceData[:,0]*speed/radius
+      totDrag = forceData[:,1]/(radius*speed*speed)
+
+      # validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
+      # validationData = np.loadtxt(validationPath, delimiter=",")
+      # validationTimes = validationData[:,0]
+      # validationDrags = validationData[:,1]
+
+      # valIndx = find_nearest(validationTimes,2)
+      # gridIndx = find_nearest(timeGridpoints, validationTimes[valIndx])
+      # dataIndx = find_nearest(time, 2)
+      dataIndices = (time > 0.5) & (time < 3)
+      # print(validationTimes[valIndx], timeGridpoints[gridIndx], time[dataIndx])
+      # print(time[dataIndx])
+
+      h.append( 1/np.sqrt(16*8*2**(int(level)-1)) )
+      # h.append( 1/np.sqrt(numGridpoints[gridIndx]) )
+
+      if level == "09":
+        # target = totDrag[dataIndx]
+        target = np.mean(totDrag[dataIndices])
+      # error.append( np.abs(totDrag[dataIndx]-target) )
+      error.append( np.abs(np.mean(totDrag[dataIndices])-target) )
+
+    h = np.array(h)
+    plt.plot( h, error, "o" )
+    # plt.plot( h, 10**1*h**(1), label="1st order", linestyle="--" )
+    plt.plot( h, 5*10**2*h**(2), label="2nd order", linewidth=1, linestyle="--" )
+    plt.plot( h, 10**4*h**(3), label="3rd order", linewidth=1, linestyle="--" )
+    # plt.xlim( [5e4,1e6])
+    plt.xlabel("Gridspacing")
+    plt.ylabel("Error")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.legend() #facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+    plt.grid(b=True, which='minor', color="white", linestyle='-')
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == '__main__':
-  # plotDragLift()
-  # plotDragTimeCylinder()
+  plotDragTimeCylinder()
   # plotDragTimeNaca()
   # plotLiftTimeNaca()
   # plotDragLiftTimeNaca()
   # plotDragAngleNaca()
   # plotSwimmerSpeed( )
-  plotSwimmerScaling()
+  # plotSwimmerScaling()
+  # plotBlocksTime()
+  # gridRefiment()
