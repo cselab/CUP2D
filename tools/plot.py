@@ -120,7 +120,7 @@ def plotDragTimeCylinder():
     # equation (80) + (81)
     return fricDrag+presDrag
     # equation (82)
-    # return 2*np.sqrt( 8*np.pi/(2*Re*t) )
+    # return 2*np.sqrt( 8*np.pi/(Re*t) )
 
   # "Initial flow field over an impulsively started circular cylinder". M. Bar-Lev and H. T. Yang (1975)
   def dragBarLevYang( Re, t ):
