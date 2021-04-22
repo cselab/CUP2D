@@ -218,7 +218,6 @@ void Simulation::createShapes()
         shape = new Naca(             sim, ffparser, center);
       else if (objectName=="windmill")
         shape = new Windmill(         sim, ffparser, center);
-      }
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
       sim.shapes.push_back(shape);
