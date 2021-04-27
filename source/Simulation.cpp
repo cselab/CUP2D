@@ -218,22 +218,14 @@ void Simulation::createShapes()
         shape = new Naca(             sim, ffparser, center);
       else if (objectName=="windmill")
         shape = new Windmill(         sim, ffparser, center);
-      else {
-        std::cout << "FATAL - shape is not recognized!" << std::endl; 
-        fflush(0);
-        abort();
-      }
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
       sim.shapes.push_back(shape);
     }
   }
 
-  if( sim.shapes.size() ==  0) {
-    std::cout << "FATAL - Did not create any obstacles." << std::endl;
-    fflush(0);
-    abort();
-  }
+  if( sim.shapes.size() ==  0)
+    std::cout << "Did not create any obstacles." << std::endl;
 }
 
 void Simulation::reset()

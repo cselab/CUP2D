@@ -41,7 +41,6 @@ void ComputeForces::operator()(const double dt)
       for (size_t i=0; i < Nblocks; ++i)
       {
         const Real NUoH = sim.nu / velInfo[i].h_gridpoint; // 2 nu / 2 h
-        const double h =  velInfo[i].h;
 
         ObstacleBlock * const O = OBLOCK[velInfo[i].blockID];
         if (O == nullptr) continue;
