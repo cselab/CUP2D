@@ -76,27 +76,85 @@ class HandlerDashedLines(HandlerLineCollection):
         return leglines
 ###########################################################################
 
-def plotDragTime( root, runname, speed, radius, i ):
-  data    = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  time    = data[:,0]*speed/radius
-  totDrag = data[:,1]/(radius*speed*speed)
+def plotDragTime( root, runname, speed, radius, i, j ):
+  ## Helper function to rotate ##
+  # def rotate( x, y, theta ):
+  #   xRot = x*np.cos(-theta) - y*np.sin(-theta)
+  #   yRot = x*np.sin(-theta) + y*np.cos(-theta)
+  #   return xRot, yRot
+  ################################
+
+  ## load kinematic data ##
+  kineticData = np.loadtxt(root+runname+"/velocity_0.dat", skiprows=1)
+  kineticTime = kineticData[:,0]
+  u = kineticData[:,7]
+  v = kineticData[:,8]
+  # print("speed:", u, v)
+  #########################
+
+  ## load dynamic data ##
+  dynamicData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+  time    = dynamicData[:,0]
+  np.testing.assert_array_equal(time, kineticTime)
+  forceX  = dynamicData[:,1]
+  forceY  = dynamicData[:,2]
+  # print("force:", forceX, forceY)
+  #######################
+
+  ## dimensionless time ##
+  time    = time*speed/radius
+  ########################
+
+  ## compute drag ##
+  totDrag = (u*forceX+v*forceY) / np.sqrt(u**2 + v**2)
+  dragCoeff = -totDrag / (radius*speed*speed)
+  # print("drag:", totDrag, dragCoeff)
+  ##################
 
   #### uncomment if you want to plot pressure/viscous drag separately ####
-  presDrag = data[:,3] / (radius*speed*speed)
-  viscDrag = data[:,5] / (radius*speed*speed)
-  plt.plot(time, presDrag, color=lighten_color(colors[i],1.4), label=runname+", $C_p$")
-  plt.plot(time, viscDrag, color=lighten_color(colors[i],0.6), label=runname+", $C_v$")
+  # presForceX = dynamicData[:,3]
+  # presForceY = dynamicData[:,4]
+  # presDrag = u*presForceX+v*presForceY / np.sqrt(u**2 + v**2)
+  # presDragCoeff = -presDrag / (radius*speed*speed)
+
+  # viscForceX = dynamicData[:,5]
+  # viscForceY = dynamicData[:,6]
+  # viscDrag = u*viscForceX+v*viscForceY / np.sqrt(u**2 + v**2)
+  # viscDragCoeff = -viscDrag / (radius*speed*speed)
+  
+  # if i == j+1:
+  #   plt.plot(time, presDragCoeff, color=lighten_color(colors[i],1.4), label="$C_p$")
+  #   plt.plot(time, viscDragCoeff, color=lighten_color(colors[i],0.6), label="$C_v$")
   ########################################################################
 
+
+  
+  #### to average quantities ####
+  # T = 1 #averaging window
+  # # restrict time array
+  # indices = (time>T/2) & (time<time[-1]-T/2)
+  # timeAv  = time[indices]
+  # get averages for restricted time array
+  # avDrag = []
+  # for t in timeAv:
+  #   indices  = (time>t-T/2) & (time<t+T/2)
+  #   #QoI
+  # plt.plot(timeAv, avDrag,  color=lighten_color(colors[i],1), label=runname)
+  ######################################
+
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
-  # if i == 5:
-  #   plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label="present (9 levels)" )# , label=runname+", $C_D")
+  # if i == j+2: 90
+  print(time[0], dragCoeff[0])
+  if i == 2: 
+    index = dragCoeff < 2.0
+    print(time[index])
+    plt.plot(time[index], dragCoeff[index],  color=lighten_color(colors[i],1), label="$C_D$ present ({} levels)".format(i+4) )# , label=runname+", $C_D")
   #################################################################################
 
   # for disk
-  plt.plot(time, totDrag,  color=lighten_color(colors[i],1), label=runname)
+  # plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label=runname)
   # for naca
-  # plt.plot(time, totDrag,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
+  # plt.plot(time, dragCoeff,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
   plt.grid()
   
 def plotLiftTime( root, runname, speed, radius, i ):
@@ -131,49 +189,80 @@ def plotDragTimeCylinder():
     # return tot-drag=fricDrag + presDrag
     return 4*np.sqrt( np.pi/(Re*t) ) + np.pi*(9-15/np.sqrt(np.pi))/Re
 
+  ## for initial time ## "40", "200", "1000", 
+  cases = [ "10000" ]
+  ######################
 
-  cases = [ "9500" ] #, "550", "3000", "9500" ] #, "Re550", "Re3000", "Re9500"] #, "Re40000", "Re100000"]
-  cfl = "0.02" #["0.02", "0.06", "0.2"]
-  for case in cases:
-    levels = "8"
-    poisson= "4"
+  ## for long time ##
+  # cases = ["40", "550", "3000", "9500" ]
+  ######################
 
-    # if case != "Re100000":
-    #   validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
-    #   data = np.loadtxt(validationPath, delimiter=",")
-
+  for j, case in enumerate(cases):
     rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-    rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
+    # rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
+    rootPROJECT = "/project/s929/pweber/CUP2Damr/stefanFish/"
 
-    runname = ["diskRe"+case+"_levels8_poissonTol9"]
+    runname = [ "diskRe{}_levels{}".format(case, level) for level in np.arange(4,10) ]
+    # runname = ["diskRe"+case+"_levels8_poissonTol9"]
     # runname = [ "diskRe"+case+"_poissonTol11" ]
     # runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
     # runname = ["disk"+case+"_levels"+levels+"_cfl0.02", "disk"+case+"_levels"+levels+"_cfl0.06", "disk"+case+"_levels"+levels+"_cfl0.2" ]
     # "disk"+case+"_levels"+levels+"_poissonTol5", "disk"+case+"_levels"+levels+"_poissonTol6", 
-    # runname = ["disk"+case+"_levels"+levels+"_poissonTol7", "disk"+case+"_levels"+levels+"_poissonTol8", "disk"+case+"_levels"+levels+"_poissonTol9" ]
+    # runname = ["diskRe"+case+"_levels"+levels+"_poissonTol4", "diskRe"+case+"_levels"+levels+"_poissonTol5", "diskRe"+case+"_levels"+levels+"_poissonTol6", "diskRe"+case+"_levels"+levels+"_poissonTol7", "diskRe"+case+"_levels"+levels+"_poissonTol8", "diskRe"+case+"_levels"+levels+"_poissonTol9" ]
     # "disk"+case+"_levels"+levels+"_poissonTol4", 
     # runname = ["disk"+case+"_levels5_poissonTol"+poisson, "disk"+case+"_levels6_poissonTol"+poisson, "disk"+case+"_levels7_poissonTol"+poisson]
+    # runname = ["stefanFishRe1000_levels05"] #, "stefanFishRe1000_levels06", "stefanFishRe1000_levels07"]
+
+    ###### plot validation data ######
+    ## for initial time ##
+    time = np.linspace(0,0.1,1001)
+    plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
+    # plt.plot( time, dragBarLevYang( int(case), time ), linestyle="--", color="lightgrey", label="Bar-Lev and Yang (1975)")
+    validationPath = "/project/s929/pweber/diskValidationData/Re"+case+"-start.txt"
+    validationData = np.loadtxt(validationPath, delimiter=",")
+    plt.plot(validationData[:,0], validationData[:,1], "2k", label="Koumoutsakos and Leonhard (1995)")
+    plt.xlim([0.00075543,0.1])
+    ######################
+
+    ## for long time ##
+    # validationPath = "/project/s929/pweber/diskValidationData/Re"+case+".txt"
+    # validationData = np.loadtxt(validationPath, delimiter=",")
+    # plt.plot(validationData[:,0], validationData[:,1], "2k", label="Koumoutsakos and Leonhard (1995)", zorder=10)
+    # plt.xlim([0,10])
+    # if case == "40":
+    #   plt.xlim([0,10])
+    # elif case == "550":
+    #   plt.xlim([0,7])
+    # elif case == "3000" or case == "9500":
+    #   plt.xlim([0,6])
+    ###################
+    ##################################
 
     speed = 0.2
     radius = 0.1
     for i in range( len(runname) ):
-      plotDragTime( rootPROJECT, runname[i], speed, radius, i )
+      plotDragTime( rootSCRATCH, runname[i], speed, radius, i, j )
 
-    time = np.linspace(0,0.1,501)
-    plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
-    plt.plot( time, dragBarLevYang( int(case), time ), linestyle="--", color="grey", label="Bar-Lev and Yang (1975)")
-    # if case == "Re40000":
-    #   plt.plot(data[:,0], data[:,1], "--k", label="Rossinelli et al. (2015)")
-    # elif case != "Re100000":
-    #   plt.plot(data[:,0], data[:,1], "2k", label="Koumoutsakos et al. (1995)")
+    if case == "40" or case == "200":
+      plt.ylim([0,8])
+    ## for initial time
+    if case == "40":
+      plt.ylim([0,25])
+    elif case == "1000":
+      plt.ylim([0,4])
+    elif case == "9500":
+      plt.ylim([0,3])
+    else: 
+      plt.ylim([0.25,2])
+    # plt.ylim([0,8])
 
-
-    plt.ylim([0,8])
-    plt.xlim([0,0.1])
     plt.xlabel("Time $T=tu_\infty/r$")
-    plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
-    plt.grid()
-    plt.legend()
+    plt.ylabel("Drag Coefficient $C_D=|F_x|/ru_\infty^2$")
+    plt.title("Re={}".format(case))
+    plt.grid(b=True, which='major', color="white", linestyle='-')
+    plt.legend(loc = 'upper right')
+    plt.xscale("log")
+    plt.yscale("log")
     plt.show()
 
 def plotDragTimeNaca():
@@ -298,6 +387,7 @@ def plotSwimmerSpeed():
   # case = ["Re100"]
   levels = "05"
   L = 0.2
+  T = 1
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
   rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
 
@@ -311,9 +401,10 @@ def plotSwimmerSpeed():
     v    = data[:,8] / L
 
     # compute average quantities (in [T/2,..,])
-    indices = (time>1/2) & (time<25-1/2)
+    tEnd = time[-1]
+    indices = (time>T/2) & (time<tEnd-T/2)
     timeAv  = time[indices]
-        # plot rawdata
+    # plot rawdata
     plt.plot( timeAv, u[indices], color="blue" , linestyle="--", alpha=0.2 )
     plt.plot( timeAv, v[indices], color="green", linestyle="--", alpha=0.2 )
     uAv     = []
@@ -342,6 +433,63 @@ def plotSwimmerSpeed():
     plt.title(case[i])
     # plt.legend()
     plt.show()
+
+def plotSwimmerForces():
+  # Helper function to rotate
+  def rotate( x, y, theta ):
+    xRot = x*np.cos(-theta) - y*np.sin(-theta)
+    yRot = x*np.sin(-theta) + y*np.cos(-theta)
+    return xRot, yRot
+
+  case = ["Re100", "Re158", "Re251", "Re398", "Re631", "Re1000", "Re1585", "Re2512", "Re3981", "Re6310", "Re10000", "Re100000"]
+  # case = ["Re100"]
+  # levels = "05"
+  levels = ["05", "06", "07"]
+  L = 0.2
+  T = 1
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/mollified-chi/stefanFish/"
+
+  # runname = [ "stefanFish{}_levels".format(Re)+levels for Re in case ]
+  runname = [ "stefanFish{}_levels".format("Re1000")+level for level in levels ]
+
+  for i, run in enumerate(runname):
+    data   = np.loadtxt(rootPROJECT+run+"/velocity_0.dat", skiprows=1)
+    time   = data[:,0]
+    angle  = data[:,6]
+    forceX = data[:,1]
+    forceY = data[:,2]
+
+    # compute average quantities (in [T/2,..,])
+    tEnd = time[-1]
+    indices = (time>T/2) & (time<tEnd-T/2)
+    timeAv  = time[indices]
+    # plot rawdata
+    plt.plot( timeAv, forceX[indices], color=lighten_color(colors[i],1) , linestyle="--" )
+    plt.plot( timeAv, forceY[indices], color=lighten_color(colors[i],0.7), linestyle="--" )
+    # forceXAv = []
+    # forceYAv = []
+    # for t in timeAv:
+    #   indices = (time>t-1/2) & (time<t+1/2)
+    #   angleAverage = np.mean( angle[indices] )
+    #   xAv = np.mean( forceX[indices] )
+    #   yAv = np.mean( forceY[indices] )
+    #   xAvRot, yAvRot = rotate( xAv, yAv, angleAverage )
+    #   forceXAv.append( xAvRot )
+    #   forceYAv.append( yAvRot )
+
+    # plt.plot(timeAv, forceXAv, color=lighten_color(colors[i],1) , label="$f_{\parallel}$")
+    # plt.plot(timeAv, forceYAv, color=lighten_color(colors[i],0.5), label="$f_{\perp}$")
+    # # plt.plot(timeAv, angleAv)
+
+  # plt.plot( time, angle )
+  plt.xlabel("Time $t$")
+  plt.ylabel("Force $f/(L/T)$")
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.tight_layout()
+  plt.title(case[i])
+  plt.legend()
+  plt.show()
 
 def plotSwimmerScaling():
   # Helper function to rotate
@@ -405,25 +553,27 @@ def plotSwimmerScaling():
   plt.show()
 
 def plotBlocksTime():
-  cases   = [ "Re40", "Re550", "Re3000", "Re9500"]
+  cases   = ["10000"] #[ "40", "550", "3000", "9500"]
   root    = "/scratch/snx3000/pweber/CUP2D/"
   speed = 0.2
   radius = 0.1
-  nEff = 16*8*2*2*2*2*2
+  levels = 5
+  nEff = 16*8*2**(levels-1)
   for case in cases:
-    runname = "disk"+case+"_levels6_poissonTol4"
+    runname = "diskRe{}_levels{}".format(case,levels)
     data = np.loadtxt(root+runname+"/div.txt", skiprows=5)
     time = data[:,0]*speed/radius
+    index = time < 0.1
     numGridpoints = data[:,2]*64 
-    plt.plot( time, numGridpoints, label=case)
-    plt.grid()
+    plt.plot( time, numGridpoints, label="Re={}".format(case) )
+    print("average number of gridpoints"+case, np.mean(numGridpoints[index]))
     print("compression factor"+case, nEff*nEff/np.mean(numGridpoints))
 
   plt.hlines(y=nEff*nEff, xmin=0, xmax=10, color="black", linestyles="dashed", label="$N_{eff}$", zorder=10)
   plt.xlabel("Time $T=tu/r$")
   plt.ylabel("Number of Gridpoints")
   plt.yscale("log")
-  plt.legend(facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+  plt.legend(facecolor="white", edgecolor="white", ncol=2, loc="lower center", bbox_to_anchor=(0.5, -0.3))
   plt.grid(b=True, which='minor', color="white", linestyle='-')
   plt.tight_layout()
   plt.show()
@@ -445,7 +595,7 @@ def gridRefiment():
     error = []
     for level in levels:
       # runname = "disk"+case+"_levels"+level+"_poissonTol6"
-      runname = "disk"+case+"_levels"+level+"_cfl0.2"
+      runname = "diskRe"+case+"_levels"+level+"_cfl0.2"
 
       # gridData = np.loadtxt(root+runname+"/div.txt", skiprows=5)
       # timeGridpoints = gridData[:,0]*speed/radius
@@ -493,12 +643,13 @@ def gridRefiment():
 
 
 if __name__ == '__main__':
-  plotDragTimeCylinder()
+  # plotDragTimeCylinder()
   # plotDragTimeNaca()
   # plotLiftTimeNaca()
   # plotDragLiftTimeNaca()
   # plotDragAngleNaca()
   # plotSwimmerSpeed( )
+  plotSwimmerForces( )
   # plotSwimmerScaling()
   # plotBlocksTime()
   # gridRefiment()
