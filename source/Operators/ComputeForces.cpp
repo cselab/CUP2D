@@ -17,10 +17,7 @@ void ComputeForces::operator()(const double dt)
 {
   sim.startProfiler("ComputeForces");
   const size_t Nblocks = velInfo.size();
-
-  //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-  static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
-  //static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
+  static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
 
   #pragma omp parallel
   {
@@ -71,10 +68,10 @@ void ComputeForces::operator()(const double dt)
         const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
         double dx = normX*norm;
         double dy = normY*norm;
-        if      (dx < 0) dx -= 0.5;
-        else if (dx > 0) dx += 0.5;
-        if      (dy < 0) dy -= 0.5;
-        else if (dy > 0) dy += 0.5;
+        if      (dx < 0) dx -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        else if (dx > 0) dx += 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        if      (dy < 0) dy -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        else if (dy > 0) dy += 1.5; //1.5 means moving two points away, 0.5 would mean one point
         const int x = ix + (int)(dx);
         const int y = iy + (int)(dy);
         const double dudx2 = normX > 0 ? (V(x,iy).u[0]-2*V(x+1,iy).u[0]+V(x+2,iy).u[0]) : (V(x,iy).u[0]-2*V(x-1,iy).u[0]+V(x-2,iy).u[0]);

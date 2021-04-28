@@ -44,7 +44,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        #if 1
+        #if 0
         X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
         #else //Towers mollified Heaviside
         if (sdf[iy][ix] > +h || sdf[iy][ix] < -h)
@@ -112,7 +112,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-          if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) continue;
           const double distPx = distlab(ix+1,iy).s;
           const double distMx = distlab(ix-1,iy).s;
           const double distPy = distlab(ix,iy+1).s;
@@ -127,7 +126,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           const double gradHY =     (HplusY-HminuY);
           const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
           const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
-          o.write(ix, iy, D, gradUX, gradUY);
+          if (std::fabs(D) > 1e-20) o.write(ix, iy, D, gradUX, gradUY);
       }
     }
   }
