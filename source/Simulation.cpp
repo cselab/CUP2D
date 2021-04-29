@@ -125,6 +125,9 @@ void Simulation::parseRuntime()
   /************************************/
   /************************************/
 
+  // boolean to switch between refinement according to chi or grad(chi)
+  sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
+
   // initial level of refinement
   sim.levelStart = parser("-levelStart").asInt(-1);
   if (sim.levelStart == -1) sim.levelStart = sim.levelMax - 1;

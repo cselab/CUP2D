@@ -10,36 +10,40 @@ void AdaptTheMesh::operator()(const double dt)
 
   sim.startProfiler("AdaptTheMesh");
 
-  // Write total divergence and number of blocks to file
+  // write total divergence and number of blocks to file
   auto K = computeDivergence(sim); 
   K.run();
 
-  findOmega.run();//store vorticity in tmp
-  {
-    //Refine according to chi and omega. Set omega=inf wherever chi > 0.
-    const std::vector<BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
-    const std::vector<BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
-    const size_t Nblocks = tmpInfo.size();
+  // compute and store vorticity in tmp
+  findOmega.run();
+  
+  //Refine according to chi and omega. Set tmp=inf wherever chi or dchi > 0.
+  const std::vector<BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  const size_t Nblocks = tmpInfo.size();
 
-    #pragma omp parallel
+  #pragma omp parallel
+  {
+    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+    ScalarLab chilab;
+    chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
+    #pragma omp for
+    for (size_t i=0; i < Nblocks; i++)
     {
-      static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-      ScalarLab chilab;
-      chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
-      #pragma omp parallel for
-      for (size_t i=0; i < Nblocks; i++)
+      chilab.load(chiInfo[i], 0);
+      auto& __restrict__ TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
+      const double i2h = 0.5/chiInfo[i].h;
+      for(int y=0; y<VectorBlock::sizeY; ++y)
+      for(int x=0; x<VectorBlock::sizeX; ++x)
       {
-        chilab.load(chiInfo[i], 0);
-        auto& __restrict__ TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-        const double i2h = 0.5/chiInfo[i].h;
-        for(int y=0; y<VectorBlock::sizeY; ++y)
-        for(int x=0; x<VectorBlock::sizeX; ++x)
+        if( sim.bAdaptChiGradient )
         {
           const double dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
           const double dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
           const double norm = dcdx*dcdx+dcdy*dcdy;
           if (norm > 0.1) TMP(x,y).s = 1e10;
         }
+        else if ( chilab(x,y).s > 0.0 ) TMP(x,y).s = 1e10;
       }
     }
   }
