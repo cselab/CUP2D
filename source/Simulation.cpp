@@ -387,7 +387,7 @@ bool Simulation::advance(const double dt)
   // For debugging reward function fo windmills
   // Windmill *agent = dynamic_cast<Windmill *>(getShapes()[1]);
   // // J = 2.9e-6
-  // double upper_bound_act = 1e-3;
+  // double upper_bound_act = 1e-6;
   // agent->act(upper_bound_act); // put torque on the windmill
   // std::array<Real, 2> target{0.4,0.5};
   // std::vector<double> target_vel{0.0,0.0};

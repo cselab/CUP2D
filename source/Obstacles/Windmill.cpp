@@ -84,9 +84,11 @@ void Windmill::updatePosition(double dt)
 
 void Windmill::act( double action )
 {
-  // appliedTorque = action;
   // dimensionful applied torque from dimensionless action, divide by second squared
-  appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
+  // windscale is around 0.15, lengthscale is around 0.0375, so action is multiplied by around 16
+  //appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
+
+  appliedTorque = action;
 }
 
 double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_vel, double C)
@@ -94,7 +96,7 @@ double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
   double r_energy = -abs(appliedTorque*omega)*sim.dt;
   // need characteristic energy
-  r_energy /= (lengthscale*windscale);
+  //r_energy /= (lengthscale*windscale);
 
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
@@ -105,7 +107,7 @@ double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_
 
   double r_flow = - std::sqrt((target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]));
   //need characteristic speed
-  r_flow /= windscale;
+  //r_flow /= windscale;
 
   printf("Energy_reward: %g \n Flow_reward: %g \n", r_energy, r_flow);
   //std::cout<<"Energy_reward: "<<r_energy<<"\n Flow_reward: "<<r_flow<<std::endl;
@@ -121,9 +123,9 @@ std::vector<double>  Windmill::state()
   // angle
   state[0] = orientation;
 
-  // state[1] = omega;
+  state[1] = omega;
   // angular velocity, dimensionless so multiply by seconds
-  state[1] = omega * (lengthscale/windscale);
+  //state[1] = omega * (lengthscale/windscale);
   
 
   return state;

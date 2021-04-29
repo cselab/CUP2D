@@ -15,7 +15,6 @@ class Windmill : public Shape
   Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
-    std::cout<<"DIMENSIONLESS_____________________"<<windscale<<" "<<lengthscale<<std::endl;
   }
 
   void resetAll() override
