@@ -356,8 +356,8 @@ void AMRSolver::solve()
   double alpha = 1.0;
   double omega = 1.0;
   const double eps = 1e-21;
-  const double max_error = sim.step < 100 ? 0.0 : sim.PoissonTol;
-  const double max_rel_error = sim.step < 100 ? 0.0 : sim.PoissonTolRel;
+  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   double min_norm = 1e50;
   double rho_m1;
   double init_norm=norm;
@@ -367,7 +367,7 @@ void AMRSolver::solve()
   bool serious_breakdown = false;
   
   //5. start iterations
-  for (size_t k = 0 ; k < 200; k++)
+  for (size_t k = 0 ; k < 2000; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
@@ -531,7 +531,7 @@ void AMRSolver::solve()
       }
     }
 
-    if (norm / (init_norm+eps) > 2.0 && k > 10)
+    if (norm / (init_norm+eps) > 1000.0 && k > 10)
     {
       useXopt = true;
       std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;

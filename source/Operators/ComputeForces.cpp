@@ -17,10 +17,7 @@ void ComputeForces::operator()(const double dt)
 {
   sim.startProfiler("ComputeForces");
   const size_t Nblocks = velInfo.size();
-
-  //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-  static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
-  //static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
+  static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
 
   #pragma omp parallel
   {
@@ -37,18 +34,10 @@ void ComputeForces::operator()(const double dt)
         vel_norm>0? (Real) shape->v / vel_norm : (Real)0
       };
 
-      const Real p0 = -1.5;
-      const Real p1 =  2.0;
-      const Real p2 = -0.5;
-      const Real m0 =  1.5;
-      const Real m1 = -2.0;
-      const Real m2 =  0.5;
-
       #pragma omp for schedule(static)
       for (size_t i=0; i < Nblocks; ++i)
       {
         const Real NUoH = sim.nu / velInfo[i].h_gridpoint; // 2 nu / 2 h
-        const double h =  velInfo[i].h;
 
         ObstacleBlock * const O = OBLOCK[velInfo[i].blockID];
         if (O == nullptr) continue;
@@ -69,27 +58,34 @@ void ComputeForces::operator()(const double dt)
           const Real D12 = NUoH/2 * (V(ix  ,iy+1).u[0] - V(ix  ,iy-1).u[0]
                                     +V(ix+1,iy  ).u[1] - V(ix-1,iy  ).u[1]);
 #else //"lifted" surface: derivatives make no sense when the values used are in the object, so we take one-sided stencils with values outside of the object
-
-          Real nx = O->surface[k]->dchidx;
-          Real ny = O->surface[k]->dchidy;
-          Real norm = std::sqrt(nx*nx+ny*ny);
-          nx /= norm;
-          ny /= norm;
-          double dx = nx*(h);
-          double dy = ny*(h);
-          if      (dx < 0) dx -= 0.5*h;
-          else if (dx > 0) dx += 0.5*h;
-          if      (dy < 0) dy -= 0.5*h;
-          else if (dy > 0) dy += 0.5*h;
-          const int x = ix + (int)(dx/h);
-          const int y = iy + (int)(dy/h);
-          const double dudx = nx > 0 ? (p0*V(x,iy).u[0]+p1*V(x+1,iy).u[0]+p2*V(x+2,iy).u[0]) : (m0*V(x,iy).u[0]+m1*V(x-1,iy).u[0]+m2*V(x-2,iy).u[0]);
-          const double dvdx = nx > 0 ? (p0*V(x,iy).u[1]+p1*V(x+1,iy).u[1]+p2*V(x+2,iy).u[1]) : (m0*V(x,iy).u[1]+m1*V(x-1,iy).u[1]+m2*V(x-2,iy).u[1]);
-          const double dvdy = ny > 0 ? (p0*V(ix,y).u[1]+p1*V(ix,y+1).u[1]+p2*V(ix,y+2).u[1]) : (m0*V(ix,y).u[1]+m1*V(ix,y-1).u[1]+m2*V(ix,y-2).u[1]);
-          const double dudy = ny > 0 ? (p0*V(ix,y).u[0]+p1*V(ix,y+1).u[0]+p2*V(ix,y+2).u[0]) : (m0*V(ix,y).u[0]+m1*V(ix,y-1).u[0]+m2*V(ix,y-2).u[0]);
-          const Real D11 = 2.0*NUoH*dudx;
-          const Real D22 = 2.0*NUoH*dvdy;
-          const Real D12 = NUoH*(dudy+dvdx);
+      //shear stresses
+      Real D11 = 0.0;
+      Real D22 = 0.0;
+      Real D12 = 0.0;
+      {
+        const double normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
+        const double normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
+        const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
+        double dx = normX*norm;
+        double dy = normY*norm;
+        if      (dx < 0) dx -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        else if (dx > 0) dx += 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        if      (dy < 0) dy -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        else if (dy > 0) dy += 1.5; //1.5 means moving two points away, 0.5 would mean one point
+        const int x = ix + (int)(dx);
+        const int y = iy + (int)(dy);
+        const double dudx2 = normX > 0 ? (V(x,iy).u[0]-2*V(x+1,iy).u[0]+V(x+2,iy).u[0]) : (V(x,iy).u[0]-2*V(x-1,iy).u[0]+V(x-2,iy).u[0]);
+        const double dvdx2 = normX > 0 ? (V(x,iy).u[1]-2*V(x+1,iy).u[1]+V(x+2,iy).u[1]) : (V(x,iy).u[1]-2*V(x-1,iy).u[1]+V(x-2,iy).u[1]);
+        const double dudy2 = normY > 0 ? (V(ix,y).u[0]-2*V(ix,y+1).u[0]+V(ix,y+2).u[0]) : (V(ix,y).u[0]-2*V(ix,y-1).u[0]+V(ix,y-2).u[0]);
+        const double dvdy2 = normY > 0 ? (V(ix,y).u[1]-2*V(ix,y+1).u[1]+V(ix,y+2).u[1]) : (V(ix,y).u[1]-2*V(ix,y-1).u[1]+V(ix,y-2).u[1]);
+        const double dudx = dudx2*(ix-x) + (normX> 0 ? (-1.5*V(x,iy).u[0]+2.0*V(x+1,iy).u[0]-0.5*V(x+2,iy).u[0]) : (1.5*V(x,iy).u[0]-2.0*V(x-1,iy).u[0]+0.5*V(x-2,iy).u[0]) );
+        const double dvdx = dvdx2*(ix-x) + (normX> 0 ? (-1.5*V(x,iy).u[1]+2.0*V(x+1,iy).u[1]-0.5*V(x+2,iy).u[1]) : (1.5*V(x,iy).u[1]-2.0*V(x-1,iy).u[1]+0.5*V(x-2,iy).u[1]) );
+        const double dudy = dudy2*(iy-y) + (normY> 0 ? (-1.5*V(ix,y).u[0]+2.0*V(ix,y+1).u[0]-0.5*V(ix,y+2).u[0]) : (1.5*V(ix,y).u[0]-2.0*V(ix,y-1).u[0]+0.5*V(ix,y-2).u[0]) );
+        const double dvdy = dvdy2*(iy-y) + (normY> 0 ? (-1.5*V(ix,y).u[1]+2.0*V(ix,y+1).u[1]-0.5*V(ix,y+2).u[1]) : (1.5*V(ix,y).u[1]-2.0*V(ix,y-1).u[1]+0.5*V(ix,y-2).u[1]) );
+        D11 = 2.0*NUoH*dudx;
+        D22 = 2.0*NUoH*dvdy;
+        D12 = NUoH*(dudy+dvdx);
+      }
 #endif
           //normals computed with Towers 2009
           // Actually using the volume integral, since (/iint -P /hat{n} dS) =
