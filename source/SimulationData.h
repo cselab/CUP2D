@@ -35,6 +35,9 @@ struct SimulationData
   double Rtol;
   double Ctol;
 
+  // boolean to switch between refinement according to chi or grad(chi)
+  bool bAdaptChiGradient;
+
   // maximal simulation extent (direction with max(bpd))
   double extent;
 
