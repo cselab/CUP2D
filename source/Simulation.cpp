@@ -35,6 +35,9 @@
 #include <algorithm>
 #include <iterator>
 
+// to test reward function of windmill
+// #include <random>
+
 using namespace cubism;
 
 static inline std::vector<std::string> split(const std::string&s,const char dlm)
@@ -376,14 +379,17 @@ bool Simulation::advance(const double dt)
   //   std::cout << s << std::endl;
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
-  // For debugging reward function fo windmills
+
+  // // For debugging reward function for windmills
   // Windmill *agent = dynamic_cast<Windmill *>(getShapes()[1]);
   // // J = 2.9e-6
-  // double upper_bound_act = 1e-6;
-  // agent->act(upper_bound_act); // put torque on the windmill
+  // double upper_bound_act = 1e-5;
+  // std::uniform_real_distribution dist(0.0, upper_bound_act);
+  // std::default_random_engine rd;
+  // agent->act(dist(rd)); // put torque on the windmill
   // std::array<Real, 2> target{0.4,0.5};
   // std::vector<double> target_vel{0.0,0.0};
-  // double C = 10;
+  // double C = 1e8;
   // double r = agent->reward(target, target_vel, C);
 
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;

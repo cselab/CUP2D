@@ -109,7 +109,7 @@ double Windmill::reward( std::array<Real, 2> target, std::vector<double> target_
   //need characteristic speed
   //r_flow /= windscale;
 
-  printf("Energy_reward: %g \n Flow_reward: %g \n", r_energy, r_flow);
+  printf("Energy_reward: %g \n Flow_reward: %g \n", C*r_energy, r_flow);
   //std::cout<<"Energy_reward: "<<r_energy<<"\n Flow_reward: "<<r_flow<<std::endl;
   return C*r_energy + r_flow;
 }
