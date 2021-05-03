@@ -17,11 +17,23 @@ export GSL_ROOT=/apps/dom/UES/jenkins/7.0.UP02/gpu/easybuild/software/GSL/2.5-Cr
 export MPICXX=CC
 ```
 
+On Euler:
+```
+env2lmod
+module load gcc/6.3.0
+module load openmpi/3.0.1
+module load hdf5
+module load python/3.7.4
+module load gsl
+export MPICXX=mpic++
+```
+
 On Panda/Falcon:
 ```
 module load gnu mpich python fftw hdf5
 export GSL_ROOT=/usr
 ```
+
 
 ## Installation
 
