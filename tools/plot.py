@@ -76,14 +76,7 @@ class HandlerDashedLines(HandlerLineCollection):
         return leglines
 ###########################################################################
 
-def plotDragTime( root, runname, speed, radius, i, j ):
-  ## Helper function to rotate ##
-  # def rotate( x, y, theta ):
-  #   xRot = x*np.cos(-theta) - y*np.sin(-theta)
-  #   yRot = x*np.sin(-theta) + y*np.cos(-theta)
-  #   return xRot, yRot
-  ################################
-
+def plotForceTime( root, runname, radius, i, j ):
   ## load kinematic data ##
   kineticData = np.loadtxt(root+runname+"/velocity_0.dat", skiprows=1)
   kineticTime = kineticData[:,0]
@@ -101,14 +94,24 @@ def plotDragTime( root, runname, speed, radius, i, j ):
   # print("force:", forceX, forceY)
   #######################
 
+  ## compute object speed ##
+  speed = np.sqrt(u**2 + v**2)
+  ##########################
+
   ## dimensionless time ##
   time    = time*speed/radius
   ########################
 
   ## compute drag ##
-  totDrag = (u*forceX+v*forceY) / np.sqrt(u**2 + v**2)
+  totDrag = (u*forceX+v*forceY) / speed
   dragCoeff = -totDrag / (radius*speed*speed)
   # print("drag:", totDrag, dragCoeff)
+  ##################
+
+  ## compute lift ##
+  totLift = (-v*forceX+u*forceY) / speed
+  liftCoeff = -totLift / (radius*speed*speed)
+  # print("lift:", totLift, liftCoeff)
   ##################
 
   #### uncomment if you want to plot pressure/viscous drag separately ####
@@ -126,8 +129,6 @@ def plotDragTime( root, runname, speed, radius, i, j ):
   #   plt.plot(time, presDragCoeff, color=lighten_color(colors[i],1.4), label="$C_p$")
   #   plt.plot(time, viscDragCoeff, color=lighten_color(colors[i],0.6), label="$C_v$")
   ########################################################################
-
-
   
   #### to average quantities ####
   # T = 1 #averaging window
@@ -144,30 +145,33 @@ def plotDragTime( root, runname, speed, radius, i, j ):
 
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
   # if i == j+2: 90
-  print(time[0], dragCoeff[0])
-  if i == 2: 
-    index = dragCoeff < 2.0
-    print(time[index])
-    plt.plot(time[index], dragCoeff[index],  color=lighten_color(colors[i],1), label="$C_D$ present ({} levels)".format(i+4) )# , label=runname+", $C_D")
+  # print(time[0], dragCoeff[0])
+  # if i == 2: 
+  #   index = dragCoeff < 2.0
+  #   print(time[index])
+  #   plt.plot(time[index], dragCoeff[index],  color=lighten_color(colors[i],1), label="$C_D$ present ({} levels)".format(i+4) )# , label=runname+", $C_D")
   #################################################################################
 
-  # for disk
-  # plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label=runname)
-  # for naca
-  # plt.plot(time, dragCoeff,  color=lighten_color("green",0.25+i/4), label="$\\alpha$={:0d}".format(i))
-  plt.grid()
+  ## for disk plot drag ##
+  plt.plot(time[::50], dragCoeff[::50], color=lighten_color(colors[i],1), label="present (8 levels)")
+  ########################
+
+  ## plot autocorrelation of drag/lift to detect frequency ##
+  # autoCorrDragCoeff = np.correlate(dragCoeff, dragCoeff, mode='full')
+  # autoCorrLiftCoeff = np.correlate(liftCoeff, liftCoeff, mode='full')
+  # # print(autoCorrDragCoeff[autoCorrDragCoeff.size//2:])
+  # # print(autoCorrLiftCoeff[autoCorrLiftCoeff.size//2:])
+  # print("angle=",i)
+  # indices = time>50
+  # plt.plot(time[indices], autoCorrDragCoeff[autoCorrDragCoeff.size//2:][indices])
+  # plt.plot(time[indices], autoCorrLiftCoeff[autoCorrLiftCoeff.size//2:][indices])
+  ###########################################################
+
+  ## for naca plot drag and lift ##
+  # plt.plot(time, dragCoeff,  color=lighten_color("green",0.25+i/4))
+  # plt.plot(time, liftCoeff,  color=lighten_color("blue",0.25+i/4) )
+  #################################
   
-def plotLiftTime( root, runname, speed, radius, i ):
-  data    = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  time    = data[:,0]*speed/radius
-  totDrag = data[:,2]/(radius*speed*speed)
-
-  # all angles
-  # plt.plot(time, totDrag,  color=lighten_color("blue",0.25+i/20), label=runname)
-  # before shedding i=0,..,6
-  plt.plot(time, totDrag,  color=lighten_color("blue",0.25+i/4), label="$\\alpha$={:0d}".format(i))
-  plt.grid()
-
 def plotDragTimeCylinder():
   # "The initial flow past an impulsively started circular cylinder", W. M. Collins and S. C. R. Dennis (1973)
   def dragCollinsDennis( Re, t ):
@@ -190,7 +194,7 @@ def plotDragTimeCylinder():
     return 4*np.sqrt( np.pi/(Re*t) ) + np.pi*(9-15/np.sqrt(np.pi))/Re
 
   ## for initial time ## "40", "200", "1000", 
-  cases = [ "10000" ]
+  cases = [ "100000" ]
   ######################
 
   ## for long time ##
@@ -200,9 +204,10 @@ def plotDragTimeCylinder():
   for j, case in enumerate(cases):
     rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
     # rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
-    rootPROJECT = "/project/s929/pweber/CUP2Damr/stefanFish/"
+    # rootPROJECT = "/project/s929/pweber/CUP2Damr/stefanFish/"
+    rootPROJECT = "/project/s929/pweber/CUP2Damr/mollified-chi/disk/"
 
-    runname = [ "diskRe{}_levels{}".format(case, level) for level in np.arange(4,10) ]
+    runname = [ "diskRe{}_levels{:02d}_cfl0.2".format(case, level) for level in np.arange(8,9) ]
     # runname = ["diskRe"+case+"_levels8_poissonTol9"]
     # runname = [ "diskRe"+case+"_poissonTol11" ]
     # runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
@@ -215,13 +220,13 @@ def plotDragTimeCylinder():
 
     ###### plot validation data ######
     ## for initial time ##
-    time = np.linspace(0,0.1,1001)
+    time = np.linspace(0,0.5,1001)
     plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
     # plt.plot( time, dragBarLevYang( int(case), time ), linestyle="--", color="lightgrey", label="Bar-Lev and Yang (1975)")
-    validationPath = "/project/s929/pweber/diskValidationData/Re"+case+"-start.txt"
-    validationData = np.loadtxt(validationPath, delimiter=",")
-    plt.plot(validationData[:,0], validationData[:,1], "2k", label="Koumoutsakos and Leonhard (1995)")
-    plt.xlim([0.00075543,0.1])
+    # validationPath = "/project/s929/pweber/diskValidationData/Re"+case+"-start.txt"
+    # validationData = np.loadtxt(validationPath, delimiter=",")
+    # plt.plot(validationData[:,0], validationData[:,1], "2k", label="Koumoutsakos and Leonhard (1995)")
+    plt.xlim([0,0.5])
     ######################
 
     ## for long time ##
@@ -238,10 +243,9 @@ def plotDragTimeCylinder():
     ###################
     ##################################
 
-    speed = 0.2
     radius = 0.1
     for i in range( len(runname) ):
-      plotDragTime( rootSCRATCH, runname[i], speed, radius, i, j )
+      plotForceTime( rootPROJECT, runname[i], radius, i, j )
 
     if case == "40" or case == "200":
       plt.ylim([0,8])
@@ -253,7 +257,7 @@ def plotDragTimeCylinder():
     elif case == "9500":
       plt.ylim([0,3])
     else: 
-      plt.ylim([0.25,2])
+      plt.ylim([0,0.4])
     # plt.ylim([0,8])
 
     plt.xlabel("Time $T=tu_\infty/r$")
@@ -261,119 +265,114 @@ def plotDragTimeCylinder():
     plt.title("Re={}".format(case))
     plt.grid(b=True, which='major', color="white", linestyle='-')
     plt.legend(loc = 'upper right')
-    plt.xscale("log")
-    plt.yscale("log")
+    # plt.xscale("log")
+    # plt.yscale("log")
     plt.show()
 
-def plotDragTimeNaca():
-  levels = "05"
-  case = np.arange(7)
-
-  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
-  # data = np.loadtxt(validationPath, delimiter=",")
-
-  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
-
-  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
-
-  speed = 0.2
-  charlength = 0.1 #1/2 chordlength
-  for i in range( len(runname) ):
-    plotDragTime( rootSCRATCH, runname[i], speed, charlength, i )
-
-  plt.ylim([0,0.2])
-  plt.xlim([0,100])
-  plt.xlabel("Time $T=2tu_\infty/c$")
-  plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
-  plt.grid()
-  plt.legend()
-  plt.show()
-
-def plotLiftTimeNaca():
-  levels = "05"
-  case = np.arange(7)
-
-  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
-  # data = np.loadtxt(validationPath, delimiter=",")
-
-  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
-
-  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
-
-  speed = 0.2
-  charlength = 0.1 #1/2 chordlength
-  for i in range( len(runname) ):
-    plotLiftTime( rootSCRATCH, runname[i], speed, charlength, i )
-
-  plt.ylim([0,0.5])
-  plt.xlim([0,100])
-  plt.xlabel("Time $T=2tu_\infty/c$")
-  plt.ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
-  plt.grid()
-  plt.legend()
-  plt.show()
-
 def plotDragLiftTimeNaca():
-  levels = "07"
-  # case = np.arange(7)
-  # case = np.arange(7,14)
-  case = np.arange(31)
-
-  # validationPath = "/project/s929/pweber/nacaValidationData/"+case+".txt"
-  # data = np.loadtxt(validationPath, delimiter=",")
+  # levels = np.arange(5,8)
+  level = 5
+  angle  = np.arange(0,31)
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-  rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
+  rootPROJECT = "/project/s929/pweber/CUP2Damr/mollified-chi/naca_highTolAMR/"
 
-  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+  runname = [ "nacaRe1000_levels{:01d}_angle{:02d}".format(level,a) for a in angle ]
 
-  speed = 0.2
-  charlength = 0.1 #1/2 chordlength
+  charlength = 0.2/2
   for i in range( len(runname) ):
-    plotDragTime( rootSCRATCH, runname[i], speed, charlength, i )
-    plotLiftTime( rootSCRATCH, runname[i], speed, charlength, i )
+    plotForceTime( rootSCRATCH, runname[i], charlength, i, 0 )
 
-  plt.ylim([-1,1])
-  plt.xlim([0,40])
-  plt.xlabel("Time $T=2tu_\infty/c$")
-  plt.ylabel("Force Coefficients $C_{D/L}=2F_{x/y}/cu_\infty^2$")
+  plt.ylim([-2,1])
+  plt.xlim([0,50])
+  plt.xlabel("Time $T=2t u_\infty/c$")
+  plt.ylabel("Force Coefficient $C_{D/L}=2F_{x/y}/cu_\infty^2$")
   plt.grid(b=True, which='major', color="white", linestyle='-')
-  plt.tight_layout()
-  # plt.legend()
+  plt.legend()
   plt.show()
 
-def plotDragAngleNaca():
-  levels = "07"
-  case = np.arange(31)
+def plotForceAngleNaca():
+  levels = [ "8" ] #"5", "7", "8", "9"
+  angles = np.arange(15)
 
-  validationPath = "/project/s929/pweber/nacaValidationData/Re1000.txt"
-  validData = np.loadtxt(validationPath, delimiter=",")
+  validationQuotient = "/project/s929/pweber/nacaValidationData/Re1000-quotient.txt"
+  validationDrag = "/project/s929/pweber/nacaValidationData/Re1000-drag.txt"
+  validationPresDrag = "/project/s929/pweber/nacaValidationData/Re1000-pressureDrag.txt"
+  validationViscDrag = "/project/s929/pweber/nacaValidationData/Re1000-viscousDrag.txt"
+  validationLift = "/project/s929/pweber/nacaValidationData/Re1000-lift.txt"
+  validDataQuotient = np.loadtxt(validationQuotient, delimiter=",")
+  validDataDrag = np.loadtxt(validationDrag, delimiter=",")
+  validDataPresDrag = np.loadtxt(validationPresDrag, delimiter=",")
+  validDataViscDrag = np.loadtxt(validationViscDrag, delimiter=",")
+  validDataLift = np.loadtxt(validationLift, delimiter=",")
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
   rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
 
-  runname = [ "nacaRe1000_levels"+levels+"_angle{:02d}".format(a) for a in case ]
+  # runname = [ "nacaRe1000_levels"+levels+"_angle{:01d}".format(a) for a in case ]
 
   speed = 0.2
-  charlength = 0.1 #1/2 chordlength
+  chordlength = 0.2
 
-  quotient = []
-  for run in runname:
-    data = np.loadtxt(rootSCRATCH+run+"/forceValues_0.dat", skiprows=1)
-    time = data[:,0]*speed/charlength
-    drag = data[:,1]/(charlength*speed*speed)
-    lift = -data[:,2]/(charlength*speed*speed)
-    quotient.append( np.mean(lift[-40000:]) / np.mean(drag[-40000:]) )
+  for level in levels:
+    avQuotient = []
+    avDrag = []
+    avLift = []
+    for i, angle in enumerate(angles):
+      run = "nacaRe1000-usemap" #"nacaRe1000_levels"+level+"_angle{:02d}".format(angle)
+      data = np.loadtxt(rootSCRATCH+run+"/forceValues_0.dat", skiprows=1)
+      time = data[:,0]*speed/chordlength
+      drag = data[:,1]/(chordlength/2*speed*speed)
+      presDrag = data[:,3]/(chordlength/2*speed*speed)
+      viscDrag = data[:,5]/(chordlength/2*speed*speed)
+      print("drag:", presDrag, viscDrag, drag )
+      lift = data[:,2]/(chordlength/2*speed*speed)
 
-  plt.plot( case, quotient, label="present")
-  plt.plot( validData[:,0], validData[:,1], "2k", label="Kurtulus (2016)")
+      ## plot raw-data with averaged values ##
+      plt.plot(time, drag,     label="$C_D$")
+      plt.plot(time, presDrag, label="$C_P$")
+      plt.plot(time, viscDrag, label="$C_V$")
+      timeValid = np.linspace( 0, 200, 1001 )
+      Cd   = np.full(timeValid.shape, validDataDrag[i,1])
+      CdP  = np.full(timeValid.shape, validDataPresDrag[i,1])
+      CdV  = np.full(timeValid.shape, validDataViscDrag[i,1])
+      plt.plot(timeValid, Cd,  label="$C_D$ Kurtulus (2016)")
+      plt.plot(timeValid, CdP, label="$C_P$ Kurtulus (2016)")
+      plt.plot(timeValid, CdV, label="$C_V$ Kurtulus (2016)")
+
+      # plt.plot(time, lift, color="green", label="lift present ({} levels)".format(level))
+      # Cl   = np.full(timeValid.shape, -validDataLift[i,1])
+      # plt.plot(timeValid, Cl, color="black", linestyle="--")
+      plt.ylim([0,0.8])
+      plt.xlim([0,20])
+      plt.legend()
+      plt.show()
+      ###################
+
+      ## averaging ##
+      # averagingIndices = time>(time[-1]-10)
+      # avQuotient.append( np.mean(lift[averagingIndices]) / np.mean(drag[averagingIndices]) )
+      # avDrag.append( np.mean(drag[averagingIndices]) )
+      # avLift.append( np.mean(lift[averagingIndices]) )
+      ###############
+
+    ## plot averages ##
+    # plt.plot( angles, avQuotient, label="present ({} levels)".format(level))
+    # plt.plot( angles, avDrag, label="present ({} levels)".format(level))
+    # plt.plot( angles, avLift, label="present ({} levels)".format(level))
+    ###################
+
+    # plt.plot( validDataQuotient[:15,0], validDataQuotient[:15,1], "2k", label="Kurtulus (2016)")
+    # plt.plot( validDataDrag[:15,0], validDataDrag[:15,1], "2k", label="Kurtulus (2016)")
+    # plt.plot( validDataLift[:15,0], validDataLift[:15,1], "2k", label="Kurtulus (2016)")
+  
   plt.xlabel("Angle $\\alpha$")
+  # plt.ylabel("Drag Coefficient $C_D=2|F_x|/cu_\infty^2$")
+  # plt.ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
   plt.ylabel("Force Coefficient $C_L/C_D$")
   plt.grid(b=True, which='major', color="white", linestyle='-')
   plt.tight_layout()
-  # plt.legend()
+  plt.legend()
   plt.show()
 
 def plotSwimmerSpeed():
@@ -383,56 +382,74 @@ def plotSwimmerSpeed():
     yRot = x*np.sin(-theta) + y*np.cos(-theta)
     return xRot, yRot
 
-  case = ["Re100", "Re158", "Re251", "Re398", "Re631", "Re1000", "Re1585", "Re2512", "Re3981", "Re6310", "Re10000", "Re100000"]
+  validationPath = "/project/s929/pweber/fishValidationData/"
+  validationParallelData      = np.loadtxt(validationPath+"Kern-2D-parallel.txt", delimiter=",")
+  validationPerpendicularData = np.loadtxt(validationPath+"Kern-2D-perpendicular.txt", delimiter=",")
+
+  # case = ["Re100", "Re158", "Re251", "Re398", "Re631", "Re1000", "Re1585", "Re2512", "Re3981", "Re6310", "Re10000", "Re100000"]
   # case = ["Re100"]
-  levels = "05"
+  levels = [ "7" ] # "5", "6", "8", "9"
+  # levels = "05"
   L = 0.2
   T = 1
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
   rootPROJECT = "/project/s929/pweber/CUP2Damr/naca/"
 
-  runname = [ "stefanFish{}_levels".format(Re)+levels for Re in case ]
+  runname = [ "carlingFish_levels"+level for level in levels ]
 
   for i, run in enumerate(runname):
     data = np.loadtxt(rootSCRATCH+run+"/velocity_0.dat", skiprows=1)
-    time = data[:,0]
+    time = data[:,0] / T
     angle= data[:,6]
-    u    = data[:,7] / L
-    v    = data[:,8] / L
+    u    = data[:,7] * T / L
+    v    = data[:,8] * T / L
 
+    ## rotate data ##
+    u, v = rotate(u, v, angle) 
+    #################
+
+    timeCutoff = 0
+    # plot data
+    plt.plot( time, -u, color=lighten_color(colors[i],1)  , label="present ({} levels)".format(levels[i]) )
+    # plt.plot( time, v, color=lighten_color(colors[i],0.7))
+
+    ## to plot averages ##
     # compute average quantities (in [T/2,..,])
-    tEnd = time[-1]
-    indices = (time>T/2) & (time<tEnd-T/2)
-    timeAv  = time[indices]
-    # plot rawdata
-    plt.plot( timeAv, u[indices], color="blue" , linestyle="--", alpha=0.2 )
-    plt.plot( timeAv, v[indices], color="green", linestyle="--", alpha=0.2 )
-    uAv     = []
-    vAv     = []
-    angleAv = []
-    for t in timeAv:
-      indices = (time>t-1/2) & (time<t+1/2)
-      angleAverage = np.mean( angle[indices] )
-      uAverage = np.mean( u[indices] )
-      vAverage = np.mean( v[indices] )
-      uAvRot, vAvRot = rotate( uAverage, vAverage, angleAverage )
-      angleAv.append( angleAverage )
-      uAv.append( uAvRot )
-      vAv.append( vAvRot )
-
-    plt.plot(timeAv, uAv, color="blue" , label="$v_{\parallel}$")
-    plt.plot(timeAv, vAv, color="green", label="$v_{\perp}$")
+    # tEnd = time[-1]
+    # indices = (time>T/2) & (time<tEnd-T/2)
+    # timeAv  = time[indices]
+    # uAv     = []
+    # vAv     = []
+    # angleAv = []
+    # for t in timeAv:
+    #   indices = (time>t-1/2) & (time<t+1/2)
+    #   angleAverage = np.mean( angle[indices] )
+    #   uAverage = np.mean( u[indices] )
+    #   vAverage = np.mean( v[indices] )
+    #   uAvRot, vAvRot = rotate( uAverage, vAverage, angleAverage )
+    #   angleAv.append( angleAverage )
+    #   uAv.append( uAvRot )
+    #   vAv.append( vAvRot )
+    # plt.plot(timeAv, uAv, color="blue" , label="$u_{\parallel}$")
+    # plt.plot(timeAv, vAv, color="green", label="$u_{\perp}$")
     # plt.plot(timeAv, angleAv)
+    #######################
 
+  # plot validation data
+  index = validationParallelData[:,0] < 6
+  plt.plot(      validationParallelData[index,0],      validationParallelData[index,1], "2k", label="Kern und Koumoutsakos (2006)")
+  # timeValid = np.linspace( 0, 7, 1001 )
+  # Cd   = np.full(timeValid.shape, 0.54)
+  # plt.plot(timeValid, Cd, "k--")
+  # plt.plot( validationPerpendicularData[:,0], validationPerpendicularData[:,1], "2k")
 
-    # plt.plot( time, angle )
-    plt.xlabel("Time $t$")
-    plt.ylabel("Velocity $v/(L/T)$")
-    plt.grid(b=True, which='major', color="white", linestyle='-')
-    plt.tight_layout()
-    plt.title(case[i])
-    # plt.legend()
-    plt.show()
+  # plt.plot( time, angle )
+  plt.xlabel("Time $t/T$")
+  plt.ylabel("Forward Velocity $u_{\parallel}/(L/T)$")
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.tight_layout()
+  plt.legend()
+  plt.show()
 
 def plotSwimmerForces():
   # Helper function to rotate
@@ -644,12 +661,13 @@ def gridRefiment():
 
 if __name__ == '__main__':
   # plotDragTimeCylinder()
-  # plotDragTimeNaca()
-  # plotLiftTimeNaca()
+  
   # plotDragLiftTimeNaca()
-  # plotDragAngleNaca()
-  # plotSwimmerSpeed( )
-  plotSwimmerForces( )
+  # plotForceAngleNaca()
+  
+  plotSwimmerSpeed( )
+  # plotSwimmerForces( )
   # plotSwimmerScaling()
+  
   # plotBlocksTime()
   # gridRefiment()
