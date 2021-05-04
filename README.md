@@ -20,10 +20,10 @@ export MPICXX=CC
 On Euler:
 ```
 env2lmod
-module load gcc/6.3.0
-module load openmpi/3.0.1
+module load gcc
+module load openmpi
 module load hdf5
-module load python/3.7.4
+module load python
 module load gsl
 export MPICXX=mpic++
 ```
