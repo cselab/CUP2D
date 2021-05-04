@@ -47,9 +47,8 @@ fi
 ###################################################################################################
 elif [ ${HOST:0:3} == 'eu-' ] ; then
 
-export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
-BASEPATH="$SCRATCH/CubismUP_2D"
-export OMP_NUM_THREADS=36 #set to 128 for other Euler nodes
+BASEPATH="$SCRATCH/CUP2D"
+export OMP_NUM_THREADS=36 # 128 for other Euler nodes
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
@@ -57,7 +56,7 @@ cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
-bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}"
+bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
 fi
 
 ###################################################################################################
