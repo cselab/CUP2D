@@ -108,7 +108,6 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
       chilab.load (chiInfo[i], 0);
       distlab.load(tmpInfo[i], 0);
-      const CHI_MAT & __restrict__ sdf = o.dist;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
