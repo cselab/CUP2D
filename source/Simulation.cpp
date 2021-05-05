@@ -308,19 +308,9 @@ double Simulation::calcMaxTimestep()
   assert(sim.uMax_measured>=0);
 
   const double h = sim.getH();
-  #if 1 // CFL condition for centered scheme
   const double dtFourier = h*h/sim.nu;
   const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
   const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
-  #else // CFL for QUICK scheme //Michalis: what is this? 
-  // stability condition sigma^2<=2d
-  const double dtBalance = sim.uMax_measured < 2.2e-16 ? 1 : 2*sim.nu / (sim.uMax_measured*sim.uMax_measured);
-
-  // stability condition sigma+4d<=2
-  const double coeffAdvection = sim.uMax_measured / h;
-  const double coeffDiffusion = 4*sim.nu / (h*h);
-  const double dtAbs     = 2*sim.CFL/(coeffAdvection+coeffDiffusion);
-  #endif
 
   // ramp up CFL
   const int rampup = 100;
@@ -328,19 +318,11 @@ double Simulation::calcMaxTimestep()
   {
     const double x = (sim.step+1.0)/rampup;
     const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
-    #if 1
     sim.dt = rampCFL * std::min({dtCFL, dtFourier, dtBody});
-    #else
-    sim.dt = rampCFL * std::min({ dtBalance, dtAbs });
-    #endif
   }
   else
   {
-    #if 1
     sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
-    #else
-    sim.dt = sim.CFL*std::min({ dtBalance, dtAbs });
-    #endif
   }
 
   std::cout

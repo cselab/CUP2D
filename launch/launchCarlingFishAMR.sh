@@ -23,7 +23,7 @@ PERIOD=${PERIOD:-1}
 NU=${NU:-0.0000056}
 
 OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 50 -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 0"
-OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
+OBJECTS="carlingfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 
 source launchCommon.sh

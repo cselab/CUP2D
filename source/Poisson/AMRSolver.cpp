@@ -19,11 +19,10 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 
    #pragma omp parallel
    {
-     int tid = omp_get_thread_num();
-     #pragma omp for schedule(runtime)
+     const int tid = omp_get_thread_num();
+     #pragma omp for
      for (size_t i=0; i < zInfo.size(); i++)
      {
-       //ScalarBlock & __restrict__ r  = *(ScalarBlock*) rInfo[i].ptrBlock;
        ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
        //1. z = L^{-1}r
@@ -32,33 +31,28 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
          double rhs = 0.0;
          for (size_t jj = 0 ; jj < L_row[tid][I].size(); jj++)
          {
-           int J = L_row[tid][I][jj].first;
-           double LIJ = L_row[tid][I][jj].second;
-
-           int iy = J / BSX;
-           int ix = J % BSX;
-           rhs += LIJ*z(ix,iy).s;
+           const int J = L_row[tid][I][jj].first;
+           const int iy = J / BSX;
+           const int ix = J % BSX;
+           rhs += L_row[tid][I][jj].second*z(ix,iy).s;
          }
-         int iy = I / BSX;
-         int ix = I % BSX;
-         z(ix,iy).s = (z(ix,iy).s - rhs) *Ld[tid][I];//
+         const int iy = I / BSX;
+         const int ix = I % BSX;
+         z(ix,iy).s = (z(ix,iy).s - rhs)*Ld[tid][I];
        }
-
        //2. z = L^T{-1}r
        for (int I = N-1; I >= 0 ; I--)
        {
          double rhs = 0.0;
          for (size_t jj = 0 ; jj < L_col[tid][I].size(); jj++)
          {
-           int J = L_col[tid][I][jj].first;
-           double LJI = L_col[tid][I][jj].second;
-
-           int iy = J / BSX;
-           int ix = J % BSX;
-           rhs += LJI*z(ix,iy).s;
+           const int J = L_col[tid][I][jj].first;
+           const int iy = J / BSX;
+           const int ix = J % BSX;
+           rhs += L_col[tid][I][jj].second*z(ix,iy).s;
          }
-         int iy = I / BSX;
-         int ix = I % BSX;
+         const int iy = I / BSX;
+         const int ix = I % BSX;
          z(ix,iy).s = (z(ix,iy).s - rhs) *Ld[tid][I];
        }
 
@@ -86,7 +80,7 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
       ScalarLab lab; 
       lab.prepare(*x, stenBeg, stenEnd, 1);
   
-      #pragma omp for schedule(runtime)
+      #pragma omp for
       for (size_t i=0; i < xInfo.size(); i++)
       {
         lab.load(xInfo[i]);
@@ -250,7 +244,7 @@ void AMRSolver::Jacobi(int iter_max)
 
 void AMRSolver::solve()
 {
-  Jacobi(50);
+  Jacobi(10);
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
@@ -285,6 +279,10 @@ void AMRSolver::solve()
   // First, we store in SavedFields whatever is contained 
   // in the CUP2D arrays. Then, once the algorithm finishes
   // everything is copied back from SavedFields to CUP2D.
+  // At the same time, we start the solver as:
+  //1. r = RHS - Ax_0, x_0: initial solution guess
+  //2. rhat = r
+  //3. Initialize p = 0, v = 0
   const size_t Nblocks = xInfo.size();
   std::vector<double> SavedFields( Nblocks*BSX*BSY* 8);
   #pragma omp parallel for
@@ -296,6 +294,8 @@ void AMRSolver::solve()
     ScalarBlock& x3  = *(ScalarBlock*)AxInfo[i].ptrBlock;
     VectorBlock& x45 = *(VectorBlock*)pvInfo[i].ptrBlock;
     VectorBlock& x67 = *(VectorBlock*) rInfo[i].ptrBlock;
+          VectorBlock & __restrict__ r    = *(VectorBlock*)   rInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
@@ -307,25 +307,11 @@ void AMRSolver::solve()
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 5 ] = x45(ix,iy).u[1];
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 6 ] = x67(ix,iy).u[0];
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 7 ] = x67(ix,iy).u[1];
+      r(ix,iy).u[0] = rhs(ix,iy).s;
     }
   }
 
   //Warning: AxInfo (sim.tmp) initially contains the RHS of the system!
-
-
-  //1. r = RHS - Ax_0, x_0: initial solution guess
-  //2. rhat = r
-  //3. Initialize p = 0, v = 0
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-          VectorBlock & __restrict__ r    = *(VectorBlock*)   rInfo[i].ptrBlock;
-    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
-    for(int iy=0; iy<BSY; iy++)
-    for(int ix=0; ix<BSX; ix++)
-      r(ix,iy).u[0] = rhs(ix,iy).s;
-  }
-
   Get_LHS(sim.tmp,sim.pres); // tmp <-- A*x_{0}
   
   double norm = 0.0; //initial residual norm
@@ -362,12 +348,11 @@ void AMRSolver::solve()
   double rho_m1;
   double init_norm=norm;
   bool useXopt = false;
-  int iter_opt = 0;
-
   bool serious_breakdown = false;
-  
+  int restarts = 0;
+
   //5. start iterations
-  for (size_t k = 0 ; k < 2000; k++)
+  for (size_t k = 0 ; k < 1000; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
@@ -395,6 +380,14 @@ void AMRSolver::solve()
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
     if (serious_breakdown)
     {
+        restarts ++;
+        if (restarts == 3)
+        {
+           std::cout << "  [Poisson solver]: early termination (max restarts reached) after " << k << " iterations."; 
+           break;
+        }
+        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
+                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -408,8 +401,6 @@ void AMRSolver::solve()
                 rho += r(ix,iy).u[0]*r(ix,iy).u[1];
             }
         }
-        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
-                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
     }
     //std::cout << k << " " << norm << std::endl;
     //3. p_{k} = r_{k-1} + beta*(p_{k-1}-omega *v_{k-1})
@@ -433,47 +424,56 @@ void AMRSolver::solve()
     //6. alpha = rho_i / (rhat_0,v_i)
     alpha = 0.0;
     Get_LHS(sim.tmp,sim.pOld); // v <-- Az //v stored in AxVector
-    #pragma omp parallel for reduction(+:alpha)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-            VectorBlock & __restrict__ pv = *(VectorBlock*) pvInfo[i].ptrBlock;
-            ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
-      const VectorBlock & __restrict__ r  = *(VectorBlock*)  rInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      {
-        pv(ix,iy).u[1] = Ax(ix,iy).s;
-        alpha += r(ix,iy).u[1] * pv(ix,iy).u[1];
-      }
-    }  
-    alpha = rho / (alpha + eps);
-
 
     //7. x += a z
     //8. 
     //9. s = r_{i-1}-alpha * v_i
     //10. z = K_2^{-1} s
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
+    #pragma omp parallel
     {
-      ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
-      VectorBlock & __restrict__ r = *(VectorBlock*) rInfo[i].ptrBlock;
-      VectorBlock & __restrict__ pv= *(VectorBlock*)pvInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      {
-        x(ix,iy).s += alpha * z(ix,iy).s;
-        s(ix,iy).s = r(ix,iy).u[0] - alpha * pv(ix,iy).u[1];
-        z(ix,iy).s = s(ix,iy).s;
-      }
-    }
+        double alpha_t = 0.0;
+        #pragma omp for
+        for (size_t i=0; i < Nblocks; i++)
+        {
+                VectorBlock & __restrict__ pv = *(VectorBlock*) pvInfo[i].ptrBlock;
+                ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
+          const VectorBlock & __restrict__ r  = *(VectorBlock*)  rInfo[i].ptrBlock;
+          for(int iy=0; iy<VectorBlock::sizeY; iy++)
+          for(int ix=0; ix<VectorBlock::sizeX; ix++)
+          {
+            pv(ix,iy).u[1] = Ax(ix,iy).s;
+            alpha_t += r(ix,iy).u[1] * pv(ix,iy).u[1];
+          }
+        }
+        #pragma omp atomic
+        alpha += alpha_t;
+        
+        #pragma omp barrier
+        #pragma omp single
+        {
+            alpha = rho / (alpha + eps);
+        }
 
+        #pragma omp for
+        for (size_t i=0; i < Nblocks; i++)
+        {
+          ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
+          ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
+          ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
+          VectorBlock & __restrict__ r = *(VectorBlock*) rInfo[i].ptrBlock;
+          VectorBlock & __restrict__ pv= *(VectorBlock*)pvInfo[i].ptrBlock;
+          for(int iy=0; iy<VectorBlock::sizeY; iy++)
+          for(int ix=0; ix<VectorBlock::sizeX; ix++)
+          {
+            x(ix,iy).s += alpha * z(ix,iy).s;
+            s(ix,iy).s = r(ix,iy).u[0] - alpha * pv(ix,iy).u[1];
+            z(ix,iy).s = s(ix,iy).s;
+          }
+        }
+    }
 
     getZ(zInfo);
     Get_LHS(sim.tmp,sim.pOld); // t <-- Az //t stored in AxVector
-
     //12. omega = ...
     double aux1 = 0;
     double aux2 = 0;
@@ -517,7 +517,6 @@ void AMRSolver::solve()
     {
       norm_opt = norm;
       useXopt = true;
-      iter_opt = k;
       min_norm = norm;
       #pragma omp parallel for
       for (size_t i=0; i < Nblocks; i++)
@@ -531,18 +530,19 @@ void AMRSolver::solve()
       }
     }
 
-    if (norm / (init_norm+eps) > 1000.0 && k > 10)
+    if (norm / (init_norm+eps) > 100.0 && k > 10)
     {
       useXopt = true;
-      std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;
+      std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations."; 
       break;
     }
     if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
     {
-      std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "   opt=" << norm_opt << std::endl;
+      std::cout << "  [Poisson solver]: converged after " << k << " iterations."; 
       break;
     }
   }//k-loop
+  std::cout <<  "Error norm = " << norm_opt << std::endl;
 
   if (useXopt)
   {
