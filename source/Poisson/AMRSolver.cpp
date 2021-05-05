@@ -244,7 +244,7 @@ void AMRSolver::Jacobi(int iter_max)
 
 void AMRSolver::solve()
 {
-  Jacobi(50);
+  Jacobi(10);
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
@@ -348,11 +348,11 @@ void AMRSolver::solve()
   double rho_m1;
   double init_norm=norm;
   bool useXopt = false;
-  int iter_opt = 0;
   bool serious_breakdown = false;
+  int restarts = 0;
 
   //5. start iterations
-  for (size_t k = 0 ; k < 2000; k++)
+  for (size_t k = 0 ; k < 1000; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
@@ -380,6 +380,14 @@ void AMRSolver::solve()
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
     if (serious_breakdown)
     {
+        restarts ++;
+        if (restarts == 3)
+        {
+           std::cout << "  [Poisson solver]: early termination (max restarts reached) after " << k << " iterations."; 
+           break;
+        }
+        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
+                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -393,8 +401,6 @@ void AMRSolver::solve()
                 rho += r(ix,iy).u[0]*r(ix,iy).u[1];
             }
         }
-        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
-                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
     }
     //std::cout << k << " " << norm << std::endl;
     //3. p_{k} = r_{k-1} + beta*(p_{k-1}-omega *v_{k-1})
@@ -511,7 +517,6 @@ void AMRSolver::solve()
     {
       norm_opt = norm;
       useXopt = true;
-      iter_opt = k;
       min_norm = norm;
       #pragma omp parallel for
       for (size_t i=0; i < Nblocks; i++)
@@ -525,18 +530,20 @@ void AMRSolver::solve()
       }
     }
 
-    if (norm / (init_norm+eps) > 1000.0 && k > 10)
+    if (norm / (init_norm+eps) > 100.0 && k > 10)
     {
       useXopt = true;
-      std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;
+      std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations."; 
       break;
     }
     if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
     {
-      std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "   opt=" << norm_opt << std::endl;
+      std::cout << "  [Poisson solver]: converged after " << k << " iterations."; 
       break;
     }
   }//k-loop
+  std::cout <<  "Error norm = " << norm_opt << std::endl;
+
   if (useXopt)
   {
     #pragma omp parallel for
