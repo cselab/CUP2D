@@ -140,7 +140,7 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     }
 
     ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-    LHS(BSX,BSY).s = mean;
+    LHS(BSX-1,BSY-1).s = mean;
     Corrector.FillBlockCases();
 }
 
@@ -306,7 +306,6 @@ void AMRSolver::solve()
     VectorBlock& x45 = *(VectorBlock*)pvInfo[i].ptrBlock;
     VectorBlock& x67 = *(VectorBlock*) rInfo[i].ptrBlock;
     VectorBlock & __restrict__ r    = *(VectorBlock*)   rInfo[i].ptrBlock;
-    ScalarBlock & __restrict__ xxx  = *(ScalarBlock*)   xInfo[i].ptrBlock;
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
@@ -323,8 +322,8 @@ void AMRSolver::solve()
     }
     if (cornery && cornerx)
     {
-      r  (BSX,BSY).u[0] = 0.0; 
-      rhs(BSX,BSY).s    = 0.0;
+      r  (BSX-1,BSY-1).u[0] = 0.0; 
+      rhs(BSX-1,BSY-1).s    = 0.0;
     }
   }
 
