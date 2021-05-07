@@ -382,6 +382,8 @@ bool Simulation::advance(const double dt)
   // std::cout << "Total reward: " << r << std::endl;
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
+  
+
 
   for (size_t c=0; c<pipeline.size(); c++) {
     if(sim.verbose)
