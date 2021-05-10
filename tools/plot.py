@@ -658,6 +658,26 @@ def gridRefiment():
     plt.tight_layout()
     plt.show()
 
+import os
+
+def scaling():
+  cores = np.arange(1,13)
+  times = []
+  sequentialFraction = 0.11
+  for i in cores:
+    directory = "/cluster/scratch/webepasc/CUP2D/diskRe3000_threads{:03d}/".format(i)
+    lsfFiles = [f for f in os.listdir(directory) if f.startswith('lsf')]
+    text = open(directory+lsfFiles[0], 'r').read()
+    for line in text.split("\n"):
+      if 'Runtime' in line:
+        time = line.split(" ")[-1]
+        times.append(float(time))
+  times = np.array(times)
+  print(times)
+  plt.plot(cores, 1/(sequentialFraction+(1-sequentialFraction)/cores))
+  plt.plot(cores, times[0]/times)
+  plt.plot(cores, cores, "k--")
+  plt.savefig("scaling.png")
 
 if __name__ == '__main__':
   # plotDragTimeCylinder()
@@ -665,9 +685,11 @@ if __name__ == '__main__':
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
   
-  plotSwimmerSpeed( )
+  # plotSwimmerSpeed( )
   # plotSwimmerForces( )
   # plotSwimmerScaling()
+
+  scaling()
   
   # plotBlocksTime()
   # gridRefiment()

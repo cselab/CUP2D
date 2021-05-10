@@ -90,10 +90,11 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
           index = i;
         lab.load(xInfo[i]);
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
+        const double h2 = lhsInfo[i].h*lhsInfo[i].h;
         for(int iy=0; iy<BSY; ++iy)
         for(int ix=0; ix<BSX; ++ix)
         {
-          mean+=lab(ix,iy).s;
+          mean+=lab(ix,iy).s*h2;
           LHS(ix,iy).s = ( lab(ix-1,iy).s + 
                            lab(ix+1,iy).s + 
                            lab(ix,iy-1).s + 
