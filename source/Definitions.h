@@ -293,7 +293,7 @@ public:
   virtual bool is_xperiodic() override{ return false; }
   virtual bool is_yperiodic() override{ return false; }
   virtual bool is_zperiodic() override{ return false; }
-#if 0
+
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y, const std::vector<int> & selcomponents) override
   {
     ElementType dudx   = ((2 * x - 1)*0.25*0.5)*( (*C[2][1]) + (-1.0)*(*C[0][1]) );
@@ -303,7 +303,7 @@ public:
     ElementType dudy2  = (*C[1][0]) + (-2.0)*(*C[1][1]) + (*C[1][2]);
     R = *C[1][1] + dudx + dudy + (1.0/32.0)*(dudx2+dudy2+dudxdy);
   }
-#endif
+
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCface(bool coarse=false)
   {
@@ -414,7 +414,7 @@ public:
   virtual bool is_xperiodic() override{ return false; }
   virtual bool is_yperiodic() override{ return false; }
   virtual bool is_zperiodic() override{ return false; }
-#if 0
+
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y, const std::vector<int> & selcomponents) override
   {
     ElementType dudx   = ((2 * x - 1)*0.25*0.5)*( (*C[2][1]) + (-1.0)*(*C[0][1]) );
@@ -424,7 +424,7 @@ public:
     ElementType dudy2  = (*C[1][0]) + (-2.0)*(*C[1][1]) + (*C[1][2]);
     R = *C[1][1] + dudx + dudy + (1.0/32.0)*(dudx2+dudy2+dudxdy);
   }
-#endif
+
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCface(bool coarse=false)
   {
