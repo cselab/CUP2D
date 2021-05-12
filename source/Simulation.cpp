@@ -141,7 +141,7 @@ void Simulation::parseRuntime()
 
   // timestep / CFL number
   sim.dt = parser("-dt").asDouble(0);
-  sim.CFL = parser("-CFL").asDouble(0);
+  sim.CFL = parser("-CFL").asDouble(0.2);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
