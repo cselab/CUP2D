@@ -139,8 +139,9 @@ void Simulation::parseRuntime()
   // simulation extent
   sim.extent = parser("-extent").asDouble(1);
 
-  // CFL number
-  sim.CFL = parser("-CFL").asDouble(0.1);
+  // timestep / CFL number
+  sim.dt = parser("-dt").asDouble(0);
+  sim.CFL = parser("-CFL").asDouble(0);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
@@ -303,26 +304,34 @@ void Simulation::simulate()
 
 double Simulation::calcMaxTimestep()
 {
-  const auto findMaxU_op = findMaxU(sim);
-  sim.uMax_measured = findMaxU_op.run();
-  assert(sim.uMax_measured>=0);
-
-  const double h = sim.getH();
-  const double dtFourier = h*h/sim.nu;
-  const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
-  const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
-
-  // ramp up CFL
-  const int rampup = 100;
-  if (sim.step < rampup)
+  if( sim.CFL )
   {
-    const double x = (sim.step+1.0)/rampup;
-    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
-    sim.dt = rampCFL * std::min({dtCFL, dtFourier, dtBody});
+    const auto findMaxU_op = findMaxU(sim);
+    sim.uMax_measured = findMaxU_op.run();
+    assert(sim.uMax_measured>=0);
+
+    const double h = sim.getH();
+    const double dtFourier = h*h/sim.nu;
+    const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
+    const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
+
+    // ramp up CFL
+    const int rampup = 100;
+    if (sim.step < rampup)
+    {
+      const double x = (sim.step+1.0)/rampup;
+      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
+      sim.dt = rampCFL * std::min({dtCFL, dtFourier, dtBody});
+    }
+    else
+    {
+      sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
+    }
   }
-  else
-  {
-    sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
+  else if( not sim.dt ){
+    std::cout << "[CUP2D] Neither CFL, nor dt set. Aborting..." << std::endl;
+    fflush(0); 
+    abort();
   }
 
   std::cout
