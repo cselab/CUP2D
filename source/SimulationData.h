@@ -44,7 +44,8 @@ struct SimulationData
   // simulation extents
   std::array<Real,2> extents;
 
-  // cfl condition
+  // timestep / cfl condition
+  double dt;
   double CFL;
 
   // simulation ending parameters
@@ -95,9 +96,6 @@ struct SimulationData
 
   // simulation time
   double time = 0;
-
-  // timestep
-  double dt = 0;
 
   // simulation step
   int step = 0;
