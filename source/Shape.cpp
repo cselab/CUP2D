@@ -305,13 +305,11 @@ void Shape::computeForces()
   {
     std::stringstream ssF, ssP;
     ssF<<sim.path2file<<"/forceValues_"<<obstacleID<<".dat";
-    ssP<<sim.path2file<<"/powerValues_"<<obstacleID<<".dat"; //obstacleID
+    ssP<<sim.path2file<<"/powerValues_"<<obstacleID<<".dat";
 
     std::stringstream &fileForce = logger.get_stream(ssF.str());
     if(sim.step==0)
-      fileForce<<"time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc"
-                 " drag thrust lift perimeter circulation area_penal mass_penal"
-                 " forcex_penal forcey_penal torque_penal\n";
+      fileForce<<"time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc drag thrust lift perimeter circulation\n";
 
     fileForce<<sim.time<<" "<<forcex<<" "<<forcey<<" "<<forcex_P<<" "<<forcey_P
              <<" "<<forcex_V <<" "<<forcey_V<<" "<<torque <<" "<<torque_P<<" "
@@ -320,10 +318,8 @@ void Shape::computeForces()
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(sim.step==0)
-      filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower"
-                 " EffPDefBnd EffPDef\n";
-    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
-             <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
+      filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower EffPDefBnd EffPDef\n";
+    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
   }
 }
 
