@@ -93,7 +93,8 @@ void Shape::updatePosition(double dt)
   const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
 
-  if(sim.dt <= 0) return;
+  // do not print/write for initial PutObjectOnGrid
+  if( dt <= 0 ) return;
 
   printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
       " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
