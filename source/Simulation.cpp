@@ -139,8 +139,9 @@ void Simulation::parseRuntime()
   // simulation extent
   sim.extent = parser("-extent").asDouble(1);
 
-  // CFL number
-  sim.CFL = parser("-CFL").asDouble(0.1);
+  // timestep / CFL number
+  sim.dt = parser("-dt").asDouble(0);
+  sim.CFL = parser("-CFL").asDouble(0.2);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
@@ -303,32 +304,39 @@ void Simulation::simulate()
 
 double Simulation::calcMaxTimestep()
 {
+  double CFL = sim.CFL;
+  const double h = sim.getH();
   const auto findMaxU_op = findMaxU(sim);
   sim.uMax_measured = findMaxU_op.run();
-  assert(sim.uMax_measured>=0);
 
-  const double h = sim.getH();
-  const double dtFourier = h*h/sim.nu;
-  const double dtCFL = sim.uMax_measured<2.2e-16? 1 : h/sim.uMax_measured;
-  const double maxUb = sim.maxRelSpeed(), dtBody = maxUb<2.2e-16? 1 : h/maxUb;
-
-  // ramp up CFL
-  const int rampup = 100;
-  if (sim.step < rampup)
+  if( CFL > 0 )
   {
-    const double x = (sim.step+1.0)/rampup;
-    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
-    sim.dt = rampCFL * std::min({dtCFL, dtFourier, dtBody});
+    const double dtDiffusion = 0.25*h*h/sim.nu;
+    const double dtAdvection = h / ( sim.uMax_measured + 1e-8 );
+    // ramp up CFL
+    const int rampup = 100;
+    if (sim.step < rampup)
+    {
+      const double x = (sim.step+1.0)/rampup;
+      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
+      sim.dt = std::min({dtDiffusion, rampCFL * dtAdvection});
+    }
+    else
+      sim.dt = std::min({dtDiffusion, sim.CFL * dtAdvection});
   }
   else
-  {
-    sim.dt = sim.CFL * std::min({dtCFL, dtFourier, dtBody});
+    CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / h;
+
+  if( sim.dt <= 0 ){
+    std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
+    fflush(0);
+    abort();
   }
 
   std::cout
   <<"=======================================================================\n";
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f\n",
-      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured); 
+    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
+      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
 
   if(sim.dlm > 0) sim.lambda = sim.dlm / sim.dt;
   return sim.dt;
