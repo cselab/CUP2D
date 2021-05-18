@@ -546,12 +546,12 @@ void AMRSolver::solve()
       }
     }
 
-    if (norm / (init_norm+eps) > 10000.0 && k > 10)
-    {
-      useXopt = true;
-      std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations."; 
-      break;
-    }
+    //if (norm / (init_norm+eps) > 10000.0 && k > 10)
+    //{
+    //  useXopt = true;
+    //  std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations.";
+    //  break;
+    //}
     if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
     {
       std::cout << "  [Poisson solver]: converged after " << k << " iterations."; 
