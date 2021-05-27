@@ -115,6 +115,7 @@ struct SimulationData
 
   // bools specifying whether we dump or not
   bool _bDump = false;
+  bool DumpUniform = false;
 
   void allocateGrid();
   void resetAll();

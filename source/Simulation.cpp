@@ -171,6 +171,7 @@ void Simulation::parseRuntime()
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
   sim.verbose = parser("-verbose").asInt(1);
   sim.muteAll = parser("-muteAll").asInt(0);
+  sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if(sim.muteAll) sim.verbose = 0;
 }
 
