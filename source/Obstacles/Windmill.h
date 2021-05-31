@@ -9,6 +9,7 @@ class Windmill : public Shape
   const Real sminax = std::min(semiAxis[0], semiAxis[1]);
   const Real windscale = std::sqrt(forcedu*forcedu+forcedv*forcedv);
   const Real lengthscale = getCharLength();
+  std::array<Real, 2> target = {0, 0};
 
  public:
 
@@ -26,9 +27,13 @@ class Windmill : public Shape
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
   void updatePosition(double dt) override;
+
+  void setTarget(std::array<Real, 2> target_pos);
+  void printVelAtTarget();
+  void printRewards(double r_energy, double r_flow);
   
   void act( double action );
-  double reward( std::array<Real,2> target, std::vector<double> target_vel, double C = 10);
+  double reward(std::vector<double> target_vel, double C, double D);
   std::vector<double> state();
 
   // Helpers for reward function
