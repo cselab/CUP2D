@@ -9,7 +9,7 @@ class Windmill : public Shape
   const Real sminax = std::min(semiAxis[0], semiAxis[1]);
   const Real windscale = std::sqrt(forcedu*forcedu+forcedv*forcedv);
   const Real lengthscale = getCharLength();
-  std::array<Real, 2> target = {0, 0};
+  std::array<Real, 2> target = {0.7, 0.7};
 
  public:
 

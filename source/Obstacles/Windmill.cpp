@@ -1,6 +1,7 @@
 #include "Windmill.h"
 #include "ShapeLibrary.h"
 #include "../Utils/BufferedLogger.h"
+#include <cmath>
 
 using namespace cubism;
 
@@ -110,17 +111,14 @@ void Windmill::printVelAtTarget()
 
 void Windmill::printRewards(double r_energy, double r_flow)
 {
-  if(not sim.muteAll)
-  {
-    std::stringstream ssF;
-    ssF<<sim.path2file<<"/rewards_"<<obstacleID<<".dat";
-    std::stringstream & fout = logger.get_stream(ssF.str());
+  std::stringstream ssF;
+  ssF<<sim.path2file<<"/rewards_"<<obstacleID<<".dat";
+  std::stringstream & fout = logger.get_stream(ssF.str());
 
-    if(sim.step==0)
-     fout<<"t r_energy r_flow\n";
+  if(sim.step==0)
+    fout<<"t r_energy r_flow\n";
 
-    fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<"\n";
-  }
+  fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<"\n";
 }
 
 void Windmill::act( double action )
@@ -135,7 +133,7 @@ void Windmill::act( double action )
 double Windmill::reward(std::vector<double> target_vel, double C, double D)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  double r_energy = -C * abs(appliedTorque*omega)*sim.dt;
+  double r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
   // need characteristic energy
   //r_energy /= (lengthscale*windscale);
 
@@ -192,7 +190,7 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens, const std::vect
   const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
 
   // get inverse gridspacing in block
-  const Real invh = 1/velInfo[blockId].h_gridpoint;
+  const Real invh = 1/(sensBinfo.h_gridpoint);
 
   // get index for sensor
   const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
@@ -201,17 +199,19 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens, const std::vect
   static constexpr int stenBeg[3] = {-5,-5, 0}, stenEnd[3] = { 6, 6, 1};
 
   VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
-  vellab.load(velInfo[blockId], 0); VectorLab & __restrict__ V = vellab;
+  vellab.load(sensBinfo, 0); VectorLab & __restrict__ V = vellab;
 
   double avgX=0.0;
   double avgY=0.0;
 
   // average velocity in a cube of 11 points per direction around the point of interest (5 on each side)
   for (ssize_t i = -5; i < 6; ++i)
-  for (ssize_t j = -5; j < 6; ++j)
   {
-    avgX += V(iSens[0] + i, iSens[1] + j).u[0];
-    avgY += V(iSens[0] + i, iSens[1] + j).u[1];
+    for (ssize_t j = -5; j < 6; ++j)
+    {
+      avgX += V(iSens[0] + i, iSens[1] + j).u[0];
+      avgY += V(iSens[0] + i, iSens[1] + j).u[1];
+    }
   }
 
   avgX/=121.0;
