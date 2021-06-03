@@ -6,10 +6,10 @@
 //
 
 #include "advDiff.h"
+#include "PressureSingle.h"
 
 using namespace cubism;
 
-#if 1 // 3rd-order upwind
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
   const Real u    = V(ix,iy).u[0];
@@ -54,64 +54,14 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
 }
 
-#else //QUICK scheme
-
-static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
-{
-  // get grid values
-  const Real uppx = V(ix+2, iy).u[0], uppy = V(ix, iy+2).u[0];
-  const Real upx  = V(ix+1, iy).u[0], upy  = V(ix, iy+1).u[0];
-  const Real ucc  = V(ix  , iy).u[0], vcc  = V(ix, iy  ).u[1];
-  const Real ulx  = V(ix-1, iy).u[0], uly  = V(ix, iy-1).u[0];
-  const Real ullx = V(ix-2, iy).u[0], ully = V(ix, iy-2).u[0];
-
-  // advection
-  const Real u = ucc+uinf[0];
-  const Real dudx  = u > 0 ?           3*upx + 3*ucc - 7*ulx + ullx
-                             : -uppx + 7*upx - 3*ucc - 3*ulx        ;
-  const Real v = vcc+uinf[1];
-  const Real dudy  = v > 0 ?           3*upy + 3*ucc - 7*uly + ully
-                             : -uppy + 7*upy - 3*ucc - 3*uly        ;
-  const Real dUadv = u * 0.125 * dudx + v * 0.125 * dudy;
-
-  // diffusion
-  const Real dUdif = upx + upy + ulx + uly - 4 *ucc;
-
-  return advF * dUadv + difF * dUdif;
-}
-
-static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
-{
-  const Real vppx = V(ix+2, iy).u[1], vppy = V(ix, iy+2).u[1];
-  const Real vpx  = V(ix+1, iy).u[1], vpy  = V(ix, iy+1).u[1];
-  const Real ucc  = V(ix  , iy).u[0], vcc  = V(ix, iy  ).u[1];
-  const Real vlx  = V(ix-1, iy).u[1], vly  = V(ix, iy-1).u[1];
-  const Real vllx = V(ix-2, iy).u[1], vlly = V(ix, iy-2).u[1];
-
-  // advection
-  const Real u = ucc+uinf[0];
-  const Real dvdx  = u > 0 ?           3*vpx + 3*vcc - 7*vlx + vllx
-                             : -vppx + 7*vpx - 3*vcc - 3*vlx        ;
-  const Real v = vcc+uinf[1];
-  const Real dvdy  = v > 0 ?           3*vpy + 3*vcc - 7*vly + vlly
-                             : -vppy + 7*vpy - 3*vcc - 3*vly        ;
-  const Real dVadv = u * 0.125 * dvdx + v * 0.125 * dvdy;
-
-  // diffusion
-  const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-
-  return advF * dVadv + difF * dVdif;
-}
-#endif
-
 void advDiff::operator()(const double dt)
 {
   sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
 
+  FluxCorrection<VectorGrid,VectorBlock> Corrector;
+  Corrector.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
@@ -121,19 +71,69 @@ void advDiff::operator()(const double dt)
     for (size_t i=0; i < Nblocks; i++)
     {
       const Real h = velInfo[i].h;
-      const Real dfac = (sim.nu/h)*(dt/h);
-      const Real afac = -dt/h/6.0;
+      const Real dfac = sim.nu*dt;
+      const Real afac = -dt*h/6.0;
       vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        TMP(ix,iy).u[0] = V(ix,iy).u[0] + dU_adv_dif(V,UINF,afac,dfac,ix,iy);
-        TMP(ix,iy).u[1] = V(ix,iy).u[1] + dV_adv_dif(V,UINF,afac,dfac,ix,iy);
+        TMP(ix,iy).u[0] = dU_adv_dif(V,UINF,afac,dfac,ix,iy);
+        TMP(ix,iy).u[1] = dV_adv_dif(V,UINF,afac,dfac,ix,iy);
+      }
+
+      BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[i].auxiliary);
+      VectorBlock::ElementType * faceXm = nullptr;
+      VectorBlock::ElementType * faceXp = nullptr;
+      VectorBlock::ElementType * faceYm = nullptr;
+      VectorBlock::ElementType * faceYp = nullptr;
+      if (tempCase != nullptr)
+      {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+      }
+      if (faceXm != nullptr)
+      {
+        int ix = 0;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        {
+          faceXm[iy].u[0] = dfac*(V(ix,iy).u[0] - V(ix-1,iy).u[0]);
+          faceXm[iy].u[1] = dfac*(V(ix,iy).u[1] - V(ix-1,iy).u[1]);
+        }
+      }
+      if (faceXp != nullptr)
+      {
+        int ix = VectorBlock::sizeX-1;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        {
+          faceXp[iy].u[0] = dfac*(V(ix,iy).u[0] - V(ix+1,iy).u[0]);
+          faceXp[iy].u[1] = dfac*(V(ix,iy).u[1] - V(ix+1,iy).u[1]);
+        }
+      }
+      if (faceYm != nullptr)
+      {
+        int iy = 0;
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+          faceYm[ix].u[0] = dfac*(V(ix,iy).u[0] - V(ix,iy-1).u[0]);
+          faceYm[ix].u[1] = dfac*(V(ix,iy).u[1] - V(ix,iy-1).u[1]);
+        }
+      }
+      if (faceYp != nullptr)
+      {
+        int iy = VectorBlock::sizeY-1;
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+          faceYp[ix].u[0] = dfac*(V(ix,iy).u[0] - V(ix,iy+1).u[0]);
+          faceYp[ix].u[1] = dfac*(V(ix,iy).u[1] - V(ix,iy+1).u[1]);
+        }
       }
     }
   }
+  Corrector.FillBlockCases();
 
   // Copy TMP to V and store inflow correction
   Real IF = 0.0;
@@ -142,7 +142,13 @@ void advDiff::operator()(const double dt)
   {
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-    V.copy(T);
+    const double ih2 = 1.0/velInfo[i].h/velInfo[i].h;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      V(ix,iy).u[0] += T(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] += T(ix,iy).u[1]*ih2;
+    }
     const int aux = 1<<velInfo[i].level;
     const bool isW = velInfo[i].index[0] == 0;
     const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
