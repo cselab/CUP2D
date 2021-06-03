@@ -115,7 +115,7 @@ void advDiff::operator()(const double dt)
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
-    VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
+    VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 0);
 
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
