@@ -82,8 +82,6 @@ std::vector<double> SmartCylinder::state( std::vector<double> target )
   state[0] = target[0]-centerOfMass[0];
   // relative y position
   state[1] = target[1]-centerOfMass[1];
-  // update dist
-  dist = std::sqrt( state[0]*state[0] + state[1]*state[1] );
   // current x-velocity
   state[2] = u;
   // current y-velocity
