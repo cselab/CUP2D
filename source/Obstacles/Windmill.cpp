@@ -81,7 +81,10 @@ void Windmill::updateVelocity(double dt)
 void Windmill::updatePosition(double dt)
 {
   Shape::updatePosition(dt);
-  printVelAtTarget();
+
+  // compute the energies as well
+  Real r_energy = -std::abs(appliedTorque*omega)*sim.dt;
+  energy += r_energy;
 }
 
 void Windmill::setTarget(std::array<Real, 2> target_pos)
@@ -97,29 +100,51 @@ void Windmill::printVelAtTarget()
     ssF<<sim.path2file<<"/targetvelocity_"<<obstacleID<<".dat";
     std::stringstream & fout = logger.get_stream(ssF.str());
 
-    const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
     // compute average
-    std::vector<double>  avg = average(target, velInfo);
+    std::vector<double>  avg = average(target);
     double norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
 
-    if(sim.step==0)
-     fout<<"t target_vel\n";
-
-    fout<<sim.time<<" "<<norm<<"\n";
+    fout<<sim.time<<" "<<norm<<std::endl;
+    fout.flush();
   }
 }
 
-void Windmill::printRewards(double r_energy, double r_flow)
+void Windmill::printRewards(Real r_energy, Real r_flow)
 {
   std::stringstream ssF;
   ssF<<sim.path2file<<"/rewards_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  if(sim.step==0)
-    fout<<"t r_energy r_flow\n";
-
-  fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<"\n";
+  fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<std::endl;
+  fout.flush();
 }
+
+void Windmill::printNanRewards(bool is_energy, Real r)
+{
+  std::ofstream fout("nan.txt");
+
+  if (is_energy)
+  {
+    fout<<"Energy produces "<<r<<std::endl;
+  } else
+  {
+    fout<<"Flow produces "<<r<<std::endl;
+  }
+  fout.close();
+}
+
+void Windmill::printValues()
+{
+  std::stringstream ssF;
+  ssF<<sim.path2file<<"/values_"<<obstacleID<<".dat";
+  std::stringstream & fout = logger.get_stream(ssF.str());
+
+  fout<<sim.time<<" "<<appliedTorque<<" "<<orientation<<" "<<omega<<std::endl;
+  fout.flush();
+}
+
+
+
 
 void Windmill::act( double action )
 {
@@ -128,29 +153,52 @@ void Windmill::act( double action )
   //appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
 
   appliedTorque = action;
+  printValues();
 }
 
-double Windmill::reward(std::vector<double> target_vel, double C, double D)
+double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  double r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
+  // double r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
+  // double r_energy = -C * appliedTorque*appliedTorque*omega*omega*sim.dt;
   // need characteristic energy
   //r_energy /= (lengthscale*windscale);
+  Real r_energy = C*energy;
+  
+  if (std::isfinite(r_energy) == false)
+  {
+    printNanRewards(true, r_energy);
+  }
+  // reset for next time steps
+  energy = 0;
+
 
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
-  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   // compute average
-  std::vector<double>  avg = average(target, velInfo);
+  
+  std::vector<Real> avg = average(target);
   // compute norm of difference beween target and average velocity
-  printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
+  //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
+  std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
 
-  double r_flow = - D * std::sqrt((target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]));
+  Real r_flow = - D * std::sqrt( diff[0]*diff[0] + diff[1]*diff[1] );
+
+  if (std::isfinite(r_flow) == false)
+  {
+    printNanRewards(false, r_flow);
+  }
+
+  //double r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
   //need characteristic speed
   //r_flow /= windscale;
 
-  //printf("Energy_reward: %g \n Flow_reward: %g \n", C*r_energy, r_flow);
+  // double r_flow = 0;
+
+  printf("Energy_reward: %f \n Flow_reward: %f \n", r_energy, r_flow);
 
   printRewards(r_energy, r_flow);
+  printVelAtTarget();
 
   return r_energy + r_flow;
   // return r_flow;
@@ -178,8 +226,10 @@ std::vector<double>  Windmill::state()
 /* helpers to compute reward */
 
 // average function
-std::vector<double> Windmill::average(std::array<Real, 2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const
+std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 {
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   // get blockId
   const size_t blockId = holdingBlockID(pSens, velInfo);
 

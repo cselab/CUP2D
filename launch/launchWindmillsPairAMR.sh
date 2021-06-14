@@ -5,7 +5,7 @@ LEVELS=${LEVELS:-4}
 RTOL=${RTOL-0.1}
 CTOL=${CTOL-0.01}
 EXTENT=${EXTENT:-1.4}
-CFL=${CFL:-0.2}
+CFL=${CFL:-0.22}
 
 # Defaults for Objects
 XPOS=${XPOS:-0.2}
