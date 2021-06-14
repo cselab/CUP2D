@@ -140,9 +140,9 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
       }
     }
 
+    Corrector.FillBlockCases();
     ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
     LHS(BSX-1,BSY-1).s = mean;
-    Corrector.FillBlockCases();
 }
 
 double AMRSolver::getA_local(int I1,int I2)

@@ -206,8 +206,10 @@ void PressureSingle::updatePressureRHS(const double dt) const
 
 void PressureSingle::pressureCorrection(const double dt) const
 {
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-
+  FluxCorrection<VectorGrid,VectorBlock> Corrector;
+  Corrector.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
@@ -216,20 +218,81 @@ void PressureSingle::pressureCorrection(const double dt) const
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
     {
-      const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt/h;
-
+      const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt*h;
+      //const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt/h;
       plab.load(presInfo[i], 0); // loads pres field with ghosts
       const ScalarLab  &__restrict__   P = plab; // only this needs ghosts
-            VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
+      VectorBlock&__restrict__   tmpV = *(VectorBlock*)  tmpVInfo[i].ptrBlock;
 
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        // update vel field after most recent force and pressure response:
-        V(ix,iy).u[0] = V(ix,iy).u[0] + pFac *(P(ix+1,iy).s-P(ix-1,iy).s);
-        V(ix,iy).u[1] = V(ix,iy).u[1] + pFac *(P(ix,iy+1).s-P(ix,iy-1).s);
+        tmpV(ix,iy).u[0] = pFac *(P(ix+1,iy).s-P(ix-1,iy).s);
+        tmpV(ix,iy).u[1] = pFac *(P(ix,iy+1).s-P(ix,iy-1).s);
+      }
+      BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[i].auxiliary);
+      VectorBlock::ElementType * faceXm = nullptr;
+      VectorBlock::ElementType * faceXp = nullptr;
+      VectorBlock::ElementType * faceYm = nullptr;
+      VectorBlock::ElementType * faceYp = nullptr;
+      if (tempCase != nullptr)
+      {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+      }
+      if (faceXm != nullptr)
+      {
+        int ix = 0;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        {
+          faceXm[iy].clear();
+          faceXm[iy].u[0] = pFac*(P(ix-1,iy).s+P(ix,iy).s);
+        }
+      }
+      if (faceXp != nullptr)
+      {
+        int ix = VectorBlock::sizeX-1;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        {
+          faceXp[iy].clear();
+          faceXp[iy].u[0] = -pFac*(P(ix+1,iy).s+P(ix,iy).s);
+        }
+      }
+      if (faceYm != nullptr)
+      {
+        int iy = 0;
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+          faceYm[ix].clear();
+          faceYm[ix].u[1] = pFac*(P(ix,iy-1).s+P(ix,iy).s);
+        }
+      }
+      if (faceYp != nullptr)
+      {
+        int iy = VectorBlock::sizeY-1;
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+          faceYp[ix].clear();
+          faceYp[ix].u[1] = -pFac*(P(ix,iy+1).s+P(ix,iy).s);
+        }
       }
     }
+  }
+  Corrector.FillBlockCases();
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+      const Real ih2 = 1.0/presInfo[i].h_gridpoint/presInfo[i].h_gridpoint;
+      VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
+      VectorBlock&__restrict__   tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        V(ix,iy).u[0] += tmpV(ix,iy).u[0]*ih2;
+        V(ix,iy).u[1] += tmpV(ix,iy).u[1]*ih2;
+      }
   }
 }
 

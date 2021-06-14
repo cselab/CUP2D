@@ -171,6 +171,7 @@ void Simulation::parseRuntime()
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
   sim.verbose = parser("-verbose").asInt(1);
   sim.muteAll = parser("-muteAll").asInt(0);
+  sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if(sim.muteAll) sim.verbose = 0;
 }
 
@@ -311,7 +312,7 @@ double Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const double dtDiffusion = 0.25*h*h/sim.nu;
+    const double dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
     const double dtAdvection = h / ( sim.uMax_measured + 1e-8 );
     // ramp up CFL
     const int rampup = 100;

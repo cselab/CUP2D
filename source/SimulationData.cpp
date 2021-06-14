@@ -53,42 +53,50 @@ void SimulationData::allocateGrid()
 
 void SimulationData::dumpGlue(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerGlue, float, DumpGrid>(*(dump), time,
-    "velChi_" + ss.str(), path4serialization);
+  DumpHDF5<StreamerGlue, float, DumpGrid>(*(dump), time,"velChi_" + ss.str(), path4serialization);
+  if (DumpUniform) 
+    DumpHDF5_uniform<StreamerGlue, float, DumpGrid>(*(dump), time,"velChi_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(chi), time,
-    "chi_" + ss.str(), path4serialization);
+  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
+ if (DumpUniform) 
+    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpPres(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(pres), time,
-    "pres_" + ss.str(), path4serialization);
+  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(pres), time,"pres_" + ss.str(), path4serialization);
+  if (DumpUniform) 
+    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(pres), time,"pres_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmp(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,
-    "tmp_" + ss.str(), path4serialization);
+  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
+  if (DumpUniform)
+    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmp2(std::string name) {
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,
-    "tmp_" + name, path4serialization);
+  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + name, path4serialization);
+  if (DumpUniform)
+    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + name, path4serialization);
 }
 void SimulationData::dumpVel(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(vel), time,
-    "vel_" + ss.str(), path4serialization);
+  DumpHDF5<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  if (DumpUniform)
+    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpUobj(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(uDef), time,
-    "uobj_" + ss.str(), path4serialization);
+  DumpHDF5<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
+  if (DumpUniform)
+    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,
-    "tmpV_" + ss.str(), path4serialization);
+  DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  if (DumpUniform)
+    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 
 void SimulationData::registerDump()

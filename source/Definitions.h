@@ -294,16 +294,6 @@ public:
   virtual bool is_yperiodic() override{ return false; }
   virtual bool is_zperiodic() override{ return false; }
 
-  virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y, const std::vector<int> & selcomponents) override
-  {
-    ElementType dudx   = ((2 * x - 1)*0.25*0.5)*( (*C[2][1]) + (-1.0)*(*C[0][1]) );
-    ElementType dudy   = ((2 * y - 1)*0.25*0.5)*( (*C[1][2]) + (-1.0)*(*C[1][0]) );
-    ElementType dudxdy = (2 * x - 1)*(2 * y - 1)*0.5*((*C[0][0]) + (*C[2][2]) - (*C[2][0]) - (*C[0][2]));
-    ElementType dudx2  = (*C[0][1]) + (-2.0)*(*C[1][1]) + (*C[2][1]);
-    ElementType dudy2  = (*C[1][0]) + (-2.0)*(*C[1][1]) + (*C[1][2]);
-    R = *C[1][1] + dudx + dudy + (1.0/32.0)*(dudx2+dudy2+dudxdy);
-  }
-
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCface(bool coarse=false)
   {
@@ -323,13 +313,10 @@ public:
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = 
-      (2.0/1.5)*cb->Access(
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
+            cb->Access(
             ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 )
-     -(0.5/1.5)*cb->Access(
-            ( dir==0? (side==0? 1: sizeX-2):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 1: sizeY-2):iy ) - stenBeg[1], 0 );
+            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
     }
     else
     {
@@ -358,12 +345,9 @@ public:
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
         cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
-      (2.0/1.5)*cb->Access(
+            cb->Access(
             ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 )
-     -(0.5/1.5)*cb->Access(
-            ( dir==0? (side==0? 1: sizeX/2-2):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 1: sizeY/2-2):iy ) - stenBeg[1], 0 );
+            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 );
     }
   }
 
@@ -415,16 +399,6 @@ public:
   virtual bool is_yperiodic() override{ return false; }
   virtual bool is_zperiodic() override{ return false; }
 
-  virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y, const std::vector<int> & selcomponents) override
-  {
-    ElementType dudx   = ((2 * x - 1)*0.25*0.5)*( (*C[2][1]) + (-1.0)*(*C[0][1]) );
-    ElementType dudy   = ((2 * y - 1)*0.25*0.5)*( (*C[1][2]) + (-1.0)*(*C[1][0]) );
-    ElementType dudxdy = (2 * x - 1)*(2 * y - 1)*0.5*((*C[0][0]) + (*C[2][2]) - (*C[2][0]) - (*C[0][2]));
-    ElementType dudx2  = (*C[0][1]) + (-2.0)*(*C[1][1]) + (*C[2][1]);
-    ElementType dudy2  = (*C[1][0]) + (-2.0)*(*C[1][1]) + (*C[1][2]);
-    R = *C[1][1] + dudx + dudy + (1.0/32.0)*(dudx2+dudy2+dudxdy);
-  }
-
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCface(bool coarse=false)
   {
@@ -444,7 +418,10 @@ public:
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
+      (-1.0)*cb->Access(
+            ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
+            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
     }
     else
     {
@@ -472,7 +449,10 @@ public:
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).clear();
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
+      (-1.0)*cb->Access(
+            ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0],
+            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 );
     }
   }
 
@@ -589,7 +569,7 @@ using DumpGrid = cubism::Grid<VelChiGlueBlock, std::allocator>;
 //using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
 using VectorLab = BlockLabDirichlet<VectorBlock, std::allocator>;
 using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
+//using ScalarLab = BlockLabDirichlet<ScalarBlock, std::allocator>;
 
 using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab,ScalarGrid>;
-
