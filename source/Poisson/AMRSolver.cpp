@@ -74,27 +74,28 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     const std::vector<cubism::BlockInfo>& lhsInfo = lhs->getBlocksInfo();
     const std::vector<cubism::BlockInfo>& xInfo = x->getBlocksInfo();
 
-    double mean = 0;
-    int index = 0;
+    //double mean = 0;
+    //int index = 0;
     #pragma omp parallel
     {
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
       ScalarLab lab; 
       lab.prepare(*x, stenBeg, stenEnd, 1);
-      #pragma omp for reduction(+:mean)
+      #pragma omp for// reduction(+:mean)
       for (size_t i=0; i < xInfo.size(); i++)
       {
-        const bool cornerx =( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) ); 
-        const bool cornery =( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) ); 
-        if (cornerx && cornery)
-          index = i;
+        //const bool cornerx =( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) );
+        //const bool cornery =( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) );
+        //if (cornerx && cornery)
+        //  index = i;
+        if (xInfo[i].index[0]==0 && xInfo[i].index[1]==0) lab(-1,BSY/2).s = 0.0; //set p=0 for one grid point to make the system invertible
         lab.load(xInfo[i]);
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
-        const double h2 = lhsInfo[i].h*lhsInfo[i].h;
+        //const double h2 = lhsInfo[i].h*lhsInfo[i].h;
         for(int iy=0; iy<BSY; ++iy)
         for(int ix=0; ix<BSX; ++ix)
         {
-          mean+=lab(ix,iy).s*h2;
+          //mean+=lab(ix,iy).s*h2;
           LHS(ix,iy).s = ( lab(ix-1,iy).s + 
                            lab(ix+1,iy).s + 
                            lab(ix,iy-1).s + 
@@ -141,8 +142,8 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     }
 
     Corrector.FillBlockCases();
-    ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-    LHS(BSX-1,BSY-1).s = mean;
+    //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
+    //LHS(BSX-1,BSY-1).s = mean;
 }
 
 double AMRSolver::getA_local(int I1,int I2)
@@ -298,8 +299,8 @@ void AMRSolver::solve()
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {
-    const bool cornerx = ( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) ); 
-    const bool cornery = ( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) ); 
+    //const bool cornerx = ( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) );
+    //const bool cornery = ( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) );
     ScalarBlock& x0  = *(ScalarBlock*) xInfo[i].ptrBlock;
     ScalarBlock& x1  = *(ScalarBlock*) sInfo[i].ptrBlock;
     ScalarBlock& x2  = *(ScalarBlock*) zInfo[i].ptrBlock;
@@ -321,11 +322,11 @@ void AMRSolver::solve()
       SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 7 ] = x67(ix,iy).u[1];
       r(ix,iy).u[0] = rhs(ix,iy).s;
     }
-    if (cornery && cornerx)
-    {
-      r  (BSX-1,BSY-1).u[0] = 0.0; 
-      rhs(BSX-1,BSY-1).s    = 0.0;
-    }
+    //if (cornery && cornerx)
+    //{
+    //  r  (BSX-1,BSY-1).u[0] = 0.0;
+    //  rhs(BSX-1,BSY-1).s    = 0.0;
+    //}
   }
 
   //Warning: AxInfo (sim.tmp) initially contains the RHS of the system!
