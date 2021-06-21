@@ -61,9 +61,6 @@ struct SimulationData
   // kinematic viscosity
   double nu;
   
-  // char length for far-field BC
-  Real fadeLenX, fadeLenY;
-
   // poisson solver parameters
   double PoissonTol;    // absolute error tolerance
   double PoissonTolRel; // relative error tolerance

@@ -156,10 +156,6 @@ void Simulation::parseRuntime()
   // kinematic viscocity
   sim.nu = parser("-nu").asDouble(1e-2);
 
-  // parameter for free-space BC
-  sim.fadeLenX = parser("-fadeLen").asDouble(0.01) * sim.extent;
-  sim.fadeLenY = parser("-fadeLen").asDouble(0.01) * sim.extent;
-
   // poisson solver parameters
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
