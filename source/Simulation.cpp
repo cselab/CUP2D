@@ -330,17 +330,17 @@ double Simulation::calcMaxTimestep()
     abort();
   }
 
-  std::cout
-  <<"=======================================================================\n";
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, sim.time, sim.dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
-
   if(sim.dlm > 0) sim.lambda = sim.dlm / sim.dt;
   return sim.dt;
 }
 
 bool Simulation::advance(const double dt)
 {
+  std::cout
+  <<"=======================================================================\n";
+    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
+      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, sim.CFL); 
+
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
     if(sim.verbose)
@@ -387,17 +387,14 @@ bool Simulation::advance(const double dt)
   // std::cout << "Total reward: " << r << std::endl;
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
-  
-
-
   for (size_t c=0; c<pipeline.size(); c++) {
     if(sim.verbose)
       std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
-    (*pipeline[c])(sim.dt);
+    (*pipeline[c])(dt);
     //sim.dumpAll( pipeline[c]->getName() );
   }
 
-  sim.time += sim.dt;
+  sim.time += dt;
   sim.step++;
 
   // dump field
