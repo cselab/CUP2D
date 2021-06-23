@@ -80,7 +80,7 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     {
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
       ScalarLab lab; 
-      lab.prepare(*x, stenBeg, stenEnd, 1);
+      lab.prepare(*x, stenBeg, stenEnd, 0);
       #pragma omp for// reduction(+:mean)
       for (size_t i=0; i < xInfo.size(); i++)
       {
@@ -232,7 +232,7 @@ void AMRSolver::Jacobi(int iter_max)
       //double norm = 0.0;
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
       ScalarLab lab;
-      lab.prepare(*sim.pres, stenBeg, stenEnd, 1);
+      lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
       #pragma omp for //reduction (+:norm)
       for (size_t i=0; i < xInfo.size(); i++)
       {
