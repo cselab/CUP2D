@@ -47,6 +47,11 @@ CPPFLAGS += -D_FLOAT_PRECISION_
 NVFLAGS += -D_FLOAT_PRECISION_
 endif
 
+usemap ?= false
+ifeq "$(usemap)" "true"
+CPPFLAGS += -DCUBISM_USE_MAP
+endif
+
 # SET FLAGS FOR GSL
 ifneq ($(GSL_ROOT),)
 CPPFLAGS += -I$(GSL_ROOT)/include
