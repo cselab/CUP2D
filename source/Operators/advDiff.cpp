@@ -11,78 +11,49 @@
 
 using namespace cubism;
 
-#if 0 // use centered advection
-static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
+static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
-  const Real upx = V(ix+1, iy).u[0], upy = V(ix, iy+1).u[0];
-  const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
-  const Real ulx = V(ix-1, iy).u[0], uly = V(ix, iy-1).u[0];
-  const Real dUadv = (ucc+uinf[0]) * (upx-ulx) + (vcc+uinf[1]) * (upy-uly);
-  const Real dUdif = upx + upy + ulx + uly - 4 *ucc;
-  return advF * dUadv + difF * dUdif;
+  const Real u    = V(ix,iy).u[0];
+  const Real v    = V(ix,iy).u[1];
+  const Real UU   = u + uinf[0];
+  const Real VV   = v + uinf[1];
+
+  const Real up1x = V(ix+1,iy).u[0];
+  const Real up2x = V(ix+2,iy).u[0];
+  const Real um1x = V(ix-1,iy).u[0];
+  const Real um2x = V(ix-2,iy).u[0];
+  const Real dudx = UU>0 ? (2*up1x + 3*u - 6*um1x + um2x) : (-up2x + 6*up1x - 3*u - 2*um1x);
+
+  const Real up1y = V(ix,iy+1).u[0];
+  const Real up2y = V(ix,iy+2).u[0];
+  const Real um1y = V(ix,iy-1).u[0];
+  const Real um2y = V(ix,iy-2).u[0];
+  const Real dudy = VV>0 ? (2*up1y + 3*u - 6*um1y + um2y) : (-up2y + 6*up1y - 3*u - 2*um1y);
+
+  return advF*(UU*dudx+VV*dudy) + difF*(up1x + up1y + um1x + um1y - 4*u);
 }
 
-static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
+static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
-  const Real vpx = V(ix+1, iy).u[1], vpy = V(ix, iy+1).u[1];
-  const Real ucc = V(ix  , iy).u[0], vcc = V(ix, iy  ).u[1];
-  const Real vlx = V(ix-1, iy).u[1], vly = V(ix, iy-1).u[1];
-  const Real dVadv = 0.5 * (ucc+uinf[0]) * (vpx-vlx) + 0.5 * (vcc+uinf[1]) * (vpy-vly);
-  const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-  return advF * dVadv + difF * dVdif;
+  const Real u    = V(ix,iy).u[0];
+  const Real v    = V(ix,iy).u[1];
+  const Real UU   = u + uinf[0];
+  const Real VV   = v + uinf[1];
+
+  const Real vp1x = V(ix+1,iy).u[1];
+  const Real vp2x = V(ix+2,iy).u[1];
+  const Real vm1x = V(ix-1,iy).u[1];
+  const Real vm2x = V(ix-2,iy).u[1];
+  const Real dvdx = UU>0 ? (2*vp1x + 3*v - 6*vm1x + vm2x) : (-vp2x + 6*vp1x - 3*v - 2*vm1x);
+
+  const Real vp1y = V(ix,iy+1).u[1];
+  const Real vp2y = V(ix,iy+2).u[1];
+  const Real vm1y = V(ix,iy-1).u[1];
+  const Real vm2y = V(ix,iy-2).u[1];
+  const Real dvdy = VV>0 ? (2*vp1y + 3*v - 6*vm1y + vm2y) : (-vp2y + 6*vp1y - 3*v - 2*vm1y);
+
+  return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
 }
-#else // use quick
-static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
-{
-  // get grid values
-  const Real uppx = V(ix+2, iy).u[0], uppy = V(ix, iy+2).u[0];
-  const Real upx  = V(ix+1, iy).u[0], upy  = V(ix, iy+1).u[0];
-  const Real ucc  = V(ix  , iy).u[0], vcc  = V(ix, iy  ).u[1];
-  const Real ulx  = V(ix-1, iy).u[0], uly  = V(ix, iy-1).u[0];
-  const Real ullx = V(ix-2, iy).u[0], ully = V(ix, iy-2).u[0];
-
-  // advection
-  const Real u = ucc+uinf[0];
-  const Real dudx  = u > 0 ?           3*upx + 3*ucc - 7*ulx + ullx
-                             : -uppx + 7*upx - 3*ucc - 3*ulx        ;
-  const Real v = vcc+uinf[1];
-  const Real dudy  = v > 0 ?           3*upy + 3*ucc - 7*uly + ully
-                             : -uppy + 7*upy - 3*ucc - 3*uly        ;
-  const Real dUadv = u * 0.125 * dudx + v * 0.125 * dudy;
-
-  // diffusion
-  const Real dUdif = upx + upy + ulx + uly - 4 *ucc;
-
-  return advF * dUadv + difF * dUdif;
-}
-
-static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2],
-  const Real advF, const Real difF, const int ix, const int iy)
-{
-  const Real vppx = V(ix+2, iy).u[1], vppy = V(ix, iy+2).u[1];
-  const Real vpx  = V(ix+1, iy).u[1], vpy  = V(ix, iy+1).u[1];
-  const Real ucc  = V(ix  , iy).u[0], vcc  = V(ix, iy  ).u[1];
-  const Real vlx  = V(ix-1, iy).u[1], vly  = V(ix, iy-1).u[1];
-  const Real vllx = V(ix-2, iy).u[1], vlly = V(ix, iy-2).u[1];
-
-  // advection
-  const Real u = ucc+uinf[0];
-  const Real dvdx  = u > 0 ?           3*vpx + 3*vcc - 7*vlx + vllx
-                             : -vppx + 7*vpx - 3*vcc - 3*vlx        ;
-  const Real v = vcc+uinf[1];
-  const Real dvdy  = v > 0 ?           3*vpy + 3*vcc - 7*vly + vlly
-                             : -vppy + 7*vpy - 3*vcc - 3*vly        ;
-  const Real dVadv = u * 0.125 * dvdx + v * 0.125 * dvdy;
-
-  // diffusion
-  const Real dVdif = vpx + vpy + vlx + vly - 4 * vcc;
-
-  return advF * dVadv + difF * dVdif;
-}
-#endif
 
 void advDiff::operator()(const double dt)
 {
@@ -97,7 +68,7 @@ void advDiff::operator()(const double dt)
 
   const Real UINF[2]= {sim.uinfx, sim.uinfy}, h = sim.getH();
   //const Real G[]= {sim.gravity[0],sim.gravity[1]};
-  const Real dfac = (sim.nu/h)*(dt/h), afac = -dt/h;
+  const Real dfac = (sim.nu/h)*(dt/h), afac = -dt/h/6.0;
   const Real fac = std::min((Real)1, sim.uMax_measured * dt / h);
   const Real norUinf = std::max({std::fabs(UINF[0]), std::fabs(UINF[1]), EPS});
   const Real fadeW= 1 - fac * std::pow(std::max(UINF[0], (Real)0)/norUinf, 2);
@@ -108,11 +79,7 @@ void advDiff::operator()(const double dt)
 
   #pragma omp parallel
   {
-    #if 0 // stencil for centered advection
-    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-    #else // for quick
     static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
-    #endif
 
     VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
 

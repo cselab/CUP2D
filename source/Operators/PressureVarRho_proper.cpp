@@ -126,7 +126,6 @@ void PressureVarRho_proper::pressureCorrection(const double dt) const
 void PressureVarRho_proper::operator()(const double dt)
 {
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
-  const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& rhsInfo  = sim.pRHS->getBlocksInfo();
 
   if(sim.step < 20) {
@@ -159,6 +158,7 @@ void PressureVarRho_proper::operator()(const double dt)
   }
 
   #ifdef HYPREFFT
+    const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
     varRhoSolver->bUpdateMat = maxDiffMat > EPS;
     varRhoSolver->solve(tmpInfo, presInfo);
     //pressureSolver->bUpdateMat = false;

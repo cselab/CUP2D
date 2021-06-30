@@ -289,7 +289,7 @@ void SimulationData::dumpAll(std::string name)
     const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
     const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
     const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
-    //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
+    const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i < velInfo.size(); i++)
     {
@@ -303,7 +303,7 @@ void SimulationData::dumpAll(std::string name)
     dumpGlue(name);
     dumpPres(name);
     //dumpInvRho(name);
-    //dumpTmp (name);  // uncomment to dump vorticity
+    dumpTmp (name);  // uncomment to dump vorticity
     //dumpUobj (name);
     //dumpForce(name);
     //dumpTmpV (name); // probably useless

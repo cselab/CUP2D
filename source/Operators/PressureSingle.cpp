@@ -122,103 +122,22 @@ void PressureSingle::updatePressureRHS(const double dt) const
   #pragma omp parallel
   {
     VectorLab velLab;  velLab.prepare( *(sim.vel),  stenBeg, stenEnd, 0);
+    VectorLab uDefLab;uDefLab.prepare( *(sim.uDef), stenBeg, stenEnd, 0);
     #pragma omp for schedule(static)
     for (size_t i=0; i < Nblocks; i++) {
       velLab.load(velInfo[i], 0); const auto & __restrict__ V   = velLab;
       ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
+      const ScalarBlock& __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
         const Real divVx  = V(ix+1,iy).u[0] - V(ix-1,iy).u[0];
         const Real divVy  = V(ix,iy+1).u[1] - V(ix,iy-1).u[1];
         TMP(ix, iy).s = facDiv * (divVx + divVy);
+        //TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0] 
+        //                                         + uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]);
       }
     }
   }
-
-  const size_t nShapes = sim.shapes.size();
-  Real * sumRHS, * posRHS, * negRHS;
-  sumRHS = (Real*) calloc(nShapes, sizeof(Real));
-  posRHS = (Real*) calloc(nShapes, sizeof(Real));
-  negRHS = (Real*) calloc(nShapes, sizeof(Real));
-
-  #pragma omp parallel reduction(+: sumRHS[:nShapes], posRHS[:nShapes], negRHS[:nShapes])
-  {
-    ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    for (size_t j=0; j < nShapes; j++) {
-      const Shape * const shape = sim.shapes[j];
-      const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
-
-      chiLab. load( chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
-      const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
-      auto & __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-        if (CHI(ix,iy).s > chi[iy][ix]) continue;
-        const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
-        const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
-        const Real srcBulk = - chi[iy][ix] * TMP(ix, iy).s;
-        sumRHS[j] += srcBulk;
-        TMP(ix, iy).s += srcBulk;
-
-        #ifdef UNIFORM_CORRECT
-          posRHS[j] += h*h * std::sqrt(gradXx*gradXx + gradXy*gradXy);
-        #else
-          const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
-          posRHS[j] += isPerim * TMP(ix, iy).s * (TMP(ix, iy).s>0);
-          negRHS[j] -= isPerim * TMP(ix, iy).s * (TMP(ix, iy).s<0);
-        #endif
-      }
-    }
-  }
-
-  //for (size_t j=0; j < nShapes && sim.verbose; j++)
-  //printf("sum of udef src terms %e %e\n", sumRHS[j], absRHS[j]);
-
-  #pragma omp parallel
-  {
-    ScalarLab chiLab;   chiLab.prepare(*(sim.chi ), stenBeg, stenEnd, 0);
-
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    for (size_t j=0; j < nShapes; j++)
-    {
-      const Shape * const shape = sim.shapes[j];
-      #ifdef UNIFORM_CORRECT
-        const Real corr = sumRHS[j] / std::max(posRHS[j], EPS);
-      #else
-        const Real corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
-        const Real corr = sumRHS[j] / std::max(corrDenom, EPS);
-      #endif
-      const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[uDefInfo[i].blockID] == nullptr) continue;
-
-      const CHI_MAT & __restrict__ chi = OBLOCK[uDefInfo[i].blockID]->chi;
-      ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-      chiLab.load(chiInfo[i], 0); const auto & __restrict__ CHI  = chiLab;
-
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        if (CHI(ix,iy).s > chi[iy][ix]) continue;
-        const Real gradXx = CHI(ix+1,iy).s - CHI(ix-1,iy).s;
-        const Real gradXy = CHI(ix,iy+1).s - CHI(ix,iy-1).s;
-        #ifdef UNIFORM_CORRECT
-          TMP(ix, iy).s -= corr * h*h * std::sqrt(gradXx*gradXx+gradXy*gradXy);
-        #else
-          const bool isPerim = gradXx*gradXx + gradXy*gradXy > 0;
-          if      (isPerim and TMP(ix, iy).s > 0 and corr > 0)
-            TMP(ix, iy).s -= corr * TMP(ix, iy).s;
-          else if (isPerim and TMP(ix, iy).s < 0 and corr < 0)
-            TMP(ix, iy).s += corr * TMP(ix, iy).s;
-        #endif
-      }
-    }
-  }
-  free (sumRHS); free (posRHS); free (negRHS);
 }
 
 void PressureSingle::pressureCorrection(const double dt) const
