@@ -197,6 +197,124 @@ double StefanFish::getPhase(const double t) const
   return (phase<0) ? 2*M_PI + phase : phase;
 }
 
+std::vector<double> StefanFish::state() const
+{
+  const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::vector<double> S(10,0);
+  S[0] = ( center[0] - origC[0] )/ length;
+  S[1] = ( center[1] - origC[1] )/ length;
+  S[2] = getOrientation();
+  S[3] = getPhase( sim.time );
+  S[4] = getU() * Tperiod / length;
+  S[5] = getV() * Tperiod / length;
+  S[6] = getW() * Tperiod;
+  S[7] = cFish->lastTact;
+  S[8] = cFish->lastCurv;
+  S[9] = cFish->oldrCurv;
+
+  #ifndef STEFANS_SENSORS_STATE
+    return S;
+  #else
+    S.resize(16);
+
+    // Get velInfo
+    const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+    // Get fish skin
+    const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
+
+    //// Sensor Signal on Front of Fish ////
+    ////////////////////////////////////////
+
+    std::array<Real,2> tipShear;
+
+    // get front-point
+    const std::array<Real,2> pFront = {DU.xSurf[0], DU.ySurf[0]};
+
+    // get blockId for this point
+    const size_t blockIdFront = holdingBlockID(pFront, velInfo);
+
+    // get gridspacing and its inverse in block
+    const Real hFront = velInfo[blockIdFront].h_gridpoint, invhFront = 1/hFront;
+
+    // first point of the two skins is the same
+    // normal should be almost the same: take the mean
+    const Real normXfront = (DU.normXSurf[0] + DL.normXSurf[0]) / 2;
+    const Real normYfront = (DU.normYSurf[0] + DL.normYSurf[0]) / 2;
+
+    // compute point for sensor
+    const std::array<Real,2> pFrontSens = {pFront[0] + hFront * normXfront,
+                                      pFront[1] + hFront * normYfront};
+
+    // get surface velocity and velocity at sensor
+    const std::array<Real,2> vSensFront = sensVel(pFrontSens, velInfo), vSkinFront = skinVel(pFront, velInfo);
+
+    tipShear[0] = (vSensFront[0] - vSkinFront[0]) * invhFront;
+    tipShear[1] = (vSensFront[1] - vSkinFront[1]) * invhFront;
+
+    //// Sensor Signal on Side of Fish ////
+    ///////////////////////////////////////
+
+    std::array<Real,2> lowShear, topShear;
+
+    // get index for sensors on the side of head
+    int iHeadSide = 0;
+    for(int i=0; i<myFish->Nm-1; ++i)
+      if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
+        iHeadSide = i;
+    assert(iHeadSide>0);
+
+    for(int a = 0; a<2; ++a)
+    {
+      // distinguish upper and lower skin
+      const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
+
+      // get point
+      const std::array<Real,2> pSide = {D.midX[iHeadSide], D.midY[iHeadSide]};
+
+      // get blockId
+      const size_t blockIdSide = holdingBlockID(pSide, velInfo);
+
+      // get gridspacing and its inverse in block
+      const Real hSide = velInfo[blockIdSide].h_gridpoint, invhSide = 1/hSide;
+
+      // get normal to surface
+      const Real normX = D.normXSurf[iHeadSide], normY = D.normYSurf[iHeadSide];
+
+      // compute point at sensor location
+      const std::array<Real,2> pSideSens = {pSide[0] + hSide * normX,
+                                        pSide[1] + hSide * normY};
+
+      // get surface velocity and velocity at sensor
+      const std::array<Real,2> vSens = sensVel(pSideSens, velInfo), vSkin = skinVel(pSide, velInfo);
+
+      // compute shear
+      const Real shearX = (vSens[0] - vSkin[0]) * invhSide;
+      const Real shearY = (vSens[1] - vSkin[1]) * invhSide;
+
+      // now figure out how to rotate it along the fish skin for consistency:
+      const Real dX = D.xSurf[iHeadSide+1] - D.xSurf[iHeadSide];
+      const Real dY = D.ySurf[iHeadSide+1] - D.ySurf[iHeadSide];
+      const Real proj = dX * normX - dY * normY;
+      const Real tangX = proj>0?  normX : -normX; // s.t. tang points from head
+      const Real tangY = proj>0? -normY :  normY; // to tail, normal outward
+      (a==0? topShear[0] : lowShear[0]) = shearX * normX + shearY * normY;
+      (a==0? topShear[1] : lowShear[1]) = shearX * tangX + shearY * tangY;
+    }
+
+    // put non-dimensional results into state into state
+    S[10] = tipShear[0] * Tperiod / length;
+    S[11] = tipShear[1] * Tperiod / length;
+    S[12] = lowShear[0] * Tperiod / length;
+    S[13] = lowShear[1] * Tperiod / length;
+    S[14] = topShear[0] * Tperiod / length;
+    S[15] = topShear[1] * Tperiod / length;
+    // printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n", S[10],S[11], S[12],S[13], S[14],S[15]);
+    // fflush(0);
+    return S;
+  #endif
+}
+
 std::vector<double> StefanFish::state(Shape*const p) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
