@@ -114,6 +114,9 @@ struct SimulationData
   bool _bDump = false;
   bool DumpUniform = false;
 
+  // bool for detecting collisions
+  bool bCollision = false;
+
   void allocateGrid();
   void resetAll();
   bool bDump();
