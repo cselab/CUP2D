@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Defaults for Options
-BPDX=${BPDX:-16}
-BPDY=${BPDY:-12}
-LEVELS=${LEVELS:-4}
-RTOL=${RTOL-2}
-CTOL=${CTOL-0.2}
-EXTENT=${EXTENT:-1}
+BPDX=${BPDX:-4}
+BPDY=${BPDY:-3}
+LEVELS=${LEVELS:-7}
+RTOL=${RTOL-1}
+CTOL=${CTOL-0.1}
+EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.2}
 PT=${PT:-1e-6}
 PTR=${PTR:-1e-4}
@@ -31,10 +31,10 @@ then
 	RADIUS=${RADIUS:-0.06}
 	# set object string
 	OBJECTS="$OBSTACLE radius=$RADIUS angle=$ANGLE xpos=$XPOSLEADER bForced=1 bFixed=1 xvel=$XVEL tAccel=5
-			stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
+stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	echo "###############################"
-	# halfDisk Re=1'000 <-> NU=0.000018
+	# halfDisk Re=1'000
 	NU=${NU:-0.000018}
 elif [ "$OBSTACLE" = "NACA" ]
 then
@@ -48,10 +48,10 @@ then
 	VELX=${VELX:-0.15}
 	# set object string
 	OBJECTS="$OBSTACLE L=$LEADERLENGTH xpos=$XPOSLEADER angle=$ANGLE fixedCenterDist=0.299412 bFixed=1 xvel=$VELX Apitch=13.15 Fpitch=$FPITCH tAccel=5
-			stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
+stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	echo "###############################"
-	# NACA Re=1'000 <-> NU=0.000018
+	# NACA Re=1'000
 	NU=${NU:-0.000018}
 elif [ "$OBSTACLE" = "stefanfish" ]
 then
@@ -61,10 +61,10 @@ then
 	XPOSLEADER=${XPOSLEADER:-0.2}
 	# set object string
 	OBJECTS="$OBSTACLE L=$LENGTH T=$PERIOD xpos=$XPOSLEADER
-			stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
+stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	echo "###############################"
-	# stefanfish Re=1'000 <-> NU=0.00001125
+	# stefanfish Re=1'000
 	NU=${NU:-0.00004}
 fi
 
