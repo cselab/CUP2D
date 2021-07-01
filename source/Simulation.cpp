@@ -321,8 +321,6 @@ double Simulation::calcMaxTimestep()
     else
       sim.dt = std::min({dtDiffusion, sim.CFL * dtAdvection});
   }
-  else
-    CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / h;
 
   if( sim.dt <= 0 ){
     std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
@@ -336,10 +334,11 @@ double Simulation::calcMaxTimestep()
 
 bool Simulation::advance(const double dt)
 {
+  const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   std::cout
   <<"=======================================================================\n";
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, sim.CFL); 
+      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
 
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
