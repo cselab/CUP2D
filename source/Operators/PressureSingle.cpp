@@ -400,6 +400,56 @@ void PressureSingle::preventCollidingObstacles() const
   }
 }
 
+
+bool PressureSingle::detectCollidingObstacles() const
+{
+  // boolean indicating whether there was a collision
+  bool bCollision = false;
+
+  // get shapes present in simulation
+  const std::vector<Shape*>& shapes = sim.shapes;
+  const size_t N = shapes.size();
+
+  // collisions are symmetric, so only iterate over each pair once
+  #pragma omp parallel for schedule(static)
+  for (size_t i=0; i<N; ++i)
+  for (size_t j=i+1; j<N; ++j)
+  {
+    // get obstacle blocks for both obstacles
+    const auto& iBlocks = shapes[i]->obstacleBlocks;
+    const auto& jBlocks = shapes[j]->obstacleBlocks;
+    assert(iBlocks.size() == jBlocks.size());
+
+    // iterate over obstacle blocks
+    const size_t nBlocks = iBlocks.size();
+    for (size_t k=0; k<nBlocks; ++k)
+    {
+      // If one of the two shapes does not occupy this block, continue
+      if ( iBlocks[k] == nullptr || jBlocks[k] == nullptr ) continue;
+
+      // Get characteristic function of candidate blocks
+      const CHI_MAT & iChi  = iBlocks[k]->chi,  & jChi  = jBlocks[k]->chi;
+
+      // Iterate over cells in candidate block
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        // If one of the two shapes does not occupy this cell, continue
+        if(iChi[iy][ix] <= 0 || jChi[iy][ix] <= 0 ) continue;
+
+        //// collision!
+        // get location of collision
+        const auto pos = velInfo[k].pos<Real>(ix, iy);
+
+        // set boolean to true and tell user
+        bCollision = true;
+        printf("%lu hit %lu in [%f %f]\n", i, j, pos[0], pos[1]); fflush(0);
+      }
+    }
+  }
+  return bCollision;
+}
+
 void PressureSingle::operator()(const double dt)
 {
   sim.startProfiler("Pressure");
@@ -411,6 +461,7 @@ void PressureSingle::operator()(const double dt)
   }
   // take care if two obstacles collide
   // preventCollidingObstacles(); (needs to be fixed)
+  sim.bCollision = detectCollidingObstacles();
 
   // apply penalisation force
   penalize(dt);

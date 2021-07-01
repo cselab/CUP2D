@@ -27,6 +27,7 @@ class PressureSingle : public Operator
   //PoissonSolver * const pressureSolver;
   AMRSolver * pressureSolver;
 
+  bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;
   void pressureCorrection(const double dt) const;
   void updatePressureRHS(const double dt) const;
