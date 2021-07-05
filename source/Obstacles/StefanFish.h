@@ -24,8 +24,9 @@ class StefanFish: public Fish
   StefanFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
-  // member functions for state/reward
+  // member functions for state in RL
   std::vector<double> state(Shape*const p) const;
+  std::vector<double> state() const;
 
   // Helpers for State function
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;

@@ -23,6 +23,7 @@ void SimulationData::resetAll()
   uinfy = 0;
   nextDumpTime = 0;
   _bDump = false;
+  bCollision = false;
 }
 
 void SimulationData::allocateGrid()
