@@ -521,33 +521,32 @@ def plotSwimmerScaling():
   plt.legend()
   plt.show()
 
+import scipy as sp
+
 def plotBlocksTime():
-  cases   = ["10000"] #[ "40", "550", "3000", "9500"]
-  root    = "/scratch/snx3000/pweber/CUP2D/"
+  cases   = [ "10^5" ]
+  root    = "/scratch/snx3000/mchatzim/highRe2D/"
   speed = 0.2
   radius = 0.1
-  levels = 5
-  nEff = 16*8*2**(levels-1)
+  levels = np.arange(7,11)
   for case in cases:
-    runname = "diskRe{}_levels{}".format(case,levels)
-    data = np.loadtxt(root+runname+"/div.txt", skiprows=5)
-    time = data[:,0]*speed/radius
-    index = time < 0.1
-    numGridpoints = data[:,2]*64 
-    plt.plot( time, numGridpoints, label="Re={}".format(case) )
-    print("average number of gridpoints"+case, np.mean(numGridpoints[index]))
-    print("compression factor"+case, nEff*nEff/np.mean(numGridpoints))
+    runnames = [ "Re{}-{:02d}".format(case, level) for level in levels]
+    for i, runname in enumerate(runnames):
+      nEff = 16*8*2**(levels[i]-1)*8*8*2**(levels[i]-1)
+      data = np.loadtxt(root+runname+"/div.txt", skiprows=levels[i])
+      time = data[:,0]*speed/radius
+      numGridpoints = data[:,2]*64 
+      plt.plot( time, numGridpoints, label="Re={}".format(case) )
+      print("compression factor "+runname, nEff/( sp.integrate.simps( numGridpoints, time) / (time[-1]-time[0]) ) )
 
-  plt.hlines(y=nEff*nEff, xmin=0, xmax=10, color="black", linestyles="dashed", label="$N_{eff}$", zorder=10)
-  plt.xlabel("Time $T=tu/r$")
-  plt.ylabel("Number of Gridpoints")
-  plt.yscale("log")
-  plt.legend(facecolor="white", edgecolor="white", ncol=2, loc="lower center", bbox_to_anchor=(0.5, -0.3))
-  plt.grid(b=True, which='minor', color="white", linestyle='-')
-  plt.tight_layout()
-  plt.show()
-
-import scipy as sp
+    plt.hlines(y=nEff, xmin=0, xmax=10, color="black", linestyles="dashed", label="$N_{eff}$", zorder=10)
+    plt.xlabel("Time $T=tu/r$")
+    plt.ylabel("Number of Gridpoints")
+    plt.yscale("log")
+    plt.legend(facecolor="white", edgecolor="white", ncol=2, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+    plt.grid(b=True, which='minor', color="white", linestyle='-')
+    plt.tight_layout()
+    plt.show()
 
 def gridRefiment():
   cases  = [ "9500"]
@@ -660,7 +659,7 @@ def scaling():
   plt.savefig("scaling.png")
 
 if __name__ == '__main__':
-  plotDragTimeCylinder()
+  # plotDragTimeCylinder()
   
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
@@ -671,5 +670,5 @@ if __name__ == '__main__':
 
   # scaling()
   
-  # plotBlocksTime()
+  plotBlocksTime()
   # gridRefiment()
