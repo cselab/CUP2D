@@ -165,6 +165,7 @@ def plotDragTimeCylinder():
     rootPROJECT = "/project/s929/pweber/CUP2Damr/mollified-chi/disk/"
 
     runname = [ "diskRe{}_levels{:01d}_dt1e-4".format(case, level) for level in np.arange(4,9) ]
+    runname = [ "diskRe{}_levels6_dt{:.0e}".format(case, timestep) for timestep in [ 1e-5, 2e-5, 4e-5, 6e-5, 8e-5, 1e-4, 2e-4 ] ]
 
     ###### plot validation data ######
     ##################################
@@ -552,8 +553,7 @@ def gridRefiment():
   cases  = [ "9500"]
   levels = np.arange(4,9)
   levels = levels[::-1]
-  timesteps = [10**-5, 10**-4.75, 10**-4.5, 10**-4.25, 10**-4]
-  timestepsName = [ "1e-5", "1e-4.75", "1e-4.5", "1e-4.25", "1e-4" ]
+  timesteps = [ 1e-5, 2e-5, 4e-5, 6e-5, 8e-5, 1e-4, 2e-4 ]
   root    = "/scratch/snx3000/pweber/CUP2D/"
   speed = 0.2
   radius = 0.1
@@ -605,8 +605,8 @@ def gridRefiment():
       plt.tight_layout()
       plt.show()
     elif refined == "time":
-      for timestep in timestepsName:
-        runname = "diskRe{}_levels6_dt{}".format(case, timestep)
+      for timestep in timesteps:
+        runname = "diskRe{}_levels6_dt{:.0e}".format(case, timestep)
 
         forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
         time    = forceData[:,0]*speed/radius
@@ -618,18 +618,18 @@ def gridRefiment():
         indices = (time >= timeStart) & (time < timeEnd)
         time = time[indices]
 
-        if timestep == "1e-5":
+        if timestep == 1e-5:
           dragTarget = totDrag[indices]
           fDragTarget = sp.interpolate.interp1d(time, dragTarget)
         else:
           print(np.abs( totDrag[indices]  - fDragTarget(time) ), sp.integrate.simps( np.abs( totDrag[indices]  - fDragTarget(time) ), time ))
           error.append( sp.integrate.simps( np.abs( totDrag[indices]  - fDragTarget(time) ), time ) )
 
-      h = np.array( timesteps[2:] )
+      h = np.array( timesteps[1:] )
       print((h), (error))
-      plt.plot( h, error[1:], "o")
-      plt.plot( h, 2*10**5*h, label="1st order", linewidth=1, linestyle="--" )
-      plt.plot( h, 1.5*10**10*h**(2), label="2nd order", linewidth=1, linestyle="--" )
+      plt.plot( h, error, "o")
+      plt.plot( h, 2*10**0*h, label="1st order", linewidth=1, linestyle="--" )
+      plt.plot( h, 1.5*10**5*h**(2), label="2nd order", linewidth=1, linestyle="--" )
       # plt.ylim([0.02,5])
       plt.xscale("log")
       plt.yscale("log")
@@ -660,7 +660,7 @@ def scaling():
   plt.savefig("scaling.png")
 
 if __name__ == '__main__':
-  # plotDragTimeCylinder()
+  plotDragTimeCylinder()
   
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
@@ -672,4 +672,4 @@ if __name__ == '__main__':
   # scaling()
   
   # plotBlocksTime()
-  gridRefiment()
+  # gridRefiment()
