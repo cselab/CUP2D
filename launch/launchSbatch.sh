@@ -8,14 +8,14 @@ cd ${FOLDERNAME}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=s929
+#SBATCH --account=eth2
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --output=${RUNNAME}_out_%j.txt
 #SBATCH --error=${RUNNAME}_err_%j.txt
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --constraint=gpu
+#SBATCH --constraint=mc
 
 # #SBATCH --account=s929
 # #SBATCH --job-name="${RUNNAME}"
@@ -37,7 +37,6 @@ export OMP_NUM_THREADS=12
 export CRAY_CUDA_MPS=1
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
-
 
 srun --ntasks 1 --cpus-per-task=12 --threads-per-core=1 --ntasks-per-node=1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 EOF

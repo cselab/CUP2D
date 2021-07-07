@@ -28,7 +28,7 @@ cd ${FOLDERNAME}
 elif [ ${HOST:0:5} == 'daint' ] ; then
 
 BASEPATH="${SCRATCH}/CUP2D/"
-export OMP_NUM_THREADS=12
+export OMP_NUM_THREADS=36
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
