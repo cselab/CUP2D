@@ -33,47 +33,6 @@ def lighten_color(color, amount=0.5):
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], min(1, amount * c[1]), c[2])
-
-class HandlerDashedLines(HandlerLineCollection):
-    """
-    Custom Handler for LineCollection instances.
-    """
-    def create_artists(self, legend, orig_handle,
-                       xdescent, ydescent, width, height, fontsize, trans):
-        # figure out how many lines there are
-        numlines = len(orig_handle.get_segments())
-        xdata, xdata_marker = self.get_xdata(legend, xdescent, ydescent,
-                                             width, height, fontsize)
-        leglines = []
-        # divide the vertical space where the lines will go
-        # into equal parts based on the number of lines
-        ydata = np.full_like(xdata, height / (numlines + 1))
-        # for each line, create the line at the proper location
-        # and set the dash pattern
-        for i in range(numlines):
-            legline = Line2D(xdata, ydata * (numlines - i) - ydescent)
-            self.update_prop(legline, orig_handle, legend)
-            # set color, dash pattern, and linewidth to that
-            # of the lines in linecollection
-            try:
-                color = orig_handle.get_colors()[i]
-            except IndexError:
-                color = orig_handle.get_colors()[0]
-            try:
-                dashes = orig_handle.get_dashes()[i]
-            except IndexError:
-                dashes = orig_handle.get_dashes()[0]
-            try:
-                lw = orig_handle.get_linewidths()[i]
-            except IndexError:
-                lw = orig_handle.get_linewidths()[0]
-            if dashes[0] is not None:
-                legline.set_dashes(dashes[1])
-            legline.set_color(color)
-            legline.set_transform(trans)
-            legline.set_linewidth(lw)
-            leglines.append(legline)
-        return leglines
 ###########################################################################
 
 def plotForceTime( root, runname, radius, i, j ):
@@ -143,17 +102,17 @@ def plotForceTime( root, runname, radius, i, j ):
   # plt.plot(timeAv, avDrag,  color=lighten_color(colors[i],1), label=runname)
   ######################################
 
-  #### uncomment and adapt i to levelMax for which you want to plot the result ####
-  # if i == j+2: 90
+  
   # print(time[0], dragCoeff[0])
   # if i == 2: 
   #   index = dragCoeff < 2.0
   #   print(time[index])
   #   plt.plot(time[index], dragCoeff[index],  color=lighten_color(colors[i],1), label="$C_D$ present ({} levels)".format(i+4) )# , label=runname+", $C_D")
   #################################################################################
-
+  #### uncomment and adapt i to levelMax for which you want to plot the result ####
+  # if i == j+2:
   ## for disk plot drag ##
-  plt.plot(time[::50], dragCoeff[::50], color=lighten_color(colors[i],1), label="present (8 levels)")
+  plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+4))
   ########################
 
   ## plot autocorrelation of drag/lift to detect frequency ##
@@ -179,9 +138,9 @@ def plotDragTimeCylinder():
     fricDrag = np.pi*(1/np.sqrt(2*Re*t))*(2.257+k-0.141*k**2+0.062*k**3 - (0.092-1.6*k+6.9*k**2-22.7*k**3)*t**2 - (0.074-1.24*k+12.12*k**2+24.35*k**3)*t**4 + (0.008+0.196*k)*t**6 )
     presDrag = np.pi*(1/np.sqrt(2*Re*t))*(2.257+k-0.141*k**2+(4.59-22.1*k+78.8*k**2)*t**2 + (2.68-40.5*k+219.3*k**3)*t**4 + 0.894*t**6 )
     # print("diff:", presDrag-fricDrag)
-    # equation (80) + (81)
+    ### equation (80) + (81) ###
     return fricDrag+presDrag
-    # equation (82)
+    ### equation (82) ###
     # return 2*np.sqrt( 8*np.pi/(Re*t) )
 
   # "Initial flow field over an impulsively started circular cylinder". M. Bar-Lev and H. T. Yang (1975)
@@ -194,34 +153,26 @@ def plotDragTimeCylinder():
     return 4*np.sqrt( np.pi/(Re*t) ) + np.pi*(9-15/np.sqrt(np.pi))/Re
 
   ## for initial time ## "40", "200", "1000", 
-  cases = [ "100000" ]
+  # cases = [ "100000" ]
   ######################
 
-  ## for long time ##
-  # cases = ["40", "550", "3000", "9500" ]
+  ## for long time ## "40", "3000", "9500"  
+  cases = [ "9500"]
   ######################
 
   for j, case in enumerate(cases):
     rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
-    # rootPROJECT = "/project/s929/pweber/CUP2Damr/disk/"
-    # rootPROJECT = "/project/s929/pweber/CUP2Damr/stefanFish/"
     rootPROJECT = "/project/s929/pweber/CUP2Damr/mollified-chi/disk/"
 
-    runname = [ "diskRe{}_levels{:02d}_cfl0.2".format(case, level) for level in np.arange(8,9) ]
-    # runname = ["diskRe"+case+"_levels8_poissonTol9"]
-    # runname = [ "diskRe"+case+"_poissonTol11" ]
-    # runname = ["disk"+case+"_levels04_cfl"+cfl,"disk"+case+"_levels05_cfl"+cfl,"disk"+case+"_levels06_cfl"+cfl, "disk"+case+"_levels07_cfl"+cfl, "disk"+case+"_levels08_cfl"+cfl, "disk"+case+"_levels09_cfl"+cfl ]
-    # runname = ["disk"+case+"_levels"+levels+"_cfl0.02", "disk"+case+"_levels"+levels+"_cfl0.06", "disk"+case+"_levels"+levels+"_cfl0.2" ]
-    # "disk"+case+"_levels"+levels+"_poissonTol5", "disk"+case+"_levels"+levels+"_poissonTol6", 
-    # runname = ["diskRe"+case+"_levels"+levels+"_poissonTol4", "diskRe"+case+"_levels"+levels+"_poissonTol5", "diskRe"+case+"_levels"+levels+"_poissonTol6", "diskRe"+case+"_levels"+levels+"_poissonTol7", "diskRe"+case+"_levels"+levels+"_poissonTol8", "diskRe"+case+"_levels"+levels+"_poissonTol9" ]
-    # "disk"+case+"_levels"+levels+"_poissonTol4", 
-    # runname = ["disk"+case+"_levels5_poissonTol"+poisson, "disk"+case+"_levels6_poissonTol"+poisson, "disk"+case+"_levels7_poissonTol"+poisson]
-    # runname = ["stefanFishRe1000_levels05"] #, "stefanFishRe1000_levels06", "stefanFishRe1000_levels07"]
+    runname = [ "diskRe{}_levels{:01d}_dt1e-4".format(case, level) for level in np.arange(4,9) ]
 
     ###### plot validation data ######
+    ##################################
+
+    ######################
     ## for initial time ##
-    time = np.linspace(0,0.5,1001)
-    plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
+    # time = np.linspace(0,0.5,1001)
+    # plt.plot( time, dragCollinsDennis( int(case), time ), linestyle="--", color="black", label="Collins and Dennis (1973)")
     # plt.plot( time, dragBarLevYang( int(case), time ), linestyle="--", color="lightgrey", label="Bar-Lev and Yang (1975)")
     # validationPath = "/project/s929/pweber/diskValidationData/Re"+case+"-start.txt"
     # validationData = np.loadtxt(validationPath, delimiter=",")
@@ -229,6 +180,7 @@ def plotDragTimeCylinder():
     plt.xlim([0,0.5])
     ######################
 
+    ###################
     ## for long time ##
     # validationPath = "/project/s929/pweber/diskValidationData/Re"+case+".txt"
     # validationData = np.loadtxt(validationPath, delimiter=",")
@@ -241,28 +193,27 @@ def plotDragTimeCylinder():
     # elif case == "3000" or case == "9500":
     #   plt.xlim([0,6])
     ###################
-    ##################################
 
     radius = 0.1
     for i in range( len(runname) ):
-      plotForceTime( rootPROJECT, runname[i], radius, i, j )
+      plotForceTime( rootSCRATCH, runname[i], radius, i, j )
 
     if case == "40" or case == "200":
       plt.ylim([0,8])
     ## for initial time
-    if case == "40":
-      plt.ylim([0,25])
+    # if case == "40":
+    #   plt.ylim([0,25])
     elif case == "1000":
       plt.ylim([0,4])
     elif case == "9500":
       plt.ylim([0,3])
     else: 
-      plt.ylim([0,0.4])
-    # plt.ylim([0,8])
+      # plt.ylim([0,0.4])
+      plt.ylim([0,2])
 
     plt.xlabel("Time $T=tu_\infty/r$")
     plt.ylabel("Drag Coefficient $C_D=|F_x|/ru_\infty^2$")
-    plt.title("Re={}".format(case))
+    # plt.title("Re={}".format(case))
     plt.grid(b=True, which='major', color="white", linestyle='-')
     plt.legend(loc = 'upper right')
     # plt.xscale("log")
@@ -595,63 +546,53 @@ def plotBlocksTime():
   plt.tight_layout()
   plt.show()
 
-def gridRefiment():
-  def find_nearest(array, value):
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return idx
+import scipy as sp
 
-  cases  = [ "Re9500"]
-  levels = ["09", "04", "05", "06", "07", "08" ]
+def gridRefiment():
+  cases  = [ "9500"]
+  levels = np.arange(4,9)
+  levels = levels[::-1]
   root    = "/scratch/snx3000/pweber/CUP2D/"
-  root    = "/project/s929/pweber/CUP2Damr/disk/"
   speed = 0.2
   radius = 0.1
   for case in cases:
     h = []
     error = []
     for level in levels:
-      # runname = "disk"+case+"_levels"+level+"_poissonTol6"
-      runname = "diskRe"+case+"_levels"+level+"_cfl0.2"
+      runname = "diskRe{}_levels{}_dt1e-4".format(case, level)
 
-      # gridData = np.loadtxt(root+runname+"/div.txt", skiprows=5)
-      # timeGridpoints = gridData[:,0]*speed/radius
-      # numGridpoints = gridData[:,2]*64
+      gridData = np.loadtxt(root+runname+"/div.txt", skiprows=level)
+      timeGridpoints = gridData[:,0]*speed/radius
+      numGridpoints = gridData[:,2]*64
 
       forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
       time    = forceData[:,0]*speed/radius
       totDrag = forceData[:,1]/(radius*speed*speed)
 
-      # validationPath = "/project/s929/pweber/diskValidationData/"+case+".txt"
-      # validationData = np.loadtxt(validationPath, delimiter=",")
-      # validationTimes = validationData[:,0]
-      # validationDrags = validationData[:,1]
+      timeStart = 0
+      timeEnd = 0.5
+      timeDiff = timeEnd - timeStart
+      indicesGrid = (timeGridpoints >= timeStart) & (timeGridpoints <= timeEnd)
+      indices = (time >= timeStart) & (time <= timeEnd)
 
-      # valIndx = find_nearest(validationTimes,2)
-      # gridIndx = find_nearest(timeGridpoints, validationTimes[valIndx])
-      # dataIndx = find_nearest(time, 2)
-      dataIndices = (time > 0.5) & (time < 3)
-      # print(validationTimes[valIndx], timeGridpoints[gridIndx], time[dataIndx])
-      # print(time[dataIndx])
-
-      h.append( 1/np.sqrt(16*8*2**(int(level)-1)) )
-      # h.append( 1/np.sqrt(numGridpoints[gridIndx]) )
-
-      if level == "09":
-        # target = totDrag[dataIndx]
-        target = np.mean(totDrag[dataIndices])
-      # error.append( np.abs(totDrag[dataIndx]-target) )
-      error.append( np.abs(np.mean(totDrag[dataIndices])-target) )
+      if level == 8:
+        dragTarget = totDrag[indices]
+      else:
+        errorDrag = np.abs( (totDrag[indices] - dragTarget ) )
+        # compute average number of gridpoints
+        h.append( sp.integrate.simps( numGridpoints[indicesGrid], timeGridpoints[indicesGrid] ) / timeDiff )
+        #compute mean error drag
+        error.append( sp.integrate.simps( errorDrag, time[indices]) / timeDiff )
 
     h = np.array(h)
     plt.plot( h, error, "o" )
-    # plt.plot( h, 10**1*h**(1), label="1st order", linestyle="--" )
-    plt.plot( h, 5*10**2*h**(2), label="2nd order", linewidth=1, linestyle="--" )
-    plt.plot( h, 10**4*h**(3), label="3rd order", linewidth=1, linestyle="--" )
-    # plt.xlim( [5e4,1e6])
-    plt.xlabel("Gridspacing")
+    plt.plot( h, 10**1*h**(-1/2), label="1st order", linestyle="--" )
+    plt.plot( h, 3*10**3*h**(-2/2), label="2nd order", linewidth=1, linestyle="--" )
+    plt.plot( h, 9*10**5*h**(-3/2), label="3rd order", linewidth=1, linestyle="--" )
+    plt.xlim( [1.3e4,1e5])
+    plt.xlabel("Number of Gridpoints")
     plt.ylabel("Error")
-    plt.xscale("log")
+    plt.xscale("log", base=2)
     plt.yscale("log")
     plt.legend() #facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
     plt.grid(b=True, which='minor', color="white", linestyle='-')
@@ -680,7 +621,7 @@ def scaling():
   plt.savefig("scaling.png")
 
 if __name__ == '__main__':
-  # plotDragTimeCylinder()
+  plotDragTimeCylinder()
   
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
@@ -689,7 +630,7 @@ if __name__ == '__main__':
   # plotSwimmerForces( )
   # plotSwimmerScaling()
 
-  scaling()
+  # scaling()
   
   # plotBlocksTime()
-  # gridRefiment()
+  gridRefiment()
