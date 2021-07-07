@@ -552,52 +552,91 @@ def gridRefiment():
   cases  = [ "9500"]
   levels = np.arange(4,9)
   levels = levels[::-1]
+  timesteps = [10**-5, 10**-4.75, 10**-4.5, 10**-4.25, 10**-4]
+  timestepsName = [ "1e-5", "1e-4.75", "1e-4.5", "1e-4.25", "1e-4" ]
   root    = "/scratch/snx3000/pweber/CUP2D/"
   speed = 0.2
   radius = 0.1
+  refined = "time"
+
   for case in cases:
     h = []
     error = []
-    for level in levels:
-      runname = "diskRe{}_levels{}_dt1e-4".format(case, level)
+    if refined == "space":
+      for level in levels:
+        runname = "diskRe{}_levels{}_dt1e-4".format(case, level)
 
-      gridData = np.loadtxt(root+runname+"/div.txt", skiprows=level)
-      timeGridpoints = gridData[:,0]*speed/radius
-      numGridpoints = gridData[:,2]*64
+        gridData = np.loadtxt(root+runname+"/div.txt", skiprows=level)
+        timeGridpoints = gridData[:,0]*speed/radius
+        numGridpoints = gridData[:,2]*64
 
-      forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-      time    = forceData[:,0]*speed/radius
-      totDrag = forceData[:,1]/(radius*speed*speed)
+        forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+        time    = forceData[:,0]*speed/radius
+        totDrag = forceData[:,1]/(radius*speed*speed)
 
-      timeStart = 0
-      timeEnd = 0.5
-      timeDiff = timeEnd - timeStart
-      indicesGrid = (timeGridpoints >= timeStart) & (timeGridpoints <= timeEnd)
-      indices = (time >= timeStart) & (time <= timeEnd)
+        timeStart = 0
+        timeEnd = 1
+        timeDiff = timeEnd - timeStart
+        indicesGrid = (timeGridpoints >= timeStart) & (timeGridpoints <= timeEnd)
+        indices = (time >= timeStart) & (time <= timeEnd)
 
-      if level == 8:
-        dragTarget = totDrag[indices]
-      else:
-        errorDrag = np.abs( (totDrag[indices] - dragTarget ) )
-        # compute average number of gridpoints
-        h.append( sp.integrate.simps( numGridpoints[indicesGrid], timeGridpoints[indicesGrid] ) / timeDiff )
-        #compute mean error drag
-        error.append( sp.integrate.simps( errorDrag, time[indices]) / timeDiff )
+        if level == 8:
+          dragTarget = totDrag[indices]
+        else:
+          errorDrag = np.abs( (totDrag[indices] - dragTarget ) )
+          # compute average number of gridpoints
+          # h.append( sp.integrate.simps( numGridpoints[indicesGrid], timeGridpoints[indicesGrid] ) / timeDiff )
+          h.append( 16*8**2*2**(level-1) )
+          #compute mean error drag
+          error.append( sp.integrate.simps( errorDrag, time[indices]) / timeDiff )
 
-    h = np.array(h)
-    plt.plot( h, error, "o" )
-    plt.plot( h, 10**1*h**(-1/2), label="1st order", linestyle="--" )
-    plt.plot( h, 3*10**3*h**(-2/2), label="2nd order", linewidth=1, linestyle="--" )
-    plt.plot( h, 9*10**5*h**(-3/2), label="3rd order", linewidth=1, linestyle="--" )
-    plt.xlim( [1.3e4,1e5])
-    plt.xlabel("Number of Gridpoints")
-    plt.ylabel("Error")
-    plt.xscale("log", base=2)
-    plt.yscale("log")
-    plt.legend() #facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
-    plt.grid(b=True, which='minor', color="white", linestyle='-')
-    plt.tight_layout()
-    plt.show()
+      h = np.array(h)
+      plt.plot( h, error, "o" )
+      plt.plot( h, 10**1*h**(-1/2), label="1st order", linestyle="--" )
+      plt.plot( h, 3*10**3*h**(-2/2), label="2nd order", linewidth=1, linestyle="--" )
+      plt.plot( h, 9*10**5*h**(-3/2), label="3rd order", linewidth=1, linestyle="--" )
+      # plt.xlim( [1.3e4,1e5])
+      plt.xlabel("Number of Gridpoints")
+      plt.ylabel("Error")
+      plt.xscale("log", base=2)
+      plt.yscale("log")
+      plt.legend() #facecolor="white", edgecolor="white", ncol=5, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+      plt.grid(b=True, which='minor', color="white", linestyle='-')
+      plt.tight_layout()
+      plt.show()
+    elif refined == "time":
+      for timestep in timestepsName:
+        runname = "diskRe{}_levels6_dt{}".format(case, timestep)
+
+        forceData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
+        time    = forceData[:,0]*speed/radius
+        totDrag = forceData[:,1]/(radius*speed*speed)
+
+        timeStart = 0
+        timeEnd = 1
+        timeDiff = timeEnd - timeStart
+        indices = (time >= timeStart) & (time < timeEnd)
+        time = time[indices]
+
+        if timestep == "1e-5":
+          dragTarget = totDrag[indices]
+          fDragTarget = sp.interpolate.interp1d(time, dragTarget)
+        else:
+          print(np.abs( totDrag[indices]  - fDragTarget(time) ), sp.integrate.simps( np.abs( totDrag[indices]  - fDragTarget(time) ), time ))
+          error.append( sp.integrate.simps( np.abs( totDrag[indices]  - fDragTarget(time) ), time ) )
+
+      h = np.array( timesteps[2:] )
+      print((h), (error))
+      plt.plot( h, error[1:], "o")
+      plt.plot( h, 2*10**5*h, label="1st order", linewidth=1, linestyle="--" )
+      plt.plot( h, 1.5*10**10*h**(2), label="2nd order", linewidth=1, linestyle="--" )
+      # plt.ylim([0.02,5])
+      plt.xscale("log")
+      plt.yscale("log")
+      plt.xlabel("Timestep")
+      plt.ylabel("Error")
+      plt.legend() 
+      plt.show()
 
 import os
 
@@ -621,7 +660,7 @@ def scaling():
   plt.savefig("scaling.png")
 
 if __name__ == '__main__':
-  plotDragTimeCylinder()
+  # plotDragTimeCylinder()
   
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
