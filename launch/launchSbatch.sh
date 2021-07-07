@@ -33,12 +33,12 @@ cat <<EOF >daint_sbatch
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
 # #SBATCH --mail-type=ALL
 
-export OMP_NUM_THREADS=12
-export CRAY_CUDA_MPS=1
-export OMP_PROC_BIND=CLOSE
-export OMP_PLACES=cores
+export OMP_NUM_THREADS=36
+#export CRAY_CUDA_MPS=1
+#export OMP_PROC_BIND=CLOSE
+#export OMP_PLACES=cores
 
-srun --ntasks 1 --cpus-per-task=12 --threads-per-core=1 --ntasks-per-node=1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
+srun --ntasks 1 --cpus-per-task=36 --threads-per-core=1 --ntasks-per-node=1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 EOF
 
 chmod 755 daint_sbatch
