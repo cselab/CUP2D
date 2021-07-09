@@ -198,8 +198,8 @@ void PutObjectsOnGrid::operator()(const double dt)
   int nSum[2] = {0, 0}; double uSum[2] = {0, 0};
   for(Shape * const shape : sim.shapes) 
     shape->updateLabVelocity(nSum, uSum);
-  if(nSum[0]>0) sim.uinfx = uSum[0]/nSum[0];
-  if(nSum[1]>0) sim.uinfy = uSum[1]/nSum[1];
+  if(nSum[0]>0) {sim.uinfx_old = sim.uinfx; sim.uinfx = uSum[0]/nSum[0];}
+  if(nSum[1]>0) {sim.uinfy_old = sim.uinfy; sim.uinfy = uSum[1]/nSum[1];}
   // 1b) Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
   for(Shape * const shape : sim.shapes)
   {

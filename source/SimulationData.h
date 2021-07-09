@@ -81,6 +81,7 @@ struct SimulationData
   // declare grids
   ScalarGrid * chi   = nullptr;
   VectorGrid * vel   = nullptr;
+  VectorGrid * vOld  = nullptr;
   ScalarGrid * pres  = nullptr;
   VectorGrid * tmpV  = nullptr;
   ScalarGrid * tmp   = nullptr;
@@ -91,6 +92,7 @@ struct SimulationData
 
   // simulation time
   double time = 0;
+  bool Euler = false;
 
   // simulation step
   int step = 0;
@@ -98,6 +100,9 @@ struct SimulationData
   // velocity of simulation frame of reference
   Real uinfx = 0;
   Real uinfy = 0;
+  Real uinfx_old = 0;
+  Real uinfy_old = 0;
+  double dt_old;
 
   // largest velocity measured
   double uMax_measured = 0;

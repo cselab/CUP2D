@@ -15,6 +15,7 @@
 class advDiff : public Operator
 {
   const std::vector<cubism::BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vOldInfo  = sim.vOld->getBlocksInfo();
 
  public:
   advDiff(SimulationData& s) : Operator(s) { }

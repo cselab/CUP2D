@@ -37,11 +37,11 @@ void SimulationData::allocateGrid()
 
   chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  //dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 

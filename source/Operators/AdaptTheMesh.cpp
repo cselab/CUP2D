@@ -56,6 +56,7 @@ void AdaptTheMesh::operator()(const double dt)
   verbose = false;
   ScalarAMR chi_amr ( *sim.chi ,0.05,0.01,verbose);
   VectorAMR vel_amr ( *sim.vel ,Rtol,Ctol,verbose);
+  VectorAMR vOld_amr( *sim.vOld,Rtol,Ctol,verbose);
   ScalarAMR pres_amr( *sim.pres,Rtol,Ctol,verbose);
 
   MeshAdaptation_basic<VectorGrid,ScalarGrid>tmpV_amr(*sim.tmpV);
@@ -64,12 +65,14 @@ void AdaptTheMesh::operator()(const double dt)
   tmp_amr .AdaptTheMesh();
   chi_amr .AdaptLikeOther(*sim.tmp);
   vel_amr .AdaptLikeOther(*sim.tmp);
+  vOld_amr.AdaptLikeOther(*sim.tmp);
   pres_amr.AdaptLikeOther(*sim.tmp);
   uDef_amr.AdaptLikeOther(*sim.tmp);
   tmpV_amr.AdaptLikeOther(*sim.tmp);
 
   sim.chi ->SortBlocks();
   sim.vel ->SortBlocks();
+  sim.vOld->SortBlocks();
   sim.pres->SortBlocks();
   sim.tmpV->SortBlocks();
   sim.tmp ->SortBlocks();

@@ -301,6 +301,7 @@ void Simulation::simulate()
 
 double Simulation::calcMaxTimestep()
 {
+  sim.dt_old = sim.dt;
   double CFL = sim.CFL;
   const double h = sim.getH();
   const auto findMaxU_op = findMaxU(sim);
