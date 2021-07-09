@@ -221,41 +221,8 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
    }
 }
 
-void AMRSolver::Jacobi(int iter_max)
-{
-  std::vector<cubism::BlockInfo>&  xInfo = sim.pres->getBlocksInfo();
-  std::vector<cubism::BlockInfo>& AxInfo = sim.tmp ->getBlocksInfo();
-  #pragma omp parallel
-  {
-    for (int iter = 0 ; iter < iter_max ; iter++)
-    {
-      //double norm = 0.0;
-      static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-      ScalarLab lab;
-      lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
-      #pragma omp for //reduction (+:norm)
-      for (size_t i=0; i < xInfo.size(); i++)
-      {
-        //const double vol = xInfo[i].h*xInfo[i].h;
-        lab.load(xInfo[i]);
-        ScalarBlock & __restrict__ x   = *(ScalarBlock*)  xInfo[i].ptrBlock;
-        ScalarBlock & __restrict__ rhs = *(ScalarBlock*) AxInfo[i].ptrBlock;
-        for(int iy=0; iy<VectorBlock::sizeY; iy++)
-        for(int ix=0; ix<VectorBlock::sizeX; ix++)
-        {
-          const double xnew =.25*(lab(ix+1,iy).s+lab(ix,iy+1).s+
-                                  lab(ix-1,iy).s+lab(ix,iy-1).s-rhs(ix,iy).s);
-          //norm += std::fabs(xnew-x(ix,iy).s)*vol;
-          x(ix,iy).s = xnew;
-        }
-      }
-    }
-  }
-}
-
 void AMRSolver::solve()
 {
-  Jacobi(50);
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
