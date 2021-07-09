@@ -38,11 +38,10 @@ void SimulationData::allocateGrid()
   chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  pOld  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  //dump  = new DumpGrid  (bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
@@ -52,12 +51,6 @@ void SimulationData::allocateGrid()
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 }
 
-void SimulationData::dumpGlue(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerGlue, float, DumpGrid>(*(dump), time,"velChi_" + ss.str(), path4serialization);
-  if (DumpUniform) 
-    DumpHDF5_uniform<StreamerGlue, float, DumpGrid>(*(dump), time,"velChi_" + ss.str(), path4serialization);
-}
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
@@ -75,11 +68,6 @@ void SimulationData::dumpTmp(std::string name) {
   DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
   if (DumpUniform)
     DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpTmp2(std::string name) {
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + name, path4serialization);
-  if (DumpUniform)
-    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + name, path4serialization);
 }
 void SimulationData::dumpVel(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -140,7 +128,6 @@ SimulationData::~SimulationData()
   if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
   if(tmpV not_eq nullptr) delete tmpV;
-  if(pOld not_eq nullptr) delete pOld;
   if(tmp not_eq nullptr) delete tmp;
   while( not shapes.empty() ) {
     Shape * s = shapes.back();
@@ -189,30 +176,14 @@ void SimulationData::printResetProfiler()
 void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
-  // const std::vector<BlockInfo>& chiInfo = chi->getBlocksInfo();
-  // const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-  // const std::vector<BlockInfo>& dmpInfo =dump->getBlocksInfo();
-  //const auto K1 = computeVorticity(*this); K1.run(); // uncomment to dump vorticity
-  // #pragma omp parallel for schedule(static)
-  // for (size_t i=0; i < velInfo.size(); i++)
-  // {
-  //   VectorBlock* VEL = (VectorBlock*) velInfo[i].ptrBlock;
-  //   ScalarBlock* CHI = (ScalarBlock*) chiInfo[i].ptrBlock;
-  //   VelChiGlueBlock& DMP = * (VelChiGlueBlock*) dmpInfo[i].ptrBlock;
-  //   DMP.assign(CHI, VEL);
-  // }
 
   // dump vorticity
   const auto K1 = computeVorticity(*this); K1.run();
   dumpTmp (name);
-
-  dumpChi  (name); // glued together: skip
-  //dumpVel  (name); // glued together: skip
-  // dumpGlue(name);
+  dumpChi  (name);
+  //dumpVel  (name);
   dumpPres(name);
-  //dumpInvRho(name);
   //dumpUobj (name);
-  //dumpForce(name);
   //dumpTmpV (name); // probably useless
   stopProfiler();
 }

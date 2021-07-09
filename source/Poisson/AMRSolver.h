@@ -23,8 +23,7 @@ class AMRSolver
   AMRSolver(SimulationData& s);
   cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   void solve();
-  void Get_LHS (ScalarGrid * lhs, ScalarGrid * x);
-
+  void Get_LHS ();
   std::vector<std::vector<double>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;

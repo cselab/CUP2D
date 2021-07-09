@@ -63,7 +63,7 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
    }
 }
 
-void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
+void AMRSolver::Get_LHS ()
 {
     static constexpr int BSX = VectorBlock::sizeX;
     static constexpr int BSY = VectorBlock::sizeY;
@@ -71,8 +71,8 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     //compute A*x and store it into LHS
     //here A corresponds to the discrete Laplacian operator for an AMR mesh
 
-    const std::vector<cubism::BlockInfo>& lhsInfo = lhs->getBlocksInfo();
-    const std::vector<cubism::BlockInfo>& xInfo = x->getBlocksInfo();
+    const std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
+    const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
 
     //double mean = 0;
     //int index = 0;
@@ -80,7 +80,7 @@ void AMRSolver::Get_LHS (ScalarGrid * lhs, ScalarGrid * x)
     {
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
       ScalarLab lab; 
-      lab.prepare(*x, stenBeg, stenEnd, 0);
+      lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
       #pragma omp for// reduction(+:mean)
       for (size_t i=0; i < xInfo.size(); i++)
       {
@@ -236,93 +236,60 @@ void AMRSolver::solve()
   // x vector (current solution estimate)
   // z vector (used for preconditioning)
 
-  // There arrays will be represented by the following CUP2D arrays:
-  // x    --> sim.pres
-  // s    --> sim.chi
-  // z    --> sim.pOld
-  // Ax   --> sim.tmp
-  // p    --> sim.vel[0]
-  // v    --> sim.vel[1]
-  // r    --> sim.tmpV[0]
-  // rhat --> sim.tmpV[1]
   Corrector.prepare(*sim.tmp);
 
-  std::vector<cubism::BlockInfo>&  xInfo = sim.pres->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  sInfo = sim.chi ->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  zInfo = sim.pOld->getBlocksInfo();
   std::vector<cubism::BlockInfo>& AxInfo = sim.tmp ->getBlocksInfo();
-  std::vector<cubism::BlockInfo>& pvInfo = sim.vel ->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  rInfo = sim.tmpV->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
+  const size_t Nblocks = zInfo.size();
+  const size_t N = BSX*BSY*Nblocks;
+  std::vector<double> x   (N);
+  std::vector<double> r   (N);
+  std::vector<double> p   (N,0.0); //initialize p = 0
+  std::vector<double> v   (N,0.0); //initialize v = 0
+  std::vector<double> s   (N);
+  std::vector<double> rhat(N);
+  std::vector <Real> x_opt(N);
 
-  // First, we store in SavedFields whatever is contained 
-  // in the CUP2D arrays. Then, once the algorithm finishes
-  // everything is copied back from SavedFields to CUP2D.
-  // At the same time, we start the solver as:
+
+  //Warning: AxInfo (sim.tmp) initially contains the RHS of the system!
+  //Warning:  zInfo (sim.pres) initially contains the initial solution guess x0!
+
   //1. r = RHS - Ax_0, x_0: initial solution guess
-  //2. rhat = r
-  //3. Initialize p = 0, v = 0
-  const size_t Nblocks = xInfo.size();
-  std::vector<double> SavedFields( Nblocks*BSX*BSY* 8);
+  //   - (1a) We set r = RHS and store x0 in x
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
-  {
-    //const bool cornerx = ( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) );
-    //const bool cornery = ( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) );
-    ScalarBlock& x0  = *(ScalarBlock*) xInfo[i].ptrBlock;
-    ScalarBlock& x1  = *(ScalarBlock*) sInfo[i].ptrBlock;
-    ScalarBlock& x2  = *(ScalarBlock*) zInfo[i].ptrBlock;
-    ScalarBlock& x3  = *(ScalarBlock*)AxInfo[i].ptrBlock;
-    VectorBlock& x45 = *(VectorBlock*)pvInfo[i].ptrBlock;
-    VectorBlock& x67 = *(VectorBlock*) rInfo[i].ptrBlock;
-    VectorBlock & __restrict__ r    = *(VectorBlock*)   rInfo[i].ptrBlock;
-    ScalarBlock & __restrict__ rhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
+  {    
+    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ z    = *(ScalarBlock*)  zInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8     ] = x0 (ix,iy).s;
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 1 ] = x1 (ix,iy).s;
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 2 ] = x2 (ix,iy).s;
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 3 ] = x3 (ix,iy).s;
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 4 ] = x45(ix,iy).u[0];
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 5 ] = x45(ix,iy).u[1];
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 6 ] = x67(ix,iy).u[0];
-      SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 7 ] = x67(ix,iy).u[1];
-      r(ix,iy).u[0] = rhs(ix,iy).s;
+      r[i*BSX*BSY+iy*BSX+ix] = rhs(ix,iy).s;
+      x[i*BSX*BSY+iy*BSX+ix] = z  (ix,iy).s;
     }
-    //if (cornery && cornerx)
-    //{
-    //  r  (BSX-1,BSY-1).u[0] = 0.0;
-    //  rhs(BSX-1,BSY-1).s    = 0.0;
-    //}
   }
+  //   - (1b) We compute A*x0 (which is stored in AxInfo)
+  Get_LHS();
 
-  //Warning: AxInfo (sim.tmp) initially contains the RHS of the system!
-  Get_LHS(sim.tmp,sim.pres); // tmp <-- A*x_{0}
-  
+  //   - (1c) We substract A*x0 from r. 
+  //          Here we also set rhat = r and compute the initial guess error norm.
   double norm = 0.0; //initial residual norm
   double norm_opt = 0.0; //initial residual norm
   #pragma omp parallel for reduction (+:norm)
   for (size_t i=0; i < Nblocks; i++)
   {
-          VectorBlock & __restrict__ r    = *(VectorBlock*)   rInfo[i].ptrBlock;
-          VectorBlock & __restrict__ pv   = *(VectorBlock*)  pvInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ lhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
-      r(ix,iy).u[0] -= lhs(ix,iy).s;
-      r(ix,iy).u[1]  = r(ix,iy).u[0];
-      pv(ix,iy).u[0] = 0.0;
-      pv(ix,iy).u[1] = 0.0;
-      norm += r(ix,iy).u[0]*r(ix,iy).u[0];
+      r[i*BSX*BSY+iy*BSX+ix] -= lhs(ix,iy).s;
+      rhat[i*BSX*BSY+iy*BSX+ix]  = r[i*BSX*BSY+iy*BSX+ix];
+      norm += r[i*BSX*BSY+iy*BSX+ix]*r[i*BSX*BSY+iy*BSX+ix];
     }
   }
-  const size_t Nsystem = BSX*BSY*Nblocks;
   norm = std::sqrt(norm);
 
-  std::vector <Real> x_opt (Nsystem);
-
-  //4. some bi-conjugate gradient parameters
+  //2. Set some bi-conjugate gradient parameters
   double rho   = 1.0;
   double alpha = 1.0;
   double omega = 1.0;
@@ -336,7 +303,7 @@ void AMRSolver::solve()
   bool serious_breakdown = false;
   int restarts = 0;
 
-  //5. start iterations
+  //3. start iterations
   for (size_t k = 0 ; k < 1000; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
@@ -346,22 +313,16 @@ void AMRSolver::solve()
     double norm_1 = 0.0;
     double norm_2 = 0.0;
     #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
-    for(size_t i=0; i< Nblocks; i++)
+    for(size_t i=0; i< N; i++)
     {
-      const VectorBlock & __restrict__ r    = *(VectorBlock*) rInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      {
-        rho += r(ix,iy).u[0] * r(ix,iy).u[1];
-        norm_1 += r(ix,iy).u[0] * r(ix,iy).u[0];
-        norm_2 += r(ix,iy).u[1] * r(ix,iy).u[1];
-      }
+      rho    += r[i] * rhat[i];
+      norm_1 += r[i] * r[i];
+      norm_2 += rhat[i] * rhat[i];     
     }
     double beta = rho / (rho_m1+eps) * alpha / (omega+eps);
-
     norm_1 = sqrt(norm_1);
     norm_2 = sqrt(norm_2);
-    double cosTheta = rho/norm_1/norm_2; 
+    const double cosTheta = rho/norm_1/norm_2; 
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
     if (serious_breakdown)
     {
@@ -376,30 +337,25 @@ void AMRSolver::solve()
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
-        for(size_t i=0; i< Nblocks; i++)
+        for(size_t i=0; i< N; i++)
         {
-            VectorBlock & __restrict__ r    = *(VectorBlock*) rInfo[i].ptrBlock;
-            for(int iy=0; iy<VectorBlock::sizeY; iy++)
-            for(int ix=0; ix<VectorBlock::sizeX; ix++)
-            {
-                r(ix,iy).u[1] = r(ix,iy).u[0];
-                rho += r(ix,iy).u[0]*r(ix,iy).u[1];
-            }
+          rhat[i] = r[i];
+          rho += r[i]*rhat[i];
         }
     }
+
     //3. p_{k} = r_{k-1} + beta*(p_{k-1}-omega *v_{k-1})
     //4. z = K_2 ^{-1} p
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-            VectorBlock & __restrict__ pv = *(VectorBlock*) pvInfo[i].ptrBlock;
-            ScalarBlock & __restrict__ z  = *(ScalarBlock*)  zInfo[i].ptrBlock;
-      const VectorBlock & __restrict__ r  = *(VectorBlock*)  rInfo[i].ptrBlock;
+      ScalarBlock & __restrict__ z  = *(ScalarBlock*)  zInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        pv(ix,iy).u[0] = r(ix,iy).u[0] + beta* ( pv(ix,iy).u[0] - omega * pv(ix,iy).u[1]);
-        z(ix,iy).s = pv(ix,iy).u[0];
+        const int j = i*BSX*BSY+iy*BSX+ix;
+        p[j] = r[j] + beta * (p[j] - omega * v[j]);
+        z(ix,iy).s = p[j];
       }
     }
     getZ(zInfo);
@@ -407,7 +363,7 @@ void AMRSolver::solve()
     //5. v = A z
     //6. alpha = rho_i / (rhat_0,v_i)
     alpha = 0.0;
-    Get_LHS(sim.tmp,sim.pOld); // v <-- Az //v stored in AxVector
+    Get_LHS();// v <-- Az //v stored in AxVector
 
     //7. x += a z
     //8. 
@@ -419,14 +375,13 @@ void AMRSolver::solve()
         #pragma omp for
         for (size_t i=0; i < Nblocks; i++)
         {
-                VectorBlock & __restrict__ pv = *(VectorBlock*) pvInfo[i].ptrBlock;
-                ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
-          const VectorBlock & __restrict__ r  = *(VectorBlock*)  rInfo[i].ptrBlock;
+          const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
           for(int iy=0; iy<VectorBlock::sizeY; iy++)
           for(int ix=0; ix<VectorBlock::sizeX; ix++)
           {
-            pv(ix,iy).u[1] = Ax(ix,iy).s;
-            alpha_t += r(ix,iy).u[1] * pv(ix,iy).u[1];
+            const int j = i*BSX*BSY+iy*BSX+ix;
+            v[j] = Ax(ix,iy).s;
+            alpha_t += rhat[j] * v[j];
           }
         }
         #pragma omp atomic
@@ -441,35 +396,32 @@ void AMRSolver::solve()
         #pragma omp for
         for (size_t i=0; i < Nblocks; i++)
         {
-          ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
           ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
-          ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
-          VectorBlock & __restrict__ r = *(VectorBlock*) rInfo[i].ptrBlock;
-          VectorBlock & __restrict__ pv= *(VectorBlock*)pvInfo[i].ptrBlock;
           for(int iy=0; iy<VectorBlock::sizeY; iy++)
           for(int ix=0; ix<VectorBlock::sizeX; ix++)
           {
-            x(ix,iy).s += alpha * z(ix,iy).s;
-            s(ix,iy).s = r(ix,iy).u[0] - alpha * pv(ix,iy).u[1];
-            z(ix,iy).s = s(ix,iy).s;
+            const int j = i*BSX*BSY+iy*BSX+ix;
+            x[j] += alpha * z(ix,iy).s;
+            s[j] = r[j] - alpha * v[j];
+            z(ix,iy).s = s[j];
           }
         }
     }
 
     getZ(zInfo);
-    Get_LHS(sim.tmp,sim.pOld); // t <-- Az //t stored in AxVector
+    Get_LHS(); // t <-- Az //t stored in AxVector
     //12. omega = ...
     double aux1 = 0;
     double aux2 = 0;
     #pragma omp parallel for reduction (+:aux1,aux2)
     for (size_t i=0; i < Nblocks; i++)
     {
-      ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
+      const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        aux1 += Ax(ix,iy).s *  s(ix,iy).s;
+        const int j = i*BSX*BSY+iy*BSX+ix;
+        aux1 += Ax(ix,iy).s *  s[j];
         aux2 += Ax(ix,iy).s * Ax(ix,iy).s;
       }
     }
@@ -482,17 +434,15 @@ void AMRSolver::solve()
     #pragma omp parallel for reduction(+:norm)
     for (size_t i=0; i < Nblocks; i++)
     {
-      ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
-      ScalarBlock & __restrict__ s = *(ScalarBlock*) sInfo[i].ptrBlock;
-      VectorBlock & __restrict__ r = *(VectorBlock*) rInfo[i].ptrBlock;
+      const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
+      const ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-        x(ix,iy).s += omega * z(ix,iy).s;
-        r(ix,iy).u[0] = s(ix,iy).s - omega * Ax(ix,iy).s;
-        norm+= r(ix,iy).u[0]*r(ix,iy).u[0]; 
+        const int j = i*BSX*BSY+iy*BSX+ix;
+        x[j] += omega * z(ix,iy).s;
+        r[j] = s[j] - omega * Ax(ix,iy).s;
+        norm+= r[j]*r[j]; 
       }
     }
     norm = std::sqrt(norm);
@@ -503,15 +453,8 @@ void AMRSolver::solve()
       useXopt = true;
       min_norm = norm;
       #pragma omp parallel for
-      for (size_t i=0; i < Nblocks; i++)
-      {
-        ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
-        for(int iy=0; iy<VectorBlock::sizeY; iy++)
-        for(int ix=0; ix<VectorBlock::sizeX; ix++)
-        {
-          x_opt[i*BSX*BSY + iy*BSX + ix] = x(ix,iy).s;
-        }
-      }
+      for (size_t i=0; i < N; i++)
+        x_opt[i] = x[i];
     }
 
     //if (norm / (init_norm+eps) > 10000.0 && k > 10)
@@ -531,51 +474,24 @@ void AMRSolver::solve()
   if (useXopt)
   {
     #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      {
-        x(ix,iy).s = x_opt[i*BSX*BSY + iy*BSX + ix];
-      }
-    }
+    for (size_t i=0; i < N; i++)
+      x[i] = x_opt[i];
   }
 
   double avg = 0;
-  for (size_t i=0; i < Nblocks; i++)
+  for (size_t i=0; i < N; i++)
   {
-    ScalarBlock & __restrict__ x = *(ScalarBlock*) xInfo[i].ptrBlock;
-    for(int iy=0; iy<VectorBlock::sizeY; iy++)
-    for(int ix=0; ix<VectorBlock::sizeX; ix++)
-    {
-      avg += x(ix,iy).s;
-    }
+      avg += x[i];
   }
   avg/=(Nblocks*BSX*BSY);
 
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {
-    ScalarBlock& x0  = *(ScalarBlock*) xInfo[i].ptrBlock;
-    ScalarBlock& x1  = *(ScalarBlock*) sInfo[i].ptrBlock;
-    ScalarBlock& x2  = *(ScalarBlock*) zInfo[i].ptrBlock;
-    ScalarBlock& x3  = *(ScalarBlock*)AxInfo[i].ptrBlock;
-    VectorBlock& x45 = *(VectorBlock*)pvInfo[i].ptrBlock;
-    VectorBlock& x67 = *(VectorBlock*) rInfo[i].ptrBlock;
+    ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; iy++)
     for(int ix=0; ix<VectorBlock::sizeX; ix++)
-    {
-      //x0 (ix,iy).s    = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8     ];
-      x0 (ix,iy).s    -= avg;
-      x1 (ix,iy).s    = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 1 ];
-      x2 (ix,iy).s    = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 2 ];
-      x3 (ix,iy).s    = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 3 ];
-      x45(ix,iy).u[0] = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 4 ];
-      x45(ix,iy).u[1] = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 5 ];
-      x67(ix,iy).u[0] = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 6 ];
-      x67(ix,iy).u[1] = SavedFields[ i*(BSX*BSY*8) + iy*(BSX*8) + ix*8 + 7 ];
-    }
+      P(ix,iy).s = x[i*BSX*BSY + iy*BSX + ix] - avg;
   }
   if (iter_min > 1) iter_min --;
 }

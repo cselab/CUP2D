@@ -82,11 +82,9 @@ struct SimulationData
   ScalarGrid * chi   = nullptr;
   VectorGrid * vel   = nullptr;
   ScalarGrid * pres  = nullptr;
-  ScalarGrid * pOld  = nullptr;
   VectorGrid * tmpV  = nullptr;
   ScalarGrid * tmp   = nullptr;
   VectorGrid * uDef  = nullptr;
-  DumpGrid   * dump  = nullptr;
 
   // vector containing obstacles
   std::vector<Shape*> shapes;
@@ -136,7 +134,6 @@ struct SimulationData
       minH = std::min(infos[i].h_gridpoint, minH);
     }
     return minH;
-    //return vel->getBlocksInfo().front().h_gridpoint; // yikes
   }
 
   void startProfiler(std::string name);
@@ -146,13 +143,9 @@ struct SimulationData
 
   void dumpChi   (std::string name);
   void dumpPres  (std::string name);
-  void dumpPrhs  (std::string name);
   void dumpTmp   (std::string name);
-  void dumpTmp2  (std::string name);
   void dumpVel   (std::string name);
   void dumpUobj  (std::string name);
   void dumpTmpV  (std::string name);
   void dumpAll   (std::string name);
-  void dumpInvRho(std::string name);
-  void dumpGlue  (std::string name);
 };
