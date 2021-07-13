@@ -13,7 +13,7 @@ using namespace cubism;
 
 void Disk::create(const std::vector<BlockInfo>& vInfo)
 {
-  const Real h =  vInfo[0].h_gridpoint;
+  const Real h = sim.getH();
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
@@ -45,7 +45,7 @@ void Disk::updateVelocity(double dt)
 
 void HalfDisk::create(const std::vector<BlockInfo>& vInfo)
 {
-  const Real h =  vInfo[0].h_gridpoint;
+  const Real h = sim.getH();
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
@@ -77,7 +77,7 @@ void HalfDisk::updateVelocity(double dt)
 
 void Ellipse::create(const std::vector<BlockInfo>& vInfo)
 {
-  const Real h =  vInfo[0].h_gridpoint;
+  const Real h = sim.getH();
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
