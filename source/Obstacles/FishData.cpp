@@ -17,10 +17,15 @@ FishData::FishData(Real L, Real Tp, Real phi, Real _h, const Real A):
  norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
  width(_alloc(Nm))
 {
-  // extension head
-  assert(dSref > 0);
+  if( dSref <= 0 ){
+    std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+    fflush(0);
+    abort();
+  }
+
   rS[0] = 0;
   int k = 0;
+  // extension head
   for(int i=0; i<Nend; ++i, k++)
     rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((double)Nend-1.);
   // interior points
@@ -29,7 +34,7 @@ FishData::FishData(Real L, Real Tp, Real phi, Real _h, const Real A):
   for(int i=0; i<Nend; ++i, k++)
     rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((double)Nend-1.);
   assert(k+1==Nm);
-  //cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
+  // cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
   rS[k] = std::min(rS[k], (Real)L);
   std::fill(rX, rX+Nm, 0);
   std::fill(rY, rY+Nm, 0);

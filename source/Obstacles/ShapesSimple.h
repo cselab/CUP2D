@@ -19,7 +19,12 @@ class Disk : public Shape
   Disk(SimulationData& s, cubism::ArgumentParser& p, double C[2] ) :
   Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   tAccel( p("-tAccel").asDouble(-1) )
-  {}
+  {
+    if(tAccel > 0) {
+      u = 0.0;
+      v = 0.0;
+    }
+  }
 
   Real getCharLength() const override
   {
@@ -41,7 +46,12 @@ class HalfDisk : public Shape
   HalfDisk( SimulationData& s, cubism::ArgumentParser& p, double C[2] ) :
   Shape(s,p,C), radius( p("-radius").asDouble(0.1) ),
   tAccel( p("-tAccel").asDouble(-1) )
-  {}
+  {
+    if(tAccel > 0) {
+      u = 0.0;
+      v = 0.0;
+    }
+  }
 
   Real getCharLength() const override
   {
