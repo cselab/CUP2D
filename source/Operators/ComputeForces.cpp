@@ -1,9 +1,9 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
+//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
 //
 
 #include "ComputeForces.h"
@@ -11,18 +11,19 @@
 
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
-// TODO VARIABLE DENSITY
-//
 void ComputeForces::operator()(const double dt)
 {
   sim.startProfiler("ComputeForces");
   const size_t Nblocks = velInfo.size();
   static constexpr int stenBeg[3] = {-4,-4, 0}, stenEnd[3] = { 5, 5, 1};
-
+  const int big   = ScalarBlock::sizeX - stenBeg[0];
+  const int small = stenBeg[0];
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
   #pragma omp parallel
   {
-    VectorLab  velLab;  velLab.prepare(*(sim.vel ), stenBeg, stenEnd, 0);
-    ScalarLab presLab; presLab.prepare(*(sim.pres), stenBeg, stenEnd, 0);
+    VectorLab  velLab;  velLab.prepare(*(sim.vel ), stenBeg, stenEnd, 1);
+    ScalarLab presLab; presLab.prepare(*(sim.pres), stenBeg, stenEnd, 1);
+    ScalarLab chiLab ; chiLab.prepare(*(sim.chi)  , stenBeg, stenEnd, 1);
 
     for(const Shape * const shape : sim.shapes)
     {
@@ -34,7 +35,7 @@ void ComputeForces::operator()(const double dt)
         vel_norm>0? (Real) shape->v / vel_norm : (Real)0
       };
 
-      #pragma omp for schedule(static)
+      #pragma omp for
       for (size_t i=0; i < Nblocks; ++i)
       {
         const Real NUoH = sim.nu / velInfo[i].h_gridpoint; // 2 nu / 2 h
@@ -45,6 +46,7 @@ void ComputeForces::operator()(const double dt)
 
          velLab.load( velInfo[i],0); const auto & __restrict__ V =  velLab;
         presLab.load(presInfo[i],0); const auto & __restrict__ P = presLab;
+        chiLab.load(chiInfo[i],0); const auto & __restrict__ chi = chiLab;
 
         for(size_t k = 0; k < O->n_surfPoints; ++k)
         {
@@ -52,41 +54,224 @@ void ComputeForces::operator()(const double dt)
           const std::array<Real,2> p = velInfo[i].pos<Real>(ix, iy);
 
           //shear stresses
-#if 0 //2nd order
-          const Real D11 = NUoH   * (V(ix+1,iy  ).u[0] - V(ix-1,iy  ).u[0]);
-          const Real D22 = NUoH   * (V(ix  ,iy+1).u[1] - V(ix  ,iy-1).u[1]);
-          const Real D12 = NUoH/2 * (V(ix  ,iy+1).u[0] - V(ix  ,iy-1).u[0]
-                                    +V(ix+1,iy  ).u[1] - V(ix-1,iy  ).u[1]);
-#else //"lifted" surface: derivatives make no sense when the values used are in the object, so we take one-sided stencils with values outside of the object
-      //shear stresses
-      Real D11 = 0.0;
-      Real D22 = 0.0;
-      Real D12 = 0.0;
-      {
-        const double normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
-        const double normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
-        const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
-        double dx = normX*norm;
-        double dy = normY*norm;
-        if      (dx < 0) dx -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
-        else if (dx > 0) dx += 1.5; //1.5 means moving two points away, 0.5 would mean one point
-        if      (dy < 0) dy -= 1.5; //1.5 means moving two points away, 0.5 would mean one point
-        else if (dy > 0) dy += 1.5; //1.5 means moving two points away, 0.5 would mean one point
-        const int x = ix + (int)(dx);
-        const int y = iy + (int)(dy);
-        const double dudx2 = normX > 0 ? (V(x,iy).u[0]-2*V(x+1,iy).u[0]+V(x+2,iy).u[0]) : (V(x,iy).u[0]-2*V(x-1,iy).u[0]+V(x-2,iy).u[0]);
-        const double dvdx2 = normX > 0 ? (V(x,iy).u[1]-2*V(x+1,iy).u[1]+V(x+2,iy).u[1]) : (V(x,iy).u[1]-2*V(x-1,iy).u[1]+V(x-2,iy).u[1]);
-        const double dudy2 = normY > 0 ? (V(ix,y).u[0]-2*V(ix,y+1).u[0]+V(ix,y+2).u[0]) : (V(ix,y).u[0]-2*V(ix,y-1).u[0]+V(ix,y-2).u[0]);
-        const double dvdy2 = normY > 0 ? (V(ix,y).u[1]-2*V(ix,y+1).u[1]+V(ix,y+2).u[1]) : (V(ix,y).u[1]-2*V(ix,y-1).u[1]+V(ix,y-2).u[1]);
-        const double dudx = dudx2*(ix-x) + (normX> 0 ? (-1.5*V(x,iy).u[0]+2.0*V(x+1,iy).u[0]-0.5*V(x+2,iy).u[0]) : (1.5*V(x,iy).u[0]-2.0*V(x-1,iy).u[0]+0.5*V(x-2,iy).u[0]) );
-        const double dvdx = dvdx2*(ix-x) + (normX> 0 ? (-1.5*V(x,iy).u[1]+2.0*V(x+1,iy).u[1]-0.5*V(x+2,iy).u[1]) : (1.5*V(x,iy).u[1]-2.0*V(x-1,iy).u[1]+0.5*V(x-2,iy).u[1]) );
-        const double dudy = dudy2*(iy-y) + (normY> 0 ? (-1.5*V(ix,y).u[0]+2.0*V(ix,y+1).u[0]-0.5*V(ix,y+2).u[0]) : (1.5*V(ix,y).u[0]-2.0*V(ix,y-1).u[0]+0.5*V(ix,y-2).u[0]) );
-        const double dvdy = dvdy2*(iy-y) + (normY> 0 ? (-1.5*V(ix,y).u[1]+2.0*V(ix,y+1).u[1]-0.5*V(ix,y+2).u[1]) : (1.5*V(ix,y).u[1]-2.0*V(ix,y-1).u[1]+0.5*V(ix,y-2).u[1]) );
-        D11 = 2.0*NUoH*dudx;
-        D22 = 2.0*NUoH*dvdy;
-        D12 = NUoH*(dudy+dvdx);
-      }
-#endif
+          //"lifted" surface: derivatives make no sense when the values used are in the object, 
+          // so we take one-sided stencils with values outside of the object
+          double D11 = 0.0;
+          double D22 = 0.0;
+          double D12 = 0.0;
+          {
+            const double normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
+            const double normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
+            const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
+            const double dx = normX*norm;
+            const double dy = normY*norm;
+
+            //The integers x and y will be the coordinates of the point on the lifted surface.
+            //To find them, we move along the normal vector to the surface, until we find a point
+            //outside of the object (where chi = 0).
+            int x = ix;
+            int y = iy;
+            if (std::fabs(dx) > 1e-10)
+            {
+              const double aa = std::atan2(dy,dx);
+              const double dx_a = cos(aa);
+              const double dy_a = sin(aa);
+              for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
+              {
+                if (chi(x,y).s < 1e-10 || (int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
+                x = ix + kk*dx_a; 
+                y = iy + kk*dy_a;
+              }
+            }
+            else //unit normal is n=(0,1) or n=(0,-1)
+            {
+              if (dy > 0 && chi(ix,y).s > 1e-10)
+              {
+                if      (chi(ix,y+1).s < 1e-10) y = iy + 1;
+                else if (chi(ix,y+2).s < 1e-10) y = iy + 2;
+                else                            y = iy + 3;
+              }
+              else if (dy < 0 && chi(ix,y).s > 1e-10)
+              {
+                if      (chi(ix,y-1).s < 1e-10) y = iy - 1;
+                else if (chi(ix,y-2).s < 1e-10) y = iy - 2;
+                else                            y = iy - 3;
+             }
+            }
+
+            //Now that we found the (x,y) of the point, we compute grad(u) there.
+            //grad(u) is computed with biased stencils. If available, larger stencils are used.
+            //Then, we compute higher order derivatives that are used to form a Taylor expansion
+            //around (x,y). Finally, this expansion is used to extrapolate grad(u) to (ix,iy) of 
+            //the actual solid surface. 
+
+            double dudx1 = normX > 0 ? (V(x+1,y).u[0]-V(x,y).u[0]) : (V(x,y).u[0]-V(x-1,y).u[0]);
+            double dvdx1 = normX > 0 ? (V(x+1,y).u[1]-V(x,y).u[1]) : (V(x,y).u[1]-V(x-1,y).u[1]);
+            double dudy1 = normY > 0 ? (V(x,y+1).u[0]-V(x,y).u[0]) : (V(x,y).u[0]-V(x,y-1).u[0]);
+            double dvdy1 = normY > 0 ? (V(x,y+1).u[1]-V(x,y).u[1]) : (V(x,y).u[1]-V(x,y-1).u[1]);
+            double dudxdy1 = 0.0;
+            double dvdxdy1 = 0.0;
+            double dudy2dx = 0.0;
+            double dvdy2dx = 0.0;
+            double dudx2dy = 0.0;
+            double dvdx2dy = 0.0;
+            double dudx2 = 0.0;
+            double dvdx2 = 0.0;
+            double dudy2 = 0.0;
+            double dvdy2 = 0.0;
+            double dudx3 = 0.0;
+            double dvdx3 = 0.0;
+            double dudy3 = 0.0;
+            double dvdy3 = 0.0;
+            if (normX > 0 && normY > 0)
+            {
+              dudxdy1 = (V(x+1,y+1).u[0]+V(x,y).u[0]-V(x+1,y).u[0]-V(x,y+1).u[0]);
+              dvdxdy1 = (V(x+1,y+1).u[1]+V(x,y).u[1]-V(x+1,y).u[1]-V(x,y+1).u[1]);
+              if (x+3 < big)
+              {
+                double dudx2_yplus = 2.0*V(x,y+1).u[0]-5.0*V(x+1,y+1).u[0]+4*V(x+2,y+1).u[0]-V(x+3,y+1).u[0];
+                double dudx2_y     = 2.0*V(x,y  ).u[0]-5.0*V(x+1,y  ).u[0]+4*V(x+2,y  ).u[0]-V(x+3,y  ).u[0];
+                double dvdx2_yplus = 2.0*V(x,y+1).u[1]-5.0*V(x+1,y+1).u[1]+4*V(x+2,y+1).u[1]-V(x+3,y+1).u[1];
+                double dvdx2_y     = 2.0*V(x,y  ).u[1]-5.0*V(x+1,y  ).u[1]+4*V(x+2,y  ).u[1]-V(x+3,y  ).u[1];
+                dudx2dy = dudx2_yplus - dudx2_y;
+                dvdx2dy = dvdx2_yplus - dvdx2_y;
+              }
+              if (y+3 < big)
+              {
+                double dudy2_xplus = 2.0*V(x+1,y).u[0]-5.0*V(x+1,y+1).u[0]+4*V(x+1,y+2).u[0]-V(x+1,y+3).u[0];
+                double dudy2_x     = 2.0*V(x  ,y).u[0]-5.0*V(x  ,y+1).u[0]+4*V(x  ,y+2).u[0]-V(x  ,y+3).u[0];
+                double dvdy2_xplus = 2.0*V(x+1,y).u[1]-5.0*V(x+1,y+1).u[1]+4*V(x+1,y+2).u[1]-V(x+1,y+3).u[1];
+                double dvdy2_x     = 2.0*V(x  ,y).u[1]-5.0*V(x  ,y+1).u[1]+4*V(x  ,y+2).u[1]-V(x  ,y+3).u[1];
+                dudy2dx = dudy2_xplus - dudy2_x;
+                dvdy2dx = dvdy2_xplus - dvdy2_x;
+              }
+            }
+            if (normX < 0 && normY > 0)
+            {
+              dudxdy1 = (V(x,y+1).u[0]+V(x-1,y).u[0]-V(x,y).u[0]-V(x-1,y+1).u[0]);
+              dvdxdy1 = (V(x,y+1).u[1]+V(x-1,y).u[1]-V(x,y).u[1]-V(x-1,y+1).u[1]);
+              if (x-3 >=small)
+              {
+                double dudx2_yplus = 2.0*V(x,y+1).u[0]-5.0*V(x-1,y+1).u[0]+4*V(x-2,y+1).u[0]-V(x-3,y+1).u[0];
+                double dudx2_y     = 2.0*V(x,y  ).u[0]-5.0*V(x-1,y  ).u[0]+4*V(x-2,y  ).u[0]-V(x-3,y  ).u[0];
+                double dvdx2_yplus = 2.0*V(x,y+1).u[1]-5.0*V(x-1,y+1).u[1]+4*V(x-2,y+1).u[1]-V(x-3,y+1).u[1];
+                double dvdx2_y     = 2.0*V(x,y  ).u[1]-5.0*V(x-1,y  ).u[1]+4*V(x-2,y  ).u[1]-V(x-3,y  ).u[1];
+                dudx2dy = dudx2_yplus - dudx2_y;
+                dvdx2dy = dvdx2_yplus - dvdx2_y;
+              }
+              if (y+3 < big)
+              {
+                double dudy2_xminus = 2.0*V(x-1,y).u[0]-5.0*V(x-1,y+1).u[0]+4*V(x-1,y+2).u[0]-V(x-1,y+3).u[0];
+                double dudy2_x      = 2.0*V(x  ,y).u[0]-5.0*V(x  ,y+1).u[0]+4*V(x  ,y+2).u[0]-V(x  ,y+3).u[0];
+                double dvdy2_xminus = 2.0*V(x-1,y).u[1]-5.0*V(x-1,y+1).u[1]+4*V(x-1,y+2).u[1]-V(x-1,y+3).u[1];
+                double dvdy2_x      = 2.0*V(x  ,y).u[1]-5.0*V(x  ,y+1).u[1]+4*V(x  ,y+2).u[1]-V(x  ,y+3).u[1];
+                dudy2dx = dudy2_x - dudy2_xminus;
+                dvdy2dx = dvdy2_x - dvdy2_xminus;
+              }
+            }
+            if (normX > 0 && normY < 0)
+            {
+              dudxdy1 = (V(x+1,y).u[0]+V(x,y-1).u[0]-V(x+1,y-1).u[0]-V(x,y).u[0]);
+              dvdxdy1 = (V(x+1,y).u[1]+V(x,y-1).u[1]-V(x+1,y-1).u[1]-V(x,y).u[1]);
+              if (x+3 < big)
+              {
+                double dudx2_yminus = 2.0*V(x,y-1).u[0]-5.0*V(x+1,y-1).u[0]+4*V(x+2,y-1).u[0]-V(x+3,y-1).u[0];
+                double dudx2_y      = 2.0*V(x,y  ).u[0]-5.0*V(x+1,y  ).u[0]+4*V(x+2,y  ).u[0]-V(x+3,y  ).u[0];
+                double dvdx2_yminus = 2.0*V(x,y-1).u[1]-5.0*V(x+1,y-1).u[1]+4*V(x+2,y-1).u[1]-V(x+3,y-1).u[1];
+                double dvdx2_y      = 2.0*V(x,y  ).u[1]-5.0*V(x+1,y  ).u[1]+4*V(x+2,y  ).u[1]-V(x+3,y  ).u[1];
+                dudx2dy = dudx2_y - dudx2_yminus;
+                dvdx2dy = dvdx2_y - dvdx2_yminus;
+              }
+              if (y-3 >= small)
+              {
+                double dudy2_xplus = 2.0*V(x+1,y).u[0]-5.0*V(x+1,y-1).u[0]+4*V(x+1,y-2).u[0]-V(x+1,y-3).u[0];
+                double dudy2_x     = 2.0*V(x  ,y).u[0]-5.0*V(x  ,y-1).u[0]+4*V(x  ,y-2).u[0]-V(x  ,y-3).u[0];
+                double dvdy2_xplus = 2.0*V(x+1,y).u[1]-5.0*V(x+1,y-1).u[1]+4*V(x+1,y-2).u[1]-V(x+1,y-3).u[1];
+                double dvdy2_x     = 2.0*V(x  ,y).u[1]-5.0*V(x  ,y-1).u[1]+4*V(x  ,y-2).u[1]-V(x  ,y-3).u[1];
+                dudy2dx = dudy2_xplus - dudy2_x;
+                dvdy2dx = dvdy2_xplus - dvdy2_x;
+              }
+            }
+            if (normX < 0 && normY < 0)
+            {
+              dudxdy1 = (V(x,y).u[0]+V(x-1,y-1).u[0]-V(x,y-1).u[0]-V(x-1,y).u[0]);
+              dvdxdy1 = (V(x,y).u[1]+V(x-1,y-1).u[1]-V(x,y-1).u[1]-V(x-1,y).u[1]);
+              if (x-3 >= small)
+              {
+                double dudx2_yminus = 2.0*V(x,y-1).u[0]-5.0*V(x-1,y-1).u[0]+4*V(x-2,y-1).u[0]-V(x-3,y-1).u[0];
+                double dudx2_y      = 2.0*V(x,y  ).u[0]-5.0*V(x-1,y  ).u[0]+4*V(x-2,y  ).u[0]-V(x-3,y  ).u[0];
+                double dvdx2_yminus = 2.0*V(x,y-1).u[1]-5.0*V(x-1,y-1).u[1]+4*V(x-2,y-1).u[1]-V(x-3,y-1).u[1];
+                double dvdx2_y      = 2.0*V(x,y  ).u[1]-5.0*V(x-1,y  ).u[1]+4*V(x-2,y  ).u[1]-V(x-3,y  ).u[1];
+                dudx2dy = dudx2_y - dudx2_yminus;
+                dvdx2dy = dvdx2_y - dvdx2_yminus;
+              }
+              if (y-3 >= small)
+              {
+                double dudy2_xminus = 2.0*V(x-1,y).u[0]-5.0*V(x-1,y-1).u[0]+4*V(x-1,y-2).u[0]-V(x-1,y-3).u[0];
+                double dudy2_x      = 2.0*V(x  ,y).u[0]-5.0*V(x  ,y-1).u[0]+4*V(x  ,y-2).u[0]-V(x  ,y-3).u[0];
+                double dvdy2_xminus = 2.0*V(x-1,y).u[1]-5.0*V(x-1,y-1).u[1]+4*V(x-1,y-2).u[1]-V(x-1,y-3).u[1];
+                double dvdy2_x      = 2.0*V(x  ,y).u[1]-5.0*V(x  ,y-1).u[1]+4*V(x  ,y-2).u[1]-V(x  ,y-3).u[1];
+                dudy2dx = dudy2_x - dudy2_xminus;
+                dvdy2dx = dvdy2_x - dvdy2_xminus;
+              }
+            }
+            if (normX > 0 && x+2 <    big)
+            {
+              dudx1 = -1.5*V(x,y).u[0]+2.0*V(x+1,y).u[0]-0.5*V(x+2,y).u[0];
+              dvdx1 = -1.5*V(x,y).u[1]+2.0*V(x+1,y).u[1]-0.5*V(x+2,y).u[1];
+              dudx2 =      V(x,y).u[0]-2.0*V(x+1,y).u[0]+    V(x+2,y).u[0];
+              dvdx2 =      V(x,y).u[1]-2.0*V(x+1,y).u[1]+    V(x+2,y).u[1];
+            }
+            if (normX < 0 && x-2 >= small)
+            {
+              dudx1 =  1.5*V(x,y).u[0]-2.0*V(x-1,y).u[0]+0.5*V(x-2,y).u[0];
+              dvdx1 =  1.5*V(x,y).u[1]-2.0*V(x-1,y).u[1]+0.5*V(x-2,y).u[1];
+              dudx2 =      V(x,y).u[0]-2.0*V(x-1,y).u[0]+    V(x-2,y).u[0];
+              dvdx2 =      V(x,y).u[1]-2.0*V(x-1,y).u[1]+    V(x-2,y).u[1];
+            }
+            if (normY > 0 && y+2 <    big)
+            {
+              dudy1 = -1.5*V(x,y).u[0]+2.0*V(x,y+1).u[0]-0.5*V(x,y+2).u[0];
+              dvdy1 = -1.5*V(x,y).u[1]+2.0*V(x,y+1).u[1]-0.5*V(x,y+2).u[1];
+              dudy2 =      V(x,y).u[0]-2.0*V(x,y+1).u[0]+    V(x,y+2).u[0];
+              dvdy2 =      V(x,y).u[1]-2.0*V(x,y+1).u[1]+    V(x,y+2).u[1];
+            }
+            if (normY < 0 && y-2 >= small)
+            {
+              dudy1 =  1.5*V(x,y).u[0]-2.0*V(x,y-1).u[0]+0.5*V(x,y-2).u[0];
+              dvdy1 =  1.5*V(x,y).u[1]-2.0*V(x,y-1).u[1]+0.5*V(x,y-2).u[1];
+              dudy2 =      V(x,y).u[0]-2.0*V(x,y-1).u[0]+    V(x,y-2).u[0];
+              dvdy2 =      V(x,y).u[1]-2.0*V(x,y-1).u[1]+    V(x,y-2).u[1];
+            }
+            if (normX > 0 && x+3 <    big)
+            {
+              dudx3 = -V(x,y).u[0] + 3*V(x+1,y).u[0] - 3*V(x+2,y).u[0] + V(x+3,y).u[0]; 
+              dvdx3 = -V(x,y).u[1] + 3*V(x+1,y).u[1] - 3*V(x+2,y).u[1] + V(x+3,y).u[1];
+            }
+            if (normX < 0 && x-3 >= small)
+            {
+              dudx3 =  V(x,y).u[0] - 3*V(x-1,y).u[0] + 3*V(x-2,y).u[0] - V(x-3,y).u[0]; 
+              dvdx3 =  V(x,y).u[1] - 3*V(x-1,y).u[1] + 3*V(x-2,y).u[1] - V(x-3,y).u[1];
+            }
+            if (normY > 0 && y+3 <    big) 
+            {
+              dudy3 = -V(x,y).u[0] + 3*V(x,y+1).u[0] - 3*V(x,y+2).u[0] + V(x,y+3).u[0];
+              dvdy3 = -V(x,y).u[1] + 3*V(x,y+1).u[1] - 3*V(x,y+2).u[1] + V(x,y+3).u[1];
+            }
+            if (normY < 0 && y-3 >= small)
+            {
+              dudy3 =  V(x,y).u[0] - 3*V(x,y-1).u[0] + 3*V(x,y-2).u[0] - V(x,y-3).u[0];
+              dvdy3 =  V(x,y).u[1] - 3*V(x,y-1).u[1] + 3*V(x,y-2).u[1] - V(x,y-3).u[1];
+            }
+            const double dudx = dudx1 + dudx2*(ix-x)+ dudxdy1*(iy-y) + 0.5*dudx3*(ix-x)*(ix-x) +     dudx2dy*(ix-x)*(iy-y) + 0.5*dudy2dx*(iy-y)*(iy-y);
+            const double dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y) + 0.5*dvdx3*(ix-x)*(ix-x) +     dvdx2dy*(ix-x)*(iy-y) + 0.5*dvdy2dx*(iy-y)*(iy-y);
+            const double dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y) + 0.5*dudx2dy*(ix-x)*(ix-x) +     dudy2dx*(ix-x)*(iy-y);
+            const double dvdy = dvdy1 + dvdy2*(iy-y)+ dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y) + 0.5*dvdx2dy*(ix-x)*(ix-x) +     dvdy2dx*(ix-x)*(iy-y);
+            D11 = 2.0*NUoH*dudx;
+            D22 = 2.0*NUoH*dvdy;
+            D12 = NUoH*(dudy+dvdx);
+          }//shear stress computation ends here
+
           //normals computed with Towers 2009
           // Actually using the volume integral, since (/iint -P /hat{n} dS) =
           // (/iiint - /nabla P dV). Also, P*/nabla /Chi = /nabla P
