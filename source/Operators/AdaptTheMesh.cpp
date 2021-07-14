@@ -24,7 +24,8 @@ void AdaptTheMesh::operator()(const double dt)
 
   #pragma omp parallel
   {
-    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+    //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+    static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
     ScalarLab chilab;
     chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
     #pragma omp for
@@ -38,8 +39,15 @@ void AdaptTheMesh::operator()(const double dt)
       {
         if( sim.bAdaptChiGradient )
         {
-          const double dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
-          const double dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
+          //const double dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
+          //const double dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
+
+          const double dcdx = 2*i2h*((1.0/60.0)*chilab(x+3,y).s + (-0.15)*chilab(x+2,y).s + (0.75)*chilab(x+1,y).s
+                                  + (-0.75)*chilab(x-1,y).s + (0.15)*chilab(x-2,y).s + (-1.0/60.0)*chilab(x-3,y).s);
+          const double dcdy = 2*i2h*((1.0/60.0)*chilab(x,y+3).s + (-0.15)*chilab(x,y+2).s + (0.75)*chilab(x,y+1).s
+                                  + (-0.75)*chilab(x,y-1).s + (0.15)*chilab(x,y-2).s + (-1.0/60.0)*chilab(x,y-3).s);
+
+
           const double norm = dcdx*dcdx+dcdy*dcdy;
           if (norm > 0.1) TMP(x,y).s = 1e10;
         }
