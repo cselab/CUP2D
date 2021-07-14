@@ -302,9 +302,12 @@ void AMRSolver::solve()
   bool useXopt = false;
   bool serious_breakdown = false;
   int restarts = 0;
+  bool bConverged = false;
 
   //3. start iterations
-  for (size_t k = 0 ; k < 1000; k++)
+  size_t k;
+  std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
+  for ( k = 0 ; k < 1000; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
@@ -329,11 +332,10 @@ void AMRSolver::solve()
         restarts ++;
         if (restarts >= 300)
         {
-           std::cout << "  [Poisson solver]: early termination (max restarts reached) after " << k << " iterations."; 
+           std::cout << "  [Poisson solver]: Early termination (max restarts reached) after " << k << " iterations.";
            break;
         }
-        std::cout << "  [Poisson solver]: restart at iteration:" << k << 
-                     "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
+        std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -463,13 +465,17 @@ void AMRSolver::solve()
     //  std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations.";
     //  break;
     //}
-    if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
+    if ( (norm < max_error || norm/init_norm < max_rel_error ) )
     {
-      std::cout << "  [Poisson solver]: converged after " << k << " iterations."; 
+      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      bConverged = true;
       break;
     }
   }//k-loop
-  std::cout <<  "Error norm = " << norm_opt << std::endl;
+  if( bConverged )
+    std::cout <<  " Error norm = " << norm_opt << std::endl;
+  else
+    std::cout <<  "  [Poisson solver]: Iteration " << k << ". Error norm = " << norm_opt << std::endl;
 
   if (useXopt)
   {
@@ -493,5 +499,4 @@ void AMRSolver::solve()
     for(int ix=0; ix<VectorBlock::sizeX; ix++)
       P(ix,iy).s = x[i*BSX*BSY + iy*BSX + ix] - avg;
   }
-  if (iter_min > 1) iter_min --;
 }

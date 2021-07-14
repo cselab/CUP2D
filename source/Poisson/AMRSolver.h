@@ -15,7 +15,6 @@ class AMRSolver
 {
  protected:
   SimulationData& sim;
-  size_t iter_min{30};
  public:
   std::string getName() {
     return "AMRSolver";

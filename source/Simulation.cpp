@@ -27,7 +27,6 @@
 #include "Obstacles/ZebraFish.h"
 #include "Obstacles/NeuroKinematicFish.h"
 #include "Obstacles/SmartCylinder.h"
-#include "Obstacles/Glider.h"
 #include "Obstacles/Naca.h"
 #include "Obstacles/Windmill.h"
 
@@ -207,8 +206,6 @@ void Simulation::createShapes()
         shape = new HalfDisk(         sim, ffparser, center);
       else if (objectName=="ellipse")
         shape = new Ellipse(          sim, ffparser, center);
-      else if (objectName=="glider")
-        shape = new Glider(           sim, ffparser, center);
       else if (objectName=="stefanfish")
         shape = new StefanFish(       sim, ffparser, center);
       else if (objectName=="cstartfish")
@@ -276,7 +273,7 @@ void Simulation::startObstacles()
   if(sim.verbose)
     std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
   (*pipeline[0])(0);
-    // impose velocity of obstacles
+  // impose velocity of obstacles
   if(sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
@@ -316,8 +313,8 @@ double Simulation::calcMaxTimestep()
     if (sim.step < rampup)
     {
       const double x = (sim.step+1.0)/rampup;
-      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
-      sim.dt = std::min({dtDiffusion, rampCFL * dtAdvection});
+      const double rampupFactor = std::exp(std::log(1e-3)*(1-x));
+      sim.dt = rampupFactor * std::min({dtDiffusion, sim.CFL * dtAdvection});
     }
     else
       sim.dt = std::min({dtDiffusion, sim.CFL * dtAdvection});

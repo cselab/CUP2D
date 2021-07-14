@@ -65,112 +65,113 @@ StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, double C[2]):
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.getH(), ampFac);
-  // printf("CurvatureFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if( s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.getH(), Tperiod, phaseShift);
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
 void StefanFish::create(const std::vector<BlockInfo>& vInfo)
 {
-  CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-  const double DT = sim.dt/Tperiod, time = sim.time;
-  // Control pos diffs
-  const double   xDiff = (centerOfMass[0] - origC[0])/length;
-  const double   yDiff = (centerOfMass[1] - origC[1])/length;
-  const double angDiff =  orientation     - origAng;
-  const double relU = (u + sim.uinfx) / length;
-  const double relV = (v + sim.uinfy) / length;
-  const double angVel = omega, lastAngVel = cFish->lastAvel;
-  // compute ang vel at t - 1/2 dt such that we have a better derivative:
-  const double aVelMidP = (angVel + lastAngVel)*Tperiod/2;
-  const double aVelDiff = (angVel - lastAngVel)*Tperiod/sim.dt;
-  cFish->lastAvel = angVel; // store for next time
-
-  // derivatives of following 2 exponential averages:
-  const double velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel;
-  const double velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
-  const double velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
-  // exponential averages
-  cFish->avgDangle = (1.0 -DT) * cFish->avgDangle +    DT * angDiff;
-  cFish->avgDeltaY = (1.0 -DT) * cFish->avgDeltaY +    DT *   yDiff;
-  // faster average:
-  cFish->avgAngVel = (1-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP;
-  const double avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
-
-  // integral (averaged) and proportional absolute DY and their derivative
-  const double absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
-  const double velAbsPy =     yDiff>0 ? relV     : -relV;
-  const double velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
-
+  // If PID controller to keep position or swim straight enabled
   if (bCorrectPosition || bCorrectTrajectory)
+  {
+    CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+    if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
+    const double DT = sim.dt/Tperiod, time = sim.time;
+    // Control pos diffs
+    const double   xDiff = (centerOfMass[0] - origC[0])/length;
+    const double   yDiff = (centerOfMass[1] - origC[1])/length;
+    const double angDiff =  orientation     - origAng;
+    const double relU = (u + sim.uinfx) / length;
+    const double relV = (v + sim.uinfy) / length;
+    const double angVel = omega, lastAngVel = cFish->lastAvel;
+    // compute ang vel at t - 1/2 dt such that we have a better derivative:
+    const double aVelMidP = (angVel + lastAngVel)*Tperiod/2;
+    const double aVelDiff = (angVel - lastAngVel)*Tperiod/sim.dt;
+    cFish->lastAvel = angVel; // store for next time
+
+    // derivatives of following 2 exponential averages:
+    const double velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel;
+    const double velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
+    const double velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
+    // exponential averages
+    cFish->avgDangle = (1.0 -DT) * cFish->avgDangle +    DT * angDiff;
+    cFish->avgDeltaY = (1.0 -DT) * cFish->avgDeltaY +    DT *   yDiff;
+    // faster average:
+    cFish->avgAngVel = (1-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP;
+    const double avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
+
+    // integral (averaged) and proportional absolute DY and their derivative
+    const double absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
+    const double velAbsPy =     yDiff>0 ? relV     : -relV;
+    const double velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
     assert(origAng<2e-16 && "TODO: rotate pos and vel to fish POV to enable \
                              PID to work even for non-zero angles");
 
-  if (bCorrectPosition && sim.dt>0)
-  {
-    //If angle is positive: positive curvature only if Dy<0 (must go up)
-    //If angle is negative: negative curvature only if Dy>0 (must go down)
-    const double IangPdy = (avgDangle *     yDiff < 0)? avgDangle * absPy : 0;
-    const double PangIdy = (angDiff   * avgDeltaY < 0)? angDiff   * absIy : 0;
-    const double IangIdy = (avgDangle * avgDeltaY < 0)? avgDangle * absIy : 0;
+    if (bCorrectPosition && sim.dt>0)
+    {
+      //If angle is positive: positive curvature only if Dy<0 (must go up)
+      //If angle is negative: negative curvature only if Dy>0 (must go down)
+      const double IangPdy = (avgDangle *     yDiff < 0)? avgDangle * absPy : 0;
+      const double PangIdy = (angDiff   * avgDeltaY < 0)? angDiff   * absIy : 0;
+      const double IangIdy = (avgDangle * avgDeltaY < 0)? avgDangle * absIy : 0;
 
-    // derivatives multiplied by 0 when term is inactive later:
-    const double velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
-    const double velPangIdy = velAbsIy * angDiff   + absIy * angVel;
-    const double velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
+      // derivatives multiplied by 0 when term is inactive later:
+      const double velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
+      const double velPangIdy = velAbsIy * angDiff   + absIy * angVel;
+      const double velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
 
-    //zero also the derivatives when appropriate
-    const double coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
-    const double coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
-    const double coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
+      //zero also the derivatives when appropriate
+      const double coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
+      const double coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
+      const double coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
 
-    const double valIangPdy = coefIangPdy *    IangPdy;
-    const double difIangPdy = coefIangPdy * velIangPdy;
-    const double valPangIdy = coefPangIdy *    PangIdy;
-    const double difPangIdy = coefPangIdy * velPangIdy;
-    const double valIangIdy = coefIangIdy *    IangIdy;
-    const double difIangIdy = coefIangIdy * velIangIdy;
-    const double periodFac = 1.0 - xDiff;
-    const double periodVel =     - relU;
+      const double valIangPdy = coefIangPdy *    IangPdy;
+      const double difIangPdy = coefIangPdy * velIangPdy;
+      const double valPangIdy = coefPangIdy *    PangIdy;
+      const double difPangIdy = coefPangIdy * velPangIdy;
+      const double valIangIdy = coefIangIdy *    IangIdy;
+      const double difIangIdy = coefIangIdy * velIangIdy;
+      const double periodFac = 1.0 - xDiff;
+      const double periodVel =     - relU;
 
-    if(not sim.muteAll) {
-      std::ofstream filePID;
-      std::stringstream ssF;
-      ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
-      filePID.open(ssF.str().c_str(), std::ios::app);
-      filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
-                   <<" "<<valPangIdy<<" "<<difPangIdy
-                   <<" "<<valIangIdy<<" "<<difIangIdy
-                   <<" "<<periodFac <<" "<<periodVel <<"\n";
+      if(not sim.muteAll) {
+        std::ofstream filePID;
+        std::stringstream ssF;
+        ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
+        filePID.open(ssF.str().c_str(), std::ios::app);
+        filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
+                     <<" "<<valPangIdy<<" "<<difPangIdy
+                     <<" "<<valIangIdy<<" "<<difIangIdy
+                     <<" "<<periodFac <<" "<<periodVel <<"\n";
+      }
+      const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
+      const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
+      cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
+      cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
     }
-    const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
-    const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
-    cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
-    cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
-  }
-  // if absIy<EPS then we have just one fish that the simulation box follows
-  // therefore we control the average angle but not the Y disp (which is 0)
-  else if (bCorrectTrajectory && sim.dt>0)
-  {
-    const double avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
-    const double absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
-    const Real coefInst = angDiff*avgAngVel>0 ? 0.01 : 1, coefAvg = 0.1;
-    const Real termInst = angDiff*absAngVel;
-    const Real diffInst = angDiff*absAvelDiff + angVel*absAngVel;
-    const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
-    const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
+    // if absIy<EPS then we have just one fish that the simulation box follows
+    // therefore we control the average angle but not the Y disp (which is 0)
+    else if (bCorrectTrajectory && sim.dt>0)
+    {
+      const double avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
+      const double absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
+      const Real coefInst = angDiff*avgAngVel>0 ? 0.01 : 1, coefAvg = 0.1;
+      const Real termInst = angDiff*absAngVel;
+      const Real diffInst = angDiff*absAvelDiff + angVel*absAngVel;
+      const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
+      const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
-    if(not sim.muteAll) {
-      std::ofstream filePID;
-      std::stringstream ssF;
-      ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
-      filePID.open(ssF.str().c_str(), std::ios::app);
-      filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
-                   <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
+      if(not sim.muteAll) {
+        std::ofstream filePID;
+        std::stringstream ssF;
+        ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
+        filePID.open(ssF.str().c_str(), std::ios::app);
+        filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
+                     <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
+      }
+      cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
     }
-    cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
   }
-
   Fish::create(vInfo);
 }
 

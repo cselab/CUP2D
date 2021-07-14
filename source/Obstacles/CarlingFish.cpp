@@ -17,7 +17,7 @@ CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p, double C[2])
   : Fish(s,p,C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new AmplitudeFish(length, Tperiod, phaseShift, sim.getH(), ampFac);
-  printf("AmplitudeFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if( s.verbose ) printf("[CUP2D] - AmplitudeFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 
 void CarlingFish::create(const std::vector<BlockInfo>& vInfo) {

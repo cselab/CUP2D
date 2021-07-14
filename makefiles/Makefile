@@ -38,7 +38,7 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Glider.o Fish.o SmartCylinder.o \
+		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Fish.o SmartCylinder.o \
 		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
 

@@ -51,11 +51,10 @@ struct FishData
   const Real dSmid_tgt = h / std::sqrt(2);
   const Real dSrefine_tgt = 0.125 * h;
 
-  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt);
   const Real dSmid = length * fracMid / Nmid;
 
-  const int Nend = (int)std::ceil( // here we ceil to be safer
-    fracRefined * length * 2 / (dSmid + dSrefine_tgt)  / 4) * 4;
+  const int Nend = (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt));
   const double dSref = fracRefined * length * 2 / Nend - dSmid;
 
   const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L

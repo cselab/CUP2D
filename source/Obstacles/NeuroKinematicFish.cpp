@@ -390,7 +390,7 @@ NeuroKinematicFish::NeuroKinematicFish(SimulationData&s, ArgumentParser&p, doubl
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new NeuroFish(length, Tperiod, phaseShift, sim.getH(), ampFac);
-    printf("NeuroFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+    if( s.verbose ) printf("[CUP2D] - NeuroFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 
 void NeuroKinematicFish::resetAll() {
