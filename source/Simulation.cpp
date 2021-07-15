@@ -158,6 +158,7 @@ void Simulation::parseRuntime()
   // poisson solver parameters
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
+  sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
 
   // output parameters
   sim.dumpFreq = parser("-fdump").asInt(0);

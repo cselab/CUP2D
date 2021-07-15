@@ -64,6 +64,7 @@ struct SimulationData
   // poisson solver parameters
   double PoissonTol;    // absolute error tolerance
   double PoissonTolRel; // relative error tolerance
+  int maxPoissonRestarts; // maximal number of restarts of Poisson solver
 
   // output setting
   int dumpFreq;
