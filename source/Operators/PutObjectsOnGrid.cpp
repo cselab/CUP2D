@@ -111,21 +111,14 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
       for(int iy=0; iy<VectorBlock::sizeY; iy++)
       for(int ix=0; ix<VectorBlock::sizeX; ix++)
       {
-          const double distPx = distlab(ix+1,iy).s;
-          const double distMx = distlab(ix-1,iy).s;
-          const double distPy = distlab(ix,iy+1).s;
-          const double distMy = distlab(ix,iy-1).s;
-          const auto HplusX = chilab(ix+1,iy).s;
-          const auto HminuX = chilab(ix-1,iy).s;
-          const auto HplusY = chilab(ix,iy+1).s;
-          const auto HminuY = chilab(ix,iy-1).s;
-          const double gradUX = i2h*(distPx-distMx);
-          const double gradUY = i2h*(distPy-distMy);
-          const double gradHX =     (HplusX-HminuX);
-          const double gradHY =     (HplusY-HminuY);
+          const double gradHX = chilab(ix+1,iy).s-chilab(ix-1,iy).s;
+          const double gradHY = chilab(ix,iy+1).s-chilab(ix,iy-1).s;
+          if (gradHX*gradHX + gradHY*gradHY < 1e-12) continue;
+          const double gradUX = i2h*(distlab(ix+1,iy).s-distlab(ix-1,iy).s);
+          const double gradUY = i2h*(distlab(ix,iy+1).s-distlab(ix,iy-1).s);
           const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
           const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
-          if (std::fabs(D) > 1e-20) o.write(ix, iy, D, gradUX, gradUY);
+          if (std::fabs(D) > EPS) o.write(ix, iy, D, gradUX, gradUY);
       }
     }
   }
