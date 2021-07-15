@@ -170,7 +170,7 @@ void advDiff::operator()(const double dt)
 
   const double H = sim.minH;
   const Real corr = IF/H/( 2*VectorBlock::sizeY*sim.bpdy*(1<<(sim.levelMax-1)) 
-                         // + 2*VectorBlock::sizeX*sim.bpdx*(1<<(sim.levelMax-1)) );
+                         + 2*VectorBlock::sizeX*sim.bpdx*(1<<(sim.levelMax-1)) );
   // Apply correction
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++)
