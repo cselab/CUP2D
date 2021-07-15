@@ -329,7 +329,7 @@ void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
 ZebraFish::ZebraFish(SimulationData&s, ArgumentParser&p, double C[2]): Fish(s,p,C)
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-    myFish = new BehaviorCurvatureFish(length, Tperiod, phaseShift, sim.getH(), ampFac);
+    myFish = new BehaviorCurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
     if( s.verbose ) printf("[CUP2D] - BehaviorCurvatureFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 

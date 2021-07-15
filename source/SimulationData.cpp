@@ -28,8 +28,6 @@ void SimulationData::resetAll()
 
 void SimulationData::allocateGrid()
 {
-  int aux = pow(2,levelStart);
-
   ScalarLab dummy;
   const bool xperiodic = dummy.is_xperiodic();
   const bool yperiodic = dummy.is_yperiodic();
@@ -45,10 +43,16 @@ void SimulationData::allocateGrid()
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
-  //assume all blockinfos have same h at the start!!!
+  // Compute extents, assume all blockinfos have same h at the start!!!
+  int aux = pow(2,levelStart);
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
+
+  // compute min and max gridspacing for set AMR parameter
+  int auxMax = pow(2,levelMax-1);
+  minH = extents[0] / (auxMax*bpdx*VectorBlock::sizeX);
+  maxH = extents[0] / (bpdx*VectorBlock::sizeX);
 }
 
 void SimulationData::dumpChi(std::string name) {

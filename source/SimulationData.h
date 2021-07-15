@@ -131,15 +131,20 @@ struct SimulationData
   double maxSpeed() const;
   double maxRelSpeed() const;
 
+  // minimal and maximal gridspacing possible
+  double minH;
+  double maxH;
+
+  // minimal gridspacing present on grid
   inline double getH() const
   {
-    double minH = 1e50;
+    double minHGrid = 1e50;
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
-      minH = std::min(infos[i].h_gridpoint, minH);
+      minHGrid = std::min(infos[i].h_gridpoint, minHGrid);
     }
-    return minH;
+    return minHGrid;
   }
 
   void startProfiler(std::string name);

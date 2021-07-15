@@ -15,7 +15,7 @@ using namespace cubism;
 
 void SmartCylinder::create(const std::vector<BlockInfo>& vInfo)
 {
-  const Real h =  vInfo[0].h_gridpoint;
+  const Real h = sim.getH();
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);

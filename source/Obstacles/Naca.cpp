@@ -64,7 +64,7 @@ void NacaData::computeMidline(const Real t, const Real dt)
 Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
   : Fish(s,p,C), Apitch( p("-Apitch").asDouble(0.0)*M_PI/180 ), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
-  myFish = new NacaData(length, sim.getH(), tRatio);
+  myFish = new NacaData(length, sim.minH, tRatio);
   if( s.verbose ) printf("[CUP2D] - NacaData Nm=%d L=%f t=%f A=%f w=%f xvel=%f yvel=%f tAccel=%f fixedCenterDist=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, forcedu, forcedv, tAccel, fixedCenterDist);
 }
 

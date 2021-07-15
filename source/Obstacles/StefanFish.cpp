@@ -64,8 +64,8 @@ StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, double C[2]):
  #endif
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.getH(), ampFac);
-  if( s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.getH(), Tperiod, phaseShift);
+  myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
+  if( s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.minH, Tperiod, phaseShift);
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
