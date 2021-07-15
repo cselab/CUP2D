@@ -302,6 +302,7 @@ void AMRSolver::solve()
   bool useXopt = false;
   bool serious_breakdown = false;
   int restarts = 0;
+  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
   bool bConverged = false;
 
   //3. start iterations
@@ -330,9 +331,9 @@ void AMRSolver::solve()
     if (serious_breakdown)
     {
         restarts ++;
-        if (restarts >= 300)
+        if (restarts >= max_restarts)
         {
-           std::cout << "  [Poisson solver]: Early termination (max restarts reached) after " << k << " iterations.";
+           // std::cout << "  [Poisson solver]: Early termination (max restarts reached) after " << k << " iterations.\n";
            break;
         }
         std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;

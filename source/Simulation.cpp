@@ -158,6 +158,7 @@ void Simulation::parseRuntime()
   // poisson solver parameters
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
+  sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
 
   // output parameters
   sim.dumpFreq = parser("-fdump").asInt(0);
@@ -260,18 +261,14 @@ void Simulation::resetRL()
 
 void Simulation::startObstacles()
 {
-  // Initial PutObjectToGrid
+  // put obstacles to grid and compress
   if(sim.verbose)
-    std::cout << "[CUP2D] Initial PutObjectsOnGrid\n";
-  (*pipeline[0])(0);
-  // initial compression of the grid
-  if(sim.verbose)
-    std::cout << "[CUP2D] Initial Compression of Grid\n";
+    std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   for( int i = 0; i<sim.levelMax; i++ )
+  {
+    (*pipeline[0])(0);
     (*pipeline[pipeline.size()-1])(0);
-  // PutObjectToGrid for compressed grid
-  if(sim.verbose)
-    std::cout << "[CUP2D] Compressed PutObjectsOnGrid\n";
+  }
   (*pipeline[0])(0);
   // impose velocity of obstacles
   if(sim.verbose)
