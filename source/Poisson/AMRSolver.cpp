@@ -336,7 +336,7 @@ void AMRSolver::solve()
            // std::cout << "  [Poisson solver]: Early termination (max restarts reached) after " << k << " iterations.\n";
            break;
         }
-        std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
+        std::cout << "  [Poisson solver]: Restart at iteration: " << k+1 << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -468,7 +468,7 @@ void AMRSolver::solve()
     //}
     if ( (norm < max_error || norm/init_norm < max_rel_error ) )
     {
-      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      std::cout << "  [Poisson solver]: Converged after " << k+1 << " iterations.";
       bConverged = true;
       break;
     }
@@ -476,7 +476,7 @@ void AMRSolver::solve()
   if( bConverged )
     std::cout <<  " Error norm = " << norm_opt << std::endl;
   else
-    std::cout <<  "  [Poisson solver]: Iteration " << k << ". Error norm = " << norm_opt << std::endl;
+    std::cout <<  "  [Poisson solver]: Iteration " << k+1 << ". Error norm = " << norm_opt << std::endl;
 
   if (useXopt)
   {
