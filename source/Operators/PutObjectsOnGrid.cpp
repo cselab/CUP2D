@@ -89,7 +89,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
     shape->M = _m;
   } 
   else{
-    printf("[CUP2D] ABORT: PutObjectsOnGrid _m is too small!\n");
+    printf("[CUP2D] ABORT: _m is too small! (object not resolved)\n");
     fflush(0);
     abort();
   } 
