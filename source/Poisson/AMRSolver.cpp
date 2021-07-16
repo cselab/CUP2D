@@ -291,8 +291,8 @@ void AMRSolver::solve()
   double alpha = 1.0;
   double omega = 1.0;
   const double eps = 1e-21;
-  const double max_error = sim.step < 10 ? 0.0 : (sim.PoissonTol * sim.uMax_measured / (sim.dt+1e-6));
-  const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,(sim.PoissonTolRel * sim.uMax_measured / (sim.dt+1e-6)));
+  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
+  const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
   double min_norm = 1e50;
   double rho_m1;
   double init_norm=norm;
@@ -330,10 +330,9 @@ void AMRSolver::solve()
         restarts ++;
         if (restarts >= max_restarts)
         {
-           // std::cout << "  [Poisson solver]: Early termination (max restarts reached) after " << k << " iterations.\n";
            break;
         }
-        std::cout << "  [Poisson solver]: Restart at iteration: " << k+1 << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
+        std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -465,15 +464,15 @@ void AMRSolver::solve()
     //}
     if ( (norm < max_error || norm/init_norm < max_rel_error ) )
     {
-      std::cout << "  [Poisson solver]: Converged after " << k+1 << " iterations.";
+      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
       bConverged = true;
       break;
     }
-  }//k-loop
+  } //k-loop
   if( bConverged )
-    std::cout <<  " Error norm = " << norm_opt << std::endl;
+    std::cout <<  " Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "  [Poisson solver]: Iteration " << k+1 << ". Error norm = " << norm_opt << std::endl;
+    std::cout <<  "  [Poisson solver]: Iteration " << k << ". Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
 
   if (useXopt)
   {
