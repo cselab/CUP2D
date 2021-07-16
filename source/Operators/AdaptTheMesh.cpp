@@ -66,6 +66,7 @@ void AdaptTheMesh::operator()(const double dt)
   VectorAMR vel_amr ( *sim.vel ,Rtol,Ctol,verbose);
   VectorAMR vOld_amr( *sim.vOld,Rtol,Ctol,verbose);
   ScalarAMR pres_amr( *sim.pres,Rtol,Ctol,verbose);
+  ScalarAMR pold_amr( *sim.pold,Rtol,Ctol,verbose);
 
   MeshAdaptation_basic<VectorGrid,ScalarGrid>tmpV_amr(*sim.tmpV);
   MeshAdaptation_basic<VectorGrid,ScalarGrid>uDef_amr(*sim.uDef);
@@ -75,6 +76,7 @@ void AdaptTheMesh::operator()(const double dt)
   vel_amr .AdaptLikeOther(*sim.tmp);
   vOld_amr.AdaptLikeOther(*sim.tmp);
   pres_amr.AdaptLikeOther(*sim.tmp);
+  pold_amr.AdaptLikeOther(*sim.tmp);
   uDef_amr.AdaptLikeOther(*sim.tmp);
   tmpV_amr.AdaptLikeOther(*sim.tmp);
 
@@ -82,6 +84,7 @@ void AdaptTheMesh::operator()(const double dt)
   sim.vel ->SortBlocks();
   sim.vOld->SortBlocks();
   sim.pres->SortBlocks();
+  sim.pold->SortBlocks();
   sim.tmpV->SortBlocks();
   sim.tmp ->SortBlocks();
   sim.uDef->SortBlocks();

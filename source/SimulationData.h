@@ -87,6 +87,7 @@ struct SimulationData
   VectorGrid * tmpV  = nullptr;
   ScalarGrid * tmp   = nullptr;
   VectorGrid * uDef  = nullptr;
+  ScalarGrid * pold  = nullptr;
 
   // vector containing obstacles
   std::vector<Shape*> shapes;
