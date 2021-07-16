@@ -471,7 +471,7 @@ void PressureSingle::operator()(const double dt)
            const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
            POLD (ix,iy).s = PRES (ix,iy).s;
            if (sim.step > step_extrapolate + 1)
-               PRES(ix,iy).s += dp*sim.dt;
+               PRES(ix,iy).s += dpdt*sim.dt;
         }
      }
   }
