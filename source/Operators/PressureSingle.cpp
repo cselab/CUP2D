@@ -456,8 +456,8 @@ void PressureSingle::operator()(const double dt)
 
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
+  const int step_extrapolate = 20;
 
-  const int step_extrapolate = 10;
   if (sim.step > step_extrapolate)
   {
      #pragma omp parallel for
@@ -468,10 +468,10 @@ void PressureSingle::operator()(const double dt)
         for(int iy=0; iy<VectorBlock::sizeY; ++iy)
         for(int ix=0; ix<VectorBlock::sizeX; ++ix)
         {
-           const double dp = PRES(ix,iy).s - POLD(ix,iy).s;
+           const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
            POLD (ix,iy).s = PRES (ix,iy).s;
            if (sim.step > step_extrapolate + 1)
-               PRES(ix,iy).s += dp; //equivalent to pres = pold + dp/dt*dt
+               PRES(ix,iy).s += dp*sim.dt;
         }
      }
   }
