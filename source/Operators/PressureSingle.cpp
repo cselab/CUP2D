@@ -456,7 +456,7 @@ void PressureSingle::operator()(const double dt)
 
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-  const int step_extrapolate = 20;
+  const int step_extrapolate = 100; //start the extrapolation after 100 steps (after dt ramp up is finished)
 
   if (sim.step > step_extrapolate)
   {
