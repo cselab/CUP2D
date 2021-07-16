@@ -16,7 +16,7 @@ export CFL=0.1
 export NU=0.000002
 for (( k = 8; k < 12; ++k )); do
   export LEVELS=$k 
-  ./launchDiskAMR.sh Re020000_$k
+  ./launchDiskMultiple.sh Re020000_$k
 done
 
 #Re=50,000
@@ -26,7 +26,7 @@ export CFL=0.075
 export NU=0.0000008
 for (( k = 8; k < 12; ++k )); do
   export LEVELS=$k 
-  ./launchDiskAMR.sh Re050000_$k
+  ./launchDiskMultiple.sh Re050000_$k
 done
 
 #Re=100,000
@@ -36,5 +36,5 @@ export CFL=0.05
 export NU=0.0000004
 for (( k = 9; k < 13; ++k )); do
   export LEVELS=$k 
-  ./launchDiskAMR.sh Re100000_$k
+  ./launchDiskMultiple.sh Re100000_$k
 done
