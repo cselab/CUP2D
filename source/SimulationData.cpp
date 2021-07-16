@@ -38,6 +38,7 @@ void SimulationData::allocateGrid()
   tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  pold  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 

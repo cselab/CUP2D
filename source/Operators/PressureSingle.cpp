@@ -454,6 +454,28 @@ void PressureSingle::operator()(const double dt)
 {
   sim.startProfiler("Pressure");
 
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const size_t Nblocks = velInfo.size();
+
+  const int step_extrapolate = 10;
+  if (sim.step > step_extrapolate)
+  {
+     #pragma omp parallel for
+     for (size_t i=0; i < Nblocks; i++)
+     {
+        ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+        ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+           const double dp = PRES(ix,iy).s - POLD(ix,iy).s;
+           POLD (ix,iy).s = PRES (ix,iy).s;
+           if (sim.step > step_extrapolate + 1)
+               PRES(ix,iy).s += dp; //equivalent to pres = pold + dp/dt*dt
+        }
+     }
+  }
+
   // update velocity of obstacle
   for(Shape * const shape : sim.shapes) {
     integrateMomenta(shape);

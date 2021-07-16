@@ -126,45 +126,24 @@ void computeDivergence::run() const
 
 void IC::operator()(const double dt)
 {
-
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
+  const std::vector<BlockInfo>& poldInfo  = sim.pold->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
-  //const std::vector<BlockInfo>& forceInfo = sim.force->getBlocksInfo();
-
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
 
   const size_t Nblocks = velInfo.size();
-
-  #pragma omp parallel
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
   {
-    //std::random_device rd;
-    //std::normal_distribution<Real> dist(0, 1e-7);
-    //std::mt19937 gen(rd());
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
-      VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
-      ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
-      ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
-      //VectorBlock&    F= *(VectorBlock*)forceInfo[i].ptrBlock;    F.clear();
-
-      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
-      VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
-      assert(velInfo[i].blockID ==  uDefInfo[i].blockID);
-      assert(velInfo[i].blockID ==   chiInfo[i].blockID);
-      assert(velInfo[i].blockID ==  presInfo[i].blockID);
-      //assert(velInfo[i].blockID == forceInfo[i].blockID);
-      assert(velInfo[i].blockID ==   tmpInfo[i].blockID);
-      assert(velInfo[i].blockID ==  tmpVInfo[i].blockID);
-      //for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      //for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
-      //  VEL(ix,iy).u[0] += dist(gen);
-      //  VEL(ix,iy).u[1] += dist(gen);
-      //}
-    }
+    VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
+    VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
+    ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+    ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
+    ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
+    ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
+    VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
   }
 }
 
