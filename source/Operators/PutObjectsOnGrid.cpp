@@ -87,7 +87,12 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
     shape->centerOfMass[0] += _x/_m;
     shape->centerOfMass[1] += _y/_m;
     shape->M = _m;
-  } else printf("PutObjectsOnGrid _m is too small!\n");
+  } 
+  else{
+    printf("[CUP2D] ABORT: PutObjectsOnGrid _m is too small!\n");
+    fflush(0);
+    abort();
+  } 
 
 #if 1 //more accurate, uses actual values of mollified Heaviside
   #pragma omp parallel
