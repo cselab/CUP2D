@@ -7,8 +7,8 @@ LEVELS=${LEVELS:-8}
 RTOL=${RTOL-2}
 CTOL=${CTOL-1}
 EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.2}
-PT=${PT:-1e-3}  
+CFL=${CFL:-0.5}
+PT=${PT:-1e-3}
 PTR=${PTR:-1e-2}
 PR=${PR:-0}
 
@@ -58,13 +58,13 @@ then
 	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSLEADER bFixed=1 
 stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
-	# stefanfish Re=1'000 <-> NU=0.00001125
+	# stefanfish Re=1'000 <-> NU=0.00004
 	NU=${NU:-0.00004}
 fi
 
 echo "----------------------------"
 echo "setting simulation options"
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 5  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 1"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 5  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0"
 echo $OPTIONS
 echo "###############################"
 
