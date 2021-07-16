@@ -1,20 +1,8 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
-
-//
-//  Contains definitions of:
-// - cylinder
-// - half cylinder
-// - ellipse (TODO half ellipse?)
-// - plate, allows imposed angular velocity (eg, fins)
-// - cylinder with two densities
-// - ellipse with two densities.
-// All done with Tower's discretized heaviside chi and dirac delta
 
 #pragma once
 

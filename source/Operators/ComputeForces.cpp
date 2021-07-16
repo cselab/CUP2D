@@ -3,8 +3,6 @@
 //  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
-//
 
 #include "ComputeForces.h"
 #include "../Shape.h"
