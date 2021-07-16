@@ -1,11 +1,8 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Pascal Weber (webepasc@ethz.ch).
-//
-
 
 #include "Naca.h"
 #include "FishData.h"

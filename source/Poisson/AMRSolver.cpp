@@ -1,15 +1,12 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
-//
-//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
 //
 
 #include "AMRSolver.h"
 
 using namespace cubism;
-
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {

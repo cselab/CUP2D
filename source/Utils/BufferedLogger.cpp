@@ -1,9 +1,7 @@
 //
-//  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  CubismUP_2D
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
-//
-//  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
 #include "BufferedLogger.h"

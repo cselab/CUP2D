@@ -1,8 +1,7 @@
 //
-//  CubismUP_2D - AMR
-//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
-//
-//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
+//  CubismUP_2D
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 
 #include "advDiff.h"
