@@ -232,7 +232,7 @@ void Simulation::reset()
 {
   // reset field variables and shapes
   if(sim.verbose)
-    std::cout << "[CUP2D] Resetting Field Variables and Shapes..." << std::endl;
+    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
   // impose field initial condition
   if(sim.verbose)

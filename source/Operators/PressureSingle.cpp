@@ -443,7 +443,7 @@ bool PressureSingle::detectCollidingObstacles() const
 
         // set boolean to true and tell user
         bCollision = true;
-        printf("%lu hit %lu in [%f %f]\n", i, j, pos[0], pos[1]); fflush(0);
+        printf("[CUP2D] WARNING: %lu hit %lu in [%f %f]\n", i, j, pos[0], pos[1]); fflush(0);
       }
     }
   }
