@@ -77,8 +77,7 @@ void ComputeForces::operator()(const double dt)
             int found = 0;
             for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
             {
-              //if (chi(x,y).s < 1e-10 || (int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
-              if ((int)abs(kk*dx_a) > 4 || (int)abs(kk*dy_a) > 4) break; //4 means we moved too far
+              if ((int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
               if (chi(x,y).s < 1e-10 && found == 1) break;
               x  = ix + kk*dx_a; 
               y  = iy + kk*dy_a;
