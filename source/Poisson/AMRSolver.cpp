@@ -485,19 +485,12 @@ void AMRSolver::solve()
       x[i] = x_opt[i];
   }
 
-  double avg = 0;
-  for (size_t i=0; i < N; i++)
-  {
-      avg += x[i];
-  }
-  avg/=(Nblocks*BSX*BSY);
-
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {
     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; iy++)
     for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      P(ix,iy).s = x[i*BSX*BSY + iy*BSX + ix] - avg;
+      P(ix,iy).s = x[i*BSX*BSY + iy*BSX + ix];
   }
 }
