@@ -8,7 +8,7 @@ RTOL=${RTOL-2}
 CTOL=${CTOL-1}
 EXTENT=${EXTENT:-4}
 CFL=${CFL:-0.5}
-PT=${PT:-1e-3}
+PT=${PT:-1e-5}
 PTR=${PTR:-1e-2}
 PR=${PR:-0}
 
