@@ -54,7 +54,9 @@ cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
-bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 24:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
+bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 120:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
+# select[model==EPYC_7H12] for other Euler nodes
+# select[model==EPYC_7742] for other Euler nodes
 fi
 
 ###################################################################################################
