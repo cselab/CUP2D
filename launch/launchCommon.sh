@@ -28,6 +28,8 @@ cd ${FOLDERNAME}
 elif [ ${HOST:0:5} == 'daint' ] ; then
 
 BASEPATH="${SCRATCH}/CUP2D/"
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
 export OMP_NUM_THREADS=36
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
@@ -47,6 +49,8 @@ elif [ ${HOST:0:3} == 'eu-' ] ; then
 
 BASEPATH="$SCRATCH/CUP2D"
 export OMP_NUM_THREADS=36 # 128 for other Euler nodes
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
