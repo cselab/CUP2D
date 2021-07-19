@@ -141,7 +141,7 @@ void advDiff::operator()(const double dt)
   }
   Corrector.FillBlockCases();
 
-  // Copy TMP to V and store inflow correction
+  // Copy TMP to V
   Real IF = 0.0;
   #pragma omp parallel for reduction(+ : IF)
   for (size_t i=0; i < Nblocks; i++)
@@ -154,48 +154,6 @@ void advDiff::operator()(const double dt)
     {
       V(ix,iy).u[0] += T(ix,iy).u[0]*ih2;
       V(ix,iy).u[1] += T(ix,iy).u[1]*ih2;
-    }
-    const int aux = 1<<velInfo[i].level;
-    const bool isW = velInfo[i].index[0] == 0;
-    const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
-    const bool isS = velInfo[i].index[1] == 0;
-    const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
-    const double h = velInfo[i].h;
-    if (isW) for(int iy=0; iy<VectorBlock::sizeY; ++iy) IF -= h * V(0,iy).u[0];
-    if (isS) for(int ix=0; ix<VectorBlock::sizeX; ++ix) IF -= h * V(ix,0).u[1];
-    if (isE) for(int iy=0; iy<VectorBlock::sizeY; ++iy) IF += h * V(VectorBlock::sizeX-1,iy).u[0];
-    if (isN) for(int ix=0; ix<VectorBlock::sizeX; ++ix) IF += h * V(ix,VectorBlock::sizeY-1).u[1];
-  }
-
-  const double H = sim.minH;
-  const Real corr = IF/H/( 2*VectorBlock::sizeY*sim.bpdy*(1<<(sim.levelMax-1)) 
-                         + 2*VectorBlock::sizeX*sim.bpdx*(1<<(sim.levelMax-1)) );
-  // Apply correction
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    const int level = velInfo[i].level;
-    const int aux = 1<<level;
-    const bool isW = velInfo[i].index[0] == 0;
-    const bool isE = velInfo[i].index[0] == aux*sim.bpdx-1;
-    const bool isS = velInfo[i].index[1] == 0;
-    const bool isN = velInfo[i].index[1] == aux*sim.bpdy-1;
-
-    VectorBlock& V = *(VectorBlock*) velInfo[i].ptrBlock;
-    if(isW) for(int iy=0; iy<VectorBlock::sizeY; ++iy) V(0,iy).u[0] += corr;
-    if(isS) for(int ix=0; ix<VectorBlock::sizeX; ++ix) V(ix,0).u[1] += corr;
-    if(isE) for(int iy=0; iy<VectorBlock::sizeY; ++iy) V(VectorBlock::sizeX-1,iy).u[0] -= corr;
-    if(isN) for(int ix=0; ix<VectorBlock::sizeX; ++ix) V(ix,VectorBlock::sizeY-1).u[1] -= corr;
-  }
-
-  #pragma omp parallel for 
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
-    VectorBlock & __restrict__ Vold  = *(VectorBlock*)  vOldInfo[i].ptrBlock;
-    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-    {
       Vold(ix,iy).u[0] = V(ix,iy).u[0];
       Vold(ix,iy).u[1] = V(ix,iy).u[1];
     }

@@ -105,7 +105,6 @@ struct ScalarElement
 
   Real & member(int i)
   {
-    assert(i==0);
     return s;
   }
   static constexpr int DIM = 1;
@@ -399,6 +398,8 @@ public:
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCface(bool coarse=false)
   {
+
+    const int A = 1 - dir;
     if (!coarse)
     {
       auto * const cb = this->m_cacheBlock;
@@ -407,18 +408,18 @@ public:
       const int* const stenEnd = this->m_stencilEnd;
       s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
       s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
-
-      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
-                     : sizeX +  stenEnd[0]-1;
-      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
-                     : sizeY +  stenEnd[1]-1;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY +  stenEnd[1]-1;
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
-      (-1.0)*cb->Access(
-            ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1], 0 );
+      {
+        const int x = ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0];
+        const int y = ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1];
+        //cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
+      }
     }
     else
     {
@@ -439,17 +440,18 @@ public:
       s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : stenBeg[0];
       s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : stenBeg[1];
 
-      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 )
-                     : sizeX/2 +  stenEnd[0]-1;
-      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 )
-                     : sizeY/2 +  stenEnd[1]-1;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2 +  stenEnd[0]-1;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2 +  stenEnd[1]-1;
 
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) =
-      (-1.0)*cb->Access(
-            ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0],
-            ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1], 0 );
+      {
+        const int x = ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0];
+        const int y = ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1];
+        //cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
+      }
     }
   }
 
