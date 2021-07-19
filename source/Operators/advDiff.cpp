@@ -142,12 +142,12 @@ void advDiff::operator()(const double dt)
   Corrector.FillBlockCases();
 
   // Copy TMP to V
-  Real IF = 0.0;
-  #pragma omp parallel for reduction(+ : IF)
+  #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    VectorBlock & __restrict__ Vold  = *(VectorBlock*)  vOldInfo[i].ptrBlock;
     const double ih2 = 1.0/velInfo[i].h/velInfo[i].h;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
