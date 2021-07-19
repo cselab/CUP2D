@@ -130,6 +130,7 @@ SimulationData::~SimulationData()
   if(chi not_eq nullptr) delete chi;
   if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
+  if(pold not_eq nullptr) delete pold;
   if(tmpV not_eq nullptr) delete tmpV;
   if(tmp not_eq nullptr) delete tmp;
   while( not shapes.empty() ) {
