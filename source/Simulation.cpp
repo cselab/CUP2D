@@ -230,6 +230,9 @@ void Simulation::createShapes()
 
 void Simulation::reset()
 {
+  // clear and allocate new grid
+  sim.deleteGrid();
+  sim.allocateGrid();
   // reset field variables and shapes
   if(sim.verbose)
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
@@ -241,19 +244,6 @@ void Simulation::reset()
   ic(0);
   // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
-}
-
-void Simulation::resetRL()
-{
-  // reset simulation (not shape)
-  if(sim.verbose)
-    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
-  sim.resetAll();
-  // impose field initial condition
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  IC ic(sim);
-  ic(0);
 }
 
 void Simulation::startObstacles()

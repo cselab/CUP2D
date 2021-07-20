@@ -29,7 +29,6 @@ public:
   ~Simulation();
 
   void reset();
-  void resetRL();
   void init();
   void startObstacles();
   void simulate();

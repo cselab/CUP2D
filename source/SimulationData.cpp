@@ -54,6 +54,19 @@ void SimulationData::allocateGrid()
   maxH = extents[0] / (bpdx*VectorBlock::sizeX);
 }
 
+void SimulationData::deleteGrid()
+{
+  if(chi not_eq nullptr) delete chi;
+  if(vel not_eq nullptr) delete vel;
+  if(vOld not_eq nullptr) delete vOld;
+  if(pres not_eq nullptr) delete pres;
+  if(tmpV not_eq nullptr) delete tmpV;
+  if(tmp not_eq nullptr) delete tmp;
+  if(uDef not_eq nullptr) delete uDef;
+  if(pold not_eq nullptr) delete pold;
+}
+
+
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
@@ -126,13 +139,14 @@ SimulationData::~SimulationData()
   #ifndef SMARTIES_APP
     delete profiler;
   #endif
-  if(vel not_eq nullptr) delete vel;
   if(chi not_eq nullptr) delete chi;
-  if(uDef not_eq nullptr) delete uDef;
+  if(vel not_eq nullptr) delete vel;
+  if(vOld not_eq nullptr) delete vOld;
   if(pres not_eq nullptr) delete pres;
-  if(pold not_eq nullptr) delete pold;
   if(tmpV not_eq nullptr) delete tmpV;
   if(tmp not_eq nullptr) delete tmp;
+  if(uDef not_eq nullptr) delete uDef;
+  if(pold not_eq nullptr) delete pold;
   while( not shapes.empty() ) {
     Shape * s = shapes.back();
     if(s not_eq nullptr) delete s;

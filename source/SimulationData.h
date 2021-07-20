@@ -120,6 +120,7 @@ struct SimulationData
   bool bCollision = false;
 
   void allocateGrid();
+  void deleteGrid();
   void resetAll();
   bool bDump();
   void registerDump();
