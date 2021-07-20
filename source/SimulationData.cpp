@@ -166,7 +166,7 @@ void SimulationData::startProfiler(std::string name)
 {
  #ifndef NDEBUG
   Checker check (*this);
-  check.run("before" + name);
+  check.run("before " + name);
  #endif
   profiler->push_start(name);
 }

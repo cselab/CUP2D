@@ -260,8 +260,11 @@ void Simulation::clearPipeline()
 
 void Simulation::reset()
 {
-  if(sim.verbose)
+  if(sim.verbose){
+    std::cout
+  <<"=======================================================================\n";
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
+  }
   // clear and allocate new grid
   if(sim.verbose)
     std::cout << "[CUP2D] Clearing and Allocating Grid..." << std::endl;

@@ -452,7 +452,7 @@ bool PressureSingle::detectCollidingObstacles() const
 
 void PressureSingle::operator()(const double dt)
 {
-  sim.startProfiler("Pressure");
+  sim.startProfiler("PressureSingle");
 
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
