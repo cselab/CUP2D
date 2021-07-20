@@ -48,10 +48,13 @@ struct FishData
   const Real dSmid_tgt = h / std::sqrt(2);
   const Real dSrefine_tgt = 0.125 * h;
 
-  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt);
+  //// Nm should be divisible by 8, see Fish.cpp - 3)
+  // thus Nmid enforced to be divisible by 8
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
   const Real dSmid = length * fracMid / Nmid;
 
-  const int Nend = (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt));
+  // thus Nend enforced to be divisible by 4
+  const int Nend = (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
   const double dSref = fracRefined * length * 2 / Nend - dSmid;
 
   const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
