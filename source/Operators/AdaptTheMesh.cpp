@@ -12,7 +12,7 @@ void AdaptTheMesh::operator()(const double dt)
 {
   count ++;
 
-  if ((count-1) % 10 != 0 && count > 10) return;
+  if ((count-1) % 10 != 0 && count > 20) return;
 
   sim.startProfiler("AdaptTheMesh");
 
