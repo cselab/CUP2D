@@ -28,6 +28,7 @@
 *.brf
 
 makefiles/simulation
+makefiles/debugRL
 deprecated/*
 
 .DS_Store
