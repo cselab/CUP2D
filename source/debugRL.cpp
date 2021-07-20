@@ -140,10 +140,10 @@ void setInitialConditions(StefanFish *agent, std::vector<double> initialConditio
   double initialAngle = initialConditions[0];
   std::vector<double> initialPosition{initialConditions[1], initialConditions[2]};
 
-  printf("Initial Condition:\n");
-  printf("angle: %f\n", initialAngle);
-  printf("x: %f\n", initialPosition[0]);
-  printf("y: %f\n", initialPosition[1]);
+  printf("[debugRL] Initial Condition:\n");
+  printf("[debugRL] angle: %f\n", initialAngle);
+  printf("[debugRL] x: %f\n", initialPosition[0]);
+  printf("[debugRL] y: %f\n", initialPosition[1]);
 
   // Setting initial position and orientation for the fish
   agent->setCenterOfMass(initialPosition.data());

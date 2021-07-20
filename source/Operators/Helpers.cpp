@@ -227,7 +227,7 @@ void Checker::run(std::string when) const
   if( bAbort )
   {
     printf("[CUP2D] %s: Detected invalid values. Aborting...\n", when.c_str());
-    // sim.dumpAll("abort_");
+    sim.dumpAll("abort_");
     fflush(0); 
     abort();
   }

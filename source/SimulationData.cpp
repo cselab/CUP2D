@@ -186,7 +186,8 @@ void SimulationData::printResetProfiler()
 
 void SimulationData::dumpAll(std::string name)
 {
-  startProfiler("Dump");
+  if( name != "abort_" )
+    startProfiler("Dump");
 
   // dump vorticity
   const auto K1 = computeVorticity(*this); K1.run();
@@ -196,5 +197,6 @@ void SimulationData::dumpAll(std::string name)
   dumpPres(name);
   //dumpUobj (name);
   //dumpTmpV (name); // probably useless
-  stopProfiler();
+  if( name != "abort_" )
+    stopProfiler();
 }
