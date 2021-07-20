@@ -56,11 +56,7 @@ Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
 
 Simulation::~Simulation()
 {
-  while( not pipeline.empty() ) {
-    Operator * g = pipeline.back();
-    pipeline.pop_back();
-    if(g not_eq nullptr) delete g;
-  }
+  clearPipeline();
 }
 
 void Simulation::init()
@@ -84,18 +80,7 @@ void Simulation::init()
   // create compute pipeline
   if(sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
-
-  pipeline.push_back( new advDiff(sim) );
-  pipeline.push_back( new PressureSingle(sim) );
-  pipeline.push_back( new ComputeForces(sim) );
-  pipeline.push_back( new AdaptTheMesh(sim) );
-  pipeline.push_back( new PutObjectsOnGrid(sim) );
-
-  if(sim.verbose){
-    std::cout << "[CUP2D] Operator ordering:\n";
-    for (size_t c=0; c<pipeline.size(); c++)
-      std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
-  }
+  createPipeline();
 
   // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
@@ -228,24 +213,6 @@ void Simulation::createShapes()
     std::cout << "Did not create any obstacles." << std::endl;
 }
 
-void Simulation::reset()
-{
-  // clear and allocate new grid
-  sim.deleteGrid();
-  sim.allocateGrid();
-  // reset field variables and shapes
-  if(sim.verbose)
-    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
-  sim.resetAll();
-  // impose field initial condition
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  IC ic(sim);
-  ic(0);
-  // Put Object on Intially defined Mesh and impose obstacle velocities
-  startObstacles();
-}
-
 void Simulation::startObstacles()
 {
   // put obstacles to grid and compress
@@ -265,6 +232,57 @@ void Simulation::startObstacles()
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
   initVel(0);
+}
+
+void Simulation::createPipeline()
+{
+  pipeline.push_back( new advDiff(sim) );
+  pipeline.push_back( new PressureSingle(sim) );
+  pipeline.push_back( new ComputeForces(sim) );
+  pipeline.push_back( new AdaptTheMesh(sim) );
+  pipeline.push_back( new PutObjectsOnGrid(sim) );
+
+  if(sim.verbose){
+    std::cout << "[CUP2D] Operator ordering:\n";
+    for (size_t c=0; c<pipeline.size(); c++)
+      std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
+  }
+}
+
+void Simulation::clearPipeline()
+{
+  while( not pipeline.empty() ) {
+    Operator * g = pipeline.back();
+    pipeline.pop_back();
+    if(g not_eq nullptr) delete g;
+  }
+}
+
+void Simulation::reset()
+{
+  if(sim.verbose)
+    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
+  // clear and allocate new grid
+  if(sim.verbose)
+    std::cout << "[CUP2D] Clearing and Allocating Grid..." << std::endl;
+  sim.deleteGrid();
+  sim.allocateGrid();
+  // clear and create operator pipeline
+  if(sim.verbose)
+    std::cout << "[CUP2D] Clearing and Creating Pipeline..." << std::endl;
+  clearPipeline();
+  createPipeline();
+  // reset field variables and shapes
+  if(sim.verbose)
+    std::cout << "[CUP2D] Resetting SimulationData..." << std::endl;
+  sim.resetAll();
+  // impose field initial condition
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
+  IC ic(sim);
+  ic(0);
+  // Put Object on Intially defined Mesh and impose obstacle velocities
+  startObstacles();
 }
 
 void Simulation::simulate()
