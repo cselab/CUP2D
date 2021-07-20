@@ -40,10 +40,9 @@ void SimulationData::allocateGrid()
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pold  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
-  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
@@ -65,7 +64,6 @@ void SimulationData::deleteGrid()
   if(uDef not_eq nullptr) delete uDef;
   if(pold not_eq nullptr) delete pold;
 }
-
 
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -139,14 +137,9 @@ SimulationData::~SimulationData()
   #ifndef SMARTIES_APP
     delete profiler;
   #endif
-  if(chi not_eq nullptr) delete chi;
-  if(vel not_eq nullptr) delete vel;
-  if(vOld not_eq nullptr) delete vOld;
-  if(pres not_eq nullptr) delete pres;
-  if(tmpV not_eq nullptr) delete tmpV;
-  if(tmp not_eq nullptr) delete tmp;
-  if(uDef not_eq nullptr) delete uDef;
-  if(pold not_eq nullptr) delete pold;
+  // delete grid
+  deleteGrid();
+  // delete shapes
   while( not shapes.empty() ) {
     Shape * s = shapes.back();
     if(s not_eq nullptr) delete s;
