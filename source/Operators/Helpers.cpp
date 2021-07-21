@@ -132,6 +132,7 @@ void IC::operator()(const double dt)
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo  = sim.vOld->getBlocksInfo();
 
   const size_t Nblocks = velInfo.size();
   #pragma omp parallel for
@@ -144,6 +145,7 @@ void IC::operator()(const double dt)
     ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
     ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
     VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+    VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
   }
 }
 
