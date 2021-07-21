@@ -26,18 +26,17 @@ int main(int argc, char **argv)
   _environment->init();
 
   // Reading Initial Conditions from RL case
-  std::string icPath = "/scratch/snx3000/pweber/korali/teststefanfish/_trainingResults/sample00000495/initialCondition.txt";
+  std::string icPath = "XXX/initialCondition.txt";
   auto initialConditions = readIC(icPath);
 
   // Reading Actions that were performed in RL
-  std::string actionsPath = "/scratch/snx3000/pweber/korali/teststefanfish/_trainingResults/sample00000495/actions.txt";
+  std::string actionsPath = "XXX/actions.txt";
   auto actions = readActions(actionsPath);
 
   // Obtaining agent
   StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[1]);
 
   // Resetting environment and setting initial conditions
-  _environment->reset();
   setInitialConditions(agent, initialConditions);
 
   // After moving the agent, the obstacles have to be restarted
@@ -73,7 +72,8 @@ int main(int argc, char **argv)
       _environment->advance(dt);
     }
   }
-  return 0;
+
+  delete _environment;
 }
 
 std::vector<double> readIC( std::string filename )
