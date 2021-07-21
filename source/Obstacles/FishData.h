@@ -272,12 +272,13 @@ class CurvatureFish : public FishData
     periodPIDval = Tperiod;
     periodPIDdif = 0;
     TperiodPID = false;
+    time0 = 0;
     timeshift = 0;
     lastTime = 0;
     lastAvel = 0;
-    time0 = 0;
     curvatureScheduler.resetAll();
     rlBendingScheduler.resetAll();
+
     FishData::resetAll();
   }
 
