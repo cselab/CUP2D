@@ -10,7 +10,6 @@ endif
 # SET FLAGS FOR COMPILER
 ifneq ($(MPICXX),)
 CXX=$(MPICXX)
-LD=$(MPICXX)
 else
 ERROR += "MPICXX not set"
 endif
@@ -74,33 +73,16 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: simulation libcup.a cup.cflags.txt cup.libs.txt
+all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 
-# COMPILATION INSTRUCTIONS FOR SMARTIES APPS
-leadFollow: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
+# COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
+debugRL: debugRL.o $(OBJECTS)
+	$(CXX) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
-cStart: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
-zebrafish: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
-neurokinematicfish: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
-glider: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_$@.cpp -o main_RL_$@.o
-	$(LD) -o $@ $^ main_RL_$@.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
-
-# COMPILATION INSTRUCTIONS FOR STANDALONE APPLICATION OR AS LIBRARY
+# COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
 simulation: main.o $(OBJECTS)
-	$(LD) main.o $(OBJECTS) $(LIBS) -o $@
+	$(CXX) main.o $(OBJECTS) $(LIBS) -o $@
 
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)

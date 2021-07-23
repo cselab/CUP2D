@@ -40,10 +40,9 @@ void SimulationData::allocateGrid()
   uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
   pold  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
 
-  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
-
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
@@ -52,6 +51,18 @@ void SimulationData::allocateGrid()
   int auxMax = pow(2,levelMax-1);
   minH = extents[0] / (auxMax*bpdx*VectorBlock::sizeX);
   maxH = extents[0] / (bpdx*VectorBlock::sizeX);
+}
+
+void SimulationData::deleteGrid()
+{
+  if(chi not_eq nullptr) delete chi;
+  if(vel not_eq nullptr) delete vel;
+  if(vOld not_eq nullptr) delete vOld;
+  if(pres not_eq nullptr) delete pres;
+  if(tmpV not_eq nullptr) delete tmpV;
+  if(tmp not_eq nullptr) delete tmp;
+  if(uDef not_eq nullptr) delete uDef;
+  if(pold not_eq nullptr) delete pold;
 }
 
 void SimulationData::dumpChi(std::string name) {
@@ -126,14 +137,9 @@ SimulationData::~SimulationData()
   #ifndef SMARTIES_APP
     delete profiler;
   #endif
-  if(vel not_eq nullptr) delete vel;
-  if(chi not_eq nullptr) delete chi;
-  if(uDef not_eq nullptr) delete uDef;
-  if(pres not_eq nullptr) delete pres;
-  if(pold not_eq nullptr) delete pold;
-  if(vOld not_eq nullptr) delete vOld;
-  if(tmpV not_eq nullptr) delete tmpV;
-  if(tmp not_eq nullptr) delete tmp;
+  // delete grid
+  deleteGrid();
+  // delete shapes
   while( not shapes.empty() ) {
     Shape * s = shapes.back();
     if(s not_eq nullptr) delete s;
@@ -160,7 +166,7 @@ void SimulationData::startProfiler(std::string name)
 {
  #ifndef NDEBUG
   Checker check (*this);
-  check.run("before" + name);
+  check.run("before " + name);
  #endif
   profiler->push_start(name);
 }
@@ -180,7 +186,8 @@ void SimulationData::printResetProfiler()
 
 void SimulationData::dumpAll(std::string name)
 {
-  startProfiler("Dump");
+  if( name != "abort_" )
+    startProfiler("Dump");
 
   // dump vorticity
   const auto K1 = computeVorticity(*this); K1.run();
@@ -190,5 +197,6 @@ void SimulationData::dumpAll(std::string name)
   dumpPres(name);
   //dumpUobj (name);
   //dumpTmpV (name); // probably useless
-  stopProfiler();
+  if( name != "abort_" )
+    stopProfiler();
 }

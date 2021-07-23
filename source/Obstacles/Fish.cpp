@@ -32,15 +32,14 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   profile(push_start("2dmoments"));
   // returns area, CoM_internal, vCoM_internal:
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-  assert(area_internal > std::numeric_limits<Real>::epsilon());
-  // takes CoM_internal, vCoM_internal, puts CoM in 0 and nullifies lin mom:
+  // takes CoM_internal, vCoM_internal, puts CoM in and nullifies  lin mom:
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
   // returns mom of intertia and angvel:
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
   // rotates fish midline to current angle and removes angular moment:
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-  #ifndef NDEBUG
+  #if 0 //NDEBUG
   {
     Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
     // check that things are zero

@@ -171,7 +171,7 @@ void PutObjectsOnGrid::operator()(const double dt)
 {
   const size_t Nblocks = velInfo.size();
 
-  sim.startProfiler("PutObjectsGrid");
+  sim.startProfiler("PutObjectsOnGrid");
   //// 0) clear fields related to obstacle
   if(sim.verbose)
     std::cout << "[CUP2D] - clear..." << std::endl;

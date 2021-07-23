@@ -27,7 +27,7 @@ class StefanFish: public Fish
   std::vector<double> state(Shape*const p) const;
   std::vector<double> state() const;
 
-  // Helpers for State function
+  // Helpers for state function
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
   std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;

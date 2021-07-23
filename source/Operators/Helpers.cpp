@@ -208,33 +208,18 @@ void Checker::run(std::string when) const
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      if(std::isnan( VEL(ix,iy).u[0])) {
-        // printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
+      if( std::isfinite( VEL(ix,iy).u[0] ) == false ) {
+        // printf("%s: VEL(%d,%d).u[0] is invalid: %f\n", when.c_str(), ix, iy, VEL(ix,iy).u[0]);
         bAbort = true;
         break;
       }
-      if(std::isinf( VEL(ix,iy).u[0])) {
-        // printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
+      if( std::isfinite( VEL(ix,iy).u[1] ) == false ) {
+        // printf("%s: VEL(%d,%d).u[1] is invalid: %f\n", when.c_str(), ix, iy, VEL(ix,iy).u[1]);
         bAbort = true;
         break;
       }
-      if(std::isnan( VEL(ix,iy).u[1])) {
-        // printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
-        bAbort = true;
-        break;
-      }
-      if(std::isinf( VEL(ix,iy).u[1])) {
-        // printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
-        bAbort = true;
-        break;
-      }
-      if(std::isnan(PRES(ix,iy).s   )) {
-        // printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
-        bAbort = true;
-        break;
-      }
-      if(std::isinf(PRES(ix,iy).s   )) {
-        // printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
+      if( std::isfinite( PRES(ix,iy).s   ) == false ) {
+        // printf("%s: PRES(%d,%d).s is invalid: %f\n", when.c_str(), ix, iy, PRES(ix,iy).s);
         bAbort = true;
         break;
       }
@@ -243,7 +228,7 @@ void Checker::run(std::string when) const
 
   if( bAbort )
   {
-    std::cout << "[CUP2D] Detected Errorous Field Values. Dumping the field and aborting..." << std::endl;
+    printf("[CUP2D] %s: Detected invalid values. Aborting...\n", when.c_str());
     sim.dumpAll("abort_");
     fflush(0); 
     abort();
