@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ $# -lt 1 && -z "$RUNNAME" ]] ; then
-	echo "Usage: ./launch_*.sh RUNNAME"
+	echo "Usage: ./launchDebugRL.sh RUNNAME"
 	exit 1
 fi
 if [ $# -gt 0 ] ; then
