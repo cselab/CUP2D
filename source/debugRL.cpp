@@ -21,16 +21,19 @@ void setInitialConditions( StefanFish *agent, std::vector<double> initialConditi
 
 int main(int argc, char **argv)
 {
+  // Getting path
+  std::string path = "/scratch/snx3000/pweber/korali/teststefanfish/_trainingResults/sample00002012";
+
   // Initialize Simulation class
   Simulation* _environment = new Simulation(argc, argv);
   _environment->init();
 
   // Reading Initial Conditions from RL case
-  std::string icPath = "XXX/initialCondition.txt";
+  std::string icPath = path+"/initialCondition.txt";
   auto initialConditions = readIC(icPath);
 
   // Reading Actions that were performed in RL
-  std::string actionsPath = "XXX/actions.txt";
+  std::string actionsPath = path+"/actions.txt";
   auto actions = readActions(actionsPath);
 
   // Obtaining agent
@@ -94,7 +97,7 @@ std::vector<double> readIC( std::string filename )
     myfile.close();
   }
   else{
-    cout << "[debugRL] Unable to open initialCondition file, setting (0,0.9,1)\n";
+    printf("[debugRL] Unable to open %s file, setting (0,0.9,1)\n", filename.c_str());
     initialConditions.push_back(0.0);
     initialConditions.push_back(0.9);
     initialConditions.push_back(1.0);
@@ -123,7 +126,7 @@ std::vector<std::vector<double>> readActions( std::string filename )
     myfile.close();
   }
   else{
-    cout << "[debugRL] Unable to open actions file, setting (0,0) for 20 actions\n";
+    printf("[debugRL] Unable to open %s file, setting (0,0) for 20 actions\n", filename.c_str());
     for( size_t i = 0; i<20; i++ )
     {
       std::vector<double> action(2,0.0);
