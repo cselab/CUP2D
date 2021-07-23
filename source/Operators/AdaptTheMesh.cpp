@@ -62,37 +62,28 @@ void AdaptTheMesh::operator()(const double dt)
     }
   }
 
-  double Rtol = sim.Rtol;
-  double Ctol = sim.Ctol;
 
-  bool verbose = sim.verbose;
-  ScalarAMR tmp_amr ( *sim.tmp ,Rtol,Ctol,verbose);//refine according to tmp (vorticity magnitude)
+  bool verbose = true;
+  bool basic = false;
+  tmp_amr ->Tag();
+  chi_amr ->TagLike(tmpInfo);
+  pres_amr->TagLike(tmpInfo);
+  pold_amr->TagLike(tmpInfo);
+  vel_amr ->TagLike(tmpInfo);
+  vOld_amr->TagLike(tmpInfo);
+  tmpV_amr->TagLike(tmpInfo);
+  uDef_amr->TagLike(tmpInfo);
+
+  tmp_amr ->Adapt(sim.time,verbose,basic);
   verbose = false;
-  ScalarAMR chi_amr ( *sim.chi ,0.05,0.01,verbose);
-  VectorAMR vel_amr ( *sim.vel ,Rtol,Ctol,verbose);
-  VectorAMR vOld_amr( *sim.vOld,Rtol,Ctol,verbose);
-  ScalarAMR pres_amr( *sim.pres,Rtol,Ctol,verbose);
-  ScalarAMR pold_amr( *sim.pold,Rtol,Ctol,verbose);
+  chi_amr ->Adapt(sim.time,verbose,basic);
+  vel_amr ->Adapt(sim.time,verbose,basic);
+  vOld_amr->Adapt(sim.time,verbose,basic);
+  pres_amr->Adapt(sim.time,verbose,basic);
+  pold_amr->Adapt(sim.time,verbose,basic);
+  basic = true;//this means that there's no interpolation of values at refinement
+  tmpV_amr->Adapt(sim.time,verbose,basic);
+  uDef_amr->Adapt(sim.time,verbose,basic);
 
-  MeshAdaptation_basic<VectorGrid,ScalarGrid>tmpV_amr(*sim.tmpV);
-  MeshAdaptation_basic<VectorGrid,ScalarGrid>uDef_amr(*sim.uDef);
-
-  tmp_amr .AdaptTheMesh();
-  chi_amr .AdaptLikeOther(*sim.tmp);
-  vel_amr .AdaptLikeOther(*sim.tmp);
-  vOld_amr.AdaptLikeOther(*sim.tmp);
-  pres_amr.AdaptLikeOther(*sim.tmp);
-  pold_amr.AdaptLikeOther(*sim.tmp);
-  uDef_amr.AdaptLikeOther(*sim.tmp);
-  tmpV_amr.AdaptLikeOther(*sim.tmp);
-
-  sim.chi ->SortBlocks();
-  sim.vel ->SortBlocks();
-  sim.vOld->SortBlocks();
-  sim.pres->SortBlocks();
-  sim.pold->SortBlocks();
-  sim.tmpV->SortBlocks();
-  sim.tmp ->SortBlocks();
-  sim.uDef->SortBlocks();
   sim.stopProfiler();
 }
