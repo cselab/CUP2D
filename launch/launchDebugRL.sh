@@ -9,13 +9,13 @@ RUNNAME=$1
 fi
 
 # Defaults for Options
-BPDX=${BPDX:-2}
-BPDY=${BPDY:-1}
-LEVELS=${LEVELS:-8}
+BPDX=${BPDX:-4}
+BPDY=${BPDY:-2}
+LEVELS=${LEVELS:-7}
 RTOL=${RTOL-2}
 CTOL=${CTOL-1}
 EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.5}
+CFL=${CFL:-0.2}
 PT=${PT:-1e-5}
 PTR=${PTR:-1e-2}
 PR=${PR:-0}
@@ -72,17 +72,8 @@ fi
 
 echo "----------------------------"
 echo "setting simulation options"
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 5  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0"
 echo $OPTIONS
 echo "###############################"
 
-BASEPATH="${SCRATCH}/CUP2D/"
-export OMP_PLACES=cores
-export OMP_PROC_BIND=close
-export OMP_NUM_THREADS=36
-FOLDERNAME=${BASEPATH}/${RUNNAME}
-mkdir -p ${FOLDERNAME}
-cp ../makefiles/debugRL ${FOLDERNAME}
-cd ${FOLDERNAME}
-
-srun -n 1 debugRL ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+source launchCommon.sh
