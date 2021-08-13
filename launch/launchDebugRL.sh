@@ -15,10 +15,10 @@ LEVELS=${LEVELS:-7}
 RTOL=${RTOL-2}
 CTOL=${CTOL-1}
 EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.2}
+CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-1e-2}
-PR=${PR:-0}
+PR=${PR:-5}
 
 # Defaults for follower
 LENGTH=${LENGTH:-0.2}
@@ -42,7 +42,9 @@ then
 stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	# halfDisk Re=1'000 <-> NU=0.000018
-	NU=${NU:-0.000018}
+	# NU=${NU:-0.000018}
+	# stefanfish Re=1'000 <-> NU=0.00001125
+	NU=${NU:-0.00004}
 elif [ "$OBSTACLE" = "NACA" ]
 then
 	echo "###############################"
@@ -57,13 +59,15 @@ then
 stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	# NACA Re=1'000 <-> NU=0.000018
-	NU=${NU:-0.000018}
+	# NU=${NU:-0.000018}
+	# stefanfish Re=1'000 <-> NU=0.00001125
+	NU=${NU:-0.00004}
 elif [ "$OBSTACLE" = "stefanfish" ]
 then
 	echo "###############################"
 	echo "setting options for stefanfish"
 	# set object string
-	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSLEADER bFixed=1 
+	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSLEADER bFixed=1 pid=1
 stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER"
 	echo $OBJECTS
 	# stefanfish Re=1'000 <-> NU=0.00001125
@@ -76,4 +80,15 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -C
 echo $OPTIONS
 echo "###############################"
 
-source launchCommon.sh
+# Create runfolder and copy executable
+BASEPATH="${SCRATCH}/CUP2D/"
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+export OMP_NUM_THREADS=12
+FOLDERNAME=${BASEPATH}/${RUNNAME}
+mkdir -p ${FOLDERNAME}
+cp ../makefiles/debugRL ${FOLDERNAME}
+
+# Run in runfolder
+cd ${FOLDERNAME}
+srun -n 1 debugRL ${OPTIONS} -shapes "${OBJECTS}" | tee out.log

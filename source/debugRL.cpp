@@ -12,8 +12,6 @@
 #include <sstream>
 #include <string>
 
-#define NACTIONS 2
-
 // declarations of functions defined further below
 std::vector<double> readIC( std::string filename );
 std::vector<std::vector<double>> readActions( std::string filename );
@@ -22,7 +20,7 @@ void setInitialConditions( StefanFish *agent, std::vector<double> initialConditi
 int main(int argc, char **argv)
 {
   // Getting path
-  std::string path = "/scratch/snx3000/pweber/korali/teststefanfish/_trainingResults/sample00002012";
+  std::string path = "/scratch/snx3000/pweber/korali/testhalfDisk/_trainingResults/sample00003460";
 
   // Initialize Simulation class
   Simulation* _environment = new Simulation(argc, argv);
@@ -54,10 +52,15 @@ int main(int argc, char **argv)
   double tNextAct = 0; // Time of next action
 
   // Environment loop
+  std::cout
+  <<"=======================================================================\n";
   for( size_t a = 0; a < numActions; a++)
   {
     // Reading new action
     std::vector<double> action = actions[a];
+
+    // print action
+    printf("[debugRL] Applying action %lu: [ %f, %f ]\n", a, action[0], action[1]);
 
     // Setting action
     agent->act(t, action);
@@ -101,7 +104,7 @@ std::vector<double> readIC( std::string filename )
     initialConditions.push_back(0.0);
     initialConditions.push_back(0.9);
     initialConditions.push_back(1.0);
-  } 
+  }
 
   return initialConditions;
 } 
@@ -115,12 +118,18 @@ std::vector<std::vector<double>> readActions( std::string filename )
   std::ifstream myfile(filename);
   if( myfile.is_open() )
   {
+    printf("[debugRL] Parsing Actions:\n");
+    int counter = 0;
     while( std::getline(myfile,line) )
     {
-      std::vector<double> action(NACTIONS);
+      printf("[debugRL] Action %d: ", counter++);
+      std::vector<double> action;
       std::istringstream readingStream(line);
-      while (readingStream >> tempA)
+      while (readingStream >> tempA){
+        std::cout << tempA << " ";
         action.push_back(tempA);
+      }
+      std::cout << "\n";
       actions.push_back(action);
     }
     myfile.close();
