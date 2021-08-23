@@ -94,6 +94,8 @@ std::vector<double> readIC( std::string filename )
     while( std::getline(myfile,line) )
     {
       std::istringstream readingStream(line);
+      // disregard agentId
+      readingStream >> tempIC;
       while (readingStream >> tempIC)
         initialConditions.push_back(tempIC);
     }
@@ -125,6 +127,8 @@ std::vector<std::vector<double>> readActions( std::string filename )
       printf("[debugRL] Action %d: ", counter++);
       std::vector<double> action;
       std::istringstream readingStream(line);
+      // disregard agentId
+      readingStream >> tempA;
       while (readingStream >> tempA){
         std::cout << tempA << " ";
         action.push_back(tempA);
