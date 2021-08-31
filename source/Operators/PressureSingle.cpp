@@ -123,12 +123,15 @@ void PressureSingle::updatePressureRHS(const double dt) const
   static constexpr int stenBeg[3] = {-1,-1, 0};
   static constexpr int stenEnd[3] = { 2, 2, 1};
 
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
   Corrector.prepare(*(sim.tmp));
   #pragma omp parallel
   {
+    ScalarLab poldLab;
     VectorLab velLab;
     VectorLab uDefLab;
+    poldLab.prepare( *(sim.pold),  stenBeg, stenEnd, 0);
     velLab. prepare( *(sim.vel),  stenBeg, stenEnd, 0);
     uDefLab.prepare( *(sim.uDef), stenBeg, stenEnd, 0);
 
@@ -137,6 +140,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
     {
       const Real h = velInfo[i].h;
       const Real facDiv = 0.5*h/dt;
+      poldLab.load(poldInfo[i], 0);
       velLab. load(velInfo [i], 0);
       uDefLab.load(uDefInfo[i], 0);
       ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
@@ -197,6 +201,39 @@ void PressureSingle::updatePressureRHS(const double dt) const
         {
           faceYp[ix].s  = -facDiv               *( velLab(ix,iy+1).u[1] +  velLab(ix,iy).u[1]);
           faceYp[ix].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
+        }
+      }
+
+      if (sim.step > 2)
+      {
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        {
+          TMP(ix, iy).s  -=  (poldLab(ix-1,iy).s + poldLab(ix+1,iy).s + poldLab(ix,iy-1).s + poldLab(ix,iy+1).s - 4.0*poldLab(ix,iy).s);
+        }
+        if (faceXm != nullptr)
+        {
+          int ix = 0;
+          for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+            faceXm[iy] += poldLab(ix-1,iy) - poldLab(ix,iy);
+        }
+        if (faceXp != nullptr)
+        {
+          int ix = VectorBlock::sizeX-1;
+          for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+            faceXp[iy] += poldLab(ix+1,iy) - poldLab(ix,iy);
+        }
+        if (faceYm != nullptr)
+        {
+          int iy = 0;
+          for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+            faceYm[ix] += poldLab(ix,iy-1) - poldLab(ix,iy);
+        }
+        if (faceYp != nullptr)
+        {
+          int iy = VectorBlock::sizeY-1;
+          for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+            faceYp[ix] += poldLab(ix,iy+1) - poldLab(ix,iy);
         }
       }
     }
@@ -456,23 +493,16 @@ void PressureSingle::operator()(const double dt)
 
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-  const int step_extrapolate = 100; //start the extrapolation after 100 steps (after dt ramp up is finished)
-
-  if (sim.step > step_extrapolate)
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
   {
-     #pragma omp parallel for
-     for (size_t i=0; i < Nblocks; i++)
+     ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+     ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
      {
-        ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-        ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-           const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
-           POLD (ix,iy).s = PRES (ix,iy).s;
-           if (sim.step > step_extrapolate + 1)
-               PRES(ix,iy).s += dpdt*sim.dt;
-        }
+        POLD (ix,iy).s = PRES (ix,iy).s;
+        PRES(ix,iy).s = 0;
      }
   }
 
@@ -493,6 +523,18 @@ void PressureSingle::operator()(const double dt)
 
   // solve Poisson equation
   pressureSolver->solve();
+  if (sim.step>2)
+  {
+     #pragma omp parallel for
+     for (size_t i=0; i < Nblocks; i++)
+     {
+        ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+        ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+          PRES(ix,iy).s += POLD(ix,iy).s;
+     }
+  }
 
   // apply pressure correction
   pressureCorrection(dt);

@@ -528,4 +528,4 @@ using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
 //using ScalarLab = BlockLabDirichlet<ScalarBlock, std::allocator>;
 
 using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
-using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab,ScalarGrid>;
+using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab>;
