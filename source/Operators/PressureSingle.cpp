@@ -490,9 +490,26 @@ bool PressureSingle::detectCollidingObstacles() const
 void PressureSingle::operator()(const double dt)
 {
   sim.startProfiler("PressureSingle");
-
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
+  std::vector<double> rhs_precond(Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
+  if (sim.step > 2)
+  {
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+       ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+       {
+          const double dpdt   = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
+          rhs_precond[i*VectorBlock::sizeY*VectorBlock::sizeX + iy * VectorBlock::sizeX + ix] = dpdt*sim.dt;
+       }
+    }
+  }
+
+  //initial guess
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
@@ -501,10 +518,11 @@ void PressureSingle::operator()(const double dt)
      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
      {
-        POLD (ix,iy).s = PRES (ix,iy).s;
-        PRES(ix,iy).s = 0;
+        POLD  (ix,iy).s = PRES (ix,iy).s;
+        PRES  (ix,iy).s = 0;
      }
   }
+
 
   // update velocity of obstacle
   for(Shape * const shape : sim.shapes) {
@@ -519,11 +537,35 @@ void PressureSingle::operator()(const double dt)
   penalize(dt);
 
   // compute pressure RHS
+  // before computing the RHS, we set p_{old} += rhs_precond. Then rhs = rhs - delta(p_{old})
+  if (sim.step > 2)
+  {
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        POLD(ix,iy).s += rhs_precond[i*VectorBlock::sizeY*VectorBlock::sizeX + iy * VectorBlock::sizeX + ix];
+    }
+  }
   updatePressureRHS(dt);
+  //now we recover the actual p_{old}
+  if (sim.step > 2)
+  {
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        POLD(ix,iy).s -= rhs_precond[i*VectorBlock::sizeY*VectorBlock::sizeX + iy * VectorBlock::sizeX + ix];
+    }
+  }
 
   // solve Poisson equation
   pressureSolver->solve();
-  if (sim.step>2)
+  if (sim.step>2) // we solved for phi:= P-P_{old}-rhs_precond, so here we recover P from phi
   {
      #pragma omp parallel for
      for (size_t i=0; i < Nblocks; i++)
@@ -532,7 +574,7 @@ void PressureSingle::operator()(const double dt)
         ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
         for(int iy=0; iy<VectorBlock::sizeY; ++iy)
         for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-          PRES(ix,iy).s += POLD(ix,iy).s;
+          PRES(ix,iy).s += POLD(ix,iy).s + rhs_precond[i*VectorBlock::sizeY*VectorBlock::sizeX + iy * VectorBlock::sizeX + ix];
      }
   }
 
