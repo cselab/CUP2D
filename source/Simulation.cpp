@@ -151,6 +151,9 @@ void Simulation::parseRuntime()
   sim.muteAll = parser("-muteAll").asInt(0);
   sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if(sim.muteAll) sim.verbose = 0;
+
+  if( not sim.verbose )
+    std::cout << "Turned off verbosity." << std::endl;
 }
 
 void Simulation::createShapes()
@@ -227,6 +230,8 @@ void Simulation::startObstacles()
   }
   // PutObjectsOnGrid
   (*pipeline[pipeline.size()-1])(0);
+  if(sim.verbose)
+    std::cout << "[CUP2D] Successfully created initial field.\n";
   // impose velocity of obstacles
   if(sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
