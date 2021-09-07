@@ -48,12 +48,12 @@ def plotForceTime( root, runname, Re, i):
   
 def plotDragTimeCylinder():
 
-  Re = 100000
-  root = "/cluster/scratch/michaich/HIGHRE2D_SMALL_DOMAIN/"
+  Re = 10000
+  root = "/scratch/snx3000/mchatzim/CUP2D/"
   runname = []
-  runname.append("Re100000_11")
+  runname.append("Re10k")
 
-  t = np.linspace(1e-10,0.5,5001)
+  t = np.linspace(1e-10,0.5,1001)
   plt.plot( t, dragCollinsDennis( Re, t, 0), linestyle="--", color="black", label="Collins and Dennis (1973)")
   plt.plot( t, dragCollinsDennis( Re, t, 1), linestyle="--", color="black", label="Collins and Dennis (1973)")
   plt.plot( t, dragCollinsDennis( Re, t, 2), linestyle="--", color="black", label="Collins and Dennis (1973)")

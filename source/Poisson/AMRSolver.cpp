@@ -71,28 +71,28 @@ void AMRSolver::Get_LHS ()
     const std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
     const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
 
-    double mean = 0;
-    int index = 0;
+    //double mean = 0;
+    //int index = 0;
     #pragma omp parallel
     {
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
       ScalarLab lab; 
       lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
-      #pragma omp for reduction(+:mean)
+      #pragma omp for// reduction(+:mean)
       for (size_t i=0; i < xInfo.size(); i++)
       {
-        const bool cornerx =( xInfo[i].index[0] == 0 );
-        const bool cornery =( xInfo[i].index[1] == 0 );
-        if (cornerx && cornery)
-          index = i;
+        //const bool cornerx =( xInfo[i].index[0] == 0 );
+        //const bool cornery =( xInfo[i].index[1] == 0 );
+        //if (cornerx && cornery)
+        //  index = i;
         //if (xInfo[i].index[0]==0 && xInfo[i].index[1]==0) lab(-1,BSY/2).s = 0.0; //set p=0 for one grid point to make the system invertible
         lab.load(xInfo[i]);
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
-        const double h2 = lhsInfo[i].h*lhsInfo[i].h;
+        //const double h2 = lhsInfo[i].h*lhsInfo[i].h;
         for(int iy=0; iy<BSY; ++iy)
         for(int ix=0; ix<BSX; ++ix)
         {
-          mean+=lab(ix,iy).s*h2;
+          //mean+=lab(ix,iy).s*h2;
           LHS(ix,iy).s = ( lab(ix-1,iy).s + 
                            lab(ix+1,iy).s + 
                            lab(ix,iy-1).s + 
@@ -139,8 +139,8 @@ void AMRSolver::Get_LHS ()
     }
 
     Corrector.FillBlockCases();
-    ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-    LHS(0,0).s = mean;
+    //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
+    //LHS(0,0).s = mean;
 }
 
 double AMRSolver::getA_local(int I1,int I2)
@@ -256,7 +256,6 @@ void AMRSolver::solve()
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {    
-    //const 
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ z    = *(ScalarBlock*)  zInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
@@ -265,11 +264,11 @@ void AMRSolver::solve()
       r[i*BSX*BSY+iy*BSX+ix] = rhs(ix,iy).s;
       x[i*BSX*BSY+iy*BSX+ix] = z  (ix,iy).s;
     }
-    if (AxInfo[i].index[0] == 0 && AxInfo[i].index[1] == 0)
-    {
-      rhs(0,0).s = 0;
-      r[i*BSX*BSY] = 0;
-    }
+    //if (AxInfo[i].index[0] == 0 && AxInfo[i].index[1] == 0)
+    //{
+    //  rhs(0,0).s = 0;
+    //  r[i*BSX*BSY] = 0;
+    //}
   }
   //   - (1b) We compute A*x0 (which is stored in AxInfo)
   Get_LHS();
