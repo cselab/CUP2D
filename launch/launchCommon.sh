@@ -68,14 +68,16 @@ else
 
 BASEPATH="../runs/"
 NCPUSTR=`lscpu | grep "Core"`
-export OMP_NUM_THREADS=${NCPUSTR: -3}
+export OMP_NUM_THREADS=${NCPUSTR: -2} #use this if cores < 100
+#export OMP_NUM_THREADS=${NCPUSTR: -3} #use this if cores >=100
 echo "Setting nThreads to "${OMP_NUM_THREADS}
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 
-mpirun -n 1 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+mpirun -n 1 --map-by node:PE=${OMP_NUM_THREADS} ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+
 
 fi
 
