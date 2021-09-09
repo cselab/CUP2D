@@ -30,7 +30,6 @@ void AdaptTheMesh::operator()(const double dt)
 
   #pragma omp parallel
   {
-    //static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
     static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
     ScalarLab chilab;
     chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
@@ -45,15 +44,21 @@ void AdaptTheMesh::operator()(const double dt)
       {
         if( sim.bAdaptChiGradient )
         {
-          //const double dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
-          //const double dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
+          double dcdx = 2*i2h*((1.0/60.0)*chilab(x+3,y).s + (-0.15)*chilab(x+2,y).s + (0.75)*chilab(x+1,y).s
+                                + (-0.75)*chilab(x-1,y).s + (0.15)*chilab(x-2,y).s + (-1.0/60.0)*chilab(x-3,y).s);
+          double dcdy = 2*i2h*((1.0/60.0)*chilab(x,y+3).s + (-0.15)*chilab(x,y+2).s + (0.75)*chilab(x,y+1).s
+                                + (-0.75)*chilab(x,y-1).s + (0.15)*chilab(x,y-2).s + (-1.0/60.0)*chilab(x,y-3).s);
 
-          const double dcdx = 2*i2h*((1.0/60.0)*chilab(x+3,y).s + (-0.15)*chilab(x+2,y).s + (0.75)*chilab(x+1,y).s
-                                  + (-0.75)*chilab(x-1,y).s + (0.15)*chilab(x-2,y).s + (-1.0/60.0)*chilab(x-3,y).s);
-          const double dcdy = 2*i2h*((1.0/60.0)*chilab(x,y+3).s + (-0.15)*chilab(x,y+2).s + (0.75)*chilab(x,y+1).s
-                                  + (-0.75)*chilab(x,y-1).s + (0.15)*chilab(x,y-2).s + (-1.0/60.0)*chilab(x,y-3).s);
-
-
+          //If that's not the finest level, we should use a smaller stencil. This is somehow equivalent
+          //to using a +-2 stencil at the finest level. By doing this we prevent a block from being 
+          //refined because grad(chi) != 0 and then being compressed because grad(chi) = 0 in a never
+          //ending cycle. Without this, there's some blocks that are constanly refined, compressed, 
+          //refined and so on, all because of how we chose to compute grad(chi).
+          if (tmpInfo[i].level <= sim.tmp->getlevelMax() - 2)
+          {
+            dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
+            dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
+          }
           const double norm = dcdx*dcdx+dcdy*dcdy;
           if (norm > 0.1) TMP(x,y).s = 1e10;
         }
