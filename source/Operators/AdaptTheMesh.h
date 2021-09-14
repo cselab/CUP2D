@@ -13,9 +13,6 @@
 class AdaptTheMesh : public Operator
 {
  public:
-  int count;
-  computeVorticity findOmega;
-
   ScalarAMR * tmp_amr;
   ScalarAMR * chi_amr;
   ScalarAMR * pres_amr;
@@ -25,9 +22,8 @@ class AdaptTheMesh : public Operator
   VectorAMR * tmpV_amr;
   VectorAMR * uDef_amr;
 
-  AdaptTheMesh(SimulationData& s) : Operator(s), findOmega(s)
+  AdaptTheMesh(SimulationData& s) : Operator(s)
   {
-    count=0;
     tmp_amr  = new ScalarAMR(*sim.tmp ,sim.Rtol,sim.Ctol);
     chi_amr  = new ScalarAMR(*sim.chi ,sim.Rtol,sim.Ctol);
     pres_amr = new ScalarAMR(*sim.pres,sim.Rtol,sim.Ctol);

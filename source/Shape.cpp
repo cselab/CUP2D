@@ -93,10 +93,10 @@ void Shape::updatePosition(double dt)
   // do not print/write for initial PutObjectOnGrid
   if( dt <= 0 ) return;
 
-  printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
-      " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
-  if(not sim.muteAll)
+  if(sim.rank == 0)
   {
+    printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
+        " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
     std::stringstream ssF;
     ssF<<sim.path2file<<"/velocity_"<<obstacleID<<".dat";
     std::stringstream & fout = logger.get_stream(ssF.str());
@@ -139,10 +139,15 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
       _a += rhochi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
     }
   }
-  // assert(std::fabs(_x)     < 10*std::numeric_limits<Real>::epsilon() );
-  // assert(std::fabs(_y)     < 10*std::numeric_limits<Real>::epsilon() );
-  // assert(std::fabs(M - _m) < 10*std::numeric_limits<Real>::epsilon() );
-  // turn moments into velocities:
+  double quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  _x = quantities[0];
+  _y = quantities[1];
+  _m = quantities[2];
+  _j = quantities[3];
+  _u = quantities[4];
+  _v = quantities[5];
+  _a = quantities[6];
   _u /= _m;
   _v /= _m;
   _a /= _j;
@@ -151,12 +156,7 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
 
 void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
 {
-  //static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   Shape::Integrals I = integrateObstBlock(vInfo);
-  //if(sim.verbose)
-    //if( std::max({std::fabs(I.u), std::fabs(I.v), std::fabs(I.a)}) > 10*EPS )
-  //printf("Udef momenta: lin=[%e %e] ang=[%e]. Errors: dCM=[%e %e] dM=%e\n",
-  //    I.u, I.v, I.a, I.x, I.y, std::fabs(I.m-M));
   M = I.m; J = I.j;
 
   //with current center put shape on grid, with current shape on grid we updated
@@ -166,15 +166,6 @@ void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
   d_gm[0] =  dCx*std::cos(orientation) +dCy*std::sin(orientation);
   d_gm[1] = -dCx*std::sin(orientation) +dCy*std::cos(orientation);
 
-  #if 0 //ndef NDEBUG
-    Real Cxtest = center[0] -std::cos(orientation)*d_gm[0] + std::sin(orientation)*d_gm[1];
-    Real Cytest = center[1] -std::sin(orientation)*d_gm[0] - std::cos(orientation)*d_gm[1];
-    if(std::fabs(Cxtest-centerOfMass[0])>EPS ||
-       std::fabs(Cytest-centerOfMass[1])>EPS ) {
-      printf("Error update of center of mass = [%f %f]\n",
-        Cxtest-centerOfMass[0], Cytest-centerOfMass[1]); fflush(0); abort();
-    }
-  #endif
 
   #pragma omp parallel for schedule(dynamic)
   for(size_t i=0; i<vInfo.size(); i++)
@@ -192,18 +183,6 @@ void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
         pos->udef[iy][ix][1] -= I.v +I.a*p[0];
     }
   }
-
-  #if 0 //ndef NDEBUG
-   Shape::Integrals Itest = integrateObstBlock(vInfo);
-   if( std::fabs(Itest.u)>1000*EPS || std::fabs(Itest.v)>1000*EPS ||
-       std::fabs(Itest.x-centerOfMass[0])>1000*EPS ||
-       std::fabs(Itest.y-centerOfMass[1])>1000*EPS ||
-       std::fabs(Itest.a)>1000*EPS ) {
-    printf("After correction: linm [%e %e] angm [%e] deltaCM=[%e %e]\n",
-    Itest.u,Itest.v,Itest.a,Itest.x-centerOfMass[0],Itest.y-centerOfMass[1]);
-    fflush(0); abort();
-   }
-  #endif
 };
 
 void Shape::diagnostics()
@@ -265,6 +244,44 @@ void Shape::computeForces()
     Pout += block->Pout; defPowerBnd += block->defPowerBnd;
     PoutBnd += block->PoutBnd; defPower += block->defPower;
   }
+  double quantities[18];
+  quantities[ 0] = circulation;
+  quantities[ 1] = perimeter  ;
+  quantities[ 2] = forcex     ;
+  quantities[ 3] = forcex_P   ;
+  quantities[ 4] = forcex_V   ;
+  quantities[ 5] = torque_P   ;
+  quantities[ 6] = drag       ;
+  quantities[ 7] = lift       ;
+  quantities[ 8] = Pout       ;
+  quantities[ 9] = PoutBnd    ;
+  quantities[10] = torque     ;
+  quantities[11] = forcey     ;
+  quantities[12] = forcey_P   ;
+  quantities[13] = forcey_V   ;
+  quantities[14] = torque_V   ;
+  quantities[15] = thrust     ;
+  quantities[16] = defPowerBnd;
+  quantities[17] = defPower   ;
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 18, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  circulation = quantities[ 0];
+  perimeter   = quantities[ 1];
+  forcex      = quantities[ 2];
+  forcex_P    = quantities[ 3];
+  forcex_V    = quantities[ 4];
+  torque_P    = quantities[ 5];
+  drag        = quantities[ 6];
+  lift        = quantities[ 7];
+  Pout        = quantities[ 8];
+  PoutBnd     = quantities[ 9];
+  torque      = quantities[10];
+  forcey      = quantities[11];
+  forcey_P    = quantities[12];
+  forcey_V    = quantities[13];
+  torque_V    = quantities[14];
+  thrust      = quantities[15];
+  defPowerBnd = quantities[16];
+  defPower    = quantities[17];
 
   //derived quantities:
   Pthrust    = thrust * std::sqrt(u*u + v*v);
@@ -287,7 +304,7 @@ void Shape::computeForces()
     pFile.close();
   }
   #else
-  if (sim._bDump && not sim.muteAll && bDumpSurface)
+  if (sim._bDump && not sim.muteAll && bDumpSurface && sim.rank == 0)
   {
     std::stringstream ssF; ssF<<sim.path2file<<"/surface_"<<obstacleID
       <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".csv";
@@ -298,7 +315,7 @@ void Shape::computeForces()
   }
   #endif
 
-  if(not sim.muteAll)
+  if(not sim.muteAll && sim.rank == 0)
   {
     std::stringstream ssF, ssP;
     ssF<<sim.path2file<<"/forceValues_"<<obstacleID<<".dat";

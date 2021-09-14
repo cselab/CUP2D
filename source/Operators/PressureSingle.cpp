@@ -16,6 +16,95 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
 //#define EXPL_INTEGRATE_MOM
 
+struct pressureCorrectionKernel
+{
+  pressureCorrectionKernel(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+
+  void operator()(ScalarLab & P, const cubism::BlockInfo& info) const
+  {
+    const Real h = info.h, pFac = -0.5*sim.dt*h;
+    VectorBlock&__restrict__ tmpV = *(VectorBlock*)  tmpVInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      tmpV(ix,iy).u[0] = pFac *(P(ix+1,iy).s-P(ix-1,iy).s);
+      tmpV(ix,iy).u[1] = pFac *(P(ix,iy+1).s-P(ix,iy-1).s);
+    }
+    BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
+    VectorBlock::ElementType * faceXm = nullptr;
+    VectorBlock::ElementType * faceXp = nullptr;
+    VectorBlock::ElementType * faceYm = nullptr;
+    VectorBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXm[iy].clear();
+        faceXm[iy].u[0] = pFac*(P(ix-1,iy).s+P(ix,iy).s);
+      }
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = VectorBlock::sizeX-1;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXp[iy].clear();
+        faceXp[iy].u[0] = -pFac*(P(ix+1,iy).s+P(ix,iy).s);
+      }
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYm[ix].clear();
+        faceYm[ix].u[1] = pFac*(P(ix,iy-1).s+P(ix,iy).s);
+      }
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = VectorBlock::sizeY-1;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYp[ix].clear();
+        faceYp[ix].u[1] = -pFac*(P(ix,iy+1).s+P(ix,iy).s);
+      }
+    }
+  }
+};
+
+void PressureSingle::pressureCorrection(const double dt)
+{
+  const pressureCorrectionKernel K(sim);
+  compute<pressureCorrectionKernel,ScalarGrid,ScalarLab,VectorGrid>(K,*sim.pres,true,sim.tmpV);
+
+  std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < velInfo.size(); i++)
+  {
+      const Real ih2 = 1.0/velInfo[i].h/velInfo[i].h;
+      VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
+      VectorBlock&__restrict__   tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        V(ix,iy).u[0] += tmpV(ix,iy).u[0]*ih2;
+        V(ix,iy).u[1] += tmpV(ix,iy).u[1]*ih2;
+      }
+  }
+}
+
 void PressureSingle::integrateMomenta(Shape * const shape) const
 {
   const size_t Nblocks = velInfo.size();
@@ -60,6 +149,15 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
       AM += F * (p[0]*udiff[1] - p[1]*udiff[0]);
     }
   }
+  double quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  PM = quantities[0]; 
+  PJ = quantities[1]; 
+  PX = quantities[2]; 
+  PY = quantities[3]; 
+  UM = quantities[4]; 
+  VM = quantities[5]; 
+  AM = quantities[6];
 
   shape->fluidAngMom = AM; shape->fluidMomX = UM; shape->fluidMomY = VM;
   shape->penalDX=PX; shape->penalDY=PY; shape->penalM=PM; shape->penalJ=PJ;
@@ -67,6 +165,8 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
 
 void PressureSingle::penalize(const double dt) const
 {
+  std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+
   const size_t Nblocks = velInfo.size();
 
   #pragma omp parallel for
@@ -114,190 +214,144 @@ void PressureSingle::penalize(const double dt) const
   }
 }
 
-void PressureSingle::updatePressureRHS(const double dt) const
+struct updatePressureRHS
 {
   // RHS of Poisson equation is div(u) - chi * div(u_def)
   // It is computed here and stored in TMP
 
-  const size_t Nblocks = velInfo.size();
-  static constexpr int stenBeg[3] = {-1,-1, 0};
-  static constexpr int stenEnd[3] = { 2, 2, 1};
+  updatePressureRHS(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
 
-  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
-  Corrector.prepare(*(sim.tmp));
-  #pragma omp parallel
+  void operator()(VectorLab & velLab, VectorLab & uDefLab, const cubism::BlockInfo& info, const cubism::BlockInfo& info2) const
   {
-    VectorLab velLab;
-    VectorLab uDefLab;
-    velLab. prepare( *(sim.vel),  stenBeg, stenEnd, 0);
-    uDefLab.prepare( *(sim.uDef), stenBeg, stenEnd, 0);
-
-    #pragma omp for
-    for (size_t i=0; i < Nblocks; i++)
+    const Real h = info.h;
+    const Real facDiv = 0.5*h/sim.dt;
+    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    ScalarBlock& __restrict__ CHI = *(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      const Real h = velInfo[i].h;
-      const Real facDiv = 0.5*h/dt;
-      velLab. load(velInfo [i], 0);
-      uDefLab.load(uDefInfo[i], 0);
-      ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-      ScalarBlock& __restrict__ CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
-
+      TMP(ix, iy).s  =   facDiv                *( velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0] 
+                                               +  velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]);
+      TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0] 
+                                               + uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]);
+    }
+    BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    ScalarBlock::ElementType * faceXm = nullptr;
+    ScalarBlock::ElementType * faceXp = nullptr;
+    ScalarBlock::ElementType * faceYm = nullptr;
+    ScalarBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXm[iy].s  =  facDiv                *( velLab(ix-1,iy).u[0] +  velLab(ix,iy).u[0]) ;
+        faceXm[iy].s += -facDiv * CHI(ix,iy).s *(uDefLab(ix-1,iy).u[0] + uDefLab(ix,iy).u[0]) ;
+      }
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = VectorBlock::sizeX-1;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXp[iy].s  = -facDiv               *( velLab(ix+1,iy).u[0] +  velLab(ix,iy).u[0]);
+        faceXp[iy].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] + uDefLab(ix,iy).u[0]);
+      }
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        TMP(ix, iy).s  =   facDiv                *( velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0] 
-                                                 +  velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]);
-        TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0] 
-                                                 + uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]);
+        faceYm[ix].s  =  facDiv               *( velLab(ix,iy-1).u[1] +  velLab(ix,iy).u[1]);
+        faceYm[ix].s += -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy-1).u[1] + uDefLab(ix,iy).u[1]);         
       }
-
-      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[i].auxiliary);
-      ScalarBlock::ElementType * faceXm = nullptr;
-      ScalarBlock::ElementType * faceXp = nullptr;
-      ScalarBlock::ElementType * faceYm = nullptr;
-      ScalarBlock::ElementType * faceYp = nullptr;
-      if (tempCase != nullptr)
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = VectorBlock::sizeY-1;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      }
-      if (faceXm != nullptr)
-      {
-        int ix = 0;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        {
-          faceXm[iy].s  =  facDiv                *( velLab(ix-1,iy).u[0] +  velLab(ix,iy).u[0]) ;
-          faceXm[iy].s += -facDiv * CHI(ix,iy).s *(uDefLab(ix-1,iy).u[0] + uDefLab(ix,iy).u[0]) ;
-        }
-      }
-      if (faceXp != nullptr)
-      {
-        int ix = VectorBlock::sizeX-1;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        {
-          faceXp[iy].s  = -facDiv               *( velLab(ix+1,iy).u[0] +  velLab(ix,iy).u[0]);
-          faceXp[iy].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] + uDefLab(ix,iy).u[0]);
-        }
-      }
-      if (faceYm != nullptr)
-      {
-        int iy = 0;
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-          faceYm[ix].s  =  facDiv               *( velLab(ix,iy-1).u[1] +  velLab(ix,iy).u[1]);
-          faceYm[ix].s += -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy-1).u[1] + uDefLab(ix,iy).u[1]);         
-        }
-      }
-      if (faceYp != nullptr)
-      {
-        int iy = VectorBlock::sizeY-1;
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-          faceYp[ix].s  = -facDiv               *( velLab(ix,iy+1).u[1] +  velLab(ix,iy).u[1]);
-          faceYp[ix].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
-        }
+        faceYp[ix].s  = -facDiv               *( velLab(ix,iy+1).u[1] +  velLab(ix,iy).u[1]);
+        faceYp[ix].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
       }
     }
   }
-  Corrector.FillBlockCases();
-}
+};
 
-void PressureSingle::pressureCorrection(const double dt) const
+struct updatePressureRHS1
 {
-  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
-  FluxCorrection<VectorGrid,VectorBlock> Corrector;
-  Corrector.prepare(*(sim.tmpV));
-  #pragma omp parallel
+  // RHS of Poisson equation is div(u) - chi * div(u_def)
+  // It is computed here and stored in TMP
+
+  updatePressureRHS1(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+
+  void operator()(ScalarLab & lab, const cubism::BlockInfo& info) const
   {
-    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-    ScalarLab plab; plab.prepare(*(sim.pres), stenBeg, stenEnd, 0);
+    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      TMP(ix, iy).s  -=  (lab(ix-1,iy).s + lab(ix+1,iy).s + lab(ix,iy-1).s + lab(ix,iy+1).s - 4.0*lab(ix,iy).s);
 
-    #pragma omp for
-    for (size_t i=0; i < Nblocks; i++)
+    BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    ScalarBlock::ElementType * faceXm = nullptr;
+    ScalarBlock::ElementType * faceXp = nullptr;
+    ScalarBlock::ElementType * faceYm = nullptr;
+    ScalarBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
     {
-      const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt*h;
-      //const Real h = presInfo[i].h_gridpoint, pFac = -0.5*dt/h;
-      plab.load(presInfo[i], 0); // loads pres field with ghosts
-      const ScalarLab  &__restrict__   P = plab; // only this needs ghosts
-      VectorBlock&__restrict__   tmpV = *(VectorBlock*)  tmpVInfo[i].ptrBlock;
-
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        tmpV(ix,iy).u[0] = pFac *(P(ix+1,iy).s-P(ix-1,iy).s);
-        tmpV(ix,iy).u[1] = pFac *(P(ix,iy+1).s-P(ix,iy-1).s);
-      }
-      BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[i].auxiliary);
-      VectorBlock::ElementType * faceXm = nullptr;
-      VectorBlock::ElementType * faceXp = nullptr;
-      VectorBlock::ElementType * faceYm = nullptr;
-      VectorBlock::ElementType * faceYp = nullptr;
-      if (tempCase != nullptr)
-      {
-        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      }
-      if (faceXm != nullptr)
-      {
-        int ix = 0;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        {
-          faceXm[iy].clear();
-          faceXm[iy].u[0] = pFac*(P(ix-1,iy).s+P(ix,iy).s);
-        }
-      }
-      if (faceXp != nullptr)
-      {
-        int ix = VectorBlock::sizeX-1;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        {
-          faceXp[iy].clear();
-          faceXp[iy].u[0] = -pFac*(P(ix+1,iy).s+P(ix,iy).s);
-        }
-      }
-      if (faceYm != nullptr)
-      {
-        int iy = 0;
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-          faceYm[ix].clear();
-          faceYm[ix].u[1] = pFac*(P(ix,iy-1).s+P(ix,iy).s);
-        }
-      }
-      if (faceYp != nullptr)
-      {
-        int iy = VectorBlock::sizeY-1;
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-          faceYp[ix].clear();
-          faceYp[ix].u[1] = -pFac*(P(ix,iy+1).s+P(ix,iy).s);
-        }
-      }
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        faceXm[iy] = lab(ix-1,iy) - lab(ix,iy);
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = ScalarBlock::sizeX-1;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        faceXp[iy] = lab(ix+1,iy) - lab(ix,iy);
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        faceYm[ix] = lab(ix,iy-1) - lab(ix,iy);
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = ScalarBlock::sizeY-1;
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        faceYp[ix] = lab(ix,iy+1) - lab(ix,iy);
     }
   }
-  Corrector.FillBlockCases();
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-      const Real ih2 = 1.0/presInfo[i].h_gridpoint/presInfo[i].h_gridpoint;
-      VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
-      VectorBlock&__restrict__   tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        V(ix,iy).u[0] += tmpV(ix,iy).u[0]*ih2;
-        V(ix,iy).u[1] += tmpV(ix,iy).u[1]*ih2;
-      }
-  }
-}
+};
 
 void PressureSingle::preventCollidingObstacles() const
 {
+  //Commented out for two reasons: wrong physics and no MPI
+  #if 0
   const std::vector<Shape*>& shapes = sim.shapes;
   const size_t N = shapes.size();
 
@@ -398,11 +452,13 @@ void PressureSingle::preventCollidingObstacles() const
     const Real RcrossF = (CX-iCx) * FYdt - (CY-iCy) * FXdt;
     shapes[i]->omega += iInvJ * RcrossF;
   }
+  #endif
 }
-
 
 bool PressureSingle::detectCollidingObstacles() const
 {
+  //TODO: MPI?
+
   // boolean indicating whether there was a collision
   bool bCollision = false;
 
@@ -450,30 +506,43 @@ bool PressureSingle::detectCollidingObstacles() const
   return bCollision;
 }
 
+
 void PressureSingle::operator()(const double dt)
 {
-  sim.startProfiler("PressureSingle");
-
+  sim.startProfiler("Pressure");
+  const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-  const int step_extrapolate = 100; //start the extrapolation after 100 steps (after dt ramp up is finished)
 
-  if (sim.step > step_extrapolate)
+  //TODO: replace this kkk with a proper index!
+  std::vector<double> correction (Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
+  size_t kkk = 0;
+  if (sim.step > 10)
+  for (size_t i=0; i < Nblocks; i++)
   {
-     #pragma omp parallel for
-     for (size_t i=0; i < Nblocks; i++)
-     {
-        ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-        ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-        {
-           const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
-           POLD (ix,iy).s = PRES (ix,iy).s;
-           if (sim.step > step_extrapolate + 1)
-               PRES(ix,iy).s += dpdt*sim.dt;
-        }
-     }
+    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
+      correction[kkk] = dpdt*sim.dt;
+      kkk ++;
+    }
+  }
+
+  //initial guess etc.
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      POLD  (ix,iy).s = PRES (ix,iy).s;
+      PRES  (ix,iy).s = 0;
+    }
   }
 
   // update velocity of obstacle
@@ -489,10 +558,53 @@ void PressureSingle::operator()(const double dt)
   penalize(dt);
 
   // compute pressure RHS
-  updatePressureRHS(dt);
+  updatePressureRHS K(sim);
+  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.uDef,true,sim.tmp);
+  if (sim.step > 10)
+  {
+    kkk = 0;
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        POLD(ix,iy).s += correction[kkk];
+        kkk ++;
+      }
+    }
+    updatePressureRHS1 K1(sim);
+    compute<updatePressureRHS1,ScalarGrid,ScalarLab>(K1,*sim.pold,true,sim.tmp);
+    kkk = 0;
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        POLD(ix,iy).s -= correction[kkk];
+        kkk ++;
+      }
+    }
+  }
 
-  // solve Poisson equation
   pressureSolver->solve();
+
+  if (sim.step>10)
+  {
+    kkk = 0;
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        PRES(ix,iy).s += POLD(ix,iy).s + correction[kkk];
+        kkk++;          
+      }
+    }
+  }
 
   // apply pressure correction
   pressureCorrection(dt);
@@ -500,8 +612,6 @@ void PressureSingle::operator()(const double dt)
   sim.stopProfiler();
 }
 
-//PressureSingle::PressureSingle(SimulationData& s) : Operator(s),
-//pressureSolver( PoissonSolver::makeSolver(s) ) { }
 PressureSingle::PressureSingle(SimulationData& s) : Operator(s)
 {
   pressureSolver = new AMRSolver(s);

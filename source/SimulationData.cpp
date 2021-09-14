@@ -8,6 +8,7 @@
 #include "Shape.h"
 #include "Operators/Helpers.h"
 #include <Cubism/HDF5Dumper.h>
+#include <Cubism/HDF5Dumper_MPI.h>
 
 #include <iomanip>
 using namespace cubism;
@@ -30,19 +31,20 @@ void SimulationData::allocateGrid()
   const bool xperiodic = dummy.is_xperiodic();
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
+  
+  chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
 
-  chi   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  vel   = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  vOld  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  pres  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  tmpV  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  tmp   = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  uDef  = new VectorGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
-  pold  = new ScalarGrid(bpdx, bpdy, 1, extent,levelStart,levelMax,true,xperiodic,yperiodic,zperiodic);
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
-  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
@@ -53,53 +55,41 @@ void SimulationData::allocateGrid()
   maxH = extents[0] / (bpdx*VectorBlock::sizeX);
 }
 
-void SimulationData::deleteGrid()
-{
-  if(chi not_eq nullptr) delete chi;
-  if(vel not_eq nullptr) delete vel;
-  if(vOld not_eq nullptr) delete vOld;
-  if(pres not_eq nullptr) delete pres;
-  if(tmpV not_eq nullptr) delete tmpV;
-  if(tmp not_eq nullptr) delete tmp;
-  if(uDef not_eq nullptr) delete uDef;
-  if(pold not_eq nullptr) delete pold;
-}
-
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
- if (DumpUniform) 
-    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerScalar,float, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
+ //if (DumpUniform) 
+ //   DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(chi), time,"chi_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpPres(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(pres), time,"pres_" + ss.str(), path4serialization);
-  if (DumpUniform) 
-    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(pres), time,"pres_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerScalar,float, ScalarGrid,ScalarLab>(*pres, time, "pres_" + ss.str(),path4serialization);
+  //if (DumpUniform) 
+  //  DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(pres), time,"pres_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmp(std::string name) {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_groups<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
-  if (DumpUniform)
-    DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerScalar,float, ScalarGrid,ScalarLab>(*tmp, time, "tmp_" + ss.str(),path4serialization);
+  //if (DumpUniform)
+  //  DumpHDF5_uniform<StreamerScalar, float, ScalarGrid>(*(tmp), time,"tmp_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpVel(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
-  if (DumpUniform)
-    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  //std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  //DumpHDF5<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  //if (DumpUniform)
+  //  DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpUobj(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
-  if (DumpUniform)
-    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
+  //std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  //DumpHDF5<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
+  //if (DumpUniform)
+  //  DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(uDef), time,"uobj_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
-  if (DumpUniform)
-    DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  //std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  //DumpHDF5<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  //if (DumpUniform)
+  //  DumpHDF5_uniform<StreamerVector, float, VectorGrid>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 
 void SimulationData::registerDump()
@@ -107,39 +97,19 @@ void SimulationData::registerDump()
   nextDumpTime += dumpTime;
 }
 
-double SimulationData::minRho() const
-{
-  double minR = 1; // fluid is 1
-  for(const auto& shape : shapes)
-    minR = std::min( (double) shape->getMinRhoS(), minR );
-  return minR;
-}
-
-double SimulationData::maxSpeed() const
-{
-  double maxS = 0;
-  for(const auto& shape : shapes) {
-    maxS = std::max(maxS, (double) shape->getMaxVel() );
-  }
-  return maxS;
-}
-
-double SimulationData::maxRelSpeed() const
-{
-  double maxS = 0;
-  for(const auto& shape : shapes)
-    maxS = std::max(maxS, (double) shape->getMaxVel() );
-  return maxS;
-}
-
 SimulationData::~SimulationData()
 {
   #ifndef SMARTIES_APP
     delete profiler;
   #endif
-  // delete grid
-  deleteGrid();
-  // delete shapes
+  if(vel not_eq nullptr) delete vel;
+  if(chi not_eq nullptr) delete chi;
+  if(uDef not_eq nullptr) delete uDef;
+  if(pres not_eq nullptr) delete pres;
+  if(pold not_eq nullptr) delete pold;
+  if(vOld not_eq nullptr) delete vOld;
+  if(tmpV not_eq nullptr) delete tmpV;
+  if(tmp not_eq nullptr) delete tmp;
   while( not shapes.empty() ) {
     Shape * s = shapes.back();
     if(s not_eq nullptr) delete s;
@@ -166,7 +136,7 @@ void SimulationData::startProfiler(std::string name)
 {
  #ifndef NDEBUG
   Checker check (*this);
-  check.run("before " + name);
+  check.run("before" + name);
  #endif
   profiler->push_start(name);
 }
@@ -186,17 +156,15 @@ void SimulationData::printResetProfiler()
 
 void SimulationData::dumpAll(std::string name)
 {
-  if( name != "abort_" )
-    startProfiler("Dump");
-
+  startProfiler("Dump");
   // dump vorticity
-  const auto K1 = computeVorticity(*this); K1.run();
+  auto K1 = computeVorticity(*this);
+  K1(0);
   dumpTmp (name);
   dumpChi  (name);
-  //dumpVel  (name);
-  dumpPres(name);
-  //dumpUobj (name);
-  //dumpTmpV (name); // probably useless
-  if( name != "abort_" )
-    stopProfiler();
+//  //dumpVel  (name);
+////  dumpPres(name);
+//  //dumpUobj (name);
+//  //dumpTmpV (name); // probably useless
+  stopProfiler();
 }

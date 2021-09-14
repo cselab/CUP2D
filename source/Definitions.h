@@ -20,11 +20,14 @@ using Real = float;
 
 #include <Cubism/ArgumentParser.h>
 #include <Cubism/Grid.h>
+#include <Cubism/GridMPI.h>
 #include <Cubism/BlockInfo.h>
 #include <Cubism/BlockLab.h>
+#include <Cubism/BlockLabMPI.h>
 #include <Cubism/StencilInfo.h>
 
 #include <Cubism/AMR_MeshAdaptation.h>
+#include <Cubism/AMR_MeshAdaptationMPI.h>
 
 #ifndef _BS_
 #define _BS_ 32
@@ -379,6 +382,11 @@ public:
     return this->m_cacheBlock->Access(ix - this->m_stencilStart[0],
                                       iy - this->m_stencilStart[1], 0);
   }
+  ElementType& operator()(const int ix, const int iy, const int iz) {
+    assert(iz == 0);
+    return this->m_cacheBlock->Access(ix - this->m_stencilStart[0],
+                                      iy - this->m_stencilStart[1], 0);
+  }
 };
 
 template<typename BlockType,
@@ -487,13 +495,18 @@ public:
     return this->m_cacheBlock->Access(ix - this->m_stencilStart[0],
                                       iy - this->m_stencilStart[1], 0);
   }
+  ElementType& operator()(const int ix, const int iy, const int iz) {
+    assert(iz == 0);
+    return this->m_cacheBlock->Access(ix - this->m_stencilStart[0],
+                                      iy - this->m_stencilStart[1], 0);
+  }
 };
 
 struct StreamerScalar
 {
   static constexpr int NCHANNELS = 1;
   template <typename TBlock, typename T>
-  static inline void operate(const TBlock& b,
+  static inline void operate(TBlock& b,
     const int ix, const int iy, const int iz, T output[NCHANNELS]) {
     output[0] = b(ix,iy,iz).s;
   }
@@ -506,7 +519,7 @@ struct StreamerVector
   static constexpr int NCHANNELS = 3;
 
   template <typename TBlock, typename T>
-  static void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS]) {
+  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS]) {
       for (int i = 0; i < _DIM_; i++) output[i] = b(ix,iy,iz).u[i];
   }
 
@@ -517,15 +530,11 @@ struct StreamerVector
   static std::string prefix() { return std::string(""); }
   static const char * getAttributeName() { return "Vector"; }
 };
-
 using ScalarBlock = GridBlock<ScalarElement>;
 using VectorBlock = GridBlock<VectorElement>;
-using VectorGrid = cubism::Grid<VectorBlock, std::allocator>;
-using ScalarGrid = cubism::Grid<ScalarBlock, std::allocator>;
-//using VectorLab = BlockLabOpen<VectorBlock, std::allocator>;
-using VectorLab = BlockLabDirichlet<VectorBlock, std::allocator>;
-using ScalarLab = BlockLabOpen<ScalarBlock, std::allocator>;
-//using ScalarLab = BlockLabDirichlet<ScalarBlock, std::allocator>;
-
-using ScalarAMR = cubism::MeshAdaptation<ScalarGrid,ScalarLab>;
-using VectorAMR = cubism::MeshAdaptation<VectorGrid,VectorLab>;
+using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
+using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
+using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
+using ScalarLab = cubism::BlockLabMPI<BlockLabOpen     <ScalarBlock, std::allocator>,ScalarGrid>;
+using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
+using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;

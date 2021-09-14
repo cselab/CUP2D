@@ -13,21 +13,23 @@ class Profiler;
 
 class Simulation
 {
+ public:
+  SimulationData sim;
  protected:
   cubism::ArgumentParser parser;
   std::vector<Operator*> pipeline;
 
   void createShapes();
   void parseRuntime();
-  void createPipeline();
-  void clearPipeline();
- public:
-  SimulationData sim;
+  // should this stuff be moved? - serialize method will do that
+  //void _dumpSettings(ostream& outStream);
 
+public:
   Simulation(int argc, char ** argv);
   ~Simulation();
 
   void reset();
+  void resetRL();
   void init();
   void startObstacles();
   void simulate();

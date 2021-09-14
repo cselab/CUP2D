@@ -46,7 +46,7 @@ CPPFLAGS += -D_FLOAT_PRECISION_
 NVFLAGS += -D_FLOAT_PRECISION_
 endif
 
-usemap ?= false
+usemap ?= true
 ifeq "$(usemap)" "true"
 CPPFLAGS += -DCUBISM_USE_MAP
 endif

@@ -120,19 +120,18 @@ struct SimulationData
   bool bCollision = false;
 
   void allocateGrid();
-  void deleteGrid();
   void resetAll();
   bool bDump();
   void registerDump();
   bool bOver() const;
 
-  double minRho() const;
-  double maxSpeed() const;
-  double maxRelSpeed() const;
-
   // minimal and maximal gridspacing possible
   double minH;
   double maxH;
+
+  //MPI
+  int rank;
+  int step1;
 
   // minimal gridspacing present on grid
   inline double getH() const
@@ -143,6 +142,7 @@ struct SimulationData
     {
       minHGrid = std::min(infos[i].h_gridpoint, minHGrid);
     }
+    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
     return minHGrid;
   }
 

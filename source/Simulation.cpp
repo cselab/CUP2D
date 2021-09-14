@@ -27,7 +27,6 @@
 #include "Obstacles/Naca.h"
 #include "Obstacles/Windmill.h"
 
-//#include <regex>
 #include <algorithm>
 #include <iterator>
 
@@ -45,42 +44,60 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
 
 Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
 {
-  std::cout
-  <<"=======================================================================\n";
-  std::cout
-  <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
-  std::cout
-  <<"=======================================================================\n";
- parser.print_args();
+  MPI_Comm_rank(MPI_COMM_WORLD,&sim.rank);
+  if (sim.rank == 0)
+  {
+    std::cout <<"=======================================================================\n";
+    std::cout <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
+    std::cout <<"=======================================================================\n";
+    parser.print_args();
+  }
 }
 
 Simulation::~Simulation()
 {
-  clearPipeline();
+  while( not pipeline.empty() ) {
+    Operator * g = pipeline.back();
+    pipeline.pop_back();
+    if(g not_eq nullptr) delete g;
+  }
 }
 
 void Simulation::init()
 {
   // parse field variables
-  std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
+  if (sim.rank == 0)
+    std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
   // allocate the grid
-  if(sim.verbose)
+  if(sim.rank == 0)
     std::cout << "[CUP2D] Allocating Grid..." << std::endl;
   sim.allocateGrid();
   // create shapes
-  if(sim.verbose)
+  if(sim.rank == 0)
     std::cout << "[CUP2D] Creating Shapes..." << std::endl;
   createShapes();
   // impose field initial condition
-  if(sim.verbose)
+  if(sim.rank == 0)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
   // create compute pipeline
-  if(sim.verbose)
+  if(sim.rank == 0)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
-  createPipeline();
+
+  pipeline.push_back( new advDiff(sim) );
+  pipeline.push_back( new PressureSingle(sim) );
+  pipeline.push_back( new ComputeForces(sim) );
+  pipeline.push_back( new AdaptTheMesh(sim) );
+  pipeline.push_back( new PutObjectsOnGrid(sim) );
+
+  if(sim.rank == 0)
+  {
+    std::cout << "[CUP2D] Operator ordering:\n";
+    for (size_t c=0; c<pipeline.size(); c++)
+      std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
+  }
 
   // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
@@ -129,7 +146,7 @@ void Simulation::parseRuntime()
   sim.endTime = parser("-tend").asDouble(0);
 
   // penalisation coefficient
-  sim.lambda = parser("-lambda").asDouble(1e6);
+  sim.lambda = parser("-lambda").asDouble(1e7);
 
   // constant for explicit penalisation lambda=dlm/dt
   sim.dlm = parser("-dlm").asDouble(0);
@@ -169,7 +186,7 @@ void Simulation::createShapes()
     {
       std::istringstream line_stream(line);
       std::string objectName;
-      if( sim.verbose )
+      if( sim.rank == 0 )
         std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
       // Comments and empty lines ignored:
@@ -209,103 +226,69 @@ void Simulation::createShapes()
     }
   }
 
-  if( sim.shapes.size() ==  0)
+  if( sim.shapes.size() ==  0 && sim.rank == 0)
     std::cout << "Did not create any obstacles." << std::endl;
-}
-
-void Simulation::startObstacles()
-{
-  // put obstacles to grid and compress
-  if(sim.verbose)
-    std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
-  for( int i = 0; i<sim.levelMax; i++ )
-  {
-    // PutObjectsOnGrid
-    (*pipeline[pipeline.size()-1])(0);
-    // AdaptTheMesh
-    (*pipeline[pipeline.size()-2])(0);
-  }
-  // PutObjectsOnGrid
-  (*pipeline[pipeline.size()-1])(0);
-  // impose velocity of obstacles
-  if(sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-  ApplyObjVel initVel(sim);
-  initVel(0);
-}
-
-void Simulation::createPipeline()
-{
-  pipeline.push_back( new advDiff(sim) );
-  pipeline.push_back( new PressureSingle(sim) );
-  pipeline.push_back( new ComputeForces(sim) );
-  pipeline.push_back( new AdaptTheMesh(sim) );
-  pipeline.push_back( new PutObjectsOnGrid(sim) );
-
-  if(sim.verbose){
-    std::cout << "[CUP2D] Operator ordering:\n";
-    for (size_t c=0; c<pipeline.size(); c++)
-      std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
-  }
-}
-
-void Simulation::clearPipeline()
-{
-  while( not pipeline.empty() ) {
-    Operator * g = pipeline.back();
-    pipeline.pop_back();
-    if(g not_eq nullptr) delete g;
-  }
 }
 
 void Simulation::reset()
 {
-  if(sim.verbose){
-    std::cout
-  <<"=======================================================================\n";
-    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
-  }
-  //// For resetting that wipes and reallocated the grid ////
-  ///////////////////////////////////////////////////////////
-  // clear and allocate new grid
-  // if(sim.verbose)
-  //   std::cout << "[CUP2D] Clearing and Allocating Grid..." << std::endl;
-  // sim.deleteGrid();
-  // sim.allocateGrid();
-  // clear and create operator pipeline
-  // if(sim.verbose)
-  //   std::cout << "[CUP2D] Clearing and Creating Pipeline..." << std::endl;
-  // clearPipeline();
-  // createPipeline();
   // reset field variables and shapes
-  ///////////////////////////////////////////////////////////
   if(sim.verbose)
-    std::cout << "[CUP2D] Resetting SimulationData..." << std::endl;
+    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
   // impose field initial condition
   if(sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
-  // Put Object on mesh and impose obstacle velocities
+  // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
 }
 
-void Simulation::simulate()
+void Simulation::resetRL()
 {
-  if(sim.verbose){
-    std::cout
-  <<"=======================================================================\n";
-    std::cout << "[CUP2D] Starting Simulation..." << std::endl;
-  }
-  while (1)
-  {
-    // compute timestep
-    const double dt = calcMaxTimestep();
-    // advance simulation until termination
-    if (advance(dt)) break;
-  }
+  // reset simulation (not shape)
+  if(sim.verbose)
+    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
+  sim.resetAll();
+  // impose field initial condition
+  if(sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
+  IC ic(sim);
+  ic(0);
 }
+
+void Simulation::startObstacles()
+{
+  Checker check (sim);
+
+  // put obstacles to grid and compress
+  if(sim.rank == 0)
+    std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
+  for( int i = 0; i<sim.levelMax; i++ )
+  {
+    // PutObjectsOnGrid
+    (*pipeline[pipeline.size()-1])(0);
+
+    // AdaptTheMesh
+    (*pipeline[pipeline.size()-2])(0);
+  }
+  // PutObjectsOnGrid
+   (*pipeline[pipeline.size()-1])(0);
+  // impose velocity of obstacles
+  if(sim.rank == 0)
+    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0); }
+
+void Simulation::simulate() { if(sim.rank == 0) { std::cout
+	<<"=======================================================================\n";
+	std::cout << "[CUP2D] Starting Simulation..." << std::endl; } while (1)
+	{
+    // sim.startProfiler("DT");
+    const double dt = calcMaxTimestep();
+    // sim.stopProfiler();
+    if (advance(dt)) break; } }
 
 double Simulation::calcMaxTimestep()
 {
@@ -323,12 +306,19 @@ double Simulation::calcMaxTimestep()
     const int rampup = 100;
     if (sim.step < rampup)
     {
-      const double x = (sim.step+1.0)/rampup;
+      const double x = (sim.step + 1.0)/rampup;
       const double rampupFactor = std::exp(std::log(1e-3)*(1-x));
-      sim.dt = rampupFactor * std::min({dtDiffusion, sim.CFL * dtAdvection});
+      sim.dt = rampupFactor*std::min({ dtDiffusion, CFL * dtAdvection});
     }
-    else
-      sim.dt = std::min({dtDiffusion, sim.CFL * dtAdvection});
+    else //if (sim.time < 0.5)
+    {
+      sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
+    }
+    //else 
+    //{
+    //  const double CFL_ramp = (sim.time < 1.5) ? (0.1-sim.CFL)*(sim.time-0.5) + sim.CFL : 0.1;
+    //  sim.dt = std::min({dtDiffusion, CFL_ramp * dtAdvection});
+    //}
   }
 
   if( sim.dt <= 0 ){
@@ -343,40 +333,84 @@ double Simulation::calcMaxTimestep()
 
 bool Simulation::advance(const double dt)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
-  std::cout
+  if (sim.rank == 0)
+  {
+    std::cout
   <<"=======================================================================\n";
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
       sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
+  }
 
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
-    if(sim.verbose)
+    if (sim.rank == 0)
       std::cout << "[CUP2D] dumping IC...\n";
     sim.dumpAll("IC");
   }
+
   const bool bDump = sim.bDump();
 
-  // run simulation pipeline
+  // For debuging state function LEAD-FOLLOW
+  // Shape *object = getShapes()[0];
+  // StefanFish *agent = dynamic_cast<StefanFish *>(getShapes()[1]);
+  // auto state = agent->state(object);
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // std::cout << "[CUP2D] Computed state:" << std::endl;
+  // for( auto s : state )
+  //   std::cout << s << std::endl;
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+
+  // // For debuging state function SMARTCYLINDER
+  // SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
+  // std::vector<double> target{0.8,0.5};
+  // auto state = agent->state( target );
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // std::cout << "[CUP2D] Computed state:" << std::endl;
+  // for( auto s : state )
+  //   std::cout << s << std::endl;
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+
+
+  // // For debugging reward function for windmills
+  // Windmill *agent = dynamic_cast<Windmill *>(getShapes()[1]);
+  // // J = 2.9e-6
+  // double upper_bound_act = 1e-5;
+  // std::uniform_real_distribution dist(0.0, upper_bound_act);
+  // std::default_random_engine rd;
+  // agent->act(dist(rd)); // put torque on the windmill
+  // std::array<Real, 2> target{0.4,0.5};
+  // std::vector<double> target_vel{0.0,0.0};
+  // double C = 1e8;
+  // double r = agent->reward(target, target_vel, C);
+
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+  // std::cout << "[CUP2D] Computed reward:" << std::endl;
+  // std::cout << "Total reward: " << r << std::endl;
+  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+
   for (size_t c=0; c<pipeline.size(); c++) {
-    if(sim.verbose)
+    //if (pipeline.size()-2 == c) continue;
+    if(sim.rank == 0)
       std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
     (*pipeline[c])(dt);
+    //sim.dumpAll( pipeline[c]->getName() );
   }
 
-  // increment counters
   sim.time += dt;
   sim.step++;
 
+
   // dump field
   if( bDump ) {
-    if(sim.verbose)
+    if(sim.rank == 0)
       std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
     sim.dumpAll("avemaria_"); 
   }
 
-  // check whether termination criteria are met
   const bool bOver = sim.bOver();
 
   if (bOver){
@@ -388,5 +422,6 @@ bool Simulation::advance(const double dt)
   <<"=======================================================================\n";
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
   return bOver;
 }

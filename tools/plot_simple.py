@@ -5,7 +5,7 @@ import numpy as np
 import scipy as sp
 from scipy import integrate
 
-colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 
 def lighten_color(color, amount=0.5):
   try:
@@ -27,47 +27,37 @@ def dragCollinsDennis( Re, t, i=0 ):
   return fricDrag+presDrag
 
 
-def plotForceTime( root, runname, Re, i):
+def plotForceTime( root, runname, Re, i, name):
   u = 0.2
   r = 0.1
   data = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  #t  = data[:,0] * u/r
-  #Cd = data[:,1] / (r*u*u)
-  #Cp = data[:,3] / (r*u*u)
-  #Cv = data[:,5] / (r*u*u)
-  #err1 = np.abs(Cv[1::] - dragCollinsDennis(Re,t[1::],1))
-  #err2 = np.abs(Cp[1::] - dragCollinsDennis(Re,t[1::],2))
-  #print(runname,sp.integrate.simps(err1, t[1::]),sp.integrate.simps(err2, t[1::]))
-  #plt.plot(t, Cv, color=lighten_color(colors[i],1.), label=runname)
-  #print(Cv)
-  #plt.plot(t, Cp, color=lighten_color(colors[i+1],1.), label=runname)
-  #plt.plot(t, Cd, color=lighten_color(colors[i+2],1), label=runname)
-  plt.plot(data[:,0] * (u/r), data[:,1] / (r*u*u), color=lighten_color(colors[i],1.), label=runname)
-  plt.plot(data[:,0] * (u/r), data[:,3] / (r*u*u), color=lighten_color(colors[i],1.), label=runname)
-  plt.plot(data[:,0] * (u/r), data[:,5] / (r*u*u), color=lighten_color(colors[i],1.), label=runname)
+  #plt.plot(data[:,0] * (u/r), data[:,1] / (r*u*u), color=lighten_color(colors[i],0.4), label=name)
+  plt.plot(data[:,0] * (u/r), data[:,3] / (r*u*u), color=lighten_color(colors[i],0.8), label=name + " Pressure drag")
+  #plt.plot(data[:,0] * (u/r), data[:,5] / (r*u*u), color=lighten_color(colors[i],1.0), label=name + "  Friction drag")
   
 def plotDragTimeCylinder():
 
   Re = 100000
-  root = "/cluster/scratch/michaich/HIGHRE2D_SMALL_DOMAIN/"
+  root = "/scratch/snx3000/mchatzim/CUP2D/Re100000/"
   runname = []
-  runname.append("Re100000_11")
+  runname.append(".")
+  runname.append("interp")
+  name = runname
 
-  t = np.linspace(1e-10,0.5,5001)
-  plt.plot( t, dragCollinsDennis( Re, t, 0), linestyle="--", color="black", label="Collins and Dennis (1973)")
-  plt.plot( t, dragCollinsDennis( Re, t, 1), linestyle="--", color="black", label="Collins and Dennis (1973)")
-  plt.plot( t, dragCollinsDennis( Re, t, 2), linestyle="--", color="black", label="Collins and Dennis (1973)")
+  #t = np.linspace(1e-10,0.5,1001)
+  #plt.plot( t, dragCollinsDennis( Re, t, 0), linestyle="--", color="black", label="Collins and Dennis (1973)")
+  #plt.plot( t, dragCollinsDennis( Re, t, 1), linestyle="--", color="red", label="Collins (Friction)")
+  #plt.plot( t, dragCollinsDennis( Re, t, 2), linestyle="--", color="green", label="Collins (Pressure)")
 
   for i in range( len(runname) ):
-    plotForceTime( root, runname[i], Re, i)
+    plotForceTime( root, runname[i], Re, i, name[i])
 
-  plt.xlim([1e-6,0.5])
-  #plt.ylim([1e-6,5])
-  plt.ylim([1e-2,1.0])
-  plt.xlabel("Time $T=tu_\infty/r$")
-  plt.ylabel("Drag Coefficient $C_D=|F_x|/ru_\infty^2$")
+  plt.xlim([1e-5,10.5])
+  plt.ylim([1e-2,3.0])
+  plt.xlabel("Time $T$")#=tu_\infty/r$")
+  plt.ylabel("Drag Coefficient $C_D$")#=|F_x|/ru_\infty^2$")
   plt.legend(loc = 'upper right')
-  #plt.ylim([1e-6,1e4])
+  #plt.ylim([1e-2,1e4])
   #plt.xscale("log")
   #plt.yscale("log")
   plt.grid()

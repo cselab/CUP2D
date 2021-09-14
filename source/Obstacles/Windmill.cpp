@@ -11,8 +11,13 @@
 
 using namespace cubism;
 
+
+//WARNING: NO MPI IMPLEMENTED HERE!!!!
+
+
 void Windmill::create(const std::vector<BlockInfo>& vInfo)
 {
+  #if 0
   // windmill stuff
   const Real h = sim.getH();
   for(auto & entry : obstacleBlocks) delete entry;
@@ -77,6 +82,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
       kernel3(vInfo[i], B, * obstacleBlocks[vInfo[i].blockID]);
     }
   }
+  #endif
 }
 
 void Windmill::updateVelocity(double dt)
@@ -234,6 +240,7 @@ std::vector<double>  Windmill::state()
 // average function
 std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 {
+  #if 0
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
   // get blockId
@@ -272,7 +279,9 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 
   avgX/=121.0;
   avgY/=121.0;
-  
+  #endif
+  double avgX = 0;
+  double avgY = 0;
   return std::vector<double> {avgX, avgY};
 }
 

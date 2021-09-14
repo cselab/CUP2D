@@ -16,18 +16,11 @@ class Shape;
 
 class PressureSingle : public Operator
 {
-  const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-
-  //PoissonSolver * const pressureSolver;
   AMRSolver * pressureSolver;
 
   bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;
-  void pressureCorrection(const double dt) const;
-  void updatePressureRHS(const double dt) const;
+  void pressureCorrection(const double dt);
   void integrateMomenta(Shape * const shape) const;
   void penalize(const double dt) const;
 

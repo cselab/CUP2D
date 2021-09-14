@@ -46,6 +46,11 @@ struct ObstacleBlock
   Real drag = 0, thrust = 0, lift = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0;
   Real circulation = 0;
 
+  //auxiliary quantities for shape center of mass
+  Real COM_x = 0;
+  Real COM_y = 0;
+  Real Mass = 0;
+
   ObstacleBlock()
   {
     clear();

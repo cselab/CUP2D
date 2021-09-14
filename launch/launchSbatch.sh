@@ -8,37 +8,16 @@ cd ${FOLDERNAME}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=eth2
+#SBATCH --account=s929
 #SBATCH --job-name="${RUNNAME}"
-#SBATCH --output=${RUNNAME}_out_%j.txt
-#SBATCH --error=${RUNNAME}_err_%j.txt
 #SBATCH --time=24:00:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --constraint=mc
+#SBATCH --nodes=8
+#SBATCH --ntasks-per-node=12
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=gpu
+export OMP_NUM_THREADS=1
 
-# #SBATCH --account=s929
-# #SBATCH --job-name="${RUNNAME}"
-# #SBATCH --output=${RUNNAME}_out_%j.txt
-# #SBATCH --error=${RUNNAME}_err_%j.txt
-# #SBATCH --time=00:30:00
-# #SBATCH --nodes=1
-# #SBATCH --ntasks-per-node=1
-# #SBATCH --constraint=gpu
-# #SBATCH --partition=debug
-
-# #SBATCH --time=00:30:00
-# #SBATCH --partition=debug
-# #SBATCH --constraint=mc
-# #SBATCH --mail-user="${MYNAME}@ethz.ch"
-# #SBATCH --mail-type=ALL
-
-export OMP_NUM_THREADS=36
-#export CRAY_CUDA_MPS=1
-#export OMP_PROC_BIND=CLOSE
-#export OMP_PLACES=cores
-
-srun --ntasks 1 --cpus-per-task=36 --threads-per-core=1 --ntasks-per-node=1 ./simulation ${OPTIONS} -shapes "${OBJECTS}"
+srun ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 EOF
 
 chmod 755 daint_sbatch

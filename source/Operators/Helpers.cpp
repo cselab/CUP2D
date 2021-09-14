@@ -10,133 +10,17 @@
 
 using namespace cubism;
 
-void computeVorticity::run() const
-{
-  const size_t Nblocks = velInfo.size();
-  const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  #pragma omp parallel
-  {
-    static constexpr int stenBeg [3] = {-1,-1, 0}, stenEnd [3] = { 2, 2, 1};
-    VectorLab velLab;   velLab.prepare(*(sim.vel), stenBeg, stenEnd, false);
-
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      const Real invH = 0.5 / tmpInfo[i].h_gridpoint;
-      velLab.load( velInfo[i]);
-      const auto & __restrict__ V   = velLab;
-      auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-
-      for(int y=0; y<VectorBlock::sizeY; ++y)
-      for(int x=0; x<VectorBlock::sizeX; ++x)
-      {
-        O(x,y).s = invH * (V(x,y-1).u[0]-V(x,y+1).u[0] + V(x+1,y).u[1]-V(x-1,y).u[1]);
-      }
-    }
-  }
-}
-
-void computeDivergence::run() const
-{
-  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
-  Corrector.prepare(*(sim.tmp));
-  static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
-
-  const size_t Nblocks = velInfo.size();
-
-  const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
-  #pragma omp parallel
-  {
-    static constexpr int stenBeg [3] = {-1,-1,0}, stenEnd [3] = { 2, 2, 1};
-
-    VectorLab velLab;   velLab.prepare(*(sim.vel), stenBeg, stenEnd, 0);
-
-    #pragma omp for schedule(static)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      const Real H = tmpInfo[i].h_gridpoint;
-      velLab.load( velInfo[i], 0); const auto & __restrict__ V   = velLab;
-      auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-      auto& __restrict__ CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
-
-      for(int y=0; y<VectorBlock::sizeY; ++y)
-      for(int x=0; x<VectorBlock::sizeX; ++x)
-      {
-        O(x,y).s = (1.0-CHI(x,y).s)*0.5*H*(V(x+1,y).u[0]-V(x-1,y).u[0] + V(x,y+1).u[1]-V(x,y-1).u[1]);
-      }
-
-      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[i].auxiliary);
-      ScalarBlock::ElementType * faceXm = nullptr;
-      ScalarBlock::ElementType * faceXp = nullptr;
-      ScalarBlock::ElementType * faceYm = nullptr;
-      ScalarBlock::ElementType * faceYp = nullptr;
-      if (tempCase != nullptr)
-      {
-        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      }
-      if (faceXm != nullptr)
-      {
-        int ix = 0;
-        for(int iy=0; iy<BSY; ++iy)
-          faceXm[iy].s = (1.0-CHI(ix,iy).s)*0.5*H *(V(ix-1,iy).u[0] + V(ix,iy).u[0]) ;
-      }
-      if (faceXp != nullptr)
-      {
-        int ix = BSX-1;
-        for(int iy=0; iy<BSY; ++iy)
-          faceXp[iy].s = -(1.0-CHI(ix,iy).s)*0.5*H*(V(ix+1,iy).u[0] + V(ix,iy).u[0]);
-      }
-      if (faceYm != nullptr)
-      {
-        int iy = 0;
-        for(int ix=0; ix<BSX; ++ix)
-          faceYm[ix].s = (1.0-CHI(ix,iy).s)*0.5*H* (V(ix,iy-1).u[1] + V(ix,iy).u[1]);
-      }
-      if (faceYp != nullptr)
-      {
-        int iy = BSY-1;
-        for(int ix=0; ix<BSX; ++ix)
-          faceYp[ix].s = -(1.0-CHI(ix,iy).s)*0.5*H* (V(ix,iy+1).u[1] + V(ix,iy).u[1]);
-      }
-    }
-  }
-
-  Corrector.FillBlockCases();
-
-
-  double sDtot = 0.0;
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    auto& __restrict__ O = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-    for(int y=0; y<VectorBlock::sizeY; ++y)
-    for(int x=0; x<VectorBlock::sizeX; ++x)
-      sDtot += O(x,y).s;
-  }
-  // std::cout << "Total div(V)="<<sDtot<<std::endl;
-  std::ofstream outfile;
-  outfile.open("div.txt", std::ios_base::app);
-  outfile << sim.time << " " << sDtot  << " " << Nblocks << "\n";
-  outfile.close();
-}
-
 void IC::operator()(const double dt)
 {
-  const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
-  const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
-  const std::vector<BlockInfo>& poldInfo  = sim.pold->getBlocksInfo();
-  const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
-  const std::vector<BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
-  const std::vector<BlockInfo>& vOldInfo  = sim.vOld->getBlocksInfo();
-
-  const size_t Nblocks = velInfo.size();
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
   #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
+  for (size_t i=0; i < velInfo.size(); i++)
   {
     VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
     VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
@@ -169,6 +53,11 @@ Real findMaxU::run() const
       totM += facMom;
     }
   }
+  double temp[3] = {momX,momY,totM};
+  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  momX = temp[0];
+  momY = temp[1];
+  totM = temp[2];
   //printf("Integral of momenta X:%e Y:%e mass:%e\n", momX, momY, totM);
   const Real DU = momX / totM, DV = momY / totM;
   #endif
@@ -189,11 +78,18 @@ Real findMaxU::run() const
       v = std::max( v, std::fabs( VEL(ix,iy).u[1] ) );
     }
   }
+  double quantities[4] = {U,V,u,v};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_DOUBLE,MPI_MAX, sim.chi->getCartComm());
+  U = quantities[0];
+  V = quantities[1];
+  u = quantities[2];
+  v = quantities[3];
   return std::max( { U, V, u, v } );
 }
 
 void Checker::run(std::string when) const
 {
+  return;
   const size_t Nblocks = velInfo.size();
 
   const std::vector<BlockInfo>& presInfo  = sim.pres->getBlocksInfo();
@@ -208,18 +104,33 @@ void Checker::run(std::string when) const
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      if( std::isfinite( VEL(ix,iy).u[0] ) == false ) {
-        // printf("%s: VEL(%d,%d).u[0] is invalid: %f\n", when.c_str(), ix, iy, VEL(ix,iy).u[0]);
+      if(std::isnan( VEL(ix,iy).u[0])) {
+        printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
         break;
       }
-      if( std::isfinite( VEL(ix,iy).u[1] ) == false ) {
-        // printf("%s: VEL(%d,%d).u[1] is invalid: %f\n", when.c_str(), ix, iy, VEL(ix,iy).u[1]);
+      if(std::isinf( VEL(ix,iy).u[0])) {
+        printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
         bAbort = true;
         break;
       }
-      if( std::isfinite( PRES(ix,iy).s   ) == false ) {
-        // printf("%s: PRES(%d,%d).s is invalid: %f\n", when.c_str(), ix, iy, PRES(ix,iy).s);
+      if(std::isnan( VEL(ix,iy).u[1])) {
+        printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
+        bAbort = true;
+        break;
+      }
+      if(std::isinf( VEL(ix,iy).u[1])) {
+        printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
+        bAbort = true;
+        break;
+      }
+      if(std::isnan(PRES(ix,iy).s   )) {
+        printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
+        bAbort = true;
+        break;
+      }
+      if(std::isinf(PRES(ix,iy).s   )) {
+        printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
         bAbort = true;
         break;
       }
@@ -228,10 +139,9 @@ void Checker::run(std::string when) const
 
   if( bAbort )
   {
-    printf("[CUP2D] %s: Detected invalid values. Aborting...\n", when.c_str());
+    std::cout << "[CUP2D] Detected NaN/INF Field Values. Dumping the field and aborting..." << std::endl;
     sim.dumpAll("abort_");
-    fflush(0); 
-    abort();
+    MPI_Abort(MPI_COMM_WORLD,1);
   }
 }
 

@@ -4,12 +4,15 @@
 //  Distributed under the terms of the MIT license.
 //
 
+// TODO: check if mean = 0 constraint leads to faster convergence
+
 #include "AMRSolver.h"
 
 using namespace cubism;
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
+  sim.startProfiler("Poisson:getZ");
    static constexpr int BSX = VectorBlock::sizeX;
    static constexpr int BSY = VectorBlock::sizeY;
    static constexpr int N   = BSX*BSY;
@@ -58,89 +61,7 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
            z(ix,iy).s = -z(ix,iy).s;
      }
    }
-}
-
-void AMRSolver::Get_LHS ()
-{
-    static constexpr int BSX = VectorBlock::sizeX;
-    static constexpr int BSY = VectorBlock::sizeY;
-
-    //compute A*x and store it into LHS
-    //here A corresponds to the discrete Laplacian operator for an AMR mesh
-
-    const std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
-    const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
-
-    //double mean = 0;
-    //int index = 0;
-    #pragma omp parallel
-    {
-      static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-      ScalarLab lab; 
-      lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
-      #pragma omp for// reduction(+:mean)
-      for (size_t i=0; i < xInfo.size(); i++)
-      {
-        //const bool cornerx =( xInfo[i].index[0] == ( (sim.bpdx * (1<<(xInfo[i].level)) -1)/2 ) );
-        //const bool cornery =( xInfo[i].index[1] == ( (sim.bpdy * (1<<(xInfo[i].level)) -1)/2 ) );
-        //if (cornerx && cornery)
-        //  index = i;
-        if (xInfo[i].index[0]==0 && xInfo[i].index[1]==0) lab(-1,BSY/2).s = 0.0; //set p=0 for one grid point to make the system invertible
-        lab.load(xInfo[i]);
-        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
-        //const double h2 = lhsInfo[i].h*lhsInfo[i].h;
-        for(int iy=0; iy<BSY; ++iy)
-        for(int ix=0; ix<BSX; ++ix)
-        {
-          //mean+=lab(ix,iy).s*h2;
-          LHS(ix,iy).s = ( lab(ix-1,iy).s + 
-                           lab(ix+1,iy).s + 
-                           lab(ix,iy-1).s + 
-                           lab(ix,iy+1).s - 4.0*lab(ix,iy).s );
-        }
-
-        BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[i].auxiliary);
-        ScalarBlock::ElementType * faceXm = nullptr;
-        ScalarBlock::ElementType * faceXp = nullptr;
-        ScalarBlock::ElementType * faceYm = nullptr;
-        ScalarBlock::ElementType * faceYp = nullptr;
-        if (tempCase != nullptr)
-        {
-          faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-          faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-          faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-          faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-        }
-        if (faceXm != nullptr)
-        {
-          int ix = 0;
-          for(int iy=0; iy<BSY; ++iy)
-            faceXm[iy] = lab(ix,iy) - lab(ix-1,iy);
-        }
-        if (faceXp != nullptr)
-        {
-          int ix = BSX-1;
-          for(int iy=0; iy<BSY; ++iy)
-            faceXp[iy] = lab(ix,iy) - lab(ix+1,iy);
-        }
-        if (faceYm != nullptr)
-        {
-          int iy = 0;
-          for(int ix=0; ix<BSX; ++ix)
-            faceYm[ix] = lab(ix,iy) - lab(ix,iy-1);
-        }
-        if (faceYp != nullptr)
-        {
-          int iy = BSY-1;
-          for(int ix=0; ix<BSX; ++ix)
-            faceYp[ix] = lab(ix,iy) - lab(ix,iy+1);
-        }
-      }
-    }
-
-    Corrector.FillBlockCases();
-    //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-    //LHS(BSX-1,BSY-1).s = mean;
+   sim.stopProfiler();
 }
 
 double AMRSolver::getA_local(int I1,int I2)
@@ -164,7 +85,7 @@ double AMRSolver::getA_local(int I1,int I2)
    }
 }
 
-AMRSolver::AMRSolver(SimulationData& s):sim(s)
+AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
 {
    std::vector<std::vector<double>> L;
 
@@ -220,8 +141,10 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
 
 void AMRSolver::solve()
 {
-  static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
+  const int BSX = VectorBlock::sizeX;
+  const int BSY = VectorBlock::sizeY;
+  const MPI_Comm m_comm = sim.chi->getCartComm();
+  const int rank = sim.rank;
 
   // The bi-conjugate gradient method needs the following 8 arrays:
   // r: residual vector
@@ -232,8 +155,6 @@ void AMRSolver::solve()
   // Ax vector (stores the LHS computation)
   // x vector (current solution estimate)
   // z vector (used for preconditioning)
-
-  Corrector.prepare(*sim.tmp);
 
   std::vector<cubism::BlockInfo>& AxInfo = sim.tmp ->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
@@ -253,11 +174,12 @@ void AMRSolver::solve()
 
   //1. r = RHS - Ax_0, x_0: initial solution guess
   //   - (1a) We set r = RHS and store x0 in x
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {    
-    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
+    ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ z    = *(ScalarBlock*)  zInfo[i].ptrBlock;
+    //if (isCorner(AxInfo[i])) rhs(4,4).s = 0.0;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
@@ -266,13 +188,14 @@ void AMRSolver::solve()
     }
   }
   //   - (1b) We compute A*x0 (which is stored in AxInfo)
-  Get_LHS();
+  Get_LHS(0);
 
   //   - (1c) We substract A*x0 from r. 
   //          Here we also set rhat = r and compute the initial guess error norm.
   double norm = 0.0; //initial residual norm
   double norm_opt = 0.0; //initial residual norm
-  #pragma omp parallel for reduction (+:norm)
+  double norm_max = 0.0;
+  //#pragma omp parallel for reduction (+:norm)
   for (size_t i=0; i < Nblocks; i++)
   {
     const ScalarBlock & __restrict__ lhs  = *(ScalarBlock*)  AxInfo[i].ptrBlock;
@@ -282,17 +205,21 @@ void AMRSolver::solve()
       r[i*BSX*BSY+iy*BSX+ix] -= lhs(ix,iy).s;
       rhat[i*BSX*BSY+iy*BSX+ix]  = r[i*BSX*BSY+iy*BSX+ix];
       norm += r[i*BSX*BSY+iy*BSX+ix]*r[i*BSX*BSY+iy*BSX+ix];
+      norm_max = std::max(norm_max,std::fabs(r[i*BSX*BSY+iy*BSX+ix]));
     }
   }
+  MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
+  MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
   norm = std::sqrt(norm);
+  norm = norm_max;
 
   //2. Set some bi-conjugate gradient parameters
   double rho   = 1.0;
   double alpha = 1.0;
   double omega = 1.0;
   const double eps = 1e-21;
-  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
-  const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  const double max_error     = sim.step < 10 ? 0.0 : sim.PoissonTol;//* sim.uMax_measured / sim.dt;
+  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;//min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
   double min_norm = 1e50;
   double rho_m1;
   double init_norm=norm;
@@ -304,8 +231,9 @@ void AMRSolver::solve()
 
   //3. start iterations
   size_t k;
-  std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
-  for ( k = 0 ; k < 1000; k++)
+  if (rank == 0) std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
+  const int kmax = 1000;
+  for ( k = 0 ; k < kmax; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
@@ -320,6 +248,10 @@ void AMRSolver::solve()
       norm_1 += r[i] * r[i];
       norm_2 += rhat[i] * rhat[i];     
     }
+    double quantities[3] = {rho,norm_1,norm_2};
+    MPI_Allreduce(MPI_IN_PLACE,&quantities,3,MPI_DOUBLE,MPI_SUM,m_comm);
+    rho = quantities[0]; norm_1 = quantities[1] ; norm_2 = quantities[2];
+
     double beta = rho / (rho_m1+eps) * alpha / (omega+eps);
     norm_1 = sqrt(norm_1);
     norm_2 = sqrt(norm_2);
@@ -332,7 +264,7 @@ void AMRSolver::solve()
         {
            break;
         }
-        std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
+        if (rank == 0) std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
         #pragma omp parallel for reduction(+:rho)
@@ -341,6 +273,11 @@ void AMRSolver::solve()
           rhat[i] = r[i];
           rho += r[i]*rhat[i];
         }
+        MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        alpha = 1.;
+        omega = 1.;
+        rho_m1 = 1.;
+        beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
     }
 
     //3. p_{k} = r_{k-1} + beta*(p_{k-1}-omega *v_{k-1})
@@ -362,7 +299,7 @@ void AMRSolver::solve()
     //5. v = A z
     //6. alpha = rho_i / (rhat_0,v_i)
     alpha = 0.0;
-    Get_LHS();// v <-- Az //v stored in AxVector
+    Get_LHS(0);// v <-- Az //v stored in AxVector
 
     //7. x += a z
     //8. 
@@ -385,30 +322,26 @@ void AMRSolver::solve()
         }
         #pragma omp atomic
         alpha += alpha_t;
-        
-        #pragma omp barrier
-        #pragma omp single
-        {
-            alpha = rho / (alpha + eps);
-        }
-
-        #pragma omp for
-        for (size_t i=0; i < Nblocks; i++)
-        {
-          ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
-          for(int iy=0; iy<VectorBlock::sizeY; iy++)
-          for(int ix=0; ix<VectorBlock::sizeX; ix++)
-          {
-            const int j = i*BSX*BSY+iy*BSX+ix;
-            x[j] += alpha * z(ix,iy).s;
-            s[j] = r[j] - alpha * v[j];
-            z(ix,iy).s = s[j];
-          }
-        }
     }
+    MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_DOUBLE,MPI_SUM,m_comm);
+    alpha = rho / (alpha + eps);
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__ z = *(ScalarBlock*) zInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+        const int j = i*BSX*BSY+iy*BSX+ix;
+        x[j] += alpha * z(ix,iy).s;
+        s[j] = r[j] - alpha * v[j];
+        z(ix,iy).s = s[j];
+      }
+    }
+    
 
     getZ(zInfo);
-    Get_LHS(); // t <-- Az //t stored in AxVector
+    Get_LHS(0); // t <-- Az //t stored in AxVector
     //12. omega = ...
     double aux1 = 0;
     double aux2 = 0;
@@ -424,13 +357,17 @@ void AMRSolver::solve()
         aux2 += Ax(ix,iy).s * Ax(ix,iy).s;
       }
     }
+    double temp[2] = {aux1,aux2};
+    MPI_Allreduce(MPI_IN_PLACE,&temp,2,MPI_DOUBLE,MPI_SUM,m_comm);
+    aux1 = temp[0]; aux2 = temp[1] ;
     omega = aux1 / (aux2+eps); 
 
     //13. x += omega * z
     //14.
     //15. r = s - omega * t
     norm = 0.0; 
-    #pragma omp parallel for reduction(+:norm)
+    norm_max = 0.0; 
+    //#pragma omp parallel for reduction(+:norm)
     for (size_t i=0; i < Nblocks; i++)
     {
       const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
@@ -442,9 +379,13 @@ void AMRSolver::solve()
         x[j] += omega * z(ix,iy).s;
         r[j] = s[j] - omega * Ax(ix,iy).s;
         norm+= r[j]*r[j]; 
+        norm_max = std::max(norm_max,std::fabs(r[j]));
       }
     }
+    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
+    MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
     norm = std::sqrt(norm);
+    norm = norm_max;
 
     if (norm < min_norm)
     {
@@ -464,15 +405,23 @@ void AMRSolver::solve()
     //}
     if ( (norm < max_error || norm/init_norm < max_rel_error ) )
     {
-      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      if (rank == 0) std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
       bConverged = true;
       break;
     }
+
+    //if (rank == 0 && k % 50 == 0)
+    //  std::cout << "  iter:" << k << " norm:" << norm << " opt:" << norm_opt << std::endl;
+
   } //k-loop
-  if( bConverged )
-    std::cout <<  " Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
-  else
-    std::cout <<  "  [Poisson solver]: Iteration " << k << ". Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
+  if (rank == 0)
+  {
+    if( bConverged )
+      std::cout <<  " Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
+    else
+      std::cout <<  "  [Poisson solver]: Iteration " << k << ". Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;
+  std::cout << "max = " << norm_max << std::endl;
+  }
 
   if (useXopt)
   {
@@ -480,12 +429,12 @@ void AMRSolver::solve()
     for (size_t i=0; i < N; i++)
       x[i] = x_opt[i];
   }
-
   double avg = 0;
   double avg1 = 0;
-  #pragma omp parallel
+  //#pragma omp parallel
   {
-     #pragma omp for reduction (+:avg,avg1)
+     //#pragma omp for reduction (+:avg,avg1)
+     //#pragma omp parallel for
      for(size_t i=0; i< Nblocks; i++)
      {
         ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
@@ -498,11 +447,16 @@ void AMRSolver::solve()
             avg1 += vv;
         }
      }
-     #pragma omp single
-     {
+     ////#pragma omp barrier
+     ////#pragma omp master
+     ////{
+        double quantities[2] = {avg,avg1};
+        MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_DOUBLE,MPI_SUM,m_comm);
+        avg = quantities[0]; avg1 = quantities[1] ;
         avg = avg/avg1;
-     }
-     #pragma omp for
+     ////}
+     ////#pragma omp for
+#if 1
      for(size_t i=0; i< Nblocks; i++)
      {
         ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
@@ -510,5 +464,7 @@ void AMRSolver::solve()
         for(int ix=0; ix<VectorBlock::sizeX; ix++)
            P(ix,iy).s -= avg;
      }
+     //if (rank == 0) std::cout << " Poisson solver avg=" << avg << std::endl;
+#endif
   }
 }

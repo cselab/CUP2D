@@ -12,34 +12,63 @@ using namespace cubism;
 
 static constexpr double EPS = std::numeric_limits<double>::epsilon();
 
-void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
+struct ComputeSurfaceNormals
 {
-  const size_t Nblocks = velInfo.size();
-
-  const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
-  double _x=0, _y=0, _m=0;
-  #pragma omp parallel reduction(+ : _x, _y, _m)
+  ComputeSurfaceNormals(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  StencilInfo stencil {-1, -1, 0, 2, 2, 1, false, {0}};
+  StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
+  void operator()(ScalarLab & labChi, ScalarLab & labSDF, const BlockInfo& infoChi, const BlockInfo& infoSDF) const
   {
-    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-    ScalarLab distlab; distlab.prepare(*(sim.tmp), stenBeg, stenEnd, 0);
-
-    #pragma omp for schedule(dynamic, 1)
-    for (size_t i=0; i < Nblocks; i++)
+    for(const auto& shape : sim.shapes)
     {
-      if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
+      const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+      if(OBLOCK[infoChi.blockID] == nullptr) continue; //obst not in block
+      const Real h = infoChi.h;
+      ObstacleBlock& o = * OBLOCK[infoChi.blockID];
+      const double i2h = 0.5/h;
+      const double fac = 0.5*h;
+      for(int iy=0; iy<ScalarBlock::sizeY; iy++)
+      for(int ix=0; ix<ScalarBlock::sizeX; ix++)
+      {
+          const double gradHX = labChi(ix+1,iy).s-labChi(ix-1,iy).s;
+          const double gradHY = labChi(ix,iy+1).s-labChi(ix,iy-1).s;
+          if (gradHX*gradHX + gradHY*gradHY < 1e-12) continue;
+          const double gradUX = i2h*(labSDF(ix+1,iy).s-labSDF(ix-1,iy).s);
+          const double gradUY = i2h*(labSDF(ix,iy+1).s-labSDF(ix,iy-1).s);
+          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
 
-      const Real h = chiInfo[i].h_gridpoint;
+          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
+          if (std::fabs(D) > EPS) o.write(ix, iy, D, gradUX, gradUY);
+      }
+      o.allocate_surface();
+    }
+  }
+};
 
-      ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
-
-      distlab.load(tmpInfo[i], 0); // loads signed distance field with ghosts
-
-      auto & __restrict__ CHI  = *(ScalarBlock*)    chiInfo[i].ptrBlock;
+struct PutChiOnGrid
+{
+  PutChiOnGrid(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  void operator()(ScalarLab & lab, const BlockInfo& info) const
+  {
+    for(const auto& shape : sim.shapes)
+    {
+      const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+      if(OBLOCK[info.blockID] == nullptr) continue; //obst not in block
+      const Real h = info.h;
+      const Real h2 = h*h;
+      ObstacleBlock& o = * OBLOCK[info.blockID];
       CHI_MAT & __restrict__ X = o.chi;
-      const CHI_MAT & __restrict__ rho = o.rho;
       const CHI_MAT & __restrict__ sdf = o.dist;
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      o.COM_x = 0;
+      o.COM_y = 0;
+      o.Mass  = 0;
+      auto & __restrict__ CHI  = *(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
+      for(int iy=0; iy<ScalarBlock::sizeY; iy++)
+      for(int ix=0; ix<ScalarBlock::sizeX; ix++)
       {
         #if 0
         X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
@@ -50,10 +79,10 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
         }
         else
         {
-          const double distPx = distlab(ix+1,iy).s;
-          const double distMx = distlab(ix-1,iy).s;
-          const double distPy = distlab(ix,iy+1).s;
-          const double distMy = distlab(ix,iy-1).s;
+          const double distPx = lab(ix+1,iy).s;
+          const double distMx = lab(ix-1,iy).s;
+          const double distPy = lab(ix,iy+1).s;
+          const double distMy = lab(ix,iy-1).s;
           const double IplusX = std::max(0.0,distPx);
           const double IminuX = std::max(0.0,distMx);
           const double IplusY = std::max(0.0,distPy);
@@ -66,88 +95,31 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
         #endif
-
-        // an other partial
-        if(X[iy][ix] >= CHI(ix,iy).s)
-        {
-           CHI(ix,iy).s = X[iy][ix];
-        }
+        CHI(ix,iy).s = std::max(CHI(ix,iy).s,X[iy][ix]);
         if(X[iy][ix] > 0)
         {
-          double p[2]; chiInfo[i].pos(p, ix, iy);
-          _x += rho[iy][ix] * X[iy][ix] * h*h * (p[0] - shape->centerOfMass[0]);
-          _y += rho[iy][ix] * X[iy][ix] * h*h * (p[1] - shape->centerOfMass[1]);
-          _m += rho[iy][ix] * X[iy][ix] * h*h;
+          double p[2];
+          info.pos(p, ix, iy);
+          o.COM_x += X[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
+          o.COM_y += X[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
+          o.Mass  += X[iy][ix] * h2;
         }
       }
     }
   }
-
-  if(_m > EPS) {
-    shape->centerOfMass[0] += _x/_m;
-    shape->centerOfMass[1] += _y/_m;
-    shape->M = _m;
-  } 
-  else{
-    printf("[CUP2D] ABORT: _m is too small! (object not resolved)\n");
-    fflush(0);
-    abort();
-  } 
-
-#if 1 //more accurate, uses actual values of mollified Heaviside
-  #pragma omp parallel
-  {
-    static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
-    ScalarLab chilab; chilab.prepare(*(sim.chi), stenBeg, stenEnd, 0);
-    ScalarLab distlab; distlab.prepare(*(sim.tmp), stenBeg, stenEnd, 0);
-    #pragma omp for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      if(OBLOCK[chiInfo[i].blockID] == nullptr) continue; //obst not in block
-
-      const Real h = chiInfo[i].h_gridpoint, i2h = 0.5/h, fac = 0.5*h; // fac explained down
-
-      ObstacleBlock& o = * OBLOCK[chiInfo[i].blockID];
-      chilab.load (chiInfo[i], 0);
-      distlab.load(tmpInfo[i], 0);
-      for(int iy=0; iy<VectorBlock::sizeY; iy++)
-      for(int ix=0; ix<VectorBlock::sizeX; ix++)
-      {
-          const double gradHX = chilab(ix+1,iy).s-chilab(ix-1,iy).s;
-          const double gradHY = chilab(ix,iy+1).s-chilab(ix,iy-1).s;
-          if (gradHX*gradHX + gradHY*gradHY < 1e-12) continue;
-          const double gradUX = i2h*(distlab(ix+1,iy).s-distlab(ix-1,iy).s);
-          const double gradUY = i2h*(distlab(ix,iy+1).s-distlab(ix,iy-1).s);
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
-          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
-          if (std::fabs(D) > EPS) o.write(ix, iy, D, gradUX, gradUY);
-      }
-    }
-  }
-#endif
-
-  for (auto & o : OBLOCK) if(o not_eq nullptr) o->allocate_surface();
-}
+};
 
 void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
 {
   const size_t Nblocks = velInfo.size();
-
   const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
-  //const double u_s = shape->u, v_s = shape->v, omega_s = shape->omega;
-  //const double Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
-
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
     if(OBLOCK[uDefInfo[i].blockID] == nullptr) continue; //obst not in block
-    //using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
-    //using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
-
     const UDEFMAT & __restrict__ udef = OBLOCK[uDefInfo[i].blockID]->udef;
     const CHI_MAT & __restrict__ chi  = OBLOCK[uDefInfo[i].blockID]->chi;
     auto & __restrict__ UDEF = *(VectorBlock*)uDefInfo[i].ptrBlock; // dest
-    //const ScalarBlock&__restrict__ TMP  = *(ScalarBlock*) tmpInfo[i].ptrBlock;
     const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
 
     for(int iy=0; iy<VectorBlock::sizeY; iy++)
@@ -158,44 +130,32 @@ void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
       UDEF(ix, iy).u[0] += udef[iy][ix][0];
       UDEF(ix, iy).u[1] += udef[iy][ix][1];
     }
-    //if (TMP(ix,iy).s > -3*h) //( chi[iy][ix] > 0 )
-    //{ //plus equal in case of overlapping objects
-    //  Real p[2]; uDefInfo[i].pos(p, ix, iy);
-    //  UDEF(ix,iy).u[0] += u_s - omega_s*(p[1]-Cy) + udef[iy][ix][0];
-    //  UDEF(ix,iy).u[1] += v_s + omega_s*(p[0]-Cx) + udef[iy][ix][1];
-    //}
   }
 }
 
 void PutObjectsOnGrid::operator()(const double dt)
 {
+  sim.startProfiler("PutObjectsGrid");
+
   const size_t Nblocks = velInfo.size();
 
-  sim.startProfiler("PutObjectsOnGrid");
-  //// 0) clear fields related to obstacle
-  if(sim.verbose)
-    std::cout << "[CUP2D] - clear..." << std::endl;
-  // sim.startProfiler("PutObjectsOnGrid - clear");
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i < Nblocks; i++) {
-    ( (ScalarBlock*)   chiInfo[i].ptrBlock )->clear();
-    ( (ScalarBlock*)   tmpInfo[i].ptrBlock )->set(-1);
-    ( (VectorBlock*)  uDefInfo[i].ptrBlock )->clear();
+  // 1. Clear fields related to obstacle
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
+    ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
+    ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
   }
-  // sim.stopProfiler();
 
-
-  //// 1) update objects' position
-  if(sim.verbose)
-    std::cout << "[CUP2D] - move..." << std::endl;
-  // sim.startProfiler("PutObjectsOnGrid - move");
-  // 1a) Update laboratory frame of reference
+  // 2. Update object position
+  // Update laboratory frame of reference
   int nSum[2] = {0, 0}; double uSum[2] = {0, 0};
   for(Shape * const shape : sim.shapes) 
     shape->updateLabVelocity(nSum, uSum);
   if(nSum[0]>0) {sim.uinfx_old = sim.uinfx; sim.uinfx = uSum[0]/nSum[0];}
   if(nSum[1]>0) {sim.uinfy_old = sim.uinfy; sim.uinfy = uSum[1]/nSum[1];}
-  // 1b) Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
+  // Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
   for(Shape * const shape : sim.shapes)
   {
     shape->updatePosition(dt);
@@ -211,29 +171,37 @@ void PutObjectsOnGrid::operator()(const double dt)
       abort();
     }
   }
-  // sim.stopProfiler();
 
-  //// 2) Compute signed dist function and udef
-  if(sim.verbose)
-    std::cout << "[CUP2D] - signed dist..." << std::endl;
-  // sim.startProfiler("PutObjectsOnGrid - signed dist");
+  // 3) Compute signed dist function and udef
   for(const auto& shape : sim.shapes) 
     shape->create(tmpInfo);
-  // sim.stopProfiler();
 
-  //// 3) Compute chi
-  if(sim.verbose)
-    std::cout << "[CUP2D] - chi..." << std::endl;
-  // sim.startProfiler("PutObjectsOnGrid - chi");
-  for(const auto& shape : sim.shapes) 
-    putChiOnGrid( shape );
-  // sim.stopProfiler();
+  // 4) Compute chi and shape center of mass
+  const PutChiOnGrid K(sim);
+  compute<PutChiOnGrid,ScalarGrid,ScalarLab>(K,*sim.tmp,false);
+  const ComputeSurfaceNormals K1(sim);
+  compute<ComputeSurfaceNormals,ScalarGrid,ScalarLab,ScalarGrid,ScalarLab>(K1,*sim.chi,*sim.tmp);
+  for(const auto& shape : sim.shapes)
+  {
+    double com[3] = {0.0, 0.0, 0.0};
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    #pragma omp parallel for reduction(+ : com[:3])
+    for (size_t i=0; i<OBLOCK.size(); i++)
+    {
+      if(OBLOCK[i] == nullptr) continue;
+      com[0] += OBLOCK[i]->Mass;
+      com[1] += OBLOCK[i]->COM_x;
+      com[2] += OBLOCK[i]->COM_y;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_DOUBLE,MPI_SUM, sim.chi->getCartComm());
+    shape->M = com[0];
+    shape->centerOfMass[0] += com[1]/com[0];
+    shape->centerOfMass[1] += com[2]/com[0];
+  }
 
-  //// 4) remove moments from characteristic function and put on grid U_s
-  if(sim.verbose)
-    std::cout << "[CUP2D] - Us..." << std::endl;
-  // sim.startProfiler("PutObjectsOnGrid - Us");
-  for(const auto& shape : sim.shapes) {
+  //// 5) remove moments from characteristic function and put on grid U_s
+  for(const auto& shape : sim.shapes)
+  {
     shape->removeMoments(chiInfo);
     putObjectVelOnGrid(shape);
   }
