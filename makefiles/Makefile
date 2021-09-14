@@ -1,6 +1,7 @@
 hdf5 ?= true
 config ?= production
 precision ?= double
+bs ?= 8
 
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
@@ -28,7 +29,7 @@ include make.icc.flags
 endif
 
 # SET FLAGS FOR CUBISM
-CPPFLAGS+= -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
