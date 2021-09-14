@@ -10,17 +10,18 @@ using namespace cubism;
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
-   static constexpr int BSX = VectorBlock::sizeX;
-   static constexpr int BSY = VectorBlock::sizeY;
+  //The inverse of the preconditioner is stored in the form of LL^T (Cholesky decomposition), where L is a lower triangular matrix
+   static constexpr int BSX = VectorBlock::sizeX; // = 8
+   static constexpr int BSY = VectorBlock::sizeY; // = 8
    static constexpr int N   = BSX*BSY;
 
-   #pragma omp parallel
+   #pragma omp parallel //each thread gets a block and will apply the inverse LL^T to get the preconditioner
    {
      const int tid = omp_get_thread_num();
      #pragma omp for
-     for (size_t i=0; i < zInfo.size(); i++)
+     for (size_t i=0; i < zInfo.size(); i++) //go over the blocks
      {
-       ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock;
+       ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock; //get a pointer to each block's elements
 
        //1. z = L^{-1}r
        for (int I = 0; I < N ; I++)
@@ -76,8 +77,11 @@ void AMRSolver::Get_LHS ()
     #pragma omp parallel
     {
       static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
+
+      //The Scalarlab is responsible for interpolating the ghost cell values for all blocks
       ScalarLab lab; 
       lab.prepare(*sim.pres, stenBeg, stenEnd, 0);
+
       #pragma omp for// reduction(+:mean)
       for (size_t i=0; i < xInfo.size(); i++)
       {
@@ -86,9 +90,12 @@ void AMRSolver::Get_LHS ()
         //if (cornerx && cornery)
         //  index = i;
         //if (xInfo[i].index[0]==0 && xInfo[i].index[1]==0) lab(-1,BSY/2).s = 0.0; //set p=0 for one grid point to make the system invertible
-        lab.load(xInfo[i]);
-        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
+
+        lab.load(xInfo[i]); // this does the interpolation of ghosts for block i
+        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock; //this access block's i data
         //const double h2 = lhsInfo[i].h*lhsInfo[i].h;
+        
+        //Ax computation
         for(int iy=0; iy<BSY; ++iy)
         for(int ix=0; ix<BSX; ++ix)
         {
@@ -99,6 +106,7 @@ void AMRSolver::Get_LHS ()
                            lab(ix,iy+1).s - 4.0*lab(ix,iy).s );
         }
 
+        //Flux corrections for coarse-fine interfaces
         BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[i].auxiliary);
         ScalarBlock::ElementType * faceXm = nullptr;
         ScalarBlock::ElementType * faceXp = nullptr;
@@ -138,12 +146,12 @@ void AMRSolver::Get_LHS ()
       }
     }
 
-    Corrector.FillBlockCases();
+    Corrector.FillBlockCases(); //this does the flux corrections
     //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
     //LHS(0,0).s = mean;
 }
 
-double AMRSolver::getA_local(int I1,int I2)
+double AMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
 {
    static constexpr int BSX = VectorBlock::sizeX;
    int j1 = I1 / BSX;
@@ -166,6 +174,7 @@ double AMRSolver::getA_local(int I1,int I2)
 
 AMRSolver::AMRSolver(SimulationData& s):sim(s)
 {
+  //here we compute the Cholesky decomposition of the preconditioner (we do this only once) but we save one inverse for every thread
    std::vector<std::vector<double>> L;
 
    int BSX = VectorBlock::sizeX;
@@ -330,7 +339,7 @@ void AMRSolver::solve()
     norm_2 = sqrt(norm_2);
     const double cosTheta = rho/norm_1/norm_2; 
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
-    if (serious_breakdown)
+    if (serious_breakdown) //this part is not included in Wikipedia's algorithm but is a numerical trick to make convergence faster
     {
         restarts ++;
         if (restarts >= max_restarts)
@@ -490,6 +499,8 @@ void AMRSolver::solve()
       x[i] = x_opt[i];
   }
 
+  //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
+  //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
   double avg = 0;
   double avg1 = 0;
   #pragma omp parallel
