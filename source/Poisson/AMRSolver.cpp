@@ -10,6 +10,7 @@ using namespace cubism;
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
+   sim.startProfiler("Poisson solver: preconditioner");
   //The inverse of the preconditioner is stored in the form of LL^T (Cholesky decomposition), where L is a lower triangular matrix
    static constexpr int BSX = VectorBlock::sizeX; // = 8
    static constexpr int BSY = VectorBlock::sizeY; // = 8
@@ -59,10 +60,12 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
            z(ix,iy).s = -z(ix,iy).s;
      }
    }
+   sim.stopProfiler();
 }
 
 void AMRSolver::Get_LHS ()
 {
+   sim.startProfiler("Poisson solver: LHS");
     static constexpr int BSX = VectorBlock::sizeX;
     static constexpr int BSY = VectorBlock::sizeY;
 
@@ -149,6 +152,7 @@ void AMRSolver::Get_LHS ()
     Corrector.FillBlockCases(); //this does the flux corrections
     //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
     //LHS(0,0).s = mean;
+   sim.stopProfiler();
 }
 
 double AMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
