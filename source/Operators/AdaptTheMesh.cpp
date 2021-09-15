@@ -16,6 +16,7 @@ struct GradChiOnTmp
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
+    if (info.level == sim.tmp->getlevelMax()-1) return;
     auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
 
     const double ih = 1.0/info.h;
@@ -31,13 +32,17 @@ struct GradChiOnTmp
                      -p1*lab(x-1,y).s - p2*lab(x-2,y).s - p3*lab(x-3,y).s;
         double dcdy = p3*lab(x,y+3).s + p2*lab(x,y+2).s + p1*lab(x,y+1).s
                      -p1*lab(x,y-1).s - p2*lab(x,y-2).s - p3*lab(x,y-3).s;
-	      if (tmpInfo[info.blockID].level <= sim.tmp->getlevelMax() - 2)
-	      {
-	      	dcdx = 0.5*ih*(lab(x+1,y).s-lab(x-1,y).s);
-	      	dcdy = 0.5*ih*(lab(x,y+1).s-lab(x,y-1).s);
-	      }
+        if (tmpInfo[info.blockID].level <= sim.tmp->getlevelMax() - 2)
+        {
+          dcdx = 0.5*ih*(lab(x+1,y).s-lab(x-1,y).s);
+          dcdy = 0.5*ih*(lab(x,y+1).s-lab(x,y-1).s);
+        }
         const double norm = dcdx*dcdx+dcdy*dcdy;
-        if (norm > 0.1) TMP(x,y).s = 1e10;
+        if (norm > 0.1)
+        {
+          TMP(x,y).s = 1e10;
+          return;
+        }
       }
       else if ( lab(x,y).s > 0.0 ) TMP(x,y).s = 1e10;
     }
@@ -47,10 +52,9 @@ struct GradChiOnTmp
 
 void AdaptTheMesh::operator()(const double dt)
 {
-  sim.startProfiler("AdaptTheMesh");
-  
   if (sim.step > 10 && sim.step % 50 != 0) return;
   //if (sim.step > 10 && sim.step % 5 != 0) return;
+  sim.startProfiler("AdaptTheMesh");
 
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
 
