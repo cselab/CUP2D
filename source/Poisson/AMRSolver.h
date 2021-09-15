@@ -77,8 +77,6 @@ class ComputeLHS : public Operator
 
   void operator()(const double dt)
   {
-    sim.startProfiler("Poisson:LHS");
-
     const LHSkernel K(sim);
     compute<LHSkernel,ScalarGrid,ScalarLab,ScalarGrid>(K,*sim.pres,true,sim.tmp);
     //int index = -1;
@@ -101,7 +99,6 @@ class ComputeLHS : public Operator
     //  ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
     //  LHS(4,4).s = mean;
     //}
-    sim.stopProfiler();
   }
   std::string getName() { return "ComputeLHS"; }
 };

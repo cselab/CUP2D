@@ -12,7 +12,6 @@ using namespace cubism;
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
-  sim.startProfiler("Poisson:getZ");
    static constexpr int BSX = VectorBlock::sizeX;
    static constexpr int BSY = VectorBlock::sizeY;
    static constexpr int N   = BSX*BSY;
@@ -61,7 +60,6 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
            z(ix,iy).s = -z(ix,iy).s;
      }
    }
-   sim.stopProfiler();
 }
 
 double AMRSolver::getA_local(int I1,int I2)
