@@ -241,12 +241,33 @@ void AMRSolver::solve()
     rho = 0.0;
     double norm_1 = 0.0;
     double norm_2 = 0.0;
+    norm_max = 0;
     #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
     for(size_t i=0; i< N; i++)
     {
       rho    += r[i] * rhat[i];
       norm_1 += r[i] * r[i];
-      norm_2 += rhat[i] * rhat[i];     
+      norm_2 += rhat[i] * rhat[i];
+      #pragma omp critical
+      norm_max = std::max(norm_max,std::fabs(r[i]));
+    }
+    norm = norm_max;
+    MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
+    norm = norm_max;
+    if (norm < min_norm)
+    {
+      norm_opt = norm;
+      useXopt = true;
+      min_norm = norm;
+      #pragma omp parallel for
+      for (size_t i=0; i < N; i++)
+        x_opt[i] = x[i];
+    }
+    if ( (norm < max_error || norm/init_norm < max_rel_error ) )
+    {
+      if (rank == 0) std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      bConverged = true;
+      break;
     }
     double quantities[3] = {rho,norm_1,norm_2};
     MPI_Allreduce(MPI_IN_PLACE,&quantities,3,MPI_DOUBLE,MPI_SUM,m_comm);
@@ -293,14 +314,13 @@ void AMRSolver::solve()
         p[j] = r[j] + beta * (p[j] - omega * v[j]);
         z(ix,iy).s = p[j];
       }
-    }
+    } 
     getZ(zInfo);
 
     //5. v = A z
     //6. alpha = rho_i / (rhat_0,v_i)
     alpha = 0.0;
     Get_LHS(0);// v <-- Az //v stored in AxVector
-
     //7. x += a z
     //8. 
     //9. s = r_{i-1}-alpha * v_i
@@ -338,7 +358,6 @@ void AMRSolver::solve()
         z(ix,iy).s = s[j];
       }
     }
-    
 
     getZ(zInfo);
     Get_LHS(0); // t <-- Az //t stored in AxVector
@@ -365,9 +384,6 @@ void AMRSolver::solve()
     //13. x += omega * z
     //14.
     //15. r = s - omega * t
-    norm = 0.0; 
-    norm_max = 0.0; 
-    //#pragma omp parallel for reduction(+:norm)
     for (size_t i=0; i < Nblocks; i++)
     {
       const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
@@ -378,41 +394,10 @@ void AMRSolver::solve()
         const int j = i*BSX*BSY+iy*BSX+ix;
         x[j] += omega * z(ix,iy).s;
         r[j] = s[j] - omega * Ax(ix,iy).s;
-        norm+= r[j]*r[j]; 
-        norm_max = std::max(norm_max,std::fabs(r[j]));
       }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
-    MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
-    norm = std::sqrt(norm);
-    norm = norm_max;
-
-    if (norm < min_norm)
-    {
-      norm_opt = norm;
-      useXopt = true;
-      min_norm = norm;
-      #pragma omp parallel for
-      for (size_t i=0; i < N; i++)
-        x_opt[i] = x[i];
-    }
-
-    //if (norm / (init_norm+eps) > 10000.0 && k > 10)
-    //{
-    //  useXopt = true;
-    //  std::cout << "  [Poisson solver]: early termination (residual starts diverging) after " << k << " iterations.";
-    //  break;
-    //}
-    if ( (norm < max_error || norm/init_norm < max_rel_error ) )
-    {
-      if (rank == 0) std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
-      bConverged = true;
-      break;
-    }
-
     //if (rank == 0 && k % 50 == 0)
     //  std::cout << "  iter:" << k << " norm:" << norm << " opt:" << norm_opt << std::endl;
-
   } //k-loop
   if (rank == 0)
   {
