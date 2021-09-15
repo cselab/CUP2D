@@ -48,7 +48,7 @@ fi
 elif [ ${HOST:0:3} == 'eu-' ] ; then
 
 BASEPATH="$SCRATCH/CUP2D"
-export OMP_NUM_THREADS=36 # 128 for other Euler nodes
+export OMP_NUM_THREADS=1 # 128 for other Euler nodes
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
 FOLDERNAME=${BASEPATH}/${RUNNAME}
@@ -56,7 +56,9 @@ mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
-./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+unset LSB_AFFINITY_HOSTFILE
+export MV2_ENABLE_AFFINITY=0
+mpirun -n 128 --map-by core:PE=1 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
 bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 120:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
 # select[model==EPYC_7H12] for other Euler nodes
