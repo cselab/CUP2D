@@ -30,10 +30,11 @@ elif [ ${HOST:0:5} == 'daint' ] ; then
 BASEPATH="${SCRATCH}/CUP2D/"
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
-export OMP_NUM_THREADS=36
+export OMP_NUM_THREADS=12
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
+cp ../makefiles/debugRL ${FOLDERNAME}
 
 # did we allocate a node?
 srun hostname &> /dev/null

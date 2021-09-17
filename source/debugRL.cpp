@@ -12,8 +12,6 @@
 #include <sstream>
 #include <string>
 
-#define NACTIONS 2
-
 // declarations of functions defined further below
 std::vector<double> readIC( std::string filename );
 std::vector<std::vector<double>> readActions( std::string filename );
@@ -21,16 +19,19 @@ void setInitialConditions( StefanFish *agent, std::vector<double> initialConditi
 
 int main(int argc, char **argv)
 {
+  // Getting path
+  std::string path = "/scratch/snx3000/pweber/korali/testhalfDisk/_trainingResults/sample00003460";
+
   // Initialize Simulation class
   Simulation* _environment = new Simulation(argc, argv);
   _environment->init();
 
   // Reading Initial Conditions from RL case
-  std::string icPath = "XXX/initialCondition.txt";
+  std::string icPath = path+"/initialCondition.txt";
   auto initialConditions = readIC(icPath);
 
   // Reading Actions that were performed in RL
-  std::string actionsPath = "XXX/actions.txt";
+  std::string actionsPath = path+"/actions.txt";
   auto actions = readActions(actionsPath);
 
   // Obtaining agent
@@ -51,10 +52,15 @@ int main(int argc, char **argv)
   double tNextAct = 0; // Time of next action
 
   // Environment loop
+  std::cout
+  <<"=======================================================================\n";
   for( size_t a = 0; a < numActions; a++)
   {
     // Reading new action
     std::vector<double> action = actions[a];
+
+    // print action
+    printf("[debugRL] Applying action %lu: [ %f, %f ]\n", a, action[0], action[1]);
 
     // Setting action
     agent->act(t, action);
@@ -88,17 +94,19 @@ std::vector<double> readIC( std::string filename )
     while( std::getline(myfile,line) )
     {
       std::istringstream readingStream(line);
+      // disregard agentId
+      readingStream >> tempIC;
       while (readingStream >> tempIC)
         initialConditions.push_back(tempIC);
     }
     myfile.close();
   }
   else{
-    cout << "[debugRL] Unable to open initialCondition file, setting (0,0.9,1)\n";
+    printf("[debugRL] Unable to open %s file, setting (0,0.9,1)\n", filename.c_str());
     initialConditions.push_back(0.0);
     initialConditions.push_back(0.9);
     initialConditions.push_back(1.0);
-  } 
+  }
 
   return initialConditions;
 } 
@@ -112,18 +120,26 @@ std::vector<std::vector<double>> readActions( std::string filename )
   std::ifstream myfile(filename);
   if( myfile.is_open() )
   {
+    printf("[debugRL] Parsing Actions:\n");
+    int counter = 0;
     while( std::getline(myfile,line) )
     {
-      std::vector<double> action(NACTIONS);
+      printf("[debugRL] Action %d: ", counter++);
+      std::vector<double> action;
       std::istringstream readingStream(line);
-      while (readingStream >> tempA)
+      // disregard agentId
+      readingStream >> tempA;
+      while (readingStream >> tempA){
+        std::cout << tempA << " ";
         action.push_back(tempA);
+      }
+      std::cout << "\n";
       actions.push_back(action);
     }
     myfile.close();
   }
   else{
-    cout << "[debugRL] Unable to open actions file, setting (0,0) for 20 actions\n";
+    printf("[debugRL] Unable to open %s file, setting (0,0) for 20 actions\n", filename.c_str());
     for( size_t i = 0; i<20; i++ )
     {
       std::vector<double> action(2,0.0);

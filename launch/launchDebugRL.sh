@@ -1,5 +1,13 @@
 #!/bin/bash
 
+if [[ $# -lt 1 && -z "$RUNNAME" ]] ; then
+	echo "Usage: ./launchDebugRL.sh RUNNAME"
+	exit 1
+fi
+if [ $# -gt 0 ] ; then
+RUNNAME=$1
+fi
+
 # Defaults for Options
 BPDX=${BPDX:-4}
 BPDY=${BPDY:-2}
@@ -179,4 +187,15 @@ stefanfish L=$LENGTH T=$PERIOD xpos=3.00 ypos=1.00
 	echo "###############################"
 fi
 
-source launchCommon.sh
+# Create runfolder and copy executable
+BASEPATH="${SCRATCH}/CUP2D/"
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+export OMP_NUM_THREADS=12
+FOLDERNAME=${BASEPATH}/${RUNNAME}
+mkdir -p ${FOLDERNAME}
+cp ../makefiles/debugRL ${FOLDERNAME}
+
+# Run in runfolder
+cd ${FOLDERNAME}
+srun -n 1 debugRL ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
