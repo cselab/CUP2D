@@ -54,39 +54,35 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
 }
 
-void advDiff::operator()(const double dt)
-{
-  const double c1 = (sim.Euler || sim.step < 3) ? 1.0 :      (sim.dt_old+0.5*sim.dt)/sim.dt;// 1.5;
-  const double c2 = (sim.Euler || sim.step < 3) ? 0.0 : (1.0-(sim.dt_old+0.5*sim.dt)/sim.dt);//-0.5;
 
-  sim.startProfiler("advDiff");
+void advDiff::step(const int coef)
+{
+  //For a given velocity V and Vold, compute V = Vold + RHS(V)
+
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
-  const Real UINFOLD[2]= {sim.uinfx_old, sim.uinfy_old};
 
   FluxCorrection<VectorGrid,VectorBlock> Corrector;
   Corrector.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
-    VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 0);
-    VectorLab vOldlab; vOldlab.prepare(*(sim.vOld), stenBeg, stenEnd, 0);
+    VectorLab V; 
+    V.prepare(*(sim.vel), stenBeg, stenEnd, 0);
+    const Real dfac = sim.nu*sim.dt;
 
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
     {
       const Real h = velInfo[i].h;
-      const Real dfac = sim.nu*dt;
-      const Real afac = -dt*h/6.0;
-      vellab.load(velInfo[i], 0); VectorLab & __restrict__ V = vellab;
-      vOldlab.load(vOldInfo[i], 0);
+      const Real afac = -sim.dt*h/6.0;
+      V.load(velInfo[i], 0);
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        TMP(ix,iy).u[0] = c1*dU_adv_dif(V,UINF,afac,dfac,ix,iy) + c2*dU_adv_dif(vOldlab,UINFOLD,afac,dfac,ix,iy);
-        TMP(ix,iy).u[1] = c1*dV_adv_dif(V,UINF,afac,dfac,ix,iy) + c2*dV_adv_dif(vOldlab,UINFOLD,afac,dfac,ix,iy);
+        TMP(ix,iy).u[0] = coef*dU_adv_dif(V,UINF,afac,dfac,ix,iy);
+        TMP(ix,iy).u[1] = coef*dV_adv_dif(V,UINF,afac,dfac,ix,iy);
       }
 
       BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[i].auxiliary);
@@ -106,8 +102,8 @@ void advDiff::operator()(const double dt)
         int ix = 0;
         for(int iy=0; iy<VectorBlock::sizeY; ++iy)
         {
-          faceXm[iy].u[0] = dfac*( c1*(V(ix,iy).u[0] - V(ix-1,iy).u[0]) + c2*(vOldlab(ix,iy).u[0] - vOldlab(ix-1,iy).u[0]));
-          faceXm[iy].u[1] = dfac*( c1*(V(ix,iy).u[1] - V(ix-1,iy).u[1]) + c2*(vOldlab(ix,iy).u[1] - vOldlab(ix-1,iy).u[1]));
+          faceXm[iy].u[0] = dfac*( coef*(V(ix,iy).u[0] - V(ix-1,iy).u[0]));
+          faceXm[iy].u[1] = dfac*( coef*(V(ix,iy).u[1] - V(ix-1,iy).u[1]));
         }
       }
       if (faceXp != nullptr)
@@ -115,8 +111,8 @@ void advDiff::operator()(const double dt)
         int ix = VectorBlock::sizeX-1;
         for(int iy=0; iy<VectorBlock::sizeY; ++iy)
         {
-          faceXp[iy].u[0] = dfac*( c1*(V(ix,iy).u[0] - V(ix+1,iy).u[0]) + c2*(vOldlab(ix,iy).u[0] - vOldlab(ix+1,iy).u[0]));
-          faceXp[iy].u[1] = dfac*( c1*(V(ix,iy).u[1] - V(ix+1,iy).u[1]) + c2*(vOldlab(ix,iy).u[1] - vOldlab(ix+1,iy).u[1]));
+          faceXp[iy].u[0] = dfac*( coef*(V(ix,iy).u[0] - V(ix+1,iy).u[0]));
+          faceXp[iy].u[1] = dfac*( coef*(V(ix,iy).u[1] - V(ix+1,iy).u[1]));
         }
       }
       if (faceYm != nullptr)
@@ -124,8 +120,8 @@ void advDiff::operator()(const double dt)
         int iy = 0;
         for(int ix=0; ix<VectorBlock::sizeX; ++ix)
         {
-          faceYm[ix].u[0] = dfac*( c1*(V(ix,iy).u[0] - V(ix,iy-1).u[0]) + c2*(vOldlab(ix,iy).u[0] - vOldlab(ix,iy-1).u[0]));
-          faceYm[ix].u[1] = dfac*( c1*(V(ix,iy).u[1] - V(ix,iy-1).u[1]) + c2*(vOldlab(ix,iy).u[1] - vOldlab(ix,iy-1).u[1]));
+          faceYm[ix].u[0] = dfac*( coef*(V(ix,iy).u[0] - V(ix,iy-1).u[0]));
+          faceYm[ix].u[1] = dfac*( coef*(V(ix,iy).u[1] - V(ix,iy-1).u[1]));
         }
       }
       if (faceYp != nullptr)
@@ -133,31 +129,53 @@ void advDiff::operator()(const double dt)
         int iy = VectorBlock::sizeY-1;
         for(int ix=0; ix<VectorBlock::sizeX; ++ix)
         {
-          faceYp[ix].u[0] = dfac*( c1*(V(ix,iy).u[0] - V(ix,iy+1).u[0]) + c2*(vOldlab(ix,iy).u[0] - vOldlab(ix,iy+1).u[0]));
-          faceYp[ix].u[1] = dfac*( c1*(V(ix,iy).u[1] - V(ix,iy+1).u[1]) + c2*(vOldlab(ix,iy).u[1] - vOldlab(ix,iy+1).u[1]));
+          faceYp[ix].u[0] = dfac*( coef*(V(ix,iy).u[0] - V(ix,iy+1).u[0]));
+          faceYp[ix].u[1] = dfac*( coef*(V(ix,iy).u[1] - V(ix,iy+1).u[1]));
         }
       }
     }
   }
   Corrector.FillBlockCases();
 
-  // Copy TMP to V
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
-    const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-    VectorBlock & __restrict__ Vold  = *(VectorBlock*)  vOldInfo[i].ptrBlock;
-    const double ih2 = 1.0/velInfo[i].h/velInfo[i].h;
+    const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    const double ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      V(ix,iy).u[0] += T(ix,iy).u[0]*ih2;
-      V(ix,iy).u[1] += T(ix,iy).u[1]*ih2;
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
+    }
+  }
+}
+
+void advDiff::operator()(const double dt)
+{
+  sim.startProfiler("advDiff");
+
+  //1.Save u^{n} to dataOld
+  #pragma omp parallel for
+  for (size_t i=0; i < velInfo.size(); i++)
+  {
+    VectorBlock & __restrict__ Vold  = *(VectorBlock*) vOldInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
       Vold(ix,iy).u[0] = V(ix,iy).u[0];
       Vold(ix,iy).u[1] = V(ix,iy).u[1];
     }
   }
+
+  // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+  step(0.5);
+
+  // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+  step(1.0);
 
   sim.stopProfiler();
 }
