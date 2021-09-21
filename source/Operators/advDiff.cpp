@@ -148,8 +148,8 @@ struct KernelAdvectDiffuse
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP(ix,iy).u[0] += coef*dU_adv_dif(lab,uinf,afac,dfac,ix,iy);
-      TMP(ix,iy).u[1] += coef*dV_adv_dif(lab,uinf,afac,dfac,ix,iy);
+      TMP(ix,iy).u[0] = coef*dU_adv_dif(lab,uinf,afac,dfac,ix,iy);
+      TMP(ix,iy).u[1] = coef*dV_adv_dif(lab,uinf,afac,dfac,ix,iy);
     }
     BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
     VectorBlock::ElementType * faceXm = nullptr;
@@ -204,41 +204,70 @@ struct KernelAdvectDiffuse
 
 void advDiff::operator()(const double dt)
 {
-  const double c1 = (sim.Euler || sim.step < 3) ? 1.0 :      (sim.dt_old+0.5*sim.dt)/sim.dt;// 1.5;
-  const double c2 = (sim.Euler || sim.step < 3) ? 0.0 : (1.0-(sim.dt_old+0.5*sim.dt)/sim.dt);//-0.5;
-
   sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
-  const Real UINFOLD[2]= {sim.uinfx_old, sim.uinfy_old};
+
+  //1.Save u^{n} to dataOld
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
-    VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-    TMP.clear();
-  }
-
-  KernelAdvectDiffuse Step1(sim,c1,UINF   [0],UINF   [1]) ;
-  KernelAdvectDiffuse Step2(sim,c2,UINFOLD[0],UINFOLD[1]) ;
-  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step1,*sim.vel ,true,sim.tmpV);
-  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step2,*sim.vOld,true,sim.tmpV);
-
-  // Copy TMP to V
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
-    const VectorBlock & __restrict__ T  = *(VectorBlock*) tmpVInfo[i].ptrBlock;
     VectorBlock & __restrict__ Vold  = *(VectorBlock*) vOldInfo[i].ptrBlock;
-    const double ih2 = 1.0/velInfo[i].h/velInfo[i].h;
+    const VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      V(ix,iy).u[0] += T(ix,iy).u[0]*ih2;
-      V(ix,iy).u[1] += T(ix,iy).u[1]*ih2;
       Vold(ix,iy).u[0] = V(ix,iy).u[0];
       Vold(ix,iy).u[1] = V(ix,iy).u[1];
     }
   }
+
+  /********************************************************************/
+  // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+
+  //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
+  KernelAdvectDiffuse Step1(sim,0.5,UINF[0],UINF[1]) ;
+  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step1,*sim.vel,true,sim.tmpV);
+
+  //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    const double ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
+    }
+  }
+  /********************************************************************/
+
+  /********************************************************************/
+  // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+  //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
+  KernelAdvectDiffuse Step2(sim,1.0,UINF[0],UINF[1]) ;
+  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step2,*sim.vel,true,sim.tmpV);
+
+  //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
+    const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    const double ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
+    }
+  }
+  /********************************************************************/
+
   sim.stopProfiler();
 }
