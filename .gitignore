@@ -28,6 +28,7 @@
 *.brf
 
 makefiles/simulation
+makefiles/cudasimulation
 makefiles/debugRL
 deprecated/*
 
@@ -51,6 +52,7 @@ Temporary Items
 test.dSYM
 *.dSYM
 
+tags
 launch/settings/
 policies/*
 test_*

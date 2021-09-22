@@ -2,6 +2,13 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 
+# Set environmen variables on local machine
+MPICXX=/usr/lib64/mpi/gcc/openmpi/bin/mpicxx
+GSL_ROOT=/usr/include/gsl
+HDF5_ROOT=/usr/include
+
+# 'ifndef GPU_POISSON' in source code insures that the makefile still works as before
+
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
 include make.macos
@@ -39,7 +46,8 @@ OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Fish.o SmartCylinder.o \
 		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o Windmill.o AMRSolver.o
+
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
@@ -73,7 +81,7 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
+all: debugRL simulation cudasimulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
@@ -100,7 +108,32 @@ cup.libs.txt:
 %.d: %.cpp
 	$(CXX) $(CPPFLAGS) -c -MD $<
 
+# COMPILATION INSTRUCTIONS FOR CUDA ENABLED CODE
+NVFLAGS+= -std=c++17 
+NVFLAGS += -code=sm_60 -arch=compute_60 -I$(BUILDDIR)/../Cubism/include/
+NVFLAGS += -DGPU_POISSON
+NVFLAGS += -I$(BUILDDIR)/../source/Poisson/
+NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+
+cudaAMRSolver.o: cudaAMRSolver.cu 
+	nvcc $(NVFLAGS) -c $< -o $@
+
+NVOBJECTS = \
+		cudaSimulation.o cudaSimulationData.o cudaShape.o cudaShapeLibrary.o cudaShapesSimple.o \
+		cudaPressureSingle.o cudaPutObjectsOnGrid.o cudaadvDiff.o cudaBufferedLogger.o cudaHelpers.o cudaFish.o cudaSmartCylinder.o \
+		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o cudaComputeForces.o \
+		cudaNaca.o cudaCStartFish.o cudaZebraFish.o cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o 
+
+cuda%.o : %.cpp
+	$(CXX) -DGPU_POISSON $(CPPFLAGS) -c $< -o $@
+
+# Add cuda library  path to linker
+NVLIBS += -L/usr/local/cuda-11.4/lib64 -lcudart
+
+cudasimulation: cudamain.o $(NVOBJECTS) cudaAMRSolver.o
+	$(CXX) -DGPU_POISSON cudamain.o cudaAMRSolver.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
+
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
-	rm -f simulation libcup.a cup.cflags.txt cup.libs.txt
+	rm -f simulation debugRL cudasimulation libcup.a cup.cflags.txt cup.libs.txt
 	rm -f *.o *.d
