@@ -6,6 +6,11 @@
 
 #pragma once
 
+#include "cuda_runtime.h"
+#include "cublas_v2.h"
+#include "cusparse.h"
+
+
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 
@@ -14,24 +19,61 @@ class cudaAMRSolver
   /*
   Method used to solve Poisson's equation: https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
   */
- protected:
-  //this struct contains information such as the currect timestep size, fluid properties and many others
-  SimulationData& sim; 
- public:
+public:
   std::string getName() {
     return "cudaAMRSolver";
   }
+  // Constructor and destructor
   cudaAMRSolver(SimulationData& s);
+  ~cudaAMRSolver();
+
   //this object is used to compute the "flux corrections" at the interface between a coarse and fine grid point
   //these corrections are used for the coarse cell
   //for the fine cell, we just interpolate ghost cell values and pretend we're on a uniform grid
-  cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector; 
+  // cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector; 
 
   //main function used to solve Poisson's equation
   void solve();
 
-  //this is called to compute Ax, where x is the current solution estimate
-  void Get_LHS ();
+protected:
+  //this struct contains information such as the currect timestep size, fluid properties and many others
+  SimulationData& sim; 
+
+  // CUDA stream and library handles
+  cudaStream_t solver_stream;
+  cublasHandle_t cublas_handle;
+  cusparseHandle_t cusparse_handle;
+
+  // Sparse linear system size
+  int m_; // rows
+  int n_; // cols
+  int nnz_; // non-zero elements
+
+  // Method to push back values to coo sparse matrix representaiton
+  void inline h_cooMatPushBack(const double&, const int&, const int&);
+  // Method to compute A and b for the current mesh
+  void unifLinsysPrepHost();
+  // Host-side variables for linear system
+  std::vector<double> h_valA;
+  std::vector<int> h_cooRowA;
+  std::vector<int> h_cooColA;
+  std::vector<double> h_x;
+  std::vector<double> h_b;
+
+  // Method to copy allocate memory and copy linear system to device
+  void linsysMemcpyHostToDev();
+  // Device-side varible for linear system
+  double* d_valA;
+  int* d_cooRowA;
+  int* d_cooColA;
+  double* d_x;
+  double* d_b;
+
+  // Method call to BiCGSTAB solver
+  void BiCGSTAB();
+
+  // Method to write results back to host and cleanup memory
+  void linsysMemcpyDevToHost();
 
   //this stuff below is used for preconditioning the system
   
@@ -48,13 +90,8 @@ class cudaAMRSolver
   */
   //These vectors are used to store the inverse of K
   //We only store the non-zero elements of the inverse
-  std::vector<std::vector<double>> Ld;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+  // std::vector<std::vector<double>> Ld;
+  // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
+  // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
 
-  //This returns element K_{I1,I2}. It is used when we invert K
-  double getA_local(int I1,int I2);
-
-  //Given a vector z, compute (K_2)^{-1} z, i.e. apply the preconditioner
-  void getZ(std::vector<cubism::BlockInfo> & zInfo);
 };
