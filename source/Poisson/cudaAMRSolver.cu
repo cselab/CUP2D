@@ -283,7 +283,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
       this->h_cooMatPushBack(1., sfc_idx, sn_idx);
 
       if (isNorthBoundary){
-        if ((isNorthBoundary && isWestBoundary) || (isNorthBoundary && isEastBoundary))
+        if (isWestBoundary || isEastBoundary)
         { // Two boundary conditions to consider for diagonal element
           this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
         }
