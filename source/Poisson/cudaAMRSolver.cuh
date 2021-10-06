@@ -40,9 +40,9 @@ protected:
   SimulationData& sim; 
 
   // CUDA stream and library handles
-  cudaStream_t solver_stream;
-  cublasHandle_t cublas_handle;
-  cusparseHandle_t cusparse_handle;
+  cudaStream_t solver_stream_;
+  cublasHandle_t cublas_handle_;
+  cusparseHandle_t cusparse_handle_;
 
   // Sparse linear system size
   int m_; // rows
@@ -54,20 +54,22 @@ protected:
   // Method to compute A and b for the current mesh
   void unifLinsysPrepHost();
   // Host-side variables for linear system
-  std::vector<double> h_valA;
-  std::vector<int> h_cooRowA;
-  std::vector<int> h_cooColA;
-  std::vector<double> h_x;
-  std::vector<double> h_b;
+  std::vector<double> h_cooValA_;
+  std::vector<int> h_cooRowA_;
+  std::vector<int> h_cooColA_;
+  std::vector<double> h_x_;
+  std::vector<double> h_b_;
 
   // Method to copy allocate memory and copy linear system to device
   void linsysMemcpyHostToDev();
   // Device-side varible for linear system
-  double* d_valA;
-  int* d_cooRowA;
-  int* d_cooColA;
-  double* d_x;
-  double* d_b;
+  double* d_cooValA_;
+  double* d_cooValA_sorted_;
+  int* d_cooRowA_;
+  int* d_cooColA_;
+  double* d_x_;
+  double* d_b_;
+  cusparseSpMatDescr_t spCooDescrA_;
 
   // Method call to BiCGSTAB solver
   void BiCGSTAB();

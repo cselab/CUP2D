@@ -17,20 +17,20 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
 {
   std::cout << "---------------- Calling on cudaAMRSolver() constructor ------------\n";
   // Create CUDA stream for solver and init handles
-  checkCudaErrors(cudaStreamCreate(&solver_stream));
-  checkCudaErrors(cublasCreate(&cublas_handle)); 
-  checkCudaErrors(cusparseCreate(&cusparse_handle)); 
+  checkCudaErrors(cudaStreamCreate(&solver_stream_));
+  checkCudaErrors(cublasCreate(&cublas_handle_)); 
+  checkCudaErrors(cusparseCreate(&cusparse_handle_)); 
   // Set handles to stream
-  checkCudaErrors(cublasSetStream(cublas_handle, solver_stream));
-  checkCudaErrors(cusparseSetStream(cusparse_handle, solver_stream));
+  checkCudaErrors(cublasSetStream(cublas_handle_, solver_stream_));
+  checkCudaErrors(cusparseSetStream(cusparse_handle_, solver_stream_));
 }
 
 cudaAMRSolver::~cudaAMRSolver()
 {
   // Destroy CUDA stream and library handles
-  checkCudaErrors(cublasDestroy(cublas_handle)); 
-  checkCudaErrors(cusparseDestroy(cusparse_handle)); 
-  checkCudaErrors(cudaStreamDestroy(solver_stream));
+  checkCudaErrors(cublasDestroy(cublas_handle_)); 
+  checkCudaErrors(cusparseDestroy(cusparse_handle_)); 
+  checkCudaErrors(cudaStreamDestroy(solver_stream_));
   
 }
 
@@ -38,9 +38,9 @@ void inline cudaAMRSolver::h_cooMatPushBack(
     const double &val, 
     const int &row, 
     const int &col){
-  this->h_valA.push_back(val);
-  this->h_cooRowA.push_back(row);
-  this->h_cooColA.push_back(col);
+  this->h_cooValA_.push_back(val);
+  this->h_cooRowA_.push_back(row);
+  this->h_cooColA_.push_back(col);
 }
 
 // Prepare linear system for uniform grid
@@ -62,18 +62,18 @@ void cudaAMRSolver::unifLinsysPrepHost()
   const size_t N = BSX*BSY*Nblocks;
 
   // Allocate memory for solution 'x' and RHS vector 'b' on host
-  this->h_x.resize(N);
-  this->h_b.resize(N);
+  this->h_x_.resize(N);
+  this->h_b_.resize(N);
   // Clear contents from previous call of cudaAMRSolver::solve() and reserve memory 
   // for sparse LHS matrix 'A' (for uniform grid at most 5 elements per row).
-  this->h_valA.clear();
-  this->h_cooRowA.clear();
-  this->h_cooColA.clear();
-  this->h_valA.reserve(5 * N);
-  this->h_cooRowA.reserve(5 * N);
-  this->h_cooColA.reserve(5 * N);
+  this->h_cooValA_.clear();
+  this->h_cooRowA_.clear();
+  this->h_cooColA_.clear();
+  this->h_cooValA_.reserve(5 * N);
+  this->h_cooRowA_.reserve(5 * N);
+  this->h_cooColA_.reserve(5 * N);
 
-  // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
+  // No 'parallel for' to avoid accidental reorderings of COO elements during push_b_ack
   for(size_t i=0; i< Nblocks; i++)
   {    
     BlockInfo &rhs_info = RhsInfo[i];
@@ -309,7 +309,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
   // Save params of current linear system
   m_ = N; // rows
   n_ = N; // cols
-  nnz_ = h_valA.size(); // non-zero elements
+  nnz_ = this->h_cooValA_.size(); // non-zero elements
 
   sim.stopProfiler();
 }
@@ -320,44 +320,80 @@ void cudaAMRSolver::linsysMemcpyHostToDev(){
   // to speed up h2d transfer down the line
    
   // Allocate device memory for linear system
-  checkCudaErrors(cudaMallocAsync(&d_valA, nnz_ * sizeof(double), solver_stream));
-  checkCudaErrors(cudaMallocAsync(&d_cooRowA, nnz_ * sizeof(double), solver_stream));
-  checkCudaErrors(cudaMallocAsync(&d_cooColA, nnz_ * sizeof(double), solver_stream));
-  checkCudaErrors(cudaMallocAsync(&d_x, m_ * sizeof(double), solver_stream));
-  checkCudaErrors(cudaMallocAsync(&d_b, m_ * sizeof(double), solver_stream));
+  checkCudaErrors(cudaMallocAsync(&d_cooValA_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooValA_sorted_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooRowA_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooColA_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_x_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_b_, m_ * sizeof(double), solver_stream_));
 
   // Possibly copy to pinned memory here followed by a sync call
 
   // H2D transfer of linear system
-  checkCudaErrors(cudaMemcpyAsync(d_valA, h_valA.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
-  checkCudaErrors(cudaMemcpyAsync(d_cooRowA, h_cooRowA.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
-  checkCudaErrors(cudaMemcpyAsync(d_cooColA, h_cooColA.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
-  checkCudaErrors(cudaMemcpyAsync(d_b, h_b.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
+  checkCudaErrors(cudaMemcpyAsync(d_cooValA_, h_cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_cooRowA_, h_cooRowA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_cooColA_, h_cooColA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_b_, h_b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   
   // Sort COO storage by row
-  // size_t pBufferSizeInBytes;
-  // checkCudaErrors(cusparseXcoosort_bufferSizeExt(
-  //       cusparse_handle, m_, n_, nnz_, d_cooRowA, d_cooColA, &pBufferSizeInBytes));
+  // 1. Deduce buffer size necessary for sorting and allocate storage for it
+  size_t pBufferSizeInBytes;
+  void* pBuffer;
+  checkCudaErrors(cusparseXcoosort_bufferSizeExt(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, &pBufferSizeInBytes));
+  checkCudaErrors(cudaMallocAsync(&pBuffer, pBufferSizeInBytes * sizeof(char), solver_stream_));
 
+  // 2. Set-up permutation vector P to track transformation from un-sorted to sorted list
+  int* d_P;
+  checkCudaErrors(cudaMallocAsync(&d_P, nnz_ * sizeof(int), solver_stream_));
+  checkCudaErrors(cusparseCreateIdentityPermutation(cusparse_handle_, nnz_, d_P));
 
+  // 3. Sort d_cooRowA_ and d_cooCol inplace and apply permutation stored in d_P to d_cooValA_
+  checkCudaErrors(cusparseXcoosortByRow(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_P, pBuffer));
+  checkCudaErrors(cusparseDgthr(cusparse_handle_, nnz_, d_cooValA_, d_cooValA_sorted_, d_P, CUSPARSE_INDEX_BASE_ZERO));
+
+  // Free buffers allocated for COO sort
+  checkCudaErrors(cudaFreeAsync(pBuffer, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_P, solver_stream_));
+
+  // Create cuSPARSE descriptor for linear matrix A
+  checkCudaErrors(cusparseCreateCoo(&spCooDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_sorted_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
 }
 
 void cudaAMRSolver::BiCGSTAB(){
-
+  
 }
 
 void cudaAMRSolver::linsysMemcpyDevToHost(){
 
   // D2H transfer of results to pageable host memory.  This call is blocking, hence, 
   // no need to synchronize and memory deallocation can happen in backgoung
-  checkCudaErrors(cudaMemcpyAsync(h_x.data(), d_x, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_valA, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_cooRowA, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_cooColA, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_x, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_b, solver_stream));
+  checkCudaErrors(cudaMemcpyAsync(h_x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooValA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooRowA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooColA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_x_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_b_, solver_stream_));
 
-  // TODO: write from h_x to
+  // Synchronization call to make sure all GPU stuff in finished
+  checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+
+  // Write results back into ScalarBloc for pressure
+  static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
+
+  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
+  const size_t Nblocks = pInfo.size();
+
+  #pragma omp parallel for
+  for(size_t i=0; i<Nblocks; i++)
+  {
+    ScalarBlock & p    = *(ScalarBlock*)  pInfo[i].ptrBlock;
+    for(int iy=0; iy<BSY; iy++)
+    for(int ix=0; ix<BSX; ix++)
+    {
+      p(ix,iy).s = h_x_[i*BSX*BSY+iy*BSX+ix];
+    }
+  }
 }
 
 void cudaAMRSolver::solve()
@@ -366,8 +402,8 @@ void cudaAMRSolver::solve()
   cudaDeviceSynchronize();
   std::cout << "--------------------- Calling on cudaAMRSolver.solve() ------------------------ \n";
 
-  this->unifLinsysPrepHost();
-  this->linsysMemcpyHostToDev();
-  this->BiCGSTAB();
-  this->linsysMemcpyDevToHost();
+  //this->unifLinsysPrepHost();
+  //this->linsysMemcpyHostToDev();
+  //this->BiCGSTAB();
+  //this->linsysMemcpyDevToHost();
 }
