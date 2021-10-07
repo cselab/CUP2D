@@ -6,7 +6,7 @@ BPDY=${BPDY:-2}
 LEVELS=${LEVELS:-7}
 RTOL=${RTOL-2}
 CTOL=${CTOL-1}
-EXTENT=${EXTENT:-4}
+EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-1e-2}
@@ -102,6 +102,7 @@ then
 	echo "setting options for swarm9"
 	# options for swarm9
 	NAGENTS=8
+	EXTENT=4
 	# set object string
 	### for L=0.2 and extentx=extenty=2, 9 swimmers
 	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
@@ -121,6 +122,7 @@ then
 	echo "setting options for swarm16"
 	# options for swarm16
 	NAGENTS=15
+	EXTENT=4
 	# set object string
 	### for L=0.2 and extentx=extenty=2, 16 swimmers
 	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
@@ -147,6 +149,7 @@ then
 	echo "setting options for swarm25"
 	# options for swarm25
 	NAGENTS=24
+	EXTENT=4
 	# set object string
 	### for L=0.2 and extentx=extenty=2, 25 swimmers
 	OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
