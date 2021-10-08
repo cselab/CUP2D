@@ -351,8 +351,8 @@ bool Simulation::advance(const double dt)
   const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   std::cout
   <<"=======================================================================\n";
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
+    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f, collision?:%d\n",
+      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL, sim.bCollision); 
 
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
