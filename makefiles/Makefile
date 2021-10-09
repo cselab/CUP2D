@@ -124,11 +124,11 @@ NVOBJECTS = \
 		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o cudaComputeForces.o \
 		cudaNaca.o cudaCStartFish.o cudaZebraFish.o cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o 
 
-cuda%.o : %.cpp
-	$(CXX) -DGPU_POISSON $(CPPFLAGS) -c $< -o $@
-
 # Add cuda library  path to linker
-NVLIBS += -L/usr/local/cuda-11.4/lib64 -lcudart
+NVLIBS += -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcudart -lcublas -lcusparse
+
+cuda%.o : %.cpp 
+	$(CXX) -DGPU_POISSON $(CPPFLAGS) $(NVLIBS) -c $< -o $@
 
 cudasimulation: cudamain.o $(NVOBJECTS) cudaAMRSolver.o
 	$(CXX) -DGPU_POISSON cudamain.o cudaAMRSolver.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@

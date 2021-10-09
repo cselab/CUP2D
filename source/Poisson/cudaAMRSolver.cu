@@ -58,6 +58,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
 
   //Get a vector of all BlockInfos of the grid we're interested in
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
   const size_t Nblocks = RhsInfo.size();
   const size_t N = BSX*BSY*Nblocks;
 
@@ -73,11 +74,22 @@ void cudaAMRSolver::unifLinsysPrepHost()
   this->h_cooRowA_.reserve(5 * N);
   this->h_cooColA_.reserve(5 * N);
 
-  // No 'parallel for' to avoid accidental reorderings of COO elements during push_b_ack
+  // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
   for(size_t i=0; i< Nblocks; i++)
   {    
     BlockInfo &rhs_info = RhsInfo[i];
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
+    ScalarBlock & __restrict__ p  = *(ScalarBlock*) pInfo[i].ptrBlock;
+
+    // Construct RHS and x_0 vectors for linear system
+    for(int iy=1; iy<BSY-1; iy++)
+    for(int ix=1; ix<BSX-1; ix++)
+    {
+      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
+      d_b_[sfc_idx] = rhs(ix,iy).s;
+      h_x_[sfc_idx] = p(ix,iy).s;
+    }
+
     //1.Check if this is a boundary block
     int aux = 1 << rhs_info.level; // = 2^level
     int MAX_X_BLOCKS = (blocksPerDim[0] - 1)*aux; //this means that if level 0 has blocksPerDim[0] blocks in the x-direction, level rhs.level will have this many blocks
@@ -333,14 +345,15 @@ void cudaAMRSolver::linsysMemcpyHostToDev(){
   checkCudaErrors(cudaMemcpyAsync(d_cooValA_, h_cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_cooRowA_, h_cooRowA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_cooColA_, h_cooColA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_x_, h_x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_b_, h_b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   
   // Sort COO storage by row
   // 1. Deduce buffer size necessary for sorting and allocate storage for it
-  size_t pBufferSizeInBytes;
+  size_t pBufferSz;
   void* pBuffer;
-  checkCudaErrors(cusparseXcoosort_bufferSizeExt(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, &pBufferSizeInBytes));
-  checkCudaErrors(cudaMallocAsync(&pBuffer, pBufferSizeInBytes * sizeof(char), solver_stream_));
+  checkCudaErrors(cusparseXcoosort_bufferSizeExt(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, &pBufferSz));
+  checkCudaErrors(cudaMallocAsync(&pBuffer, pBufferSz * sizeof(char), solver_stream_));
 
   // 2. Set-up permutation vector P to track transformation from un-sorted to sorted list
   int* d_P;
@@ -355,12 +368,210 @@ void cudaAMRSolver::linsysMemcpyHostToDev(){
   checkCudaErrors(cudaFreeAsync(pBuffer, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_P, solver_stream_));
 
-  // Create cuSPARSE descriptor for linear matrix A
-  checkCudaErrors(cusparseCreateCoo(&spCooDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_sorted_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
 }
 
-void cudaAMRSolver::BiCGSTAB(){
-  
+void cudaAMRSolver::BiCGSTAB()
+{
+  const double eye = 1.;
+  const double nye = -1.;
+  const double nil = 0.;
+
+  /*
+    This function generally follows notation of the Wikipedia page with several omissions
+    to increase variable reuse.  Specifically:
+      - d_x_ <-> h, x_i
+      - d_b_ <-> r_0, r_i, s
+  */
+
+  // Initialize BiCGSTAB scalar parameters
+  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
+  const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+
+  // Initialize BiCGSTAB arrays
+  double* d_rhat = NULL;
+  double* d_p = NULL;
+  double* d_nu = NULL;
+  double* d_t = NULL;
+  // Allocate device memory to arrays
+  checkCudaErrors(cudaMallocAsync(&d_rhat, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_p, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_nu, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_t, m_ * sizeof(double), solver_stream_));
+
+  // Initialize variables to evaluate convergence
+  double x_diff_norm = 1e50;
+  double* d_x_diff = NULL;
+  checkCudaErrors(cudaMallocAsync(&d_x_diff, m_ * sizeof(double), solver_stream_));
+
+  // Create descriptors for variables that will pass through cuSPARSE
+  cusparseSpMatDescr_t spDescrA;
+  cusparseDnVecDescr_t spDescrB;
+  cusparseDnVecDescr_t spDescrX0;
+  cusparseDnVecDescr_t spDescrP;
+  cusparseDnVecDescr_t spDescrNu;
+  cusparseDnVecDescr_t spDescrT;
+  checkCudaErrors(cusparseCreateCoo(&spDescrA, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_sorted_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrB, m_, d_b_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrX0, m_, d_x_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrP, m_, d_p, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrNu, m_, d_nu, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrT, m_, d_t, CUDA_R_64F));
+
+  // Allocate work buffer for cusparseSpMV
+  size_t pBufferSz;
+  void* pBuffer;
+  checkCudaErrors(cusparseSpMV_bufferSize(
+        cusparse_handle_, 
+        CUSPARSE_OPERATION_NON_TRANSPOSE, 
+        &eye, 
+        spDescrA, 
+        spDescrX0, 
+        &nil, 
+        spDescrNu, 
+        CUDA_R_64F, 
+        CUSPARSE_MV_ALG_DEFAULT, 
+        &pBufferSz));
+  checkCudaErrors(cudaMallocAsync(&pBuffer, pBufferSz * sizeof(char), solver_stream_));
+
+  // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
+  checkCudaErrors(cusparseSpMV( // A*x_0
+        cusparse_handle_, 
+        CUSPARSE_OPERATION_NON_TRANSPOSE, 
+        &eye, 
+        spDescrA, 
+        spDescrX0, 
+        &nil, 
+        spDescrNu, // Use d_nu as temporary storage for result A*x_0 
+        CUDA_R_64F, 
+        CUSPARSE_MV_ALG_DEFAULT, 
+        pBuffer)); 
+  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye, d_nu, 1, d_b_, 1)); // r <- -A*x_0 + b
+
+  // 2. Set r_hat = r
+  checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_b_, 1, d_rhat, 1));
+
+  // 3. Set initial values to scalars
+  double rho_curr = 1.;
+  double rho_prev = 1.;
+  double alpha = 1.;
+  double omega = 1.;
+  double beta = 1.;
+
+  // 4. Set initial values of vectors to zero
+  checkCudaErrors(cudaMemsetAsync(d_nu, 0, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMemsetAsync(d_p, 0, m_ * sizeof(double), solver_stream_));
+
+  // 5. Start iterations
+  for(size_t k(0); k<1000; k++)
+  {
+    // 1. rho_i = (r_hat, r)
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat, 1, d_b_, 1, &rho_curr));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for 2. which happens on host
+    
+    // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
+    beta = (rho_curr / rho_prev) * (alpha / omega);
+
+    // 3. p_i = r_{i-1} + beta(p_{i-1} - omega_{i-1}*nu_i)
+    double nomega = -omega;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_nu, 1, d_p, 1)); // p <- -omega_{i-1}*nu_i + p
+    checkCudaErrors(cublasDscal(cublas_handle_, m_, &beta, d_p, 1));            // p <- beta * p
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &eye, d_b_, 1, d_p, 1));    // p <- r_{i-1} + p
+
+    // 4. nu_i = A * p_i 
+    checkCudaErrors(cusparseSpMV(
+          cusparse_handle_,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &eye,
+          spDescrA,
+          spDescrP,
+          &nil,
+          spDescrNu,
+          CUDA_R_64F,
+          CUSPARSE_MV_ALG_DEFAULT,
+          pBuffer));
+
+    // 5. alpha = rho_i / (r_hat, nu_i)
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat, 1, d_nu, 1, &alpha)); // alpha <- (r_hat, nu_i)
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host division
+    alpha = rho_curr / alpha; // alpha <- rho_i / alpha
+
+    // 6. h = alpha*p_i + x_{i-1}
+    checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_x_, 1, d_x_diff, 1)); // copy previous value for future norm calculation
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &alpha, d_p, 1, d_x_, 1));
+
+    // 7. If h accurate enough then quit
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye, d_x_, 1, d_x_diff, 1));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_x_diff, 1, &x_diff_norm));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+
+    if(x_diff_norm < max_error)
+    {
+      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      // bConverged = true;
+      break;
+    }
+
+    // 8. s = -alpha * nu_i + r_{i-1}
+    const double nalpha = -alpha;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nalpha, d_nu, 1, d_b_, 1));
+
+    // 9. t = A * s
+    checkCudaErrors(cusparseSpMV(
+          cusparse_handle_,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &eye,
+          spDescrA,
+          spDescrB,
+          &nil,
+          spDescrT,
+          CUDA_R_64F,
+          CUSPARSE_MV_ALG_DEFAULT,
+          pBuffer));
+    
+    // 10. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t, 1, d_b_, 1, &alpha)); // alpha <- (t,s)
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t, 1, &beta));          // beta <- sqrt(t,t)
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host arithmetic
+    omega = alpha / (beta * beta);
+
+    // 11. x_i = omega_i * s + h
+    checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_x_, 1, d_x_diff, 1)); // copy previous value for future norm calculation
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &omega, d_b_, 1, d_x_, 1));
+
+    // 12. If x_i accurate enough then quit
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye, d_x_, 1, d_x_diff, 1));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_x_diff, 1, &x_diff_norm));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+
+    if(x_diff_norm < max_error)
+    {
+      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      // bConverged = true;
+      break;
+    }
+
+    // 13. r_i = -omega_i * t + s
+    nomega = -nomega;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_t, 1, d_b_, 1));
+
+    // Update *_prev values for next iteration
+    rho_prev = rho_curr;
+  }
+
+  // Synchronization call
+  // Cleanup
+  checkCudaErrors(cusparseDestroySpMat(spDescrA));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrB));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrX0));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrP));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrNu));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrT));
+  checkCudaErrors(cudaFreeAsync(d_rhat, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_p, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_nu, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_t, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_x_diff, solver_stream_));
+
 }
 
 void cudaAMRSolver::linsysMemcpyDevToHost(){
@@ -402,8 +613,8 @@ void cudaAMRSolver::solve()
   cudaDeviceSynchronize();
   std::cout << "--------------------- Calling on cudaAMRSolver.solve() ------------------------ \n";
 
-  //this->unifLinsysPrepHost();
-  //this->linsysMemcpyHostToDev();
-  //this->BiCGSTAB();
-  //this->linsysMemcpyDevToHost();
+  this->unifLinsysPrepHost();
+  this->linsysMemcpyHostToDev();
+  this->BiCGSTAB();
+  this->linsysMemcpyDevToHost();
 }

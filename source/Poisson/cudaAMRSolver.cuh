@@ -69,7 +69,6 @@ protected:
   int* d_cooColA_;
   double* d_x_;
   double* d_b_;
-  cusparseSpMatDescr_t spCooDescrA_;
 
   // Method call to BiCGSTAB solver
   void BiCGSTAB();
