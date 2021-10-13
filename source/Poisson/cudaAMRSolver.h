@@ -6,11 +6,6 @@
 
 #pragma once
 
-#include "cuda_runtime.h"
-#include "cublas_v2.h"
-#include "cusparse.h"
-
-
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 
@@ -39,11 +34,6 @@ protected:
   //this struct contains information such as the currect timestep size, fluid properties and many others
   SimulationData& sim; 
 
-  // CUDA stream and library handles
-  cudaStream_t solver_stream_;
-  cublasHandle_t cublas_handle_;
-  cusparseHandle_t cusparse_handle_;
-
   // Sparse linear system size
   int m_; // rows
   int n_; // cols
@@ -59,22 +49,6 @@ protected:
   std::vector<int> h_cooColA_;
   std::vector<double> h_x_;
   std::vector<double> h_b_;
-
-  // Method to copy allocate memory and copy linear system to device
-  void linsysMemcpyHostToDev();
-  // Device-side varible for linear system
-  double* d_cooValA_;
-  double* d_cooValA_sorted_;
-  int* d_cooRowA_;
-  int* d_cooColA_;
-  double* d_x_;
-  double* d_b_;
-
-  // Method call to BiCGSTAB solver
-  void BiCGSTAB();
-
-  // Method to write results back to host and cleanup memory
-  void linsysMemcpyDevToHost();
 
   //this stuff below is used for preconditioning the system
   

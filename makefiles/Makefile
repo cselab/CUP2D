@@ -115,23 +115,24 @@ NVFLAGS += -DGPU_POISSON
 NVFLAGS += -I$(BUILDDIR)/../source/Poisson/
 NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
-cudaAMRSolver.o: cudaAMRSolver.cu 
+bicgstab.o: bicgstab.cu 
 	nvcc $(NVFLAGS) -c $< -o $@
 
 NVOBJECTS = \
 		cudaSimulation.o cudaSimulationData.o cudaShape.o cudaShapeLibrary.o cudaShapesSimple.o \
 		cudaPressureSingle.o cudaPutObjectsOnGrid.o cudaadvDiff.o cudaBufferedLogger.o cudaHelpers.o cudaFish.o cudaSmartCylinder.o \
 		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o cudaComputeForces.o \
-		cudaNaca.o cudaCStartFish.o cudaZebraFish.o cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o 
+		cudaNaca.o cudaCStartFish.o cudaZebraFish.o cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o cudacudaAMRSolver.o
+# cudacudaAMRSolver.o is an absurd name, but one 'cuda' comes from the .cpp filename, and the other from prefix for compiling '.o' files
 
 # Add cuda library  path to linker
 NVLIBS += -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcudart -lcublas -lcusparse
 
-cuda%.o : %.cpp 
+cuda%.o : %.cpp bicgstab.o
 	$(CXX) -DGPU_POISSON $(CPPFLAGS) $(NVLIBS) -c $< -o $@
 
-cudasimulation: cudamain.o $(NVOBJECTS) cudaAMRSolver.o
-	$(CXX) -DGPU_POISSON cudamain.o cudaAMRSolver.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
+cudasimulation: cudamain.o $(NVOBJECTS) bicgstab.o
+	$(CXX) -DGPU_POISSON cudamain.o bicgstab.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
