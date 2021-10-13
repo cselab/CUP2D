@@ -46,6 +46,7 @@ void inline cudaAMRSolver::h_cooMatPushBack(
 // Prepare linear system for uniform grid
 void cudaAMRSolver::unifLinsysPrepHost()
 {
+  std::cout << "--------------------- Calling on cudaAMRSolver.unifLinsysPrepHost() ------------------------ \n";
   sim.startProfiler("Poisson solver: unifLinsysPrepHost()");
 
   static constexpr int BSX = VectorBlock::sizeX;
@@ -86,7 +87,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
     for(int ix=1; ix<BSX-1; ix++)
     {
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      d_b_[sfc_idx] = rhs(ix,iy).s;
+      h_b_[sfc_idx] = rhs(ix,iy).s;
       h_x_[sfc_idx] = p(ix,iy).s;
     }
 
@@ -327,6 +328,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
 }
 
 void cudaAMRSolver::linsysMemcpyHostToDev(){
+  std::cout << "--------------------- Calling on cudaAMRSolver.linsysMemcpyHostToDev() ------------------------ \n";
   // Host-device exec asynchronous, it may be worth already allocating pinned memory
   // and copying h2h (with cpu code) after async dev memory allocation calls 
   // to speed up h2d transfer down the line
@@ -372,6 +374,7 @@ void cudaAMRSolver::linsysMemcpyHostToDev(){
 
 void cudaAMRSolver::BiCGSTAB()
 {
+  std::cout << "--------------------- Calling on cudaAMRSolver.BiCGSTAB() ------------------------ \n";
   const double eye = 1.;
   const double nye = -1.;
   const double nil = 0.;
@@ -462,7 +465,7 @@ void cudaAMRSolver::BiCGSTAB()
   checkCudaErrors(cudaMemsetAsync(d_p, 0, m_ * sizeof(double), solver_stream_));
 
   // 5. Start iterations
-  for(size_t k(0); k<1000; k++)
+  for(size_t k(0); k<5000; k++)
   {
     // 1. rho_i = (r_hat, r)
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat, 1, d_b_, 1, &rho_curr));
@@ -558,7 +561,8 @@ void cudaAMRSolver::BiCGSTAB()
     rho_prev = rho_curr;
   }
 
-  // Synchronization call
+  // TODO: zero-center the solution
+
   // Cleanup
   checkCudaErrors(cusparseDestroySpMat(spDescrA));
   checkCudaErrors(cusparseDestroyDnVec(spDescrB));
@@ -576,6 +580,7 @@ void cudaAMRSolver::BiCGSTAB()
 
 void cudaAMRSolver::linsysMemcpyDevToHost(){
 
+  std::cout << "--------------------- Calling on cudaAMRSolver.linsysMemcpDevToHost() ------------------------ \n";
   // D2H transfer of results to pageable host memory.  This call is blocking, hence, 
   // no need to synchronize and memory deallocation can happen in backgoung
   checkCudaErrors(cudaMemcpyAsync(h_x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
