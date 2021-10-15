@@ -13,12 +13,12 @@ extern "C" void BiCGSTAB(
     double* const h_cooValA,
     int* const h_cooRowA,
     int* const h_cooColA,
-    double* const h_x,
+    double* const h_x, // contains initial guess
     double* const h_b,
     const double max_error,
     const double max_rel_error)
 {
-  // Create CUDA stream for solver and init handles
+  // --------------------------------------------- Set-up streams and handles ---------------------------------------
   cudaStream_t solver_stream;
   cublasHandle_t cublas_handle;
   cusparseHandle_t cusparse_handle;
@@ -52,8 +52,8 @@ extern "C" void BiCGSTAB(
 
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(d_cooValA, h_cooValA, nnz * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
-  checkCudaErrors(cudaMemcpyAsync(d_cooRowA, h_cooRowA, nnz * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
-  checkCudaErrors(cudaMemcpyAsync(d_cooColA, h_cooColA, nnz * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
+  checkCudaErrors(cudaMemcpyAsync(d_cooRowA, h_cooRowA, nnz * sizeof(int), cudaMemcpyHostToDevice, solver_stream));
+  checkCudaErrors(cudaMemcpyAsync(d_cooColA, h_cooColA, nnz * sizeof(int), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_x, h_x, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_b, h_b, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   
@@ -90,6 +90,8 @@ extern "C" void BiCGSTAB(
   */
 
   // Initialize BiCGSTAB arrays and allocate memory
+  double* d_rcurr = NULL;
+  double* d_rprev = NULL;
   double* d_rhat = NULL;
   double* d_p = NULL;
   double* d_nu = NULL;
@@ -100,9 +102,9 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaMallocAsync(&d_t, m * sizeof(double), solver_stream));
 
   // Initialize variables to evaluate convergence
-  double x_diff_norm = 1e50;
-  double* d_x_diff = NULL;
-  checkCudaErrors(cudaMallocAsync(&d_x_diff, m * sizeof(double), solver_stream));
+  double x_error = 1e50;
+  double* d_xprev = NULL;
+  checkCudaErrors(cudaMallocAsync(&d_xprev, m * sizeof(double), solver_stream));
 
   // Create descriptors for variables that will pass through cuSPARSE
   cusparseSpMatDescr_t spDescrA;
@@ -126,7 +128,7 @@ extern "C" void BiCGSTAB(
         CUSPARSE_OPERATION_NON_TRANSPOSE, 
         &eye, 
         spDescrA, 
-        spDescrX0, 
+        spDescrP, 
         &nil, 
         spDescrNu, 
         CUDA_R_64F, 
@@ -147,15 +149,16 @@ extern "C" void BiCGSTAB(
         CUSPARSE_MV_ALG_DEFAULT, 
         SpMVBuff)); 
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_nu, 1, d_b, 1)); // r <- -A*x_0 + b
-
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
   // 3. Set initial values to scalars
   double rho_curr = 1.;
   double rho_prev = 1.;
-  double alpha = 1.;
-  double omega = 1.;
+  double alpha_curr = 1.;
+  double alpha_prev = 1.;
+  double omega_curr = 1.;
+  double omega_prev = 1.;
   double beta = 1.;
 
   // 4. Set initial values of vectors to zero
@@ -170,10 +173,10 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for 2. which happens on host
     
     // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
-    beta = (rho_curr / rho_prev) * (alpha / omega);
+    beta = (rho_curr / rho_prev) * (alpha_prev / omega_prev);
 
     // 3. p_i = r_{i-1} + beta(p_{i-1} - omega_{i-1}*nu_i)
-    double nomega = -omega;
+    double nomega = -omega_prev;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_nu, 1, d_p, 1)); // p <- -omega_{i-1}*nu_i + p
     checkCudaErrors(cublasDscal(cublas_handle, m, &beta, d_p, 1));            // p <- beta * p
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &eye, d_b, 1, d_p, 1));    // p <- r_{i-1} + p
@@ -192,28 +195,29 @@ extern "C" void BiCGSTAB(
           SpMVBuff));
 
     // 5. alpha = rho_i / (r_hat, nu_i)
-    checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha)); // alpha <- (r_hat, nu_i)
+    double alpha_den;
+    checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
-    alpha = rho_curr / alpha; // alpha <- rho_i / alpha
+    alpha_curr = rho_curr / alpha_den; // alpha <- rho_i / alpha
 
     // 6. h = alpha*p_i + x_{i-1}
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_x_diff, 1)); // copy previous value for future norm calculation
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha, d_p, 1, d_x, 1));
+    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha_curr, d_p, 1, d_x, 1));
 
     // 7. If h accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_x_diff, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_x_diff, 1, &x_diff_norm));
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if(x_diff_norm < max_error)
+    if(x_error < max_error)
     {
-      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
       // bConverged = true;
       break;
     }
 
     // 8. s = -alpha * nu_i + r_{i-1}
-    const double nalpha = -alpha;
+    const double nalpha = -alpha_curr;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nalpha, d_nu, 1, d_b, 1));
 
     // 9. t = A * s
@@ -230,33 +234,41 @@ extern "C" void BiCGSTAB(
           SpMVBuff));
     
     // 10. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
-    checkCudaErrors(cublasDdot(cublas_handle, m, d_t, 1, d_b, 1, &alpha)); // alpha <- (t,s)
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_t, 1, &beta));          // beta <- sqrt(t,t)
+    double omega_num;
+    double omega_den;
+    checkCudaErrors(cublasDdot(cublas_handle, m, d_t, 1, d_b, 1, &omega_num)); // alpha <- (t,s)
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_t, 1, &omega_den));          // beta <- sqrt(t,t)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host arithmetic
-    omega = alpha / (beta * beta);
+    omega_curr = omega_num / (omega_den * omega_den);
 
     // 11. x_i = omega_i * s + h
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_x_diff, 1)); // copy previous value for future norm calculation
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega, d_b, 1, d_x, 1));
+    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega_curr, d_b, 1, d_x, 1));
 
     // 12. If x_i accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_x_diff, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_x_diff, 1, &x_diff_norm));
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if(x_diff_norm < max_error)
+    if (k % 5 == 0)
     {
-      std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      std::cout << "[BiCGSTAB]: RMS error after " << k << " iterations: " << x_error << std::endl;
+    }
+    if(x_error < max_error)
+    {
+      std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       // bConverged = true;
       break;
     }
 
     // 13. r_i = -omega_i * t + s
-    nomega = -nomega;
+    nomega = -omega_curr;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
 
     // Update *_prev values for next iteration
     rho_prev = rho_curr;
+    omega_prev = omega_curr;
+    alpha_prev = alpha_curr;
   }
 
   // TODO: zero-center the solution
@@ -275,7 +287,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_p, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_nu, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_t, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_x_diff, solver_stream));
+  checkCudaErrors(cudaFreeAsync(d_xprev, solver_stream));
   checkCudaErrors(cudaFreeAsync(SpMVBuff, solver_stream));
 
 
@@ -289,6 +301,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_x, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_b, solver_stream));
 
+  checkCudaErrors(cudaStreamSynchronize(solver_stream));
   // Destroy CUDA stream and library handles
   checkCudaErrors(cublasDestroy(cublas_handle)); 
   checkCudaErrors(cusparseDestroy(cusparse_handle)); 

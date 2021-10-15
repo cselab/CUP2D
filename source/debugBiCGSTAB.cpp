@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <random>
+#include <algorithm>
+#include <cmath>
 
 #include "Poisson/bicgstab.h"
 
@@ -12,6 +14,10 @@ void genSparseLinSys(
     std::vector<int>& cooColA,
     std::vector<double>& x,
     std::vector<double>& b);
+
+double rmsVec(
+    const std::vector<double>& a,
+    const std::vector<double>& b);
 
 int main(){
 
@@ -38,10 +44,11 @@ int main(){
       cooColA.data(), 
       x_est.data(),
       b.data(),
-      1e-5,
-      1e-5);
-
-  std::cout << "BiCGSTAB done. \n";
+      1e-20,
+      1e-20);
+  
+  double rms = rmsVec(x_true, x_est);
+  std::cout << "BiCGSTAB done, RMS error between true and estimate: " << rms << std::endl;;
 
   return 0;
 }
@@ -56,19 +63,21 @@ void genSparseLinSys(
     std::vector<double>& b)
 {
   // Initialize random number generator
-  std::random_device rd;
-  std::uniform_real_distribution<double> unif(-5., 5.);
+  // std::random_device rd;
+  // std::uniform_real_distribution<double> unif(-5., 5.);
 
   // Iterate from the back to produce unsorted COO LinSys
   nnz = 0;
   for(int i(N-1); i >= 0; i--)
   {
     // Set solution
-    x[i] = unif(rd);
+    // x[i] = unif(rd);
+    x[i] = (i % 3) + 1;
 
     if(i == (N-1))
     { // Set lone diagonal element to ensure inversibility
-      cooValA.push_back(unif(rd));
+      cooValA.push_back(-2.);
+      // cooValA.push_back(unif(rd));
       cooRowA.push_back(i);
       cooColA.push_back(i);
       nnz++;
@@ -79,7 +88,8 @@ void genSparseLinSys(
     else
     {
       // Set diagonal element
-      cooValA.push_back(unif(rd));
+      cooValA.push_back(-2.);
+      // cooValA.push_back(unif(rd));
       cooRowA.push_back(i);
       cooColA.push_back(i);
       nnz++;
@@ -87,7 +97,8 @@ void genSparseLinSys(
       b[i] += (x[i] * cooValA.back()); 
 
       // Set off diagonal element
-      cooValA.push_back(unif(rd));
+      cooValA.push_back(1.);
+      // cooValA.push_back(unif(rd));
       cooRowA.push_back(i);
       cooColA.push_back(i+1);
       nnz++;
@@ -95,4 +106,17 @@ void genSparseLinSys(
       b[i] += (x[i+1] * cooValA.back()); 
     }
   }
+}
+
+double rmsVec(
+    const std::vector<double>& a,
+    const std::vector<double>& b)
+{
+  size_t sz = std::min(a.size(), b.size());
+  double rms = 0;
+  for (int i(0); i < sz; i++)
+  {
+    rms += std::pow(a[i] - b[i],2.);
+  }
+  return std::sqrt(rms);
 }
