@@ -31,7 +31,7 @@ void inline cudaAMRSolver::h_cooMatPushBack(
 // Prepare linear system for uniform grid
 void cudaAMRSolver::unifLinsysPrepHost()
 {
-  std::cout << "--------------------- Calling on cudaAMRSolver.unifLinsysPrepHost() ------------------------ \n";
+  std::cout << "[cudaAMRSolver]: Preparing linear system... \n";
   sim.startProfiler("Poisson solver: unifLinsysPrepHost()");
 
   static constexpr int BSX = VectorBlock::sizeX;
@@ -44,7 +44,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
 
   //Get a vector of all BlockInfos of the grid we're interested in
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const size_t Nblocks = RhsInfo.size();
   const size_t N = BSX*BSY*Nblocks;
 
@@ -65,9 +65,10 @@ void cudaAMRSolver::unifLinsysPrepHost()
   {    
     BlockInfo &rhs_info = RhsInfo[i];
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
-    ScalarBlock & __restrict__ p  = *(ScalarBlock*) pInfo[i].ptrBlock;
+    ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
     // Construct RHS and x_0 vectors for linear system
+    #pragma omp parallel for
     for(int iy=1; iy<BSY-1; iy++)
     for(int ix=1; ix<BSX-1; ix++)
     {
@@ -219,6 +220,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
           }
           else{ throw; }
         }
+        // If western boundary, the diagonal element is modified when north/south contributions are considered
       }
       // Add matrix element associated to east cell
       if (ix < BSX - 1){
@@ -234,13 +236,14 @@ void cudaAMRSolver::unifLinsysPrepHost()
           }
           else { throw; }
         }
+        // If eastern boundary, the diagonal element is modified when north/south contributions are considered
       }
     }
 
     // Add matrix elements associated to contributions from north/south cells on southern boundary of block (with corners)
     for(int ix=0; ix<BSX;ix++)
     {
-      const int iy = BSY-1;
+      const int iy = 0;
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
       const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
 
@@ -322,23 +325,70 @@ void cudaAMRSolver::solve()
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
 
-  BiCGSTAB(m_, n_, nnz_, h_cooValA_.data(), h_cooRowA_.data(), h_cooColA_.data(), h_x_.data(), h_b_.data(), max_error, max_rel_error);
+  BiCGSTAB(
+      m_, 
+      n_, 
+      nnz_, 
+      h_cooValA_.data(), 
+      h_cooRowA_.data(), 
+      h_cooColA_.data(), 
+      h_x_.data(), 
+      h_b_.data(), 
+      max_error, 
+      max_rel_error);
 
-  // Write results back into ScalarBloc for pressure
+  //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
+  //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
+  const size_t Nblocks = zInfo.size();
 
-  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
-  const size_t Nblocks = pInfo.size();
-
-  #pragma omp parallel for
-  for(size_t i=0; i<Nblocks; i++)
+  double avg = 0;
+  double avg1 = 0;
+  #pragma omp parallel
   {
-    ScalarBlock & p    = *(ScalarBlock*)  pInfo[i].ptrBlock;
-    for(int iy=0; iy<BSY; iy++)
-    for(int ix=0; ix<BSX; ix++)
-    {
-      p(ix,iy).s = h_x_[i*BSX*BSY+iy*BSX+ix];
-    }
+     #pragma omp for reduction (+:avg,avg1)
+     for(size_t i=0; i< Nblocks; i++)
+     {
+        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+        const double vv = zInfo[i].h*zInfo[i].h;
+        for(int iy=0; iy<VectorBlock::sizeY; iy++)
+        for(int ix=0; ix<VectorBlock::sizeX; ix++)
+        {
+            P(ix,iy).s = h_x_[i*BSX*BSY + iy*BSX + ix];
+            avg += P(ix,iy).s * vv;
+            avg1 += vv;
+        }
+     }
+     #pragma omp single
+     {
+        avg = avg/avg1;
+     }
+     #pragma omp for
+     for(size_t i=0; i< Nblocks; i++)
+     {
+        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+        for(int iy=0; iy<VectorBlock::sizeY; iy++)
+        for(int ix=0; ix<VectorBlock::sizeX; ix++)
+           P(ix,iy).s -= avg;
+     }
   }
+  // Naive writeback
+//  static constexpr int BSX = VectorBlock::sizeX;
+//  static constexpr int BSY = VectorBlock::sizeY;
+//
+//  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
+//  const size_t Nblocks = pInfo.size();
+//
+//  #pragma omp parallel for
+//  for(size_t i=0; i<Nblocks; i++)
+//  {
+//    ScalarBlock & p    = *(ScalarBlock*)  pInfo[i].ptrBlock;
+//    for(int iy=0; iy<BSY; iy++)
+//    for(int ix=0; ix<BSX; ix++)
+//    {
+//      p(ix,iy).s = h_x_[i*BSX*BSY+iy*BSX+ix];
+//    }
+//  }
 }
