@@ -16,7 +16,8 @@ extern "C" void BiCGSTAB(
     double* const h_x, // contains initial guess
     double* const h_b,
     const double max_error,
-    const double max_rel_error)
+    const double max_rel_error,
+    const int max_restarts) // Defaults to normal BiCGSTAB without tricks
 {
   // --------------------------------------------- Set-up streams and handles ---------------------------------------
   cudaStream_t solver_stream;
@@ -158,30 +159,53 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
   // 3. Set initial values to scalars
+  int restarts = 0;
   double rho_curr = 1.;
   double rho_prev = 1.;
-  double alpha_curr = 1.;
-  double alpha_prev = 1.;
-  double omega_curr = 1.;
-  double omega_prev = 1.;
-  double beta = 1.;
+  double alpha = 1.;
+  double omega = 1.;
+  double beta = 0.;
+  const double eps = 1e-21;
 
   // 4. Set initial values of vectors to zero
   checkCudaErrors(cudaMemsetAsync(d_nu, 0, m * sizeof(double), solver_stream));
   checkCudaErrors(cudaMemsetAsync(d_p, 0, m * sizeof(double), solver_stream));
 
   // 5. Start iterations
-  for(size_t k(0); k<1000; k++)
+  for(size_t k(0); k<100000; k++)
   {
     // 1. rho_i = (r_hat, r)
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_b, 1, &rho_curr));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for 2. which happens on host
     
+    double norm_1 = 0.;
+    double norm_2 = 0.;
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_b, 1, &norm_1));
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &norm_2));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for 2. which happens on host
     // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
-    beta = (rho_curr / rho_prev) * (alpha_prev / omega_prev);
+    beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+
+    // Numerical convergence trick
+    const double cosTheta = rho_curr / norm_1 / norm_2;
+    bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
+    if(serious_breakdown && max_restarts > 0)
+    {
+      restarts++;
+      if(restarts >= max_restarts){
+        break;
+      }
+      std::cout << "[BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
+      checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
+      checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
+      rho_curr *= rho_curr;
+      rho_prev = 1.;
+      alpha = 1.;
+      omega = 1.;
+      beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+    }
 
     // 3. p_i = r_{i-1} + beta(p_{i-1} - omega_{i-1}*nu_i)
-    double nomega = -omega_prev;
+    double nomega = -omega;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_nu, 1, d_p, 1)); // p <- -omega_{i-1}*nu_i + p
     checkCudaErrors(cublasDscal(cublas_handle, m, &beta, d_p, 1));            // p <- beta * p
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &eye, d_b, 1, d_p, 1));    // p <- r_{i-1} + p
@@ -203,18 +227,19 @@ extern "C" void BiCGSTAB(
     double alpha_den;
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
-    alpha_curr = rho_curr / alpha_den; // alpha <- rho_i / alpha
+    alpha = rho_curr / alpha_den; // alpha <- rho_i / alpha
 
     // 6. h = alpha*p_i + x_{i-1}
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha_curr, d_p, 1, d_x, 1));
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha, d_p, 1, d_x, 1));
 
     // 7. If h accurate enough then quit
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    // if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    if(x_error <= max_error)
     {
       std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
       // bConverged = true;
@@ -222,7 +247,7 @@ extern "C" void BiCGSTAB(
     }
 
     // 8. s = -alpha * nu_i + r_{i-1}
-    const double nalpha = -alpha_curr;
+    const double nalpha = -alpha;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nalpha, d_nu, 1, d_b, 1));
 
     // 9. t = A * s
@@ -244,22 +269,19 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cublasDdot(cublas_handle, m, d_t, 1, d_b, 1, &omega_num)); // alpha <- (t,s)
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_t, 1, &omega_den));          // beta <- sqrt(t,t)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host arithmetic
-    omega_curr = omega_num / (omega_den * omega_den);
+    omega = omega_num / (omega_den * omega_den);
 
     // 11. x_i = omega_i * s + h
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega_curr, d_b, 1, d_x, 1));
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega, d_b, 1, d_x, 1));
 
     // 12. If x_i accurate enough then quit
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if (k % 5 == 0)
-    {
-      std::cout << "[BiCGSTAB]: RMS error after " << k << " iterations: " << x_error << std::endl;
-    }
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    //if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    if(x_error <= max_error)
     {
       std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       // bConverged = true;
@@ -267,13 +289,11 @@ extern "C" void BiCGSTAB(
     }
 
     // 13. r_i = -omega_i * t + s
-    nomega = -omega_curr;
+    nomega = -omega;
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
 
     // Update *_prev values for next iteration
     rho_prev = rho_curr;
-    omega_prev = omega_curr;
-    alpha_prev = alpha_curr;
   }
 
   // TODO: zero-center the solution

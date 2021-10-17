@@ -338,6 +338,7 @@ void cudaAMRSolver::solve()
 
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
 
   BiCGSTAB(
       m_, 
@@ -349,7 +350,8 @@ void cudaAMRSolver::solve()
       h_x_.data(), 
       h_b_.data(), 
       max_error, 
-      max_rel_error);
+      max_rel_error,
+      max_restarts);
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
   //This can be done because the solver only cares about grad(P) = grad(P-mean(P))

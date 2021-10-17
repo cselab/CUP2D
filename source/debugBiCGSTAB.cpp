@@ -45,7 +45,8 @@ int main(){
       x_est.data(),
       b.data(),
       1e-20,
-      1e-20);
+      1e-20,
+      0);
   
   double rms = rmsVec(x_true, x_est);
   std::cout << "BiCGSTAB done, RMS error between true and estimate: " << rms << std::endl;;

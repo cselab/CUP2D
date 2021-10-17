@@ -10,4 +10,5 @@ extern "C" void BiCGSTAB(
     double* const h_x,
     double* const h_b,
     const double max_error,
-    const double max_rel_error);
+    const double max_rel_error,
+    const int max_restarts);
