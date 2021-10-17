@@ -202,7 +202,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
     // Add matrix elements associated to contributions from west/east on southern/northern boundary of block (with corners)
     for(int ix=0; ix<BSX; ix++)
     for(int iy=0; iy<BSY; iy+=(BSY-1))
-    { // The inner loop executes on iy = [0, BSX-1] (southern/northern boundary), at ix = [0, BSX-1] interaction
+    { // The inner loop executes on iy = {0, BSY-1} (southern/northern boundary), at ix = [0, BSX-1] interaction
       // with western/eastern block takes place
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
 
@@ -251,7 +251,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
       this->h_cooMatPushBack(1., sfc_idx, nn_idx);
 
       if(isSouthBoundary){
-        if(isWestBoundary || isEastBoundary)
+        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
           this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
         }
@@ -261,7 +261,14 @@ void cudaAMRSolver::unifLinsysPrepHost()
         }
       }
       else{
-        this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
+        { // Could still be east/west boundary!
+          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        }
+        else
+        { // Otherwise the diagonal element does not change
+          this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        }
         if (sim.tmp->Tree(rhsNei_south).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
@@ -284,7 +291,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
       this->h_cooMatPushBack(1., sfc_idx, sn_idx);
 
       if (isNorthBoundary){
-        if (isWestBoundary || isEastBoundary)
+        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
           this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
         }
@@ -294,7 +301,14 @@ void cudaAMRSolver::unifLinsysPrepHost()
         }
       }
       else{
-        this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
+        { // Could still be east/west boundary!
+          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        }
+        else
+        { // Otherwise the diagonal element does not change
+          this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        }
         if (sim.tmp->Tree(rhsNei_north).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_north and access the gridpoint-data etc.
