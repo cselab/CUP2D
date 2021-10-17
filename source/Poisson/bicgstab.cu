@@ -90,8 +90,6 @@ extern "C" void BiCGSTAB(
   */
 
   // Initialize BiCGSTAB arrays and allocate memory
-  double* d_rcurr = NULL;
-  double* d_rprev = NULL;
   double* d_rhat = NULL;
   double* d_p = NULL;
   double* d_nu = NULL;
@@ -103,6 +101,7 @@ extern "C" void BiCGSTAB(
 
   // Initialize variables to evaluate convergence
   double x_error = 1e50;
+  double x_error_init = 1e50;
   double* d_xprev = NULL;
   checkCudaErrors(cudaMallocAsync(&d_xprev, m * sizeof(double), solver_stream));
 
@@ -149,6 +148,12 @@ extern "C" void BiCGSTAB(
         CUSPARSE_MV_ALG_DEFAULT, 
         SpMVBuff)); 
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_nu, 1, d_b, 1)); // r <- -A*x_0 + b
+  
+  // Calculate x_error_init for max_rel_error comparisons
+  checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
+  checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
+
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
@@ -209,7 +214,7 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if(x_error < max_error)
+    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     {
       std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
       // bConverged = true;
@@ -254,7 +259,7 @@ extern "C" void BiCGSTAB(
     {
       std::cout << "[BiCGSTAB]: RMS error after " << k << " iterations: " << x_error << std::endl;
     }
-    if(x_error < max_error)
+    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     {
       std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       // bConverged = true;
