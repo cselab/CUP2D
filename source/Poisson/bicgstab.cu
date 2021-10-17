@@ -173,7 +173,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaMemsetAsync(d_p, 0, m * sizeof(double), solver_stream));
 
   // 5. Start iterations
-  const size_t max_iter = 10000;
+  const size_t max_iter = 100000;
   for(size_t k(0); k<max_iter; k++)
   {
     // 1. rho_i = (r_hat, r)
@@ -230,7 +230,7 @@ extern "C" void BiCGSTAB(
     double alpha_den;
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
-    alpha = rho_curr / alpha_den; // alpha <- rho_i / alpha
+    alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
 
     // 6. h = alpha*p_i + x_{i-1}
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
@@ -272,7 +272,7 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cublasDdot(cublas_handle, m, d_t, 1, d_b, 1, &omega_num)); // alpha <- (t,s)
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_t, 1, &omega_den));          // beta <- sqrt(t,t)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host arithmetic
-    omega = omega_num / (omega_den * omega_den);
+    omega = omega_num / (omega_den * omega_den + eps);
 
     // 11. x_i = omega_i * s + h
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
