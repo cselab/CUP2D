@@ -159,6 +159,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
   // 3. Set initial values to scalars
+  bool bConverged = false;
   int restarts = 0;
   double rho_curr = 1.;
   double rho_prev = 1.;
@@ -172,7 +173,8 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaMemsetAsync(d_p, 0, m * sizeof(double), solver_stream));
 
   // 5. Start iterations
-  for(size_t k(0); k<100000; k++)
+  const size_t max_iter = 10000;
+  for(size_t k(0); k<max_iter; k++)
   {
     // 1. rho_i = (r_hat, r)
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_b, 1, &rho_curr));
@@ -197,6 +199,7 @@ extern "C" void BiCGSTAB(
       std::cout << "[BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
+      checkCudaErrors(cudaStreamSynchronize(solver_stream)); 
       rho_curr *= rho_curr;
       rho_prev = 1.;
       alpha = 1.;
@@ -238,11 +241,11 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    // if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
-    if(x_error <= max_error)
+    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    // if(x_error <= max_error)
     {
       std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
-      // bConverged = true;
+      bConverged = true;
       break;
     }
 
@@ -280,11 +283,11 @@ extern "C" void BiCGSTAB(
     checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    //if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
-    if(x_error <= max_error)
+    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    // if(x_error <= max_error)
     {
       std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
-      // bConverged = true;
+      bConverged = true;
       break;
     }
 
@@ -296,7 +299,11 @@ extern "C" void BiCGSTAB(
     rho_prev = rho_curr;
   }
 
-  // TODO: zero-center the solution
+  if( bConverged )
+    std::cout <<  " Error norm (relative) = " << x_error << "/" << max_error << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+  else
+    std::cout <<  "  [Poisson solver]: Iteration " << max_iter << ". Error norm (relative) = " << x_error << "/" << max_error << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+
 
   // Copy result back to host
   checkCudaErrors(cudaMemcpyAsync(h_x, d_x, m * sizeof(double), cudaMemcpyDeviceToHost, solver_stream));

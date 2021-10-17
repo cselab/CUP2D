@@ -60,6 +60,12 @@ void cudaAMRSolver::unifLinsysPrepHost()
   this->h_cooRowA_.reserve(5 * N);
   this->h_cooColA_.reserve(5 * N);
 
+  size_t double_bd = 0;
+  size_t north_bd = 0;
+  size_t south_bd = 0;
+  size_t east_bd = 0;
+  size_t west_bd = 0;
+
   // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
   for(size_t i=0; i< Nblocks; i++)
   {    
@@ -159,6 +165,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
 
       if (isWestBoundary){
         this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        west_bd++;
       }
       else{
         this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
@@ -185,6 +192,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
 
       if (isEastBoundary){
         this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        east_bd++;
       }
       else{
         this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
@@ -251,9 +259,13 @@ void cudaAMRSolver::unifLinsysPrepHost()
       this->h_cooMatPushBack(1., sfc_idx, nn_idx);
 
       if(isSouthBoundary){
+        south_bd++;
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
           this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
+          double_bd++;
+          west_bd += isWestBoundary ? 1 : 0;
+          east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // One boundary condition to consider for diagonal element
@@ -264,6 +276,8 @@ void cudaAMRSolver::unifLinsysPrepHost()
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Could still be east/west boundary!
           this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          west_bd += isWestBoundary ? 1 : 0;
+          east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // Otherwise the diagonal element does not change
@@ -291,9 +305,13 @@ void cudaAMRSolver::unifLinsysPrepHost()
       this->h_cooMatPushBack(1., sfc_idx, sn_idx);
 
       if (isNorthBoundary){
+        north_bd++;
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
           this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
+          double_bd++;
+          west_bd += isWestBoundary ? 1 : 0;
+          east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // One boundary condition to consider for diagonal element
@@ -304,6 +322,8 @@ void cudaAMRSolver::unifLinsysPrepHost()
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Could still be east/west boundary!
           this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          west_bd += isWestBoundary ? 1 : 0;
+          east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // Otherwise the diagonal element does not change
@@ -320,7 +340,11 @@ void cudaAMRSolver::unifLinsysPrepHost()
       }
     }
   }
-
+  std::cout << "Corner BC's: " << double_bd << std::endl;
+  std::cout << "North BC's: " << north_bd << std::endl;
+  std::cout << "East BC's: " << east_bd << std::endl;
+  std::cout << "South BC's: " << south_bd << std::endl;
+  std::cout << "West BC's: " << west_bd << std::endl;
   // Save params of current linear system
   m_ = N; // rows
   n_ = N; // cols
