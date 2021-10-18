@@ -1,9 +1,3 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 #include "Windmill.h"
 #include "ShapeLibrary.h"
 #include "../Utils/BufferedLogger.h"
@@ -14,7 +8,7 @@ using namespace cubism;
 void Windmill::create(const std::vector<BlockInfo>& vInfo)
 {
   // windmill stuff
-  const Real h = sim.getH();
+  const Real h =  vInfo[0].h_gridpoint;
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
@@ -91,6 +85,8 @@ void Windmill::updatePosition(double dt)
   // compute the energies as well
   Real r_energy = -std::abs(appliedTorque*omega)*sim.dt;
   energy += r_energy;
+  // std::vector<double> avg = easyAverage();
+  // std::vector<double> avg2 = sophAverage();
 }
 
 void Windmill::setTarget(std::array<Real, 2> target_pos)
@@ -107,7 +103,7 @@ void Windmill::printVelAtTarget()
     std::stringstream & fout = logger.get_stream(ssF.str());
 
     // compute average
-    std::vector<double>  avg = average(target);
+    std::vector<double>  avg = easyAverage();
     double norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
 
     fout<<sim.time<<" "<<norm<<std::endl;
@@ -183,7 +179,7 @@ double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
   // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   // compute average
   
-  std::vector<Real> avg = average(target);
+  std::vector<Real> avg = easyAverage();
   // compute norm of difference beween target and average velocity
   //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
   std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
@@ -219,7 +215,10 @@ std::vector<double>  Windmill::state()
   std::vector<double> state(2);
 
   // angle
-  state[0] = orientation;
+  // there exist a rotational symmetry, at every 120 degrees, so basically 
+  double mill_orientation = std::fmod(orientation, M_PI/3);
+  
+  state[0] = mill_orientation;
 
   state[1] = omega;
   // angular velocity, dimensionless so multiply by seconds
@@ -228,6 +227,7 @@ std::vector<double>  Windmill::state()
 
   return state;
 }
+
 
 /* helpers to compute reward */
 
@@ -250,6 +250,9 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 
   // get index for sensor
   const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
+
+  // // get velocity field at point
+  // const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
 
   // stencil for averaging
   static constexpr int stenBeg[3] = {-5,-5, 0}, stenEnd[3] = { 6, 6, 1};
@@ -274,6 +277,175 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
   avgY/=121.0;
   
   return std::vector<double> {avgX, avgY};
+}
+
+std::vector<double> Windmill::easyAverage() const
+{
+   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+  // dummy average
+  std::vector<double> sum = {0.0, 0.0};
+  double total_area = 0.0;
+  
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            total_area += da;
+            sum[0] += b(i, j).u[0] * da;
+            sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      }
+  }
+
+  // dummy average
+  sum[0]/= total_area;
+  sum[1]/= total_area;
+
+  // intelligent average
+  // smart_sum[0]/= smart_total_area;
+  // smart_sum[1]/= smart_total_area;
+
+  std::cout<<" Dummy Average: ["<< sum[0] <<", "<< sum[1] <<"] => NUM_PTS = "<<total_area<<std::endl;
+  // std::cout<<" Smart Average: ["<< smart_sum[0] <<", "<< smart_sum[1] <<"]=> NUM_PTS = "<<smart_total_area<<std::endl;
+  return sum;
+}
+
+std::vector<double> Windmill::sophAverage() const
+{
+  // Dummy way, looping over all the points in the grid and checking whether they are in the region of interest.
+
+  // get info on the blocks
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+  // // dummy average
+  // std::vector<double> sum = {0.0, 0.0};
+  // double total_area = 0.0;
+
+  // intelligent average
+  std::vector<double> smart_sum = {0.0, 0.0};
+  double smart_total_area = 0.0;
+  
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    // // dummy average
+    // for(size_t i=0; i < b.sizeX; ++i)
+    // {
+    //   for(size_t j=0; j < b.sizeY; ++j)
+    //   {
+    //     const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+    //     if (isInArea(oSens))
+    //     {
+    //       total_area += da;
+    //       sum[0] += b(i, j).u[0] * da;
+    //       sum[1] += b(i, j).u[1] * da;
+    //     }
+    //   }
+    // }
+
+    // intelligent average
+    // get the lower left and upper right terms of the block
+    std::array<Real,2> ll = velInfo[t].pos<Real>(0, 0);
+    std::array<Real,2> ul = velInfo[t].pos<Real>(0, b.sizeY-1);
+    std::array<Real,2> ur = velInfo[t].pos<Real>(b.sizeX-1, b.sizeY-1);
+    std::array<Real,2> lr = velInfo[t].pos<Real>(b.sizeX-1, 0);
+
+    // block is entirely inside the region
+    if (isInArea(ll) && isInArea(ul) && isInArea(ur) && isInArea(lr))
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          smart_total_area += da;
+          smart_sum[0] += b(i, j).u[0] * da;
+          smart_sum[1] += b(i, j).u[1] * da;
+        }
+      }
+
+    } // block is partly inside the region
+    else if (isInArea(ll) || isInArea(ul) || isInArea(ur) || isInArea(lr))
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            smart_total_area += da;
+            smart_sum[0] += b(i, j).u[0] * da;
+            smart_sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      } // region is contained within one block
+    } else if (target[0] >= ul[0] && target[0] <= ur[0] && target[1] <= ur[1] && target[1] >= lr[1])
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            smart_total_area += da;
+            smart_sum[0] += b(i, j).u[0] * da;
+            smart_sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      }
+    }
+
+  }
+
+  // dummy average
+  // sum[0]/= total_area;
+  // sum[1]/= total_area;
+
+  // intelligent average
+  smart_sum[0]/= smart_total_area;
+  smart_sum[1]/= smart_total_area;
+
+  // std::cout<<" Dummy Average: ["<< sum[0] <<", "<< sum[1] <<"] => NUM_PTS = "<<total_area<<std::endl;
+  std::cout<<" Smart Average: ["<< smart_sum[0] <<", "<< smart_sum[1] <<"]=> NUM_PTS = "<<smart_total_area<<std::endl;
+
+  return smart_sum;
+
+}
+
+bool Windmill::isInArea(const std::array<Real, 2> point) const
+{
+  std::array<Real, 2> lower_left = {target[0]-dimensions[0]/2.0, target[1]-dimensions[1]/2.0};
+  std::array<Real, 2> upper_right = {target[0]+dimensions[0]/2.0, target[1]+dimensions[1]/2.0};
+
+  if(point[0] >= lower_left[0] && point[0] <= upper_right[0])
+  {
+    if(point[1] >= lower_left[1] && point[1] <= upper_right[1])
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // function that finds block id of block containing pos (x,y)
@@ -315,3 +487,109 @@ std::array<int, 2> Windmill::safeIdInBlock(const std::array<Real,2> pos, const s
   const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
   return std::array<int, 2>{{ix, iy}};
 };
+
+
+std::vector<std::vector<double>> Windmill::getUniformGrid()
+{
+
+  // // get pointer on block
+  // // const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+  // const unsigned int nX = VectorBlock::sizeX;
+  // const unsigned int nY = VectorBlock::sizeY;
+  
+
+  // std::vector<VectorBlock *> velblocks = sim.vel->GetBlocks();
+  // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  // std::array<int, 3> bpd = sim.vel->getMaxBlocks();
+  // const unsigned int unx = bpd[0]*(1<<(levelMax-1))*nX;
+  // const unsigned int uny = bpd[1]*(1<<(levelMax-1))*nY;
+  // const unsigned int NCHANNELS = 2;
+
+
+  // std::vector <float> uniform_mesh(uny*unx*NCHANNELS);
+
+  // for (size_t i = 0 ; i < velInfo.size() ; i++)
+  // {
+  //   const int level = velInfo[i].level;
+  //   const VectorBlock& block = * (const VectorBlock*) velInfo[t].ptrBlock;
+
+  //   for (unsigned int y = 0; y < nY; y++)
+  //   for (unsigned int x = 0; x < nX; x++)
+  //   {
+  //     //////// need to clarify this stuff
+  //     float output[NCHANNELS]={0.0};
+  //     float dudx  [NCHANNELS]={0.0};
+  //     float dudy  [NCHANNELS]={0.0};
+  //     TStreamer::operate(block, x, y, 0, (float *)output); //StreamerVector in Definitions.h
+
+  //     if (x!= 0 && x!= nX-1)
+  //     {
+  //       float output_p [NCHANNELS]={0.0};
+  //       float output_m [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+  //       TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudx[j] = 0.5*(output_p[j]-output_m[j]);
+  //     }
+  //     else if (x==0)
+  //     {
+  //       float output_p [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudx[j] = output_p[j]-output[j];        
+  //     }
+  //     else
+  //     {
+  //       float output_m [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudx[j] = output[j]-output_m[j];        
+  //     }
+
+  //     if (y!= 0 && y!= nY-1)
+  //     {
+  //       float output_p [NCHANNELS]={0.0};
+  //       float output_m [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+  //       TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudy[j] = 0.5*(output_p[j]-output_m[j]);
+  //     }
+  //     else if (y==0)
+  //     {
+  //       float output_p [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudy[j] = output_p[j]-output[j];        
+  //     }
+  //     else
+  //     {
+  //       float output_m [NCHANNELS]={0.0};
+  //       TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         dudy[j] = output[j]-output_m[j];        
+  //     }
+
+  //     int iy_start = (info.index[1]*nY + y)*(1<< ( (levelMax-1)-level ) );
+  //     int ix_start = (info.index[0]*nX + x)*(1<< ( (levelMax-1)-level ) );
+
+  //     const int points = 1<< ( (levelMax-1)-level ); 
+  //     const double dh = 1.0/points;
+
+  //     for (int iy = iy_start; iy< iy_start + (1<< ( (levelMax-1)-level ) ); iy++)
+  //     for (int ix = ix_start; ix< ix_start + (1<< ( (levelMax-1)-level ) ); ix++)
+  //     {
+  //       double cx = (ix - ix_start - points/2 + 1 - 0.5)*dh;
+  //       double cy = (iy - iy_start - points/2 + 1 - 0.5)*dh;
+  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
+  //         uniform_mesh[iy*NCHANNELS*unx+ix*NCHANNELS+j] = output[j]+ cx*dudx[j]+ cy*dudy[j];
+  //     }
+  //   }
+
+  //   }
+
+  // }
+  
+
+
+}

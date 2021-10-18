@@ -1,11 +1,3 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
-#pragma once
-
 #include "../Shape.h"
 
 class Windmill : public Shape
@@ -17,7 +9,8 @@ class Windmill : public Shape
   const Real sminax = std::min(semiAxis[0], semiAxis[1]);
   const Real windscale = std::sqrt(forcedu*forcedu+forcedv*forcedv);
   const Real lengthscale = getCharLength();
-  std::array<Real, 2> target = {0.7, 0.7};
+  std::array<Real, 2> target = {0.7, 0.6};
+  std::array<Real, 2> dimensions = {0.1, 0.1};
   Real energy = 0;
 
  public:
@@ -25,6 +18,7 @@ class Windmill : public Shape
   Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
+    
   }
 
   void resetAll() override
@@ -51,6 +45,13 @@ class Windmill : public Shape
 
   // Helpers for reward function
   std::vector<double> average(std::array<Real, 2> pSens) const;
+
+  std::vector<double> easyAverage() const;
+  std::vector<double> sophAverage() const;
+
+  bool isInArea(const std::array<Real, 2> point) const;
+
+  std::vector<std::vector<double>> getUniformGrid();
   
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
