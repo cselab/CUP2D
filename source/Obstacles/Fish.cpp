@@ -39,7 +39,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
   // rotates fish midline to current angle and removes angular moment:
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-  #if 0 //NDEBUG
+  #if 0 //ndef NDEBUG
   {
     Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
     // check that things are zero
@@ -86,7 +86,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
       bbox[1][0] = std::min(bbox[1][0], minY);
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
-    const Real DD = 2*vInfo[0].h_gridpoint; //two points on each side
+    const Real DD = 4*sim.getH(); //two points on each side
     //const Real safe_distance = info.h_gridpoint; // one point on each side
     AreaSegment*const tAS=new AreaSegment(std::make_pair(idx,next_idx),bbox,DD);
     tAS->changeToComputationalFrame(center, orientation);
