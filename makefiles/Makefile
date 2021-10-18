@@ -36,10 +36,11 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = \
-		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Fish.o SmartCylinder.o \
-		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
+		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
+		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
+		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
+		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o Teardrop.o
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
