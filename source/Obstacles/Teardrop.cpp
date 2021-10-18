@@ -21,7 +21,7 @@ class TeardropData : public FishData
   Real _width(const Real s, const Real L) override
   {
     // Compute radius of half-circle using given t-ratio
-    const Real R = tRatio*L;
+    const Real R = tRatio*L/2;
 
     // safety
     if(s<0 or s>L) return 0;
