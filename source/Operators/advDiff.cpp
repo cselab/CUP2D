@@ -8,6 +8,69 @@
 
 using namespace cubism;
 
+static inline Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
+{
+  const double exponent = 2;
+  const double e = 1e-6;
+  const double b1 = 13.0/12.0*pow(um2-2*um1+u,2)+0.25*pow(um2-4*um1+3*u,2);
+  const double b2 = 13.0/12.0*pow(um1-2*u+up1,2)+0.25*pow(um1-up1,2);
+  const double b3 = 13.0/12.0*pow(u-2*up1+up2,2)+0.25*pow(3*u-4*up1+up2,2);
+  const double g1 = 0.1;
+  const double g2 = 0.6;
+  const double g3 = 0.3;
+  const double what1 = g1/pow(b1+e,exponent);
+  const double what2 = g2/pow(b2+e,exponent);
+  const double what3 = g3/pow(b3+e,exponent);
+  const double w1 = what1/(what1+what2+what3);
+  const double w2 = what2/(what1+what2+what3);
+  const double w3 = what3/(what1+what2+what3);
+  const double f1 =  1.0/3.0*um2-7.0/6.0*um1+11.0/6.0*u;
+  const double f2 = -1.0/6.0*um1+5.0/6.0*u  + 1.0/3.0*up1;
+  const double f3 =  1.0/3.0*u  +5.0/6.0*up1- 1.0/6.0*up2;
+  return w1*f1+w2*f2+w3*f3;
+}
+
+static inline Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
+{
+  const double exponent = 2;
+  const double e = 1e-6;
+  const double b1 = 13.0/12.0*pow(um2-2*um1+u,2)+0.25*pow(um2-4*um1+3*u,2);
+  const double b2 = 13.0/12.0*pow(um1-2*u+up1,2)+0.25*pow(um1-up1,2);
+  const double b3 = 13.0/12.0*pow(u-2*up1+up2,2)+0.25*pow(3*u-4*up1+up2,2);
+  const double g1 = 0.3;
+  const double g2 = 0.6;
+  const double g3 = 0.1;
+  const double what1 = g1/pow(b1+e,exponent);
+  const double what2 = g2/pow(b2+e,exponent);
+  const double what3 = g3/pow(b3+e,exponent);
+  const double w1 = what1/(what1+what2+what3);
+  const double w2 = what2/(what1+what2+what3);
+  const double w3 = what3/(what1+what2+what3);
+  const double f1 = -1.0/6.0*um2+5.0/6.0*um1+ 1.0/3.0*u;
+  const double f2 =  1.0/3.0*um1+5.0/6.0*u  - 1.0/6.0*up1;
+  const double f3 = 11.0/6.0*u  -7.0/6.0*up1+ 1.0/3.0*up2;
+  return w1*f1+w2*f2+w3*f3;
+}
+
+static inline Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
+                                            const Real u  ,
+                                            const Real up1, const Real up2, const Real up3)
+{
+  double fp = 0.0;
+  double fm = 0.0;
+  if (U > 0)
+  {
+    fp = weno5_plus (um2,um1,u,up1,up2);
+    fm = weno5_plus (um3,um2,um1,u,up1);
+  }
+  else
+  {
+    fp = weno5_minus(um1,u,up1,up2,up3);
+    fm = weno5_minus(um2,um1,u,up1,up2);
+  }
+  return (fp-fm);
+}
+
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
   const Real u    = V(ix,iy).u[0];
@@ -17,20 +80,24 @@ static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
 
   const Real up1x = V(ix+1,iy).u[0];
   const Real up2x = V(ix+2,iy).u[0];
+  const Real up3x = V(ix+3,iy).u[0];
   const Real um1x = V(ix-1,iy).u[0];
   const Real um2x = V(ix-2,iy).u[0];
+  const Real um3x = V(ix-3,iy).u[0];
 
   const Real up1y = V(ix,iy+1).u[0];
   const Real up2y = V(ix,iy+2).u[0];
+  const Real up3y = V(ix,iy+3).u[0];
   const Real um1y = V(ix,iy-1).u[0];
   const Real um2y = V(ix,iy-2).u[0];
-
-  const Real dudx = UU>0 ? (2*up1x + 3*u - 6*um1x + um2x) : (-up2x + 6*up1x - 3*u - 2*um1x);
-  const Real dudy = VV>0 ? (2*up1y + 3*u - 6*um1y + um2y) : (-up2y + 6*up1y - 3*u - 2*um1y);
+  const Real um3y = V(ix,iy-3).u[0];
+  
+  const Real dudx = derivative(UU,um3x,um2x,um1x,u,up1x,up2x,up3x);
+  const Real dudy = derivative(VV,um3y,um2y,um1y,u,up1y,up2y,up3y);
 
   return advF*(UU*dudx+VV*dudy) + difF*(up1x + up1y + um1x + um1y - 4*u);
 }
-
+  
 static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
   const Real u    = V(ix,iy).u[0];
@@ -40,20 +107,23 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
 
   const Real vp1x = V(ix+1,iy).u[1];
   const Real vp2x = V(ix+2,iy).u[1];
+  const Real vp3x = V(ix+3,iy).u[1];
   const Real vm1x = V(ix-1,iy).u[1];
   const Real vm2x = V(ix-2,iy).u[1];
+  const Real vm3x = V(ix-3,iy).u[1];
 
   const Real vp1y = V(ix,iy+1).u[1];
   const Real vp2y = V(ix,iy+2).u[1];
+  const Real vp3y = V(ix,iy+3).u[1];
   const Real vm1y = V(ix,iy-1).u[1];
   const Real vm2y = V(ix,iy-2).u[1];
+  const Real vm3y = V(ix,iy-3).u[1];
 
-  const Real dvdx = UU>0 ? (2*vp1x + 3*v - 6*vm1x + vm2x) : (-vp2x + 6*vp1x - 3*v - 2*vm1x);
-  const Real dvdy = VV>0 ? (2*vp1y + 3*v - 6*vm1y + vm2y) : (-vp2y + 6*vp1y - 3*v - 2*vm1y);
+  const Real dvdx = derivative(UU,vm3x,vm2x,vm1x,v,vp1x,vp2x,vp3x);
+  const Real dvdy = derivative(VV,vm3y,vm2y,vm1y,v,vp1y,vp2y,vp3y);
 
   return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
 }
-
 
 void advDiff::step(const int coef)
 {
@@ -66,7 +136,7 @@ void advDiff::step(const int coef)
   Corrector.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
-    static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
+    static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
     VectorLab V; 
     V.prepare(*(sim.vel), stenBeg, stenEnd, 0);
     const Real dfac = sim.nu*sim.dt;
@@ -75,7 +145,7 @@ void advDiff::step(const int coef)
     for (size_t i=0; i < Nblocks; i++)
     {
       const Real h = velInfo[i].h;
-      const Real afac = -sim.dt*h/6.0;
+      const Real afac = -sim.dt*h;
       V.load(velInfo[i], 0);
       VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
