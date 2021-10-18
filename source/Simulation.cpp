@@ -27,6 +27,7 @@
 #include "Obstacles/Naca.h"
 #include "Obstacles/Windmill.h"
 #include "Obstacles/Waterturbine.h"
+#include "Obstacles/Teardrop.h"
 
 //#include <regex>
 #include <algorithm>
@@ -209,6 +210,8 @@ void Simulation::createShapes()
         shape = new Windmill(         sim, ffparser, center);
       else if (objectName=="waterturbine")
         shape = new Waterturbine(     sim, ffparser, center);
+      else if (objectName=="teardrop")
+        shape = new Teardrop(         sim, ffparser, center);
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
       sim.shapes.push_back(shape);
@@ -354,8 +357,8 @@ bool Simulation::advance(const double dt)
   const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   std::cout
   <<"=======================================================================\n";
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
+    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f, collision?:%d\n",
+      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL, sim.bCollision); 
 
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
