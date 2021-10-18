@@ -34,7 +34,7 @@ class TeardropData : public FishData
       w = std::sqrt( R*R - (s-R)*(s-R) );
     else
       w = R - R * ( s - R ) / ( L - R );
-    std::cout << "s=" << s << ", w=" << w << std::endl;
+    // std::cout << "s=" << s << ", w=" << w << std::endl;
     assert( w >= 0 );
     return w;
   }
