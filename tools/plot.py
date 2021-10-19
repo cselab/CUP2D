@@ -54,7 +54,8 @@ def plotForceTime( root, runname, radius, i, j ):
   #######################
 
   ## compute object speed ##
-  speed = np.sqrt(u**2 + v**2)
+  # speed = np.sqrt(u**2 + v**2)
+  speed = 0.2
   ##########################
 
   ## dimensionless time ##
@@ -62,13 +63,15 @@ def plotForceTime( root, runname, radius, i, j ):
   ########################
 
   ## compute drag ##
-  totDrag = (u*forceX+v*forceY) / speed
+  # totDrag = (u*forceX+v*forceY) / speed
+  totDrag = forceX
   dragCoeff = -totDrag / (radius*speed*speed)
   # print("drag:", totDrag, dragCoeff)
   ##################
 
   ## compute lift ##
-  totLift = (-v*forceX+u*forceY) / speed
+  # totLift = (-v*forceX+u*forceY) / speed
+  totLift = forceY
   liftCoeff = -totLift / (radius*speed*speed)
   # print("lift:", totLift, liftCoeff)
   ##################
@@ -111,8 +114,12 @@ def plotForceTime( root, runname, radius, i, j ):
   #################################################################################
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
   # if i == j+2:
-  ## for disk plot drag ##
-  plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+4))
+  ## plot drag ##
+  plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+  ########################
+
+  ## plot lift ##
+  plt.plot(time, liftCoeff, color=lighten_color(colors[i],1.2), label="present ({} levels)".format(i+5))
   ########################
 
   ## plot autocorrelation of drag/lift to detect frequency ##
@@ -199,21 +206,8 @@ def plotDragTimeCylinder():
     for i in range( len(runname) ):
       plotForceTime( rootSCRATCH, runname[i], radius, i, j )
 
-    if case == "40" or case == "200":
-      plt.ylim([0,8])
-    ## for initial time
-    # if case == "40":
-    #   plt.ylim([0,25])
-    elif case == "1000":
-      plt.ylim([0,4])
-    elif case == "9500":
-      plt.ylim([0,3])
-    else: 
-      # plt.ylim([0,0.4])
-      plt.ylim([0,2])
-
-    plt.xlabel("Time $T=tu_\infty/r$")
-    plt.ylabel("Drag Coefficient $C_D=|F_x|/ru_\infty^2$")
+    plt.xlabel("Time $T=tu_\infty/c$")
+    plt.ylabel("Thrust Coefficient $C_T=|F_x|/cu_\infty^2$")
     # plt.title("Re={}".format(case))
     plt.grid(b=True, which='major', color="white", linestyle='-')
     plt.legend(loc = 'upper right')
@@ -658,8 +652,46 @@ def scaling():
   plt.plot(cores, cores, "k--")
   plt.savefig("scaling.png")
 
+def plotForceTimeTeardrop():
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+
+  # runname = [ "teardrop_levels{:01d}".format(level) for level in np.arange(5,9) ]
+  runname = [ "testTeardrop" ]
+
+
+  ###### plot validation data ######
+  ##################################
+
+  validationPath = "/project/s929/pweber/hydrofoilValidationData/fStar-664_Re5400.csv"
+  validationData = np.loadtxt(validationPath, delimiter=",", skiprows=1)
+  plt.plot(0.5e-2*validationData[:,0], validationData[:,1], "2k", label="reference drag", zorder=10)
+  plt.plot(0.5e-2*validationData[:,0], validationData[:,3], "2k", label="reference lift", zorder=10)
+
+  ###### plot simulation data ######
+  ##################################
+
+  chordlength = 0.1
+
+  for i in range( len(runname) ):
+    plotForceTime( rootSCRATCH, runname[i], chordlength, i, 0 )
+
+  plt.xlabel("Time $T=tu_\infty/r$")
+  plt.ylabel("Thrust Coefficient $C_T=2|F_x|/cu_\infty^2$")
+  plt.ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
+  # plt.title("Re={}".format(case))
+  plt.grid(b=True, which='major', color="white", linestyle='-')
+  plt.legend(loc = 'upper right')
+  plt.xlim([0,100])
+  plt.ylim([-5,5])
+  # plt.xscale("log")
+  # plt.yscale("log")
+  plt.show()
+
 if __name__ == '__main__':
   # plotDragTimeCylinder()
+  
+  plotForceTimeTeardrop()
   
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
@@ -670,5 +702,5 @@ if __name__ == '__main__':
 
   # scaling()
   
-  plotBlocksTime()
+  # plotBlocksTime()
   # gridRefiment()
