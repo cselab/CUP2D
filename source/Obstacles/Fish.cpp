@@ -67,6 +67,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   profile(push_start("boxes"));
 
   std::vector<AreaSegment*> vSegments(Nsegments, nullptr);
+  const Real h = sim.getH();
   #pragma omp parallel for schedule(static)
   for(int i=0; i<Nsegments; ++i)
   {
@@ -86,7 +87,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
       bbox[1][0] = std::min(bbox[1][0], minY);
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
-    const Real DD = 4*sim.getH(); //two points on each side
+    const Real DD = 4*h; //two points on each side
     //const Real safe_distance = info.h_gridpoint; // one point on each side
     AreaSegment*const tAS=new AreaSegment(std::make_pair(idx,next_idx),bbox,DD);
     tAS->changeToComputationalFrame(center, orientation);
