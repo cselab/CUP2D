@@ -416,7 +416,7 @@ bool Simulation::advance(const double dt)
 
   const bool bOver = sim.bOver();
 
-  if (bOver){
+  if (bOver && sim.rank == 0 ){
     std::cout
   <<"=======================================================================\n";
     std::cout << "[CUP2D] Simulation Over... Profiling information:\n";
