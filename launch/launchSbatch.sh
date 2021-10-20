@@ -11,6 +11,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --account=s929
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --time=24:00:00
+# #SBATCH --time=00:30:00
+# #SBATCH --partition=debug
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
