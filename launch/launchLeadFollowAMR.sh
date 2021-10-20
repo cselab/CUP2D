@@ -22,7 +22,7 @@ PID=${PID:-1}
 NU=${NU:-0.00004}
 
 # Settings for Obstacle
-OBSTACLE=${OBSTACLE:-halfDisk}
+OBSTACLE=${OBSTACLE:-waterturbine}
 XPOSLEADER=${XPOSLEADER:-0.6}
 
 if [ "$OBSTACLE" = "multitask" ]
@@ -94,6 +94,21 @@ then
 stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=0.90
 stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=1.10
 stefanfish L=$LENGTH T=$PERIOD xpos=1.20 ypos=1.00
+"
+	echo $OBJECTS
+	echo "###############################"
+elif [ "$OBSTACLE" = "waterturbine" ]
+then
+	echo "setting options for waterturbine"
+	# options for Waterturbine
+	NAGENTS=1 #1 fish
+	XVEL=${XVEL:-0.2} #streamwise velocity, 0.25m/s in experiment <-> 0.2 according to settings, scale by 1.25
+	ANGVEL=${ANGVEL:--0.79} #angular velocity, in experiment 7.91 rad/s, omega=1.9*xvel/turbineRadius, turbine radius scaled to fish #0.79
+	MAAXIS=${MAAXIS:-0.05} #semi-major axis, 0.015m in experiment, fish length in exp 0.06m i.e. scale 1/4; here fish 0.2m therefore majax 0.05
+	MIAXIS=${MIAXIS:-0.017} # semi-minor axis, 0.01m ish in experiment, i.e. scale by 1/12 to fish length
+	# set object string
+	OBJECTS="waterturbine semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOSLEADER bForced=1 bFixed=1 xvel=$XVEL angvel=$ANGVEL tAccel=0
+	stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER
 "
 	echo $OBJECTS
 	echo "###############################"
