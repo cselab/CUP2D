@@ -229,22 +229,23 @@ void Shape::computeForces()
   perimeter = 0; forcex = 0; forcey = 0; forcex_P = 0;
   forcey_P = 0; forcex_V = 0; forcey_V = 0; torque = 0;
   torque_P = 0; torque_V = 0; drag = 0; thrust = 0; lift= 0; 
-  Pout = 0; PoutBnd = 0; defPower = 0; defPowerBnd = 0; circulation = 0;
+  Pout = 0; PoutNew = 0; PoutBnd = 0; defPower = 0; defPowerBnd = 0; circulation = 0;
 
   for (auto & block : obstacleBlocks) if(block not_eq nullptr)
   {
     circulation += block->circulation;
-    perimeter += block->perimeter; torque   += block->torque;
-    forcex   += block->forcex;     forcey   += block->forcey;
-    forcex_P += block->forcex_P;   forcey_P += block->forcey_P;
-    forcex_V += block->forcex_V;   forcey_V += block->forcey_V;
-    torque_P += block->torque_P;   torque_V += block->torque_V;
-    drag     += block->drag;       thrust   += block->thrust;
-    lift     += block->lift;
-    Pout += block->Pout; defPowerBnd += block->defPowerBnd;
-    PoutBnd += block->PoutBnd; defPower += block->defPower;
+    perimeter   += block->perimeter;  torque   += block->torque;
+    forcex      += block->forcex;     forcey   += block->forcey;
+    forcex_P    += block->forcex_P;   forcey_P += block->forcey_P;
+    forcex_V    += block->forcex_V;   forcey_V += block->forcey_V;
+    torque_P    += block->torque_P;   torque_V += block->torque_V;
+    drag        += block->drag;       thrust   += block->thrust;
+    lift        += block->lift;
+    Pout        += block->Pout;        PoutNew += block->PoutNew;
+    defPowerBnd += block->defPowerBnd;
+    PoutBnd += block->PoutBnd;        defPower += block->defPower;
   }
-  double quantities[18];
+  double quantities[19];
   quantities[ 0] = circulation;
   quantities[ 1] = perimeter  ;
   quantities[ 2] = forcex     ;
@@ -254,16 +255,17 @@ void Shape::computeForces()
   quantities[ 6] = drag       ;
   quantities[ 7] = lift       ;
   quantities[ 8] = Pout       ;
-  quantities[ 9] = PoutBnd    ;
-  quantities[10] = torque     ;
-  quantities[11] = forcey     ;
-  quantities[12] = forcey_P   ;
-  quantities[13] = forcey_V   ;
-  quantities[14] = torque_V   ;
-  quantities[15] = thrust     ;
-  quantities[16] = defPowerBnd;
-  quantities[17] = defPower   ;
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 18, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  quantities[ 9] = PoutNew    ;
+  quantities[10] = PoutBnd    ;
+  quantities[11] = torque     ;
+  quantities[12] = forcey     ;
+  quantities[13] = forcey_P   ;
+  quantities[14] = forcey_V   ;
+  quantities[15] = torque_V   ;
+  quantities[16] = thrust     ;
+  quantities[17] = defPowerBnd;
+  quantities[18] = defPower   ;
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
   circulation = quantities[ 0];
   perimeter   = quantities[ 1];
   forcex      = quantities[ 2];
@@ -273,15 +275,16 @@ void Shape::computeForces()
   drag        = quantities[ 6];
   lift        = quantities[ 7];
   Pout        = quantities[ 8];
-  PoutBnd     = quantities[ 9];
-  torque      = quantities[10];
-  forcey      = quantities[11];
-  forcey_P    = quantities[12];
-  forcey_V    = quantities[13];
-  torque_V    = quantities[14];
-  thrust      = quantities[15];
-  defPowerBnd = quantities[16];
-  defPower    = quantities[17];
+  PoutNew     = quantities[ 9];
+  PoutBnd     = quantities[10];
+  torque      = quantities[11];
+  forcey      = quantities[12];
+  forcey_P    = quantities[13];
+  forcey_V    = quantities[14];
+  torque_V    = quantities[15];
+  thrust      = quantities[16];
+  defPowerBnd = quantities[17];
+  defPower    = quantities[18];
 
   //derived quantities:
   Pthrust    = thrust * std::sqrt(u*u + v*v);
@@ -332,8 +335,8 @@ void Shape::computeForces()
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(sim.step==0)
-      filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower EffPDefBnd EffPDef\n";
-    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
+      filePower<<"time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd defPower EffPDefBnd EffPDef\n";
+    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutNew<<" "<<PoutBnd<<" "<<Pout<<" "<<PoutNew<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
   }
 }
 
