@@ -155,6 +155,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
   checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
 
+  std::cout << "FIRST NORM: " << x_error_init << std::endl;
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
@@ -173,7 +174,7 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaMemsetAsync(d_p, 0, m * sizeof(double), solver_stream));
 
   // 5. Start iterations
-  const size_t max_iter = 100000;
+  const size_t max_iter = 1000;
   for(size_t k(0); k<max_iter; k++)
   {
     // 1. rho_i = (r_hat, r)

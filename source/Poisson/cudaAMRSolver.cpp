@@ -75,10 +75,12 @@ void cudaAMRSolver::unifLinsysPrepHost()
 
     // Construct RHS and x_0 vectors for linear system
     #pragma omp parallel for
-    for(int iy=1; iy<BSY-1; iy++)
-    for(int ix=1; ix<BSX-1; ix++)
+    for(int iy=0; iy<BSY; iy++)
+    for(int ix=0; ix<BSX; ix++)
     {
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
+      // h_b_[sfc_idx] = 0.;
+      // h_x_[sfc_idx] = 1.;
       h_b_[sfc_idx] = rhs(ix,iy).s;
       h_x_[sfc_idx] = p(ix,iy).s;
     }
@@ -332,7 +334,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
         if (sim.tmp->Tree(rhsNei_north).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_north and access the gridpoint-data etc.
-          const size_t i_north = rhsNei_south.blockID;
+          const size_t i_north = rhsNei_north.blockID;
           const int nn_idx = i_north*BSX*BSY+0*BSX+ix; // southmost cell belonging to north block
           this->h_cooMatPushBack(1., sfc_idx, nn_idx);
         }

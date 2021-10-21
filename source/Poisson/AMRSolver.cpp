@@ -10,6 +10,7 @@ using namespace cubism;
 
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
+   return;
    sim.startProfiler("Poisson solver: preconditioner");
   //The inverse of the preconditioner is stored in the form of LL^T (Cholesky decomposition), where L is a lower triangular matrix
    static constexpr int BSX = VectorBlock::sizeX; // = 8
