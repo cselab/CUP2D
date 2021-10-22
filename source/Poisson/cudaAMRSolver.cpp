@@ -9,9 +9,136 @@
 
 using namespace cubism;
 
+double cudaAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
+{
+   static constexpr int BSX = VectorBlock::sizeX;
+   int j1 = I1 / BSX;
+   int i1 = I1 % BSX;
+   int j2 = I2 / BSX;
+   int i2 = I2 % BSX;
+   if (i1==i2 && j1==j2)
+   {
+     return 4.0;
+   }
+   else if (abs(i1-i2) + abs(j1-j2) == 1)
+   {
+     return -1.0;
+   }
+   else
+   {
+     return 0.0;
+   }
+
+}
 cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
 {
   std::cout << "---------------- Calling on cudaAMRSolver() constructor ------------\n";
+
+  std::vector<std::vector<double>> L;
+  std::vector<std::vector<double>> L_lb; // left block in GJ
+  std::vector<std::vector<double>> L_rb; // right block in GJ and inverse of L
+
+  std::cout << "------------------ Memaloc -----------"<< std::endl;
+
+  int BSX = VectorBlock::sizeX;
+  int BSY = VectorBlock::sizeY;
+  int N = BSX*BSY;
+  L.resize(N);
+  L_lb.resize(N);
+  L_rb.resize(N);
+  for (int i = 0 ; i<N ; i++)
+  {
+    L[i].resize(i+1);
+    L_lb[i].resize(i+1);
+    L_rb[i].resize(i+1);
+  }
+
+  // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
+  std::cout << "------------------ Cholesky dec -----------"<< std::endl;
+  for (int i = 0 ; i<N ; i++)
+  {
+    double s1=0;
+    for (int k=0; k<=i-1; k++)
+      s1 += L[i][k]*L[i][k];
+    L[i][i] = sqrt(getA_local(i,i) - s1);
+    for (int j=i+1; j<N; j++)
+    {
+      double s2 = 0;
+      for (int k=0; k<=i-1; k++)
+        s2 += L[i][k]*L[j][k];
+      L[j][i] = (getA_local(j,i)-s2) / L[i][i];
+    }
+  }
+
+  // copy the Cholesky decomposition into the left block matrix which will be used in G-J and init L_rb
+  for (int i(0); i<N; i++)
+  for (int j(0); j<=i; j++){
+    L_lb[i][j] = L[i][j];
+    L_rb[i][j] = (i == j) ? 1. : 0.;
+  }
+
+  std::cout << "------------------ Cholesky inv -----------"<< std::endl;
+  // compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination
+  for (int br(0); br<N; br++)
+    { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
+    const double bsf = 1. / L_lb[br][br]; // scaling factor for base row
+    L_lb[br][br] *= bsf;
+    for (int c(0); c<=br; c++)
+    {
+      L_rb[br][c] *= bsf;
+    }
+
+    for (int wr(br+1); wr<N; wr++)
+    { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
+      const double wsf = L_lb[wr][br];
+      // For the left block matrix the base row is a single non-zero element on the diagonal
+      L_lb[wr][br] = 0; // L_lb[br][br] == 1 at this point
+      for (int c(0); c<=br; c++)
+      { // For the right block matrix the trasformation has to be applied for the whole row
+        // Ignore everything below 'eps' to avoid precision loss
+        L_rb[wr][c] -= (wsf * L_rb[br][c]);
+      }
+    }
+  }
+
+  std::cout << "------------------ Precond inv -----------"<< std::endl;
+  // P_inv_ holds inverse preconditionner in row major order!  This is leads to better memory access
+  // in the kernel that applies this preconditioner, but note that cuBLAS assumes column major
+  // matrices by default
+  P_inv_.resize(N * N); // use linear indexing for this matrix
+  for (int i(0); i<N; i++){
+    for (int j(0); j<N; j++){
+      double aux = 0.;
+      for (int k(0); k<N; k++){
+        aux += (i <= k && j <=k) ? L_rb[k][i] * L_rb[k][j] : 0.; // P_inv_ = (L^T)^{-1} L^{-1}
+      }
+      P_inv_[i*N+j] = aux;
+      std::cout << aux << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout << "------------------ Sanity check 2 -----------" << std::endl;
+  // ----- Sanity check ------
+  std::vector<double> P(N * N);
+  for (int i(0); i<N; i++)
+  for (int j(0); j<N; j++){
+    P[i*N + j] = getA_local(i,j);
+  }
+
+  // Assert identity
+  for (int i(0); i<N; i++){
+    for (int j(0); j<N; j++){
+      double aux1 = 0.;
+      double aux2 = 0.;
+      for (int k(0); k<N; k++){
+        aux1 += P[i*N + k]*P_inv_[k*N+j];
+        aux2 += P_inv_[i*N + k]*P[k*N+j];
+      }
+      std::cout << (aux2 > 1e-15 ? aux2 : 0) << " ";
+    }
+    std::cout << std::endl;
+  }
 }
 
 cudaAMRSolver::~cudaAMRSolver()

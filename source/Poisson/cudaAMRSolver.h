@@ -31,6 +31,9 @@ public:
   void solve();
 
 protected:
+  //This returns element K_{I1,I2}. It is used when we invert K
+  double getA_local(int I1,int I2);
+
   //this struct contains information such as the currect timestep size, fluid properties and many others
   SimulationData& sim; 
 
@@ -68,5 +71,8 @@ protected:
   // std::vector<std::vector<double>> Ld;
   // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
   // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+
+  // Row major linearly indexed matrix containing inverse preconditioner
+  std::vector<double> P_inv_; 
 
 };
