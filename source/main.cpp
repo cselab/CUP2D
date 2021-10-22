@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 
   double time = -MPI_Wtime();
 
-  Simulation* sim = new Simulation(argc, argv);
+  Simulation* sim = new Simulation(argc, argv, MPI_COMM_WORLD);
   sim->init();
   sim->simulate();
 

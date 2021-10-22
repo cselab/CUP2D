@@ -32,14 +32,14 @@ void SimulationData::allocateGrid()
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
   
-  chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
-  pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,MPI_COMM_WORLD,xperiodic,yperiodic,zperiodic);
+  chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 

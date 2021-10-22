@@ -13,6 +13,9 @@ class Shape;
 
 struct SimulationData
 {
+  // MPI communicator
+  MPI_Comm comm;
+
   /* parsed parameters */
   /*********************/
 
@@ -142,7 +145,7 @@ struct SimulationData
     {
       minHGrid = std::min(infos[i].h_gridpoint, minHGrid);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_DOUBLE, MPI_MIN, comm);
     return minHGrid;
   }
 

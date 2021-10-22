@@ -44,21 +44,24 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
   return tokens;
 }
 
-Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
+Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv)
 {
+  sim.comm = comm;
   int size;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&sim.rank);
+  MPI_Comm_size(sim.comm,&size);
+  MPI_Comm_rank(sim.comm,&sim.rank);
   if (sim.rank == 0)
   {
     std::cout <<"=======================================================================\n";
     std::cout <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
     std::cout <<"=======================================================================\n";
     parser.print_args();
-    std::cout <<"[CUP2D] Running with " << size << " ranks.\n";
+    #pragma omp parallel
+    {
+      int numThreads = omp_get_num_threads();
+      printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size, numThreads);
+    }
   }
-
-
 }
 
 Simulation::~Simulation()
@@ -344,7 +347,7 @@ double Simulation::calcMaxTimestep()
 
 bool Simulation::advance(const double dt)
 {
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(sim.comm);
 
   const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   if (sim.rank == 0)
@@ -433,6 +436,6 @@ bool Simulation::advance(const double dt)
   <<"=======================================================================\n";
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(sim.comm);
   return bOver;
 }

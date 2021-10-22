@@ -25,7 +25,7 @@ class Simulation
   //void _dumpSettings(ostream& outStream);
 
 public:
-  Simulation(int argc, char ** argv);
+  Simulation(int argc, char ** argv, MPI_Comm comm);
   ~Simulation();
 
   void reset();
