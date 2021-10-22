@@ -59,6 +59,7 @@ Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv
     #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
+      #pragma omp master
       printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size, numThreads);
     }
   }
