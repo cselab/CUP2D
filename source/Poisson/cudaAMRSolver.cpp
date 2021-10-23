@@ -32,29 +32,25 @@ double cudaAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation 
 }
 cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
 {
-  std::cout << "---------------- Calling on cudaAMRSolver() constructor ------------\n";
-
-  std::vector<std::vector<double>> L;
-  std::vector<std::vector<double>> L_lb; // left block in GJ
-  std::vector<std::vector<double>> L_rb; // right block in GJ and inverse of L
-
-  std::cout << "------------------ Memaloc -----------"<< std::endl;
+  std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
+  std::vector<std::vector<double>> L_inv; // inverse of L
 
   int BSX = VectorBlock::sizeX;
   int BSY = VectorBlock::sizeY;
   int N = BSX*BSY;
   L.resize(N);
-  L_lb.resize(N);
-  L_rb.resize(N);
+  L_inv.resize(N);
   for (int i = 0 ; i<N ; i++)
   {
     L[i].resize(i+1);
-    L_lb[i].resize(i+1);
-    L_rb[i].resize(i+1);
+    L_inv[i].resize(i+1);
+    // L_inv will act as right block in GJ algorithm, init it as identity
+    for (int j(0); j<=i; j++){
+      L_inv[i][j] = (i == j) ? 1. : 0.;
+    }
   }
 
   // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
-  std::cout << "------------------ Cholesky dec -----------"<< std::endl;
   for (int i = 0 ; i<N ; i++)
   {
     double s1=0;
@@ -70,38 +66,27 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
     }
   }
 
-  // copy the Cholesky decomposition into the left block matrix which will be used in G-J and init L_rb
-  for (int i(0); i<N; i++)
-  for (int j(0); j<=i; j++){
-    L_lb[i][j] = L[i][j];
-    L_rb[i][j] = (i == j) ? 1. : 0.;
-  }
-
-  std::cout << "------------------ Cholesky inv -----------"<< std::endl;
-  // compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination
+  /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
+     L will act as the left block (it does not need to be modified in the process), 
+     L_inv will act as the right block and at the end of the algo will contain the inverse*/
   for (int br(0); br<N; br++)
     { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
-    const double bsf = 1. / L_lb[br][br]; // scaling factor for base row
-    L_lb[br][br] *= bsf;
+    const double bsf = 1. / L[br][br]; // scaling factor for base row
     for (int c(0); c<=br; c++)
     {
-      L_rb[br][c] *= bsf;
+      L_inv[br][c] *= bsf;
     }
 
     for (int wr(br+1); wr<N; wr++)
     { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
-      const double wsf = L_lb[wr][br];
-      // For the left block matrix the base row is a single non-zero element on the diagonal
-      L_lb[wr][br] = 0; // L_lb[br][br] == 1 at this point
+      const double wsf = L[wr][br];
       for (int c(0); c<=br; c++)
       { // For the right block matrix the trasformation has to be applied for the whole row
-        // Ignore everything below 'eps' to avoid precision loss
-        L_rb[wr][c] -= (wsf * L_rb[br][c]);
+        L_inv[wr][c] -= (wsf * L_inv[br][c]);
       }
     }
   }
 
-  std::cout << "------------------ Precond inv -----------"<< std::endl;
   // P_inv_ holds inverse preconditionner in row major order!  This is leads to better memory access
   // in the kernel that applies this preconditioner, but note that cuBLAS assumes column major
   // matrices by default
@@ -110,34 +95,10 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
     for (int j(0); j<N; j++){
       double aux = 0.;
       for (int k(0); k<N; k++){
-        aux += (i <= k && j <=k) ? L_rb[k][i] * L_rb[k][j] : 0.; // P_inv_ = (L^T)^{-1} L^{-1}
+        aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.; // P_inv_ = (L^T)^{-1} L^{-1}
       }
       P_inv_[i*N+j] = aux;
-      std::cout << aux << " ";
     }
-    std::cout << std::endl;
-  }
-
-  std::cout << "------------------ Sanity check 2 -----------" << std::endl;
-  // ----- Sanity check ------
-  std::vector<double> P(N * N);
-  for (int i(0); i<N; i++)
-  for (int j(0); j<N; j++){
-    P[i*N + j] = getA_local(i,j);
-  }
-
-  // Assert identity
-  for (int i(0); i<N; i++){
-    for (int j(0); j<N; j++){
-      double aux1 = 0.;
-      double aux2 = 0.;
-      for (int k(0); k<N; k++){
-        aux1 += P[i*N + k]*P_inv_[k*N+j];
-        aux2 += P_inv_[i*N + k]*P[k*N+j];
-      }
-      std::cout << (aux2 > 1e-15 ? aux2 : 0) << " ";
-    }
-    std::cout << std::endl;
   }
 }
 
