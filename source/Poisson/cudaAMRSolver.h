@@ -43,15 +43,15 @@ protected:
   int nnz_; // non-zero elements
 
   // Method to push back values to coo sparse matrix representaiton
-  void inline h_cooMatPushBack(const double&, const int&, const int&);
+  void inline cooMatPushBack(const double&, const int&, const int&);
   // Method to compute A and b for the current mesh
-  void unifLinsysPrepHost();
+  void Get_LS();
   // Host-side variables for linear system
-  std::vector<double> h_cooValA_;
-  std::vector<int> h_cooRowA_;
-  std::vector<int> h_cooColA_;
-  std::vector<double> h_x_;
-  std::vector<double> h_b_;
+  std::vector<double> cooValA_;
+  std::vector<int> cooRowA_;
+  std::vector<int> cooColA_;
+  std::vector<double> x_;
+  std::vector<double> b_;
 
   //this stuff below is used for preconditioning the system
   

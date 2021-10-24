@@ -107,17 +107,17 @@ cudaAMRSolver::~cudaAMRSolver()
   std::cout << "---------------- Calling on cudaAMRSolver() destructor ------------\n";
 }
 
-void inline cudaAMRSolver::h_cooMatPushBack(
+void inline cudaAMRSolver::cooMatPushBack(
     const double &val, 
     const int &row, 
     const int &col){
-  this->h_cooValA_.push_back(val);
-  this->h_cooRowA_.push_back(row);
-  this->h_cooColA_.push_back(col);
+  this->cooValA_.push_back(val);
+  this->cooRowA_.push_back(row);
+  this->cooColA_.push_back(col);
 }
 
 // Prepare linear system for uniform grid
-void cudaAMRSolver::unifLinsysPrepHost()
+void cudaAMRSolver::Get_LS()
 {
   std::cout << "[cudaAMRSolver]: Preparing linear system... \n";
   sim.startProfiler("Poisson solver: unifLinsysPrepHost()");
@@ -137,16 +137,16 @@ void cudaAMRSolver::unifLinsysPrepHost()
   const size_t N = BSX*BSY*Nblocks;
 
   // Allocate memory for solution 'x' and RHS vector 'b' on host
-  this->h_x_.resize(N);
-  this->h_b_.resize(N);
+  this->x_.resize(N);
+  this->b_.resize(N);
   // Clear contents from previous call of cudaAMRSolver::solve() and reserve memory 
   // for sparse LHS matrix 'A' (for uniform grid at most 5 elements per row).
-  this->h_cooValA_.clear();
-  this->h_cooRowA_.clear();
-  this->h_cooColA_.clear();
-  this->h_cooValA_.reserve(5 * N);
-  this->h_cooRowA_.reserve(5 * N);
-  this->h_cooColA_.reserve(5 * N);
+  this->cooValA_.clear();
+  this->cooRowA_.clear();
+  this->cooColA_.clear();
+  this->cooValA_.reserve(5 * N);
+  this->cooRowA_.reserve(5 * N);
+  this->cooColA_.reserve(5 * N);
 
   size_t double_bd = 0;
   size_t north_bd = 0;
@@ -167,10 +167,10 @@ void cudaAMRSolver::unifLinsysPrepHost()
     for(int ix=0; ix<BSX; ix++)
     {
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      // h_b_[sfc_idx] = 0.;
-      // h_x_[sfc_idx] = 1.;
-      h_b_[sfc_idx] = rhs(ix,iy).s;
-      h_x_[sfc_idx] = p(ix,iy).s;
+      // b_[sfc_idx] = 0.;
+      // x_[sfc_idx] = 1.;
+      b_[sfc_idx] = rhs(ix,iy).s;
+      x_[sfc_idx] = p(ix,iy).s;
     }
 
     //1.Check if this is a boundary block
@@ -218,15 +218,15 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
       
       // Add diagonal matrix element
-      this->h_cooMatPushBack(-4, sfc_idx, sfc_idx);
+      this->cooMatPushBack(-4, sfc_idx, sfc_idx);
       // Add matrix element associated to west cell
-      this->h_cooMatPushBack(1., sfc_idx, wn_idx);
+      this->cooMatPushBack(1., sfc_idx, wn_idx);
       // Add matrix element associated to east cell
-      this->h_cooMatPushBack(1., sfc_idx, en_idx);
+      this->cooMatPushBack(1., sfc_idx, en_idx);
       // Add matrix element associated to south cell
-      this->h_cooMatPushBack(1., sfc_idx, sn_idx);
+      this->cooMatPushBack(1., sfc_idx, sn_idx);
       // Add matrix element associated to north cell
-      this->h_cooMatPushBack(1., sfc_idx, nn_idx);
+      this->cooMatPushBack(1., sfc_idx, nn_idx);
     }
 
     // Add matrix elements associated to contributions from north/south on western/eastern boundary of block (excl.corners)
@@ -238,9 +238,9 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int sn_idx = i*BSX*BSY+(iy-1)*BSX+ix; // south neighbour 
       const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
       // Add matrix element associated to south cell
-      this->h_cooMatPushBack(1., sfc_idx, sn_idx);
+      this->cooMatPushBack(1., sfc_idx, sn_idx);
       // Add matrix element associated to north cell
-      this->h_cooMatPushBack(1., sfc_idx, nn_idx);
+      this->cooMatPushBack(1., sfc_idx, nn_idx);
     }
 
     // Add matrix elements associated to contributions from east/west cells on western boundary of block (excl. corners)
@@ -251,20 +251,20 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int en_idx = sfc_idx+1; // east neighbour
 
       // Add matrix element associated to east cell
-      this->h_cooMatPushBack(1., sfc_idx, en_idx);
+      this->cooMatPushBack(1., sfc_idx, en_idx);
 
       if (isWestBoundary){
-        this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        this->cooMatPushBack(-3., sfc_idx, sfc_idx);
         west_bd++;
       }
       else{
-        this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        this->cooMatPushBack(-4., sfc_idx, sfc_idx);
         if (sim.tmp->Tree(rhsNei_west).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
           const size_t i_west = rhsNei_west.blockID;
           const int wn_idx = i_west*BSX*BSY+iy*BSX+(BSX-1); // eastmost cell of western block
-          this->h_cooMatPushBack(1., sfc_idx, wn_idx);
+          this->cooMatPushBack(1., sfc_idx, wn_idx);
         }
         else { throw; }
       }
@@ -278,20 +278,20 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int wn_idx = sfc_idx-1; // west neighbour
 
       // Add matrix element associated to west cell
-      this->h_cooMatPushBack(1., sfc_idx, wn_idx);
+      this->cooMatPushBack(1., sfc_idx, wn_idx);
 
       if (isEastBoundary){
-        this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+        this->cooMatPushBack(-3., sfc_idx, sfc_idx);
         east_bd++;
       }
       else{
-        this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+        this->cooMatPushBack(-4., sfc_idx, sfc_idx);
         if (sim.tmp->Tree(rhsNei_east).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
           const size_t i_east = rhsNei_east.blockID;
           const int en_idx = i_east*BSX*BSY+iy*BSX+0; // westmost cell of eastern block
-          this->h_cooMatPushBack(1., sfc_idx, en_idx);
+          this->cooMatPushBack(1., sfc_idx, en_idx);
         }
         else { throw; }
       }
@@ -307,14 +307,14 @@ void cudaAMRSolver::unifLinsysPrepHost()
       // Add matrix element associated to west cell
       if (ix > 0){
         const int wn_idx = sfc_idx-1; // west neighbour
-        this->h_cooMatPushBack(1., sfc_idx, wn_idx);
+        this->cooMatPushBack(1., sfc_idx, wn_idx);
       }
       else{
         if (!isWestBoundary){
           if (sim.tmp->Tree(rhsNei_west).Exists()){
             const size_t i_west = rhsNei_west.blockID;
             const int wn_idx = i_west*BSX*BSY+iy*BSX+(BSX-1); // eastmost cell of western block
-            this->h_cooMatPushBack(1., sfc_idx, wn_idx);
+            this->cooMatPushBack(1., sfc_idx, wn_idx);
           }
           else{ throw; }
         }
@@ -323,14 +323,14 @@ void cudaAMRSolver::unifLinsysPrepHost()
       // Add matrix element associated to east cell
       if (ix < BSX - 1){
         const int en_idx = sfc_idx+1; // east neighbour
-        this->h_cooMatPushBack(1., sfc_idx, en_idx);
+        this->cooMatPushBack(1., sfc_idx, en_idx);
       }
       else {
         if (!isEastBoundary){
           if (sim.tmp->Tree(rhsNei_east).Exists()){
             const size_t i_east = rhsNei_east.blockID;
             const int en_idx = i_east*BSX*BSY+iy*BSX+0; // westmost cell of eastern block
-            this->h_cooMatPushBack(1., sfc_idx, en_idx);
+            this->cooMatPushBack(1., sfc_idx, en_idx);
           }
           else { throw; }
         }
@@ -346,39 +346,39 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
 
       // Add matrix element associated to north cell
-      this->h_cooMatPushBack(1., sfc_idx, nn_idx);
+      this->cooMatPushBack(1., sfc_idx, nn_idx);
 
       if(isSouthBoundary){
         south_bd++;
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
-          this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-2., sfc_idx, sfc_idx);
           double_bd++;
           west_bd += isWestBoundary ? 1 : 0;
           east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // One boundary condition to consider for diagonal element
-          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
         }
       }
       else{
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Could still be east/west boundary!
-          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
           west_bd += isWestBoundary ? 1 : 0;
           east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // Otherwise the diagonal element does not change
-          this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-4., sfc_idx, sfc_idx);
         }
         if (sim.tmp->Tree(rhsNei_south).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
           const size_t i_south = rhsNei_south.blockID;
           const int sn_idx = i_south*BSX*BSY+(BSY-1)*BSX+ix; // northmost cell of southern block
-          this->h_cooMatPushBack(1., sfc_idx, sn_idx);
+          this->cooMatPushBack(1., sfc_idx, sn_idx);
         }
         else { throw; }
       }
@@ -392,39 +392,39 @@ void cudaAMRSolver::unifLinsysPrepHost()
       const int sn_idx = i*BSX*BSY+(iy-1)*BSX+ix; // south neighbour
 
       // Add matrix element associated to south cell
-      this->h_cooMatPushBack(1., sfc_idx, sn_idx);
+      this->cooMatPushBack(1., sfc_idx, sn_idx);
 
       if (isNorthBoundary){
         north_bd++;
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Two boundary conditions to consider for diagonal element
-          this->h_cooMatPushBack(-2., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-2., sfc_idx, sfc_idx);
           double_bd++;
           west_bd += isWestBoundary ? 1 : 0;
           east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // One boundary condition to consider for diagonal element
-          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
         }
       }
       else{
         if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
         { // Could still be east/west boundary!
-          this->h_cooMatPushBack(-3., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
           west_bd += isWestBoundary ? 1 : 0;
           east_bd += isEastBoundary ? 1 : 0;
         }
         else
         { // Otherwise the diagonal element does not change
-          this->h_cooMatPushBack(-4., sfc_idx, sfc_idx);
+          this->cooMatPushBack(-4., sfc_idx, sfc_idx);
         }
         if (sim.tmp->Tree(rhsNei_north).Exists())
         {
           //then west neighbor exists and we can safely use rhsNei_north and access the gridpoint-data etc.
           const size_t i_north = rhsNei_north.blockID;
           const int nn_idx = i_north*BSX*BSY+0*BSX+ix; // southmost cell belonging to north block
-          this->h_cooMatPushBack(1., sfc_idx, nn_idx);
+          this->cooMatPushBack(1., sfc_idx, nn_idx);
         }
         else { throw; }
       }
@@ -438,7 +438,7 @@ void cudaAMRSolver::unifLinsysPrepHost()
   // Save params of current linear system
   m_ = N; // rows
   n_ = N; // cols
-  nnz_ = this->h_cooValA_.size(); // non-zero elements
+  nnz_ = this->cooValA_.size(); // non-zero elements
 
   sim.stopProfiler();
 }
@@ -448,7 +448,7 @@ void cudaAMRSolver::solve()
 
   std::cout << "--------------------- Calling on cudaAMRSolver.solve() ------------------------ \n";
 
-  this->unifLinsysPrepHost();
+  this->Get_LS();
 
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
@@ -458,11 +458,11 @@ void cudaAMRSolver::solve()
       m_, 
       n_, 
       nnz_, 
-      h_cooValA_.data(), 
-      h_cooRowA_.data(), 
-      h_cooColA_.data(), 
-      h_x_.data(), 
-      h_b_.data(), 
+      cooValA_.data(), 
+      cooRowA_.data(), 
+      cooColA_.data(), 
+      x_.data(), 
+      b_.data(), 
       max_error, 
       max_rel_error,
       max_restarts);
@@ -486,7 +486,7 @@ void cudaAMRSolver::solve()
         for(int iy=0; iy<VectorBlock::sizeY; iy++)
         for(int ix=0; ix<VectorBlock::sizeX; ix++)
         {
-            P(ix,iy).s = h_x_[i*BSX*BSY + iy*BSX + ix];
+            P(ix,iy).s = x_[i*BSX*BSY + iy*BSX + ix];
             avg += P(ix,iy).s * vv;
             avg1 += vv;
         }
@@ -504,21 +504,4 @@ void cudaAMRSolver::solve()
            P(ix,iy).s -= avg;
      }
   }
-  // Naive writeback
-//  static constexpr int BSX = VectorBlock::sizeX;
-//  static constexpr int BSY = VectorBlock::sizeY;
-//
-//  std::vector<cubism::BlockInfo>&  pInfo = sim.pres->getBlocksInfo();
-//  const size_t Nblocks = pInfo.size();
-//
-//  #pragma omp parallel for
-//  for(size_t i=0; i<Nblocks; i++)
-//  {
-//    ScalarBlock & p    = *(ScalarBlock*)  pInfo[i].ptrBlock;
-//    for(int iy=0; iy<BSY; iy++)
-//    for(int ix=0; ix<BSX; ix++)
-//    {
-//      p(ix,iy).s = h_x_[i*BSX*BSY+iy*BSX+ix];
-//    }
-//  }
 }
