@@ -450,11 +450,28 @@ void cudaAMRSolver::solve()
 
   this->Get_LS();
 
+  static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
+  const size_t Nblocks = zInfo.size();
+
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
   const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
 
-  BiCGSTAB(
+//  BiCGSTAB(
+//      m_, 
+//      n_, 
+//      nnz_, 
+//      cooValA_.data(), 
+//      cooRowA_.data(), 
+//      cooColA_.data(), 
+//      x_.data(), 
+//      b_.data(), 
+//      max_error, 
+//      max_rel_error,
+//      max_restarts);
+   pBiCGSTAB(
       m_, 
       n_, 
       nnz_, 
@@ -463,17 +480,14 @@ void cudaAMRSolver::solve()
       cooColA_.data(), 
       x_.data(), 
       b_.data(), 
+      BSX * BSY,
+      P_inv_.data(),
       max_error, 
       max_rel_error,
       max_restarts);
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
   //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
-  static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
-  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
-  const size_t Nblocks = zInfo.size();
-
   double avg = 0;
   double avg1 = 0;
   #pragma omp parallel
