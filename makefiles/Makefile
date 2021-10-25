@@ -41,7 +41,8 @@ OBJECTS = \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
 		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o Teardrop.o
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
+		Waterturbine.o Teardrop.o
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_

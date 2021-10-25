@@ -141,7 +141,7 @@ void Checker::run(std::string when) const
   {
     std::cout << "[CUP2D] Detected NaN/INF Field Values. Dumping the field and aborting..." << std::endl;
     sim.dumpAll("abort_");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Abort(sim.comm,1);
   }
 }
 

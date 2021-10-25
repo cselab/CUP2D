@@ -336,7 +336,7 @@ void Shape::computeForces()
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(sim.step==0)
       filePower<<"time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd defPower EffPDefBnd EffPDef\n";
-    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutNew<<" "<<PoutBnd<<" "<<Pout<<" "<<PoutNew<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
+    filePower<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "<<PoutNew<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<"\n";
   }
 }
 

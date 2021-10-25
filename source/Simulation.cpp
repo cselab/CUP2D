@@ -27,6 +27,7 @@
 #include "Obstacles/Naca.h"
 #include "Obstacles/Windmill.h"
 #include "Obstacles/Teardrop.h"
+#include "Obstacles/Waterturbine.h"
 
 #include <algorithm>
 #include <iterator>
@@ -43,15 +44,24 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
   return tokens;
 }
 
-Simulation::Simulation(int argc, char ** argv) : parser(argc,argv)
+Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv)
 {
-  MPI_Comm_rank(MPI_COMM_WORLD,&sim.rank);
+  sim.comm = comm;
+  int size;
+  MPI_Comm_size(sim.comm,&size);
+  MPI_Comm_rank(sim.comm,&sim.rank);
   if (sim.rank == 0)
   {
     std::cout <<"=======================================================================\n";
     std::cout <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
     std::cout <<"=======================================================================\n";
     parser.print_args();
+    #pragma omp parallel
+    {
+      int numThreads = omp_get_num_threads();
+      #pragma omp master
+      printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size, numThreads);
+    }
   }
 }
 
@@ -67,24 +77,24 @@ Simulation::~Simulation()
 void Simulation::init()
 {
   // parse field variables
-  if (sim.rank == 0)
+  if ( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
   // allocate the grid
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Allocating Grid..." << std::endl;
   sim.allocateGrid();
   // create shapes
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Shapes..." << std::endl;
   createShapes();
   // impose field initial condition
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
   // create compute pipeline
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
   pipeline.push_back( new advDiff(sim) );
@@ -93,7 +103,7 @@ void Simulation::init()
   pipeline.push_back( new AdaptTheMesh(sim) );
   pipeline.push_back( new PutObjectsOnGrid(sim) );
 
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
   {
     std::cout << "[CUP2D] Operator ordering:\n";
     for (size_t c=0; c<pipeline.size(); c++)
@@ -159,6 +169,7 @@ void Simulation::parseRuntime()
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
+  sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
 
   // output parameters
   sim.dumpFreq = parser("-fdump").asInt(0);
@@ -187,7 +198,7 @@ void Simulation::createShapes()
     {
       std::istringstream line_stream(line);
       std::string objectName;
-      if( sim.rank == 0 )
+      if( sim.rank == 0 && sim.verbose )
         std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
       // Comments and empty lines ignored:
@@ -223,6 +234,8 @@ void Simulation::createShapes()
         shape = new Windmill(         sim, ffparser, center);
       else if (objectName=="teardrop")
         shape = new Teardrop(         sim, ffparser, center);
+      else if (objectName=="waterturbine")
+        shape = new Waterturbine(     sim, ffparser, center);
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
       sim.shapes.push_back(shape);
@@ -236,11 +249,11 @@ void Simulation::createShapes()
 void Simulation::reset()
 {
   // reset field variables and shapes
-  if(sim.verbose)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
   // impose field initial condition
-  if(sim.verbose)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
@@ -251,11 +264,11 @@ void Simulation::reset()
 void Simulation::resetRL()
 {
   // reset simulation (not shape)
-  if(sim.verbose)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
   // impose field initial condition
-  if(sim.verbose)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
@@ -266,7 +279,7 @@ void Simulation::startObstacles()
   Checker check (sim);
 
   // put obstacles to grid and compress
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   for( int i = 0; i<sim.levelMax; i++ )
   {
@@ -279,7 +292,7 @@ void Simulation::startObstacles()
   // PutObjectsOnGrid
    (*pipeline[pipeline.size()-1])(0);
   // impose velocity of obstacles
-  if(sim.rank == 0)
+  if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
   initVel(0); }
@@ -336,7 +349,7 @@ double Simulation::calcMaxTimestep()
 
 bool Simulation::advance(const double dt)
 {
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(sim.comm);
 
   const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   if (sim.rank == 0)
@@ -349,7 +362,7 @@ bool Simulation::advance(const double dt)
 
   assert(dt>2.2e-16);
   if( sim.step == 0 ){
-    if (sim.rank == 0)
+    if ( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] dumping IC...\n";
     sim.dumpAll("IC");
   }
@@ -396,7 +409,7 @@ bool Simulation::advance(const double dt)
 
   for (size_t c=0; c<pipeline.size(); c++) {
     //if (pipeline.size()-2 == c) continue;
-    if(sim.rank == 0)
+    if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
     (*pipeline[c])(dt);
     //sim.dumpAll( pipeline[c]->getName() );
@@ -408,7 +421,7 @@ bool Simulation::advance(const double dt)
 
   // dump field
   if( bDump ) {
-    if(sim.rank == 0)
+    if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
     sim.dumpAll("avemaria_"); 
@@ -425,6 +438,6 @@ bool Simulation::advance(const double dt)
   <<"=======================================================================\n";
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(sim.comm);
   return bOver;
 }

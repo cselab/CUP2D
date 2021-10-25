@@ -79,26 +79,28 @@ class ComputeLHS : public Operator
   {
     const LHSkernel K(sim);
     compute<LHSkernel,ScalarGrid,ScalarLab,ScalarGrid>(K,*sim.pres,true,sim.tmp);
-    //int index = -1;
-    //double mean = 0.0;
-    //std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
-    //const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
-    //for (size_t i = 0 ; i < lhsInfo.size() ; i++)
-    //{
-    //  cubism::BlockInfo & info = lhsInfo[i];
-    //  if ( isCorner(info) ) index = i;//info.blockID;
-    //  const double h2 = info.h*info.h;
-    //  ScalarBlock & __restrict__ X   = *(ScalarBlock*) xInfo[info.blockID].ptrBlock;
-    //  for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-    //  for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
-    //    mean += h2 * X(ix,iy).s;
-    //}
-    //MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    //if (index != -1)
-    //{
-    //  ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-    //  LHS(4,4).s = mean;
-    //}
+    if( sim.bMeanConstraint ) {
+      int index = -1;
+      double mean = 0.0;
+      std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
+      const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
+      for (size_t i = 0 ; i < lhsInfo.size() ; i++)
+      {
+       cubism::BlockInfo & info = lhsInfo[i];
+       if ( isCorner(info) ) index = i;//info.blockID;
+       const double h2 = info.h*info.h;
+       ScalarBlock & __restrict__ X   = *(ScalarBlock*) xInfo[info.blockID].ptrBlock;
+       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+         mean += h2 * X(ix,iy).s;
+      }
+      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_DOUBLE,MPI_SUM,sim.chi->getCartComm());
+      if (index != -1)
+      {
+       ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
+       LHS(4,4).s = mean;
+      }
+    }
   }
   std::string getName() { return "ComputeLHS"; }
 };

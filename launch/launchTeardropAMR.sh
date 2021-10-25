@@ -1,12 +1,12 @@
 # Defaults for Options
 BPDX=${BPDX:-16}
 BPDY=${BPDY:-8}
-LEVELS=${LEVELS:-5}
+LEVELS=${LEVELS:-7}
 RTOL=${RTOL-0.1}
 CTOL=${CTOL-0.01}
 EXTENT=${EXTENT:-4}
 CFL=${CFL:-0.2}
-PT=${PT:-1e-10}
+PT=${PT:-1e-8}
 PTR=${PTR:-0}
 # Defaults for Objects
 LENGTH=${LENGTH:-0.2}

@@ -13,6 +13,7 @@ import pickle, pprint
 import argparse
 import seaborn as sns
 sns.set_theme()
+sns.set_style("whitegrid")
 
 ################################## UTILS ##################################
 colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
@@ -35,10 +36,10 @@ def lighten_color(color, amount=0.5):
     return colorsys.hls_to_rgb(c[0], min(1, amount * c[1]), c[2])
 ###########################################################################
 
-def plotForceTime( root, runname, radius, i, j ):
+def plotForceTime( axs, root, runname, radius, i, j ):
   ## load kinematic data ##
   kineticData = np.loadtxt(root+runname+"/velocity_0.dat", skiprows=1)
-  kineticTime = kineticData[:,0]
+  time = kineticData[:,0]
   u = kineticData[:,7]
   v = kineticData[:,8]
   # print("speed:", u, v)
@@ -46,10 +47,18 @@ def plotForceTime( root, runname, radius, i, j ):
 
   ## load dynamic data ##
   dynamicData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  time    = dynamicData[:,0]
-  np.testing.assert_array_equal(time, kineticTime)
+  dynamicTime    = dynamicData[:,0]
+  np.testing.assert_array_equal(dynamicTime, time)
   forceX  = dynamicData[:,1]
   forceY  = dynamicData[:,2]
+  # print("force:", forceX, forceY)
+  #######################
+
+  ## load power data ##
+  powerData = np.loadtxt(root+runname+"/powerValues_0.dat", skiprows=1)
+  powerTime    = powerData[:,0]
+  np.testing.assert_array_equal(powerTime, time)
+  pOut  = powerData[:,6]
   # print("force:", forceX, forceY)
   #######################
 
@@ -59,20 +68,25 @@ def plotForceTime( root, runname, radius, i, j ):
   ##########################
 
   ## dimensionless time ##
-  time    = time*speed/radius
+  time    = time #*speed/radius
   ########################
 
-  ## compute drag ##
+  ## compute dimensionless drag ##
   # totDrag = (u*forceX+v*forceY) / speed
   totDrag = forceX
   dragCoeff = -totDrag / (radius*speed*speed)
   # print("drag:", totDrag, dragCoeff)
   ##################
 
-  ## compute lift ##
+  ## compute dimensionless lift ##
   # totLift = (-v*forceX+u*forceY) / speed
   totLift = forceY
   liftCoeff = -totLift / (radius*speed*speed)
+  # print("lift:", totLift, liftCoeff)
+  ##################
+
+  ## compute dimensionless power ##
+  powerCoeff = -pOut / (radius*speed*speed*speed)
   # print("lift:", totLift, liftCoeff)
   ##################
 
@@ -115,11 +129,18 @@ def plotForceTime( root, runname, radius, i, j ):
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
   # if i == j+2:
   ## plot drag ##
-  plt.plot(time, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+  if j == 0:
+    axs[j].plot(dynamicTime, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
   ########################
 
   ## plot lift ##
-  plt.plot(time, liftCoeff, color=lighten_color(colors[i],1.2), label="present ({} levels)".format(i+5))
+  if j == 1:
+    axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+  ########################
+
+  ## plot power ##
+  if j == 2:
+    axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
   ########################
 
   ## plot autocorrelation of drag/lift to detect frequency ##
@@ -656,8 +677,8 @@ def plotForceTimeTeardrop():
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
 
-  # runname = [ "teardrop_levels{:01d}".format(level) for level in np.arange(5,9) ]
-  runname = [ "testTeardrop" ]
+  # runname = [ "teardropFixed_levels{:01d}".format(level) for level in np.arange(5,10) ]
+  runname = [ "testTD" ]
 
 
   ###### plot validation data ######
@@ -665,27 +686,43 @@ def plotForceTimeTeardrop():
 
   validationPath = "/project/s929/pweber/hydrofoilValidationData/fStar-664_Re5400.csv"
   validationData = np.loadtxt(validationPath, delimiter=",", skiprows=1)
-  plt.plot(0.5e-2*validationData[:,0], validationData[:,1], "2k", label="reference drag", zorder=10)
-  plt.plot(0.5e-2*validationData[:,0], validationData[:,3], "2k", label="reference lift", zorder=10)
+  timestep = 1.5060240964 / 500
 
-  ###### plot simulation data ######
-  ##################################
 
-  chordlength = 0.1
+  fig, axs = plt.subplots(3, sharex=True)
+  for j in range(3):
+    if j == 0:
+      axs[j].plot(timestep*validationData[:,0], -validationData[:,4], "2k", label="reference", zorder=10)
+    if j == 1:
+      axs[j].plot(timestep*validationData[:,0], -validationData[:,1], "2k", label="reference", zorder=10)
+    if j == 2:
+      axs[j].plot(timestep*validationData[:,0], -validationData[:,3], "2k", label="reference", zorder=10)
 
-  for i in range( len(runname) ):
-    plotForceTime( rootSCRATCH, runname[i], chordlength, i, 0 )
+    ###### plot simulation data ######
+    ##################################
 
-  plt.xlabel("Time $T=tu_\infty/r$")
-  plt.ylabel("Thrust Coefficient $C_T=2|F_x|/cu_\infty^2$")
-  plt.ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
-  # plt.title("Re={}".format(case))
-  plt.grid(b=True, which='major', color="white", linestyle='-')
-  plt.legend(loc = 'upper right')
-  plt.xlim([0,100])
-  plt.ylim([-5,5])
-  # plt.xscale("log")
-  # plt.yscale("log")
+    chordlength = 0.1
+
+    for i in range( len(runname) ):
+      plotForceTime( axs, rootSCRATCH, runname[i], chordlength, i, j )
+
+    if j == 0:
+      axs[j].set_ylabel("Thrust Coefficient $C_T=2|F_x|/cu_\infty^2$")
+      axs[j].set_ylim([-0.25,0.25])
+    if j == 1:
+      axs[j].set_ylabel("Lift Coefficient $C_L=2|F_y|/cu_\infty^2$")
+      axs[j].set_ylim([-4,4])
+    if j == 2:
+      axs[j].set_ylabel("Power Coefficient $C_P=2|P|/cu_\infty^3$")
+      axs[j].set_ylim([-0.1,1])
+
+    axs[j].grid(b=True, which='major', linestyle='-')
+    axs[j].set_xlim([0,5])
+    # plt.xscale("log")
+    # plt.yscale("log")
+  axs[2].set_xlabel("Time $t$")
+  axs[0].legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=3)
   plt.show()
 
 if __name__ == '__main__':

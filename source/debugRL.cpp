@@ -22,7 +22,7 @@ void setInitialConditions( StefanFish *agent, std::vector<double> initialConditi
 int main(int argc, char **argv)
 {
   // Initialize Simulation class
-  Simulation* _environment = new Simulation(argc, argv);
+  Simulation* _environment = new Simulation(argc, argv, MPI_COMM_WORLD);
   _environment->init();
 
   // Reading Initial Conditions from RL case
