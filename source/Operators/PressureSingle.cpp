@@ -149,10 +149,10 @@ void PressureSingle::updatePressureRHS(const double dt) const
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        TMP(ix, iy).s  =   facDiv                *( velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0] 
-                                                 +  velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]);
-        TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0] 
-                                                 + uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]);
+        TMP(ix, iy).s  =   facDiv                *( (velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0])
+                                                 +  (velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]));
+        TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *((uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0])
+                                                 + (uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]));
       }
 
       BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[i].auxiliary);
@@ -209,7 +209,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
         for(int iy=0; iy<VectorBlock::sizeY; ++iy)
         for(int ix=0; ix<VectorBlock::sizeX; ++ix)
         {
-          TMP(ix, iy).s  -=  (poldLab(ix-1,iy).s + poldLab(ix+1,iy).s + poldLab(ix,iy-1).s + poldLab(ix,iy+1).s - 4.0*poldLab(ix,iy).s);
+          TMP(ix, iy).s  -=  ( ((poldLab(ix-1,iy).s + poldLab(ix+1,iy).s) + (poldLab(ix,iy-1).s + poldLab(ix,iy+1).s)) - 4.0*poldLab(ix,iy).s);
         }
         if (faceXm != nullptr)
         {

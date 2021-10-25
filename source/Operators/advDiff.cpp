@@ -8,48 +8,52 @@
 
 using namespace cubism;
 
+__attribute__((optimize("-O1"))) 
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
   const double exponent = 2;
   const double e = 1e-6;
-  const double b1 = 13.0/12.0*pow(um2-2*um1+u,2)+0.25*pow(um2-4*um1+3*u,2);
-  const double b2 = 13.0/12.0*pow(um1-2*u+up1,2)+0.25*pow(um1-up1,2);
-  const double b3 = 13.0/12.0*pow(u-2*up1+up2,2)+0.25*pow(3*u-4*up1+up2,2);
+  const double b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+  const double b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+  const double b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
   const double g1 = 0.1;
   const double g2 = 0.6;
   const double g3 = 0.3;
   const double what1 = g1/pow(b1+e,exponent);
   const double what2 = g2/pow(b2+e,exponent);
   const double what3 = g3/pow(b3+e,exponent);
-  const double w1 = what1/(what1+what2+what3);
-  const double w2 = what2/(what1+what2+what3);
-  const double w3 = what3/(what1+what2+what3);
-  const double f1 =  1.0/3.0*um2-7.0/6.0*um1+11.0/6.0*u;
-  const double f2 = -1.0/6.0*um1+5.0/6.0*u  + 1.0/3.0*up1;
-  const double f3 =  1.0/3.0*u  +5.0/6.0*up1- 1.0/6.0*up2;
-  return w1*f1+w2*f2+w3*f3;
+  const double aux = 1.0/((what1+what3)+what2);
+  const double w1 = what1*aux;
+  const double w2 = what2*aux;
+  const double w3 = what3*aux;
+  const double f1 = (11.0/6.0)*u + ( ( 1.0/3.0)*um2- (7.0/6.0)*um1);
+  const double f2 = (5.0 /6.0)*u + ( (-1.0/6.0)*um1+ (1.0/3.0)*up1);
+  const double f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
+  return (w1*f1+w3*f3)+w2*f2;
 }
 
+__attribute__((optimize("-O1"))) 
 static inline Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
   const double exponent = 2;
   const double e = 1e-6;
-  const double b1 = 13.0/12.0*pow(um2-2*um1+u,2)+0.25*pow(um2-4*um1+3*u,2);
-  const double b2 = 13.0/12.0*pow(um1-2*u+up1,2)+0.25*pow(um1-up1,2);
-  const double b3 = 13.0/12.0*pow(u-2*up1+up2,2)+0.25*pow(3*u-4*up1+up2,2);
+  const double b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+  const double b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+  const double b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
   const double g1 = 0.3;
   const double g2 = 0.6;
   const double g3 = 0.1;
   const double what1 = g1/pow(b1+e,exponent);
   const double what2 = g2/pow(b2+e,exponent);
   const double what3 = g3/pow(b3+e,exponent);
-  const double w1 = what1/(what1+what2+what3);
-  const double w2 = what2/(what1+what2+what3);
-  const double w3 = what3/(what1+what2+what3);
-  const double f1 = -1.0/6.0*um2+5.0/6.0*um1+ 1.0/3.0*u;
-  const double f2 =  1.0/3.0*um1+5.0/6.0*u  - 1.0/6.0*up1;
-  const double f3 = 11.0/6.0*u  -7.0/6.0*up1+ 1.0/3.0*up2;
-  return w1*f1+w2*f2+w3*f3;
+  const double aux = 1.0/((what1+what3)+what2);
+  const double w1 = what1*aux;
+  const double w2 = what2*aux;
+  const double w3 = what3*aux;
+  const double f1 = ( 1.0/3.0)*u + ( (-1.0/6.0)*um2+ (5.0/6.0)*um1);
+  const double f2 = ( 5.0/6.0)*u + ( ( 1.0/3.0)*um1- (1.0/6.0)*up1);
+  const double f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
+  return (w1*f1+w3*f3)+w2*f2;
 }
 
 static inline Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
@@ -95,7 +99,7 @@ static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   const Real dudx = derivative(UU,um3x,um2x,um1x,u,up1x,up2x,up3x);
   const Real dudy = derivative(VV,um3y,um2y,um1y,u,up1y,up2y,up3y);
 
-  return advF*(UU*dudx+VV*dudy) + difF*(up1x + up1y + um1x + um1y - 4*u);
+  return advF*(UU*dudx+VV*dudy) + difF*( ((up1x + um1x) + (up1y  + um1y)) - 4*u);
 }
   
 static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
@@ -122,7 +126,7 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   const Real dvdx = derivative(UU,vm3x,vm2x,vm1x,v,vp1x,vp2x,vp3x);
   const Real dvdy = derivative(VV,vm3y,vm2y,vm1y,v,vp1y,vp2y,vp3y);
 
-  return advF*(UU*dvdx+VV*dvdy) + difF*(vp1x + vp1y + vm1x + vm1y - 4*v);
+  return advF*(UU*dvdx+VV*dvdy) + difF*( ((vp1x+ vm1x) + (vp1y  + vm1y)) - 4*v);
 }
 
 void advDiff::step(const int coef)

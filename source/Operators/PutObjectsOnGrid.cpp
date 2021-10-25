@@ -62,7 +62,7 @@ void PutObjectsOnGrid::putChiOnGrid(Shape * const shape) const
           const double gradIY = IplusY-IminuY;
           const double gradUX = distPx-distMx;
           const double gradUY = distPy-distMy;
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
+          const double gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
         #endif
