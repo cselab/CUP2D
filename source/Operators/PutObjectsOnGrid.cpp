@@ -36,8 +36,7 @@ struct ComputeSurfaceNormals
           if (gradHX*gradHX + gradHY*gradHY < 1e-12) continue;
           const double gradUX = i2h*(labSDF(ix+1,iy).s-labSDF(ix-1,iy).s);
           const double gradUY = i2h*(labSDF(ix,iy+1).s-labSDF(ix,iy-1).s);
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
-
+          const double gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
           if (std::fabs(D) > EPS) o.write(ix, iy, D, gradUX, gradUY);
       }
@@ -91,7 +90,7 @@ struct PutChiOnGrid
           const double gradIY = IplusY-IminuY;
           const double gradUX = distPx-distMx;
           const double gradUY = distPy-distMy;
-          const double gradUSq = gradUX * gradUX + gradUY * gradUY + EPS;
+          const double gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
         #endif

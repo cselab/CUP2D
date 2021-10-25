@@ -52,7 +52,7 @@ struct GradChiOnTmp
 
 void AdaptTheMesh::operator()(const double dt)
 {
-  if (sim.step > 10 && sim.step % 50 != 0) return;
+  if (sim.step > 10 && sim.step % 20 != 0) return;
   //if (sim.step > 10 && sim.step % 5 != 0) return;
   sim.startProfiler("AdaptTheMesh");
 

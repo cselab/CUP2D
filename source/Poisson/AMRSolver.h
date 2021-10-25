@@ -24,7 +24,7 @@ class ComputeLHS : public Operator
       ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[info.blockID].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
-        LHS(ix,iy).s = lab(ix-1,iy).s + lab(ix+1,iy).s + lab(ix,iy-1).s + lab(ix,iy+1).s - 4.0*lab(ix,iy).s;
+        LHS(ix,iy).s = ( ((lab(ix-1,iy).s + lab(ix+1,iy).s) + (lab(ix,iy-1).s + lab(ix,iy+1).s)) - 4.0*lab(ix,iy).s);
   
       cubism::BlockCase<ScalarBlock> * tempCase = (cubism::BlockCase<ScalarBlock> *)(lhsInfo[info.blockID].auxiliary);
       ScalarBlock::ElementType * faceXm = nullptr;

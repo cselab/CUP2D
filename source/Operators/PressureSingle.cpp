@@ -235,10 +235,10 @@ struct updatePressureRHS
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP(ix, iy).s  =   facDiv                *( velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0] 
-                                               +  velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]);
-      TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0] 
-                                               + uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]);
+      TMP(ix, iy).s  =   facDiv                *( (velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0])
+                                               +  (velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]));
+      TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *((uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0])
+                                               + (uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]));
     }
     BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
     ScalarBlock::ElementType * faceXm = nullptr;
@@ -307,7 +307,7 @@ struct updatePressureRHS1
     ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      TMP(ix, iy).s  -=  (lab(ix-1,iy).s + lab(ix+1,iy).s + lab(ix,iy-1).s + lab(ix,iy+1).s - 4.0*lab(ix,iy).s);
+      TMP(ix, iy).s  -=  ( ((lab(ix-1,iy).s + lab(ix+1,iy).s) + (lab(ix,iy-1).s + lab(ix,iy+1).s)) - 4.0*lab(ix,iy).s);
 
     BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
     ScalarBlock::ElementType * faceXm = nullptr;
