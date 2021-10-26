@@ -30,7 +30,7 @@ void AdaptTheMesh::operator()(const double dt)
 
   #pragma omp parallel
   {
-    static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
+    static constexpr int stenBeg[3] = {-2,-2, 0}, stenEnd[3] = { 3, 3, 1};
     ScalarLab chilab;
     chilab.prepare(*(sim.chi), stenBeg, stenEnd, 1);
     #pragma omp for
@@ -38,31 +38,23 @@ void AdaptTheMesh::operator()(const double dt)
     {
       chilab.load(chiInfo[i], 0);
       auto& __restrict__ TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;
-      const double i2h = 0.5/chiInfo[i].h;
-      for(int y=0; y<VectorBlock::sizeY; ++y)
-      for(int x=0; x<VectorBlock::sizeX; ++x)
+      //Loop over block and halo cells and set TMP(0,0) to a value which will cause mesh refinement
+      //if any of the cells have:
+      // 1. chi > 0 (if bAdaptChiGradient=false)
+      // 2. chi > 0 and chi < 0.9 (if bAdaptChiGradient=true)
+      // Option 2 is equivalent to grad(chi) != 0
+      const int offset = (tmpInfo[i].level == sim.tmp->getlevelMax()-1) ? 2 : 1;
+      const double threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
+      for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
+      for(int x=-offset; x<VectorBlock::sizeX+offset; ++x)
       {
-        if( sim.bAdaptChiGradient )
+        chilab(x,y).s = std::min(chilab(x,y).s,1.0);
+        chilab(x,y).s = std::max(chilab(x,y).s,0.0);
+        if (chilab(x,y).s > 0.0 && chilab(x,y).s < threshold)
         {
-          double dcdx = 2*i2h*((1.0/60.0)*chilab(x+3,y).s + (-0.15)*chilab(x+2,y).s + (0.75)*chilab(x+1,y).s
-                                + (-0.75)*chilab(x-1,y).s + (0.15)*chilab(x-2,y).s + (-1.0/60.0)*chilab(x-3,y).s);
-          double dcdy = 2*i2h*((1.0/60.0)*chilab(x,y+3).s + (-0.15)*chilab(x,y+2).s + (0.75)*chilab(x,y+1).s
-                                + (-0.75)*chilab(x,y-1).s + (0.15)*chilab(x,y-2).s + (-1.0/60.0)*chilab(x,y-3).s);
-
-          //If that's not the finest level, we should use a smaller stencil. This is somehow equivalent
-          //to using a +-2 stencil at the finest level. By doing this we prevent a block from being 
-          //refined because grad(chi) != 0 and then being compressed because grad(chi) = 0 in a never
-          //ending cycle. Without this, there's some blocks that are constanly refined, compressed, 
-          //refined and so on, all because of how we chose to compute grad(chi).
-          if (tmpInfo[i].level <= sim.tmp->getlevelMax() - 2)
-          {
-            dcdx = i2h*(chilab(x+1,y).s-chilab(x-1,y).s);
-            dcdy = i2h*(chilab(x,y+1).s-chilab(x,y-1).s);
-          }
-          const double norm = dcdx*dcdx+dcdy*dcdy;
-          if (norm > 0.1) TMP(x,y).s = 1e10;
+          TMP(0,0).s = 2*sim.Rtol;
+          break;
         }
-        else if ( chilab(x,y).s > 0.0 ) TMP(x,y).s = 1e10;
       }
     }
   }
