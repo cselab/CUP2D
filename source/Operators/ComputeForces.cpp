@@ -81,7 +81,7 @@ struct KernelComputeForces
           {
             if ((int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
             
-            if (chi(x,y).s <3e-1 && found == 1) break;
+            if (chi(x,y).s <3e-1 && found >= 0) break;
             
             x  = ix + kk*dx_a; 
             y  = iy + kk*dy_a;
@@ -112,7 +112,7 @@ struct KernelComputeForces
           double dvdx3 = 0.0;
           double dudy3 = 0.0;
           double dvdy3 = 0.0;
-#if 1            
+
           if (normX > 0 && normY > 0)
           {
             dudxdy1 = (V(x+1,y+1).u[0]+V(x,y).u[0]-V(x+1,y).u[0]-V(x,y+1).u[0]);
@@ -310,44 +310,6 @@ struct KernelComputeForces
             dudy3 =  V(x,y).u[0] - 3*V(x,y-1).u[0] + 3*V(x,y-2).u[0] - V(x,y-3).u[0];
             dvdy3 =  V(x,y).u[1] - 3*V(x,y-1).u[1] + 3*V(x,y-2).u[1] - V(x,y-3).u[1];
           }
-#else
-          //centered FD
-          double dudxdy_yp1 = 0.25*( V(x+1,y+2).u[0] + V(x-1,y  ).u[0] - V(x+1,y  ).u[0] - V(x-1,y+2).u[0]);
-          double dudxdy_ym1 = 0.25*( V(x+1,y  ).u[0] + V(x-1,y-2).u[0] - V(x+1,y-2).u[0] - V(x-1,y  ).u[0]);
-          double dudxdy_xp1 = 0.25*( V(x+2,y+1).u[0] + V(x  ,y-1).u[0] - V(x+2,y-1).u[0] - V(x  ,y+1).u[0]);
-          double dudxdy_xm1 = 0.25*( V(x  ,y+1).u[0] + V(x-2,y-1).u[0] - V(x  ,y-1).u[0] - V(x-2,y+1).u[0]);
-          double dvdxdy_yp1 = 0.25*( V(x+1,y+2).u[1] + V(x-1,y  ).u[1] - V(x+1,y  ).u[1] - V(x-1,y+2).u[1]);
-          double dvdxdy_ym1 = 0.25*( V(x+1,y  ).u[1] + V(x-1,y-2).u[1] - V(x+1,y-2).u[1] - V(x-1,y  ).u[1]);
-          double dvdxdy_xp1 = 0.25*( V(x+2,y+1).u[1] + V(x  ,y-1).u[1] - V(x+2,y-1).u[1] - V(x  ,y+1).u[1]);
-          double dvdxdy_xm1 = 0.25*( V(x  ,y+1).u[1] + V(x-2,y-1).u[1] - V(x  ,y-1).u[1] - V(x-2,y+1).u[1]);
-
-          //dudx1   = 0.5*(V(x+1,y).u[0]-V(x-1,y).u[0]);
-          //dvdx1   = 0.5*(V(x+1,y).u[1]-V(x-1,y).u[1]);
-          //dudy1   = 0.5*(V(x,y+1).u[0]-V(x,y-1).u[0]);
-          //dvdy1   = 0.5*(V(x,y+1).u[1]-V(x,y-1).u[1]);
-          //dudx2   = V(x+1,y).u[0] -2.0*V(x,y).u[0] +V(x-1,y).u[0];
-          //dvdx2   = V(x+1,y).u[1] -2.0*V(x,y).u[1] +V(x-1,y).u[1];
-          //dudy2   = V(x,y+1).u[0] -2.0*V(x,y).u[0] +V(x,y-1).u[0];
-          //dvdy2   = V(x,y+1).u[1] -2.0*V(x,y).u[1] +V(x,y-1).u[1];
-          dudx1   = ( 1./12.)*V(x+2,y).u[0] + (-2./3.)*V(x+1,y).u[0]                      + (2./3.)*V(x-1,y).u[0] + (-1./12.)*V(x-2,y).u[0];
-          dvdx1   = ( 1./12.)*V(x+2,y).u[1] + (-2./3.)*V(x+1,y).u[1]                      + (2./3.)*V(x-1,y).u[1] + (-1./12.)*V(x-2,y).u[1];
-          dudy1   = ( 1./12.)*V(x,y+2).u[0] + (-2./3.)*V(x,y+1).u[0]                      + (2./3.)*V(x,y-1).u[0] + (-1./12.)*V(x,y-2).u[0];
-          dvdy1   = ( 1./12.)*V(x,y+2).u[1] + (-2./3.)*V(x,y+1).u[1]                      + (2./3.)*V(x,y-1).u[1] + (-1./12.)*V(x,y-2).u[1];
-          dudx2   = (-1./12.)*V(x+2,y).u[0] + ( 4./3.)*V(x+1,y).u[0] + (-2.5)*V(x,y).u[0] + (4./3.)*V(x-1,y).u[0] + (-1./12.)*V(x-2,y).u[0];
-          dvdx2   = (-1./12.)*V(x+2,y).u[1] + ( 4./3.)*V(x+1,y).u[1] + (-2.5)*V(x,y).u[1] + (4./3.)*V(x-1,y).u[1] + (-1./12.)*V(x-2,y).u[1];
-          dudy2   = (-1./12.)*V(x,y+2).u[0] + ( 4./3.)*V(x,y+1).u[0] + (-2.5)*V(x,y).u[0] + (4./3.)*V(x,y-1).u[0] + (-1./12.)*V(x,y-2).u[0];
-          dvdy2   = (-1./12.)*V(x,y+2).u[1] + ( 4./3.)*V(x,y+1).u[1] + (-2.5)*V(x,y).u[1] + (4./3.)*V(x,y-1).u[1] + (-1./12.)*V(x,y-2).u[1];
-          dudxdy1 = 0.25*(V(x+1,y+1).u[0]+V(x-1,y-1).u[0]-V(x+1,y-1).u[0]-V(x-1,y+1).u[0]);
-          dvdxdy1 = 0.25*(V(x+1,y+1).u[1]+V(x-1,y-1).u[1]-V(x+1,y-1).u[1]-V(x-1,y+1).u[1]);
-          dudx3   = -0.5*V(x-2,y).u[0] + V(x-1,y).u[0]  - V(x+1,y).u[0]  + 0.5*V(x+2,y).u[0];
-          dvdx3   = -0.5*V(x-2,y).u[1] + V(x-1,y).u[1]  - V(x+1,y).u[1]  + 0.5*V(x+2,y).u[1];
-          dudy3   = -0.5*V(x,y-2).u[0] + V(x,y-1).u[0]  - V(x,y+1).u[0]  + 0.5*V(x,y+2).u[0];
-          dvdy3   = -0.5*V(x,y-2).u[1] + V(x,y-1).u[1]  - V(x,y+1).u[1]  + 0.5*V(x,y+2).u[1];
-          dudy2dx = 0.5*( dudxdy_yp1 - dudxdy_ym1 );
-          dudx2dy = 0.5*( dudxdy_xp1 - dudxdy_xm1 );
-          dvdy2dx = 0.5*( dvdxdy_yp1 - dvdxdy_ym1 );
-          dvdx2dy = 0.5*( dvdxdy_xp1 - dvdxdy_xm1 );
-#endif
           const double dudx = dudx1 + dudx2*(ix-x)+ dudxdy1*(iy-y) + 0.5*dudx3*(ix-x)*(ix-x) +     dudx2dy*(ix-x)*(iy-y) + 0.5*dudy2dx*(iy-y)*(iy-y);
           const double dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y) + 0.5*dvdx3*(ix-x)*(ix-x) +     dvdx2dy*(ix-x)*(iy-y) + 0.5*dvdy2dx*(iy-y)*(iy-y);
           const double dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y) + 0.5*dudx2dy*(ix-x)*(ix-x) +     dudy2dx*(ix-x)*(iy-y);

@@ -26,6 +26,7 @@
 *.pdfsync
 
 *.brf
+*.eps
 
 makefiles/simulation
 makefiles/debugRL

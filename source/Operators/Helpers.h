@@ -73,7 +73,7 @@ struct KernelVorticity
     auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
     for(int y=0; y<VectorBlock::sizeY; ++y)
     for(int x=0; x<VectorBlock::sizeX; ++x)
-      TMP(x,y).s = i2h * (lab(x,y-1).u[0]-lab(x,y+1).u[0] + lab(x+1,y).u[1]-lab(x-1,y).u[1]);
+      TMP(x,y).s = i2h * ((lab(x,y-1).u[0]-lab(x,y+1).u[0]) + (lab(x+1,y).u[1]-lab(x-1,y).u[1]));
   }
 };
 
@@ -86,6 +86,23 @@ class computeVorticity : public Operator
   {
     const KernelVorticity mykernel(sim);
     compute<KernelVorticity,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
+    double maxv = -1e10;
+    double minv =  1e10;
+    for (auto & info: sim.tmp->getBlocksInfo())
+    {
+      auto & TMP = *(ScalarBlock*) info.ptrBlock;
+      for(int y=0; y<VectorBlock::sizeY; ++y)
+      for(int x=0; x<VectorBlock::sizeX; ++x)
+      {
+        maxv = std::max(maxv, TMP(x,y).s);
+        minv = std::max(minv,-TMP(x,y).s);
+      }
+    }
+    double buffer[2] = {maxv,minv};
+    double recvbuf[2];
+    MPI_Reduce(buffer,recvbuf, 2, MPI_DOUBLE, MPI_MAX, 0, sim.chi->getCartComm());
+    if (sim.rank == 0)
+      std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
   }
 
   std::string getName()
