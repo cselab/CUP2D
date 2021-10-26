@@ -312,7 +312,7 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vect
         return i;
       }
       else {
-        printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pos[0], pos[1]);
+        printf("ABORT: coordinate (%g,%g) in block %ld could not be associated to obstacle block\n", pos[0], pos[1], i);
         fflush(0); abort();
       }
     }
@@ -381,10 +381,10 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
                                            pSurf[1] + h * normSurf[1] };
 
   // get blockId of lifted surface
-  const size_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
+  const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
 
   // get surface velocity if block containing point found
-  if( blockIdSurf >= 0 ) {
+  if( blockIdLifted >= 0 ) {
     // get block
     const auto& liftedBinfo = velInfo[blockIdLifted];
 
