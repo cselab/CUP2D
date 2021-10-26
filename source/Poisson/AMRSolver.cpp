@@ -178,7 +178,7 @@ void AMRSolver::solve()
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ z    = *(ScalarBlock*)  zInfo[i].ptrBlock;
     if( sim.bMeanConstraint )
-      if (isCorner(AxInfo[i])) rhs(4,4).s = 0.0;
+      if (isCorner(AxInfo[i])) rhs(0,0).s = 0.0;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
