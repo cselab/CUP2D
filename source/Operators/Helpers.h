@@ -87,7 +87,7 @@ class computeVorticity : public Operator
     const KernelVorticity mykernel(sim);
     compute<KernelVorticity,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
     double maxv = -1e10;
-    double minv =  1e10;
+    double minv = -1e10;
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
