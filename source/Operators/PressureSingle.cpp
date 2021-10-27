@@ -258,7 +258,7 @@ struct updatePressureRHS
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       {
         faceXm[iy].s  =  facDiv                *( velLab(ix-1,iy).u[0] +  velLab(ix,iy).u[0]) ;
-        faceXm[iy].s += -facDiv * CHI(ix,iy).s *(uDefLab(ix-1,iy).u[0] + uDefLab(ix,iy).u[0]) ;
+        faceXm[iy].s += -(facDiv * CHI(ix,iy).s)*(uDefLab(ix-1,iy).u[0] + uDefLab(ix,iy).u[0]) ;
       }
     }
     if (faceXp != nullptr)
@@ -267,7 +267,7 @@ struct updatePressureRHS
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       {
         faceXp[iy].s  = -facDiv               *( velLab(ix+1,iy).u[0] +  velLab(ix,iy).u[0]);
-        faceXp[iy].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix+1,iy).u[0] + uDefLab(ix,iy).u[0]);
+        faceXp[iy].s -= -(facDiv *CHI(ix,iy).s)*(uDefLab(ix+1,iy).u[0] + uDefLab(ix,iy).u[0]);
       }
     }
     if (faceYm != nullptr)
@@ -276,7 +276,7 @@ struct updatePressureRHS
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
         faceYm[ix].s  =  facDiv               *( velLab(ix,iy-1).u[1] +  velLab(ix,iy).u[1]);
-        faceYm[ix].s += -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy-1).u[1] + uDefLab(ix,iy).u[1]);         
+        faceYm[ix].s += -(facDiv *CHI(ix,iy).s)*(uDefLab(ix,iy-1).u[1] + uDefLab(ix,iy).u[1]);
       }
     }
     if (faceYp != nullptr)
@@ -285,7 +285,7 @@ struct updatePressureRHS
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
         faceYp[ix].s  = -facDiv               *( velLab(ix,iy+1).u[1] +  velLab(ix,iy).u[1]);
-        faceYp[ix].s -= -facDiv *CHI(ix,iy).s *(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
+        faceYp[ix].s -= -(facDiv *CHI(ix,iy).s)*(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
       }
     }
   }
