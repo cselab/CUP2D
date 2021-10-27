@@ -101,6 +101,7 @@ class computeVorticity : public Operator
     double buffer[2] = {maxv,minv};
     double recvbuf[2];
     MPI_Reduce(buffer,recvbuf, 2, MPI_DOUBLE, MPI_MAX, 0, sim.chi->getCartComm());
+    recvbuf[1]=-recvbuf[1];
     if (sim.rank == 0)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
   }
