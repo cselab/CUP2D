@@ -68,9 +68,9 @@ class ComputeLHS : public Operator
   ComputeLHS(SimulationData & s) : Operator(s) { }
   bool isCorner(cubism::BlockInfo & info)
   {
-    const int aux = 1 << info.level;
-    const bool x = info.index[0] == (sim.bpdx * aux - 1)/ 2;
-    const bool y = info.index[1] == (sim.bpdy * aux - 1)/ 2;
+    //const int aux = 1 << info.level;
+    const bool x = info.index[0] == 0;//(sim.bpdx * aux - 1)/ 2;
+    const bool y = info.index[1] == 0;//(sim.bpdy * aux - 1)/ 2;
     return x && y;
   }
 
@@ -98,7 +98,7 @@ class ComputeLHS : public Operator
       if (index != -1)
       {
        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
-       LHS(4,4).s = mean;
+       LHS(0,0).s = mean;
       }
     }
   }
@@ -125,9 +125,6 @@ class AMRSolver
 
   bool isCorner(cubism::BlockInfo & info)
   {
-    //const int aux = 1 << info.level;
-    const bool x = info.index[0] == 0;//(sim.bpdx * aux - 1)/ 2;
-    const bool y = info.index[1] == 0;//(sim.bpdy * aux - 1)/ 2;
-    return x && y;
+    return Get_LHS.isCorner(info);
   }
 };

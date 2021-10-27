@@ -12,39 +12,29 @@ struct GradChiOnTmp
 {
   GradChiOnTmp(const SimulationData & s) : sim(s) {}
   const SimulationData & sim;
-  const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0}};
+  const StencilInfo stencil{-2, -2, 0, 3, 3, 1, true, {0}};
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
-    if (info.level == sim.tmp->getlevelMax()-1) return;
     auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
 
-    const double ih = 1.0/info.h;
-    const double p3 =  ih/60.0;
-    const double p2 = -ih*0.15;
-    const double p1 =  ih*0.75;
-    for(int y=0; y<VectorBlock::sizeY; ++y)
-    for(int x=0; x<VectorBlock::sizeX; ++x)
+    //Loop over block and halo cells and set TMP(0,0) to a value which will cause mesh refinement
+    //if any of the cells have:
+    // 1. chi > 0 (if bAdaptChiGradient=false)
+    // 2. chi > 0 and chi < 0.9 (if bAdaptChiGradient=true)
+    // Option 2 is equivalent to grad(chi) != 0
+    const int offset = (info.level == sim.tmp->getlevelMax()-1) ? 2 : 1;
+    const double threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
+    for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
+    for(int x=-offset; x<VectorBlock::sizeX+offset; ++x)
     {
-      if( sim.bAdaptChiGradient )
+      lab(x,y).s = std::min(lab(x,y).s,1.0);
+      lab(x,y).s = std::max(lab(x,y).s,0.0);
+      if (lab(x,y).s > 0.0 && lab(x,y).s < threshold)
       {
-        double dcdx = p3*lab(x+3,y).s + p2*lab(x+2,y).s + p1*lab(x+1,y).s
-                     -p1*lab(x-1,y).s - p2*lab(x-2,y).s - p3*lab(x-3,y).s;
-        double dcdy = p3*lab(x,y+3).s + p2*lab(x,y+2).s + p1*lab(x,y+1).s
-                     -p1*lab(x,y-1).s - p2*lab(x,y-2).s - p3*lab(x,y-3).s;
-        if (tmpInfo[info.blockID].level <= sim.tmp->getlevelMax() - 2)
-        {
-          dcdx = 0.5*ih*(lab(x+1,y).s-lab(x-1,y).s);
-          dcdy = 0.5*ih*(lab(x,y+1).s-lab(x,y-1).s);
-        }
-        const double norm = dcdx*dcdx+dcdy*dcdy;
-        if (norm > 0.1)
-        {
-          TMP(x,y).s = 1e10;
-          return;
-        }
+        TMP(0,0).s = 2*sim.Rtol;
+        break;
       }
-      else if ( lab(x,y).s > 0.0 ) TMP(x,y).s = 1e10;
     }
   }
 };
