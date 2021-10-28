@@ -65,6 +65,7 @@ struct SimulationData
   double PoissonTol;    // absolute error tolerance
   double PoissonTolRel; // relative error tolerance
   int maxPoissonRestarts; // maximal number of restarts of Poisson solver
+  int maxPoissonIterations; // maximal number of iterations of Poisson solver
   bool bMeanConstraint; // regularizing the poisson equation using the mean
 
   // output setting

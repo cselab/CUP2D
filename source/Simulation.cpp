@@ -169,6 +169,7 @@ void Simulation::parseRuntime()
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
+  sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
 
   // output parameters

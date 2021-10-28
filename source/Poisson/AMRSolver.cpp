@@ -229,9 +229,9 @@ void AMRSolver::solve()
   bool bConverged = false;
 
   //3. start iterations
-  size_t k;
+  int k;
   if (rank == 0) std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
-  const int kmax = 1000;
+  const int kmax = sim.maxPoissonIterations;
   for ( k = 0 ; k < kmax; k++)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
