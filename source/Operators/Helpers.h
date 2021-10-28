@@ -87,7 +87,7 @@ class computeVorticity : public Operator
     const KernelVorticity mykernel(sim);
     compute<KernelVorticity,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
     double maxv = -1e10;
-    double minv =  1e10;
+    double minv = -1e10;
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
@@ -101,6 +101,7 @@ class computeVorticity : public Operator
     double buffer[2] = {maxv,minv};
     double recvbuf[2];
     MPI_Reduce(buffer,recvbuf, 2, MPI_DOUBLE, MPI_MAX, 0, sim.chi->getCartComm());
+    recvbuf[1]=-recvbuf[1];
     if (sim.rank == 0)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
   }
