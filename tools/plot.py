@@ -48,7 +48,7 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   ## load dynamic data ##
   dynamicData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
   dynamicTime    = dynamicData[:,0]
-  np.testing.assert_array_equal(dynamicTime, time)
+  # np.testing.assert_array_equal(dynamicTime, time)
   forceX  = dynamicData[:,1]
   forceY  = dynamicData[:,2]
   # print("force:", forceX, forceY)
@@ -57,8 +57,8 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   ## load power data ##
   powerData = np.loadtxt(root+runname+"/powerValues_0.dat", skiprows=1)
   powerTime    = powerData[:,0]
-  np.testing.assert_array_equal(powerTime, time)
-  pOut  = powerData[:,6]
+  # np.testing.assert_array_equal(powerTime, time)
+  pOut  = powerData[:,5]
   # print("force:", forceX, forceY)
   #######################
 
@@ -128,21 +128,22 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   #################################################################################
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
   # if i == j+2:
+  minLevels = 7
   ## plot drag ##
   if j == 0:
-    axs[j].plot(dynamicTime, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+    axs[j].plot(dynamicTime, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
   ########################
 
   ## plot lift ##
   if j == 1:
-    axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+    axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
   ########################
 
   ## plot power ##
   if j == 2:
-    axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+5))
+    axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
   ########################
-
+  
   ## plot autocorrelation of drag/lift to detect frequency ##
   # autoCorrDragCoeff = np.correlate(dragCoeff, dragCoeff, mode='full')
   # autoCorrLiftCoeff = np.correlate(liftCoeff, liftCoeff, mode='full')
@@ -677,8 +678,8 @@ def plotForceTimeTeardrop():
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
 
-  # runname = [ "teardropFixed_levels{:01d}".format(level) for level in np.arange(5,10) ]
-  runname = [ "testTD" ]
+  runname = [ "teardropFixedMPI_PR=100_PI=10000_levels{:01d}".format(level) for level in np.arange(7,12) ]
+  # runname = [ "testTD" ]
 
 
   ###### plot validation data ######

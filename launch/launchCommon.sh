@@ -30,7 +30,7 @@ elif [ ${HOST:0:5} == 'daint' ] ; then
 BASEPATH="${SCRATCH}/CUP2D/"
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
-export OMP_NUM_THREADS=12
+export OMP_NUM_THREADS=1
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
@@ -41,7 +41,7 @@ if [[ "$?" -gt "0" ]] ; then
 source launchSbatch.sh
 else
 cd ${FOLDERNAME}
-srun -n $SLURM_NNODES -c 12 --ntasks-per-node=1 --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+srun -n $SLURM_NNODES -c 1 --ntasks-per-node=12 --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 fi
 
 ###################################################################################################
