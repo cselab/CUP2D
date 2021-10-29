@@ -277,13 +277,9 @@ void AMRSolver::solve()
     norm_2 = sqrt(norm_2);
     const double cosTheta = rho/norm_1/norm_2; 
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
-    if (serious_breakdown)
+    if (serious_breakdown && restarts < max_restarts)
     {
         restarts ++;
-        if (restarts >= max_restarts)
-        {
-           break;
-        }
         if (rank == 0) std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
         beta = 0.0;
         rho = 0.0;
