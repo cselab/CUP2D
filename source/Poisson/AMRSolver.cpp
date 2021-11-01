@@ -391,6 +391,12 @@ void AMRSolver::solve()
         r[j] = s[j] - omega * Ax(ix,iy).s;
       }
     }
+    if (norm / (norm0 + 1e-21) > 1e10)
+    {
+	    if (rank == 0) std::cout << "   [Poisson solver]: early termination. " << std::endl;
+	    break;
+    }
+
     //if (rank == 0 && k % 50 == 0)
     //  std::cout << "  iter:" << k << " norm:" << norm << " opt:" << norm_opt << std::endl;
   } //k-loop
