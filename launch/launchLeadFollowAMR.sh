@@ -9,8 +9,9 @@ CTOL=${CTOL-1}
 EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
-PTR=${PTR:-1e-2}
-PR=${PR:-5}
+PTR=${PTR:-0}
+PR=${PR:-100}
+PI=${PI:-10000}
 
 # Defaults for follower
 LENGTH=${LENGTH:-0.2}
@@ -76,20 +77,6 @@ else
 	stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER
 	"
 		echo $OBJECTS
-		echo "----------------------------"
-	elif [ "$OBSTACLE" = "swarm4" ]
-	then
-		echo "setting options for swarm4"
-		# options for swarm4
-		NAGENTS=3
-		# set object string
-		### for L=0.2 and extentx=extenty=2, 4 swimmers
-		OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
-	stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=0.90
-	stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=1.10
-	stefanfish L=$LENGTH T=$PERIOD xpos=1.20 ypos=1.00
-	"
-		echo $OBJECTS
 	elif [ "$OBSTACLE" = "waterturbine" ]
 	then
 		echo "----------------------------"
@@ -103,6 +90,20 @@ else
 		# set object string
 		OBJECTS="waterturbine semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOSLEADER bForced=1 bFixed=1 xvel=$XVEL angvel=$ANGVEL tAccel=0
 		stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER
+	"
+		echo $OBJECTS
+	elif [ "$OBSTACLE" = "swarm4" ]
+	then
+		echo "setting options for swarm4"
+		# options for swarm4
+		NAGENTS=3
+		EXTENT=4
+		# set object string
+		### for L=0.2 and extentx=extenty=2, 4 swimmers
+		OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
+	stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=0.90
+	stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=1.10
+	stefanfish L=$LENGTH T=$PERIOD xpos=1.20 ypos=1.00
 	"
 		echo $OBJECTS
 	elif [ "$OBSTACLE" = "swarm9" ]
@@ -191,7 +192,7 @@ else
 	fi
 echo "----------------------------"
 echo "setting simulation options"
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 1 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -maxPoissonIterations $PI -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 1 -verbose 0"
 echo $OPTIONS
 echo "----------------------------"
 fi
