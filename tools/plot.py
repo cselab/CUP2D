@@ -42,6 +42,7 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   time = kineticData[:,0]
   u = kineticData[:,7]
   v = kineticData[:,8]
+  omega = kineticData[:,9]
   # print("speed:", u, v)
   #########################
 
@@ -51,6 +52,7 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   # np.testing.assert_array_equal(dynamicTime, time)
   forceX  = dynamicData[:,1]
   forceY  = dynamicData[:,2]
+  tau     = dynamicData[:,7]
   # print("force:", forceX, forceY)
   #######################
 
@@ -59,6 +61,8 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   powerTime    = powerData[:,0]
   # np.testing.assert_array_equal(powerTime, time)
   pOut  = powerData[:,5]
+  for iii in range (len(u)):
+      pOut[iii] = (u[iii]*forceX[iii]+v[iii]*forceY[iii]) + tau[iii]*omega[iii]
   # print("force:", forceX, forceY)
   #######################
 
@@ -678,9 +682,8 @@ def plotForceTimeTeardrop():
 
   rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
 
-  runname = [ "teardropFixedMPI_PR=100_PI=10000_levels{:01d}".format(level) for level in np.arange(7,12) ]
-  # runname = [ "testTD" ]
-
+  #runname = [ "teardropFixedMPI_PR=100_PI=10000_levels{:01d}".format(level) for level in np.arange(7,12) ]
+  runname = ["singleNodeRuns/teardropFixed_levels7"]
 
   ###### plot validation data ######
   ##################################
