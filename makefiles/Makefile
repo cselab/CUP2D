@@ -109,11 +109,23 @@ cup.libs.txt:
 	$(CXX) $(CPPFLAGS) -c -MD $<
 
 # COMPILATION INSTRUCTIONS FOR CUDA ENABLED CODE
-NVFLAGS+= -std=c++17 
-NVFLAGS += -code=sm_60 -arch=compute_60 -I$(BUILDDIR)/../Cubism/include/
+NVFLAGS += -std=c++17 
+# Arch flags for maximum compatibility
+NVFLAGS += -arch=sm_52 \
+					 -gencode=arch=compute_52,code=sm_52 \
+					 -gencode=arch=compute_60,code=sm_60 \
+					 -gencode=arch=compute_61,code=sm_61 \
+					 -gencode=arch=compute_70,code=sm_70 \
+					 -gencode=arch=compute_75,code=sm_75 \
+					 -gencode=arch=compute_80,code=sm_80 \
+					 -gencode=arch=compute_86,code=sm_86 \
+					 -gencode=arch=compute_86,code=compute_86
+# Arch flags for maximum performance on a particular system
+# NVFLAGS += -arch=sm_75 -gencode=arch=compute_75,code=sm_75
 NVFLAGS += -DGPU_POISSON
-NVFLAGS += -I$(BUILDDIR)/../source/Poisson/
-NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+NVFLAGS += -DBICGSTAB_PROFILER
+NVFLAGS += -I$(BUILDDIR)/../source/Poisson/ -I$(BUILDDIR)/../Cubism/include/
+NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -DDIMENSION=2
 
 bicgstab.o: bicgstab.cu 
 	nvcc $(NVFLAGS) -c $< -o $@

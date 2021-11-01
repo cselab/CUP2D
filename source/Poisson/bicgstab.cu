@@ -10,6 +10,23 @@
 #define GRID_SIZE 400
 #endif
 
+#ifdef BICGSTAB_PROFILER
+void startProfiler(cudaEvent_t start, cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(start, stream));
+}
+
+void stopProfiler(float &total_elapsed_ms, cudaEvent_t start, cudaEvent_t stop, cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(stop, stream));
+  checkCudaErrors(cudaEventSynchronize(stop));
+
+  float this_ms = 0.;
+  checkCudaErrors(cudaEventElapsedTime(&this_ms, start, stop));
+  total_elapsed_ms += this_ms;
+}
+#endif // BICGSTAB_PROFILER
+
 extern "C" void BiCGSTAB(
     const int m, // rows
     const int n, // cols
@@ -34,6 +51,18 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cublasSetStream(cublas_handle, solver_stream));
   checkCudaErrors(cusparseSetStream(cusparse_handle, solver_stream));
 
+#ifdef BICGSTAB_PROFILER
+  // ------------------------------------------------- Setup profiler -----------------------------------------------
+  float elapsed_memcpy = 0.;
+  float elapsed_bicgstab = 0.;
+  cudaEvent_t start_memcpy; checkCudaErrors(cudaEventCreate(&start_memcpy));
+  cudaEvent_t stop_memcpy; checkCudaErrors(cudaEventCreate(&stop_memcpy));
+  cudaEvent_t start_bicgstab; checkCudaErrors(cudaEventCreate(&start_bicgstab));
+  cudaEvent_t stop_bicgstab; checkCudaErrors(cudaEventCreate(&stop_bicgstab));
+
+  startProfiler(start_bicgstab, solver_stream);
+#endif // BICGSTAB_PROFILER
+
   // ------------------------------------------------- H2D transfer --------------------------------------------------
   // Host-device exec asynchronous, it may be worth already allocating pinned memory
   // and copying h2h (with cpu code) after async dev memory allocation calls 
@@ -55,12 +84,18 @@ extern "C" void BiCGSTAB(
 
   // Possibly copy to pinned memory here followed by a sync call
 
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy, solver_stream);
+#endif
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(d_cooValA, h_cooValA, nnz * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_cooRowA, h_cooRowA, nnz * sizeof(int), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_cooColA, h_cooColA, nnz * sizeof(int), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_x, h_x, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_b, h_b, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy, start_memcpy, stop_memcpy, solver_stream);
+#endif
   
   // Sort COO storage by row
   // 1. Deduce buffer size necessary for sorting and allocate storage for it
@@ -305,16 +340,22 @@ extern "C" void BiCGSTAB(
   }
 
   if( bConverged )
-    std::cout <<  " Error norm (relative) = " << x_error << "/" << max_error 
+    std::cout <<  "[BiCGSTAB]: Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "[Poisson solver]: Iteration " << max_iter 
+    std::cout <<  "[BiCGSTAB]: Iteration " << max_iter 
               << ". Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
 
 
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy, solver_stream);
+#endif
   // Copy result back to host
   checkCudaErrors(cudaMemcpyAsync(h_x, d_x, m * sizeof(double), cudaMemcpyDeviceToHost, solver_stream));
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy, start_memcpy, stop_memcpy, solver_stream);
+#endif
 
   // Cleanup memory alocated during BiCGSTAB
   checkCudaErrors(cusparseDestroySpMat(spDescrA));
@@ -341,8 +382,21 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_x, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_b, solver_stream));
 
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_bicgstab, start_bicgstab, stop_bicgstab, solver_stream);
+  
+  std::cout << "[BiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
+  std::cout << "[BiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
+#endif
+
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
   // Destroy CUDA stream and library handles
+#ifdef BICGSTAB_PROFILER
+  checkCudaErrors(cudaEventDestroy(start_memcpy));
+  checkCudaErrors(cudaEventDestroy(stop_memcpy));
+  checkCudaErrors(cudaEventDestroy(start_bicgstab));
+  checkCudaErrors(cudaEventDestroy(stop_bicgstab));
+#endif
   checkCudaErrors(cublasDestroy(cublas_handle)); 
   checkCudaErrors(cusparseDestroy(cusparse_handle)); 
   checkCudaErrors(cudaStreamDestroy(solver_stream));
@@ -432,6 +486,21 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cublasSetStream(cublas_handle, solver_stream));
   checkCudaErrors(cusparseSetStream(cusparse_handle, solver_stream));
 
+#ifdef BICGSTAB_PROFILER
+  // ------------------------------------------------- Setup profiler -----------------------------------------------
+  float elapsed_memcpy = 0.;
+  float elapsed_precondition = 0.;
+  float elapsed_bicgstab = 0.;
+  cudaEvent_t start_memcpy; checkCudaErrors(cudaEventCreate(&start_memcpy));
+  cudaEvent_t stop_memcpy; checkCudaErrors(cudaEventCreate(&stop_memcpy));
+  cudaEvent_t start_precondition; checkCudaErrors(cudaEventCreate(&start_precondition));
+  cudaEvent_t stop_precondition; checkCudaErrors(cudaEventCreate(&stop_precondition));
+  cudaEvent_t start_bicgstab; checkCudaErrors(cudaEventCreate(&start_bicgstab));
+  cudaEvent_t stop_bicgstab; checkCudaErrors(cudaEventCreate(&stop_bicgstab));
+
+  startProfiler(start_bicgstab, solver_stream);
+#endif // BICGSTAB_PROFILER
+
   // ------------------------------------------------- H2D transfer --------------------------------------------------
   // Host-device exec asynchronous, it may be worth already allocating pinned memory
   // and copying h2h (with cpu code) after async dev memory allocation calls 
@@ -455,6 +524,9 @@ extern "C" void pBiCGSTAB(
 
   // Possibly copy to pinned memory here followed by a sync call
 
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy, solver_stream);
+#endif
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(d_cooValA, h_cooValA, nnz * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_cooRowA, h_cooRowA, nnz * sizeof(int), cudaMemcpyHostToDevice, solver_stream));
@@ -462,6 +534,9 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cudaMemcpyAsync(d_x, h_x, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_b, h_b, m * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
   checkCudaErrors(cudaMemcpyAsync(d_P_inv, h_P_inv, B * B * sizeof(double), cudaMemcpyHostToDevice, solver_stream));
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy, start_memcpy, stop_memcpy, solver_stream);
+#endif
   
   // Sort COO storage by row
   // 1. Deduce buffer size necessary for sorting and allocate storage for it
@@ -626,9 +701,15 @@ extern "C" void pBiCGSTAB(
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &eye, d_b, 1, d_p, 1));    // p <- r_{i-1} + p
 
     // 4. z <- K_2^{-1} * p_i
+#ifdef BICGSTAB_PROFILER
+    startProfiler(start_precondition, solver_stream);
+#endif
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_p, 1, d_z, 1)); // z <- p_i
     preconditionVec<<<gridSz, blockSz, sharedMemSz, solver_stream>>>(m, d_P_inv, d_z); // z <- K_2^{-1}*z
     checkCudaErrors(cudaGetLastError());
+#ifdef BICGSTAB_PROFILER
+    stopProfiler(elapsed_precondition, start_precondition, stop_precondition, solver_stream);
+#endif
 
     // 5. nu_i = A * z
     checkCudaErrors(cusparseSpMV(
@@ -661,7 +742,7 @@ extern "C" void pBiCGSTAB(
     if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
+      std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;
       bConverged = true;
       break;
     }
@@ -671,9 +752,15 @@ extern "C" void pBiCGSTAB(
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &nalpha, d_nu, 1, d_b, 1));
 
     // 10. z <- K_2^{-1} * s
+#ifdef BICGSTAB_PROFILER
+    startProfiler(start_precondition, solver_stream);
+#endif
     checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_z, 1)); // z <- s
     preconditionVec<<<gridSz, blockSz, sharedMemSz, solver_stream>>>(m, d_P_inv, d_z); // z <- K_2^{-1}*z
     checkCudaErrors(cudaGetLastError());
+#ifdef BICGSTAB_PROFILER
+    stopProfiler(elapsed_precondition, start_precondition, stop_precondition, solver_stream);
+#endif
 
     // 11. t = A * z
     checkCudaErrors(cusparseSpMV(
@@ -708,7 +795,7 @@ extern "C" void pBiCGSTAB(
     if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      std::cout << "[pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       bConverged = true;
       break;
     }
@@ -722,16 +809,22 @@ extern "C" void pBiCGSTAB(
   }
 
   if( bConverged )
-    std::cout <<  " Error norm (relative) = " << x_error << "/" << max_error 
+    std::cout <<  "[pBiCGSTAB] Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "[Poisson solver]: Iteration " << max_iter 
+    std::cout <<  "[pBiCGSTAB]: Iteration " << max_iter 
               << ". Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
 
 
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy, solver_stream);
+#endif
   // Copy result back to host
   checkCudaErrors(cudaMemcpyAsync(h_x, d_x, m * sizeof(double), cudaMemcpyDeviceToHost, solver_stream));
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy, start_memcpy, stop_memcpy, solver_stream);
+#endif
 
   // Cleanup memory alocated during BiCGSTAB
   checkCudaErrors(cusparseDestroySpMat(spDescrA));
@@ -759,8 +852,25 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_b, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_P_inv, solver_stream));
 
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_bicgstab, start_bicgstab, stop_bicgstab, solver_stream);
+  
+  std::cout << "[BiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
+  std::cout << "[BiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
+  std::cout << "[BiCGSTAB]: preconditioning:    " << (elapsed_precondition/elapsed_bicgstab)*100. << "%." << std::endl;
+#endif
+
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
   // Destroy CUDA stream and library handles
+#ifdef BICGSTAB_PROFILER
+  checkCudaErrors(cudaEventDestroy(start_memcpy));
+  checkCudaErrors(cudaEventDestroy(stop_memcpy));
+  checkCudaErrors(cudaEventDestroy(start_precondition));
+  checkCudaErrors(cudaEventDestroy(stop_precondition));
+  checkCudaErrors(cudaEventDestroy(start_bicgstab));
+  checkCudaErrors(cudaEventDestroy(stop_bicgstab));
+#endif
   checkCudaErrors(cublasDestroy(cublas_handle)); 
   checkCudaErrors(cusparseDestroy(cusparse_handle)); 
+  checkCudaErrors(cudaStreamDestroy(solver_stream));
 }
