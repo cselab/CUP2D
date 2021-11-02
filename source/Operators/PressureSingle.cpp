@@ -457,8 +457,6 @@ void PressureSingle::preventCollidingObstacles() const
 
 bool PressureSingle::detectCollidingObstacles() const
 {
-  //TODO: MPI?
-
   // boolean indicating whether there was a collision
   bool bCollision = false;
 
@@ -497,12 +495,18 @@ bool PressureSingle::detectCollidingObstacles() const
         // get location of collision
         const auto pos = velInfo[k].pos<Real>(ix, iy);
 
+        // Output collision information
+        printf("[CUP2D, rank %u] %lu hit %lu in [%f %f]\n", sim.rank, i, j, pos[0], pos[1]); fflush(0);
+
         // set boolean to true and tell user
         bCollision = true;
-        printf("[CUP2D] WARNING: %lu hit %lu in [%f %f]\n", i, j, pos[0], pos[1]); fflush(0);
       }
     }
   }
+  // Reduction to all ranks
+  MPI_Allreduce(MPI_IN_PLACE, &bCollision, 1, MPI_C_BOOL, MPI_LOR, sim.chi->getCartComm());
+
+  // Return collision status
   return bCollision;
 }
 

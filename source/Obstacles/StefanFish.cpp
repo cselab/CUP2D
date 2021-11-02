@@ -62,7 +62,7 @@ StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, double C[2]):
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  if( s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.minH, Tperiod, phaseShift);
+  if( sim.rank == 0 && s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.minH, Tperiod, phaseShift);
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
@@ -305,16 +305,11 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vect
       MAX[j] += 0.5 * h; // pos returns cell centers
 
     // check whether point is inside block
-    if( pos[0] > MIN[0] && pos[1] > MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
+    if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
       // check whether obstacle block exists
-      if(obstacleBlocks[i] != nullptr ) {
+      if(obstacleBlocks[i] != nullptr )
         return i;
-      }
-      else {
-        printf("ABORT: coordinate (%g,%g) in block %ld could not be associated to obstacle block\n", pos[0], pos[1], i);
-        fflush(0); abort();
-      }
     }
   }
   // rank does not contain point
@@ -339,7 +334,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
 
   // 1. Compute surface velocity on surface
   // get blockId of surface
-  const ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
+  ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
 
   // get surface velocity if block containing point found
   if( blockIdSurf >= 0 ) {
@@ -362,6 +357,13 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
     velocityH[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udef[0];
     velocityH[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udef[1];
   }
+
+  // DEBUG purposes
+  #if 1
+  MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getCartComm());
+  if( sim.rank == 0 && blockIdSurf == -1 )
+    printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pSurf[0], pSurf[1]);
+  #endif
 
   // Allreduce to Bcast surface velocity
   MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());

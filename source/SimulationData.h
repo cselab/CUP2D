@@ -13,8 +13,9 @@ class Shape;
 
 struct SimulationData
 {
-  // MPI communicator
+  // MPI
   MPI_Comm comm;
+  int rank;
 
   /* parsed parameters */
   /*********************/
@@ -111,9 +112,6 @@ struct SimulationData
   // largest velocity measured
   double uMax_measured = 0;
 
-  // gravity
-  std::array<Real,2> gravity = { (Real) 0.0, (Real) -9.8 };
-
   // time of next dump
   double nextDumpTime = 0;
 
@@ -134,14 +132,10 @@ struct SimulationData
   double minH;
   double maxH;
 
-  //MPI
-  int rank;
-  int step1;
-
   // minimal gridspacing present on grid
-  inline double getH() const
+  double getH()
   {
-    double minHGrid = 1e50;
+    double minHGrid = std::numeric_limits<double>::infinity();
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
