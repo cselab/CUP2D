@@ -48,7 +48,7 @@ def plotForceTime( axs, root, runname, radius, i, j ):
 
   ## load dynamic data ##
   dynamicData = np.loadtxt(root+runname+"/forceValues_0.dat", skiprows=1)
-  dynamicTime    = dynamicData[:,0]
+  dynamicTime = dynamicData[:,0]
   # np.testing.assert_array_equal(dynamicTime, time)
   forceX  = dynamicData[:,1]
   forceY  = dynamicData[:,2]
@@ -136,16 +136,22 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   ## plot drag ##
   if j == 0:
     axs[j].plot(dynamicTime, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
+    indices = (dynamicTime > 0.5) & (dynamicTime < 4.25)
+    print('[CUP2D] Average Drag $t\\in [0.50,4.25]$: ', sp.integrate.simps(dragCoeff[indices], dynamicTime[indices]) / (4.25-0.5) )
   ########################
 
   ## plot lift ##
   if j == 1:
     axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
+    indices = (dynamicTime > 0.68) & (dynamicTime < 4.57)
+    print("[CUP2D] Average Lift $t\\in [0.68,4.57]$: ", sp.integrate.simps(liftCoeff[indices], dynamicTime[indices]) / (4.57-0.68) )
   ########################
 
   ## plot power ##
   if j == 2:
     axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
+    indices = (dynamicTime > 0.36) & (dynamicTime < 4.14)
+    print("[CUP2D] Average Power $t\\in [0.36,4.14]$: ", sp.integrate.simps(powerCoeff[indices], dynamicTime[indices]) / (4.14-0.36) )
   ########################
   
   ## plot autocorrelation of drag/lift to detect frequency ##
@@ -691,16 +697,22 @@ def plotForceTimeTeardrop():
   validationPath = "/project/s929/pweber/hydrofoilValidationData/fStar-664_Re5400.csv"
   validationData = np.loadtxt(validationPath, delimiter=",", skiprows=1)
   timestep = 1.5060240964 / 500
-
+  time = timestep*validationData[:,0]
 
   fig, axs = plt.subplots(3, sharex=True)
   for j in range(3):
     if j == 0:
-      axs[j].plot(timestep*validationData[:,0], -validationData[:,4], "2k", label="reference", zorder=10)
+      axs[j].plot(time, -validationData[:,4], "2k", label="reference", zorder=10)
+      indices = (time > 0.5) & (time < 4.25)
+      print('[Reference] Average Drag $t\\in[0.50,4.25]$: ', sp.integrate.simps( -validationData[indices,4], time[indices]) / (4.25-0.5) )
     if j == 1:
-      axs[j].plot(timestep*validationData[:,0], -validationData[:,1], "2k", label="reference", zorder=10)
+      axs[j].plot(time, -validationData[:,1], "2k", label="reference", zorder=10)
+      indices = (time > 0.66) & (time < 4.5)
+      print('[Reference] Average Lift $t\\in[0.66,4.50]$: ', sp.integrate.simps( -validationData[indices,1], time[indices]) / (4.5-0.66) ) 
     if j == 2:
-      axs[j].plot(timestep*validationData[:,0], -validationData[:,3], "2k", label="reference", zorder=10)
+      axs[j].plot(time, -validationData[:,3], "2k", label="reference", zorder=10)
+      indices = (time > 0.68) & (time < 3.7)
+      print('[Reference] Average Power $t\\in [0.68,3.70]$: ', sp.integrate.simps( -validationData[indices,3], time[indices]) / (3.7-0.68) )
 
     ###### plot simulation data ######
     ##################################

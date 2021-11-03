@@ -8,7 +8,7 @@ EXTENT=${EXTENT:-4}
 CFL=${CFL:-0.2}
 PT=${PT:-1e-6}
 PTR=${PTR:-0}
-PR=${PR:-5}
+PR=${PR:-100}
 PI=${PI:-10000}
 # Defaults for Objects
 LENGTH=${LENGTH:-0.2}

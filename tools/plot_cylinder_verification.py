@@ -13,7 +13,7 @@ def plotDragTimeCylinder():
   cases   = ["550","1000","10000"]
   speed = 0.2
   radius = 0.1
-  fig, axs = plt.subplots(len(cases))
+  fig, axs = plt.subplots(ncols=len(cases))
 
   for i in range( len(cases) ):
     data = np.loadtxt(root+"Re"+cases[i]+"/forceValues_0.dat", skiprows=1)
@@ -24,17 +24,22 @@ def plotDragTimeCylinder():
     t = np.linspace(1e-10,1.0,1000)
     axs[i].plot(t, dragCollinsDennis(int(cases[i]),t), linestyle="--", label="Collins and Dennis (1973)")
 
-    axs[i].set_title("Re="+cases[i],fontsize=10)
-    axs[i].set_xlabel("Time",fontsize=8)
-    axs[i].set_ylabel("Drag Coefficient",fontsize=8)
+    axs[i].set_title("Re="+cases[i])
+    axs[i].set_xlabel("Time")
     axs[i].set_xlim([0,1])
-    axs[i].tick_params(axis='both', which='major', labelsize=8)
+    axs[i].tick_params(axis='both', which='major')
     axs[i].set_ylim([0,f[-1]*10])
-    axs[i].legend(ncol=2,loc="upper right",prop={'size': 8})
+    # axs[i].set_yscale('log')
     axs[i].yaxis.set_major_formatter(FormatStrFormatter('%2.1f'))
     axs[i].xaxis.set_major_formatter(FormatStrFormatter('%2.1f'))
-  plt.tight_layout()
-  plt.savefig("cylinder-verification.eps")
+  axs[0].set_ylabel("Drag Coefficient")
+  axs[1].legend(bbox_to_anchor=(-0.5,-0.25, 2, 1), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=2, frameon=False)
+  # plt.tight_layout()
+  fig.subplots_adjust(bottom=0.2) 
+  # plt.tight_layout(rect=[0,0,1,0.5])
+  plt.show()
+  # plt.savefig("cylinder-verification.eps")
 
 if __name__ == '__main__':
   plotDragTimeCylinder()

@@ -307,9 +307,8 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vect
     // check whether point is inside block
     if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
-      // check whether obstacle block exists
-      if(obstacleBlocks[i] != nullptr )
-        return i;
+      // point lies inside this block
+      return i;
     }
   }
   // rank does not contain point
@@ -341,6 +340,13 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
     // get block
     const auto& skinBinfo = velInfo[blockIdSurf];
 
+    // check whether obstacle block exists
+    if(obstacleBlocks[skinBinfo.blockID] == nullptr ){
+      printf("[CUP2D, rank %u] obstacleBlocks[%llu] is a nullptr! obstacleBlocks.size()=%lu", sim.rank, skinBinfo.blockID, obstacleBlocks.size());
+      fflush(0);
+      abort();
+    }
+
     // get origin of block
     const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
 
@@ -362,7 +368,11 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   #if 1
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getCartComm());
   if( sim.rank == 0 && blockIdSurf == -1 )
+  {
     printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pSurf[0], pSurf[1]);
+    fflush(0);
+    abort();
+  }
   #endif
 
   // Allreduce to Bcast surface velocity

@@ -92,6 +92,18 @@ else
 		stefanfish L=$LENGTH T=$PERIOD xpos=$XPOSFOLLOWER
 	"
 		echo $OBJECTS
+	elif [ "$OBSTACLE" = "swarm2" ]
+	then
+		echo "setting options for swarm2"
+		# options for swarm4
+		NAGENTS=1
+		EXTENT=4
+		# set object string
+		### for L=0.2 and extentx=extenty=2, 4 swimmers
+		OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pid=$PID
+	stefanfish L=$LENGTH T=$PERIOD xpos=0.90 ypos=1.00
+	"
+		echo $OBJECTS
 	elif [ "$OBSTACLE" = "swarm4" ]
 	then
 		echo "setting options for swarm4"
