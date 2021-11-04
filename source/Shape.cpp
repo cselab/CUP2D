@@ -93,7 +93,7 @@ void Shape::updatePosition(double dt)
   // do not print/write for initial PutObjectOnGrid
   if( dt <= 0 ) return;
 
-  if(sim.rank == 0)
+  if(not sim.muteAll && sim.rank == 0)
   {
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
         " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
