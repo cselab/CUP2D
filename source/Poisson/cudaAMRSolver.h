@@ -44,6 +44,18 @@ protected:
 
   // Method to push back values to coo sparse matrix representaiton
   void cooMatPushBack(const double&, const int&, const int&);
+  // Method to off-diagonal matrix element associated to 'rhsNei' block
+  template<typename F1>
+  void neiBlockElement(
+    const int &block_idx,
+    const int &BSX,
+    const int &BSY,
+    const int &ix,
+    const int &iy,
+    const int &sfc_idx,
+    double &diag_val,
+    cubism::BlockInfo &rhsNei,
+    F1 n_func);
   // Method to construct matrix row for cell on edge of block
   template<typename F1, typename F2, typename F3, typename F4>
   void edgeBoundaryCell(

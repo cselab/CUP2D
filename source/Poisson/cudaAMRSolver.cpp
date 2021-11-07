@@ -157,6 +157,30 @@ struct SouthmostCellIdx {
   { return block_idx*BSX*BSY + 0*BSX + ix; }
 };
 
+template<typename F1>
+void cudaAMRSolver::neiBlockElement(
+  const int &block_idx,
+  const int &BSX,
+  const int &BSY,
+  const int &ix,
+  const int &iy,
+  const int &sfc_idx,
+  double &diag_val,
+  BlockInfo &rhsNei,
+  F1 n_func)
+{
+  if (this->sim.tmp->Tree(rhsNei).Exists())
+  { //then out-of-block neighbour exists and we can safely use rhsNei and access the gridpoint-data etc.
+    const size_t n_block_idx = rhsNei.blockID;
+    const int n_idx = n_func(n_block_idx, BSX, BSY, ix, iy);
+    this->cooMatPushBack(1., sfc_idx, n_idx);
+
+    // Flux contribution to diagonal value in case of uniorm grid
+    diag_val--;
+  }
+  else { throw; }
+}
+
 template<typename F1, typename F2, typename F3, typename F4>
 void cudaAMRSolver::edgeBoundaryCell( // excluding corners
   const int &block_idx,
@@ -188,16 +212,8 @@ void cudaAMRSolver::edgeBoundaryCell( // excluding corners
     else
     {
       double diag_val = -3.;
-      if (this->sim.tmp->Tree(rhsNei_4).Exists())
-      { //then out-of-block neighbour 4 exists and we can safely use rhsNei_4 and access the gridpoint-data etc.
-        const size_t n4_block_idx = rhsNei_4.blockID;
-        const int n4_idx = n4_func(n4_block_idx, BSX, BSY, ix, iy);
-        this->cooMatPushBack(1., sfc_idx, n4_idx);
-
-        // Flux contribution to diagonal value in case of uniorm grid
-        diag_val--;
-      }
-      else { throw; }
+      this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_4, n4_func);
+      // Adapt diagonal element to account for contributions from coarser/finer mesh
       this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
     }
 }
@@ -234,31 +250,14 @@ void cudaAMRSolver::cornerBoundaryCell(
     {
       double diag_val = -2.;
       if (!isBoundary3)
-      {
-        if (sim.tmp->Tree(rhsNei_3).Exists())
-        { //then out-of-block neighbour 3 exists and we can safely use rhsNei_3 and access the gridpoint-data etc.
-          const size_t n3_block_idx = rhsNei_3.blockID;
-          const int n3_idx = n3_func(n3_block_idx, BSX, BSY, ix, iy);
-          this->cooMatPushBack(1., sfc_idx, n3_idx);
-
-          // Flux contribution to diagonal value in case of uniorm grid
-          diag_val--;
-        }
-        else { throw; }
+      { // Add matrix element associated to out-of-block neighbour 3
+        this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_3, n3_func);
       }
       if (!isBoundary4)
-      {
-        if (this->sim.tmp->Tree(rhsNei_4).Exists())
-        { //then out-of-block neighbour 4 exists and we can safely use rhsNei_4 and access the gridpoint-data etc.
-          const size_t n4_block_idx = rhsNei_4.blockID;
-          const int n4_idx = n4_func(n4_block_idx, BSX, BSY, ix, iy);
-          this->cooMatPushBack(1., sfc_idx, n4_idx);
-
-          // Flux contribution to diagonal value in case of uniorm grid
-          diag_val--;
-        }
-        else { throw; }
+      { // Add matrix element associated to out-of-block neighbour 4
+        this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_4, n4_func);
       }
+      // Adapt diagonal element to account for contributions from coarser/finer mesh
       this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
     }
 }
