@@ -107,7 +107,7 @@ cudaAMRSolver::~cudaAMRSolver()
   std::cout << "---------------- Calling on cudaAMRSolver() destructor ------------\n";
 }
 
-void inline cudaAMRSolver::cooMatPushBack(
+void cudaAMRSolver::cooMatPushBack(
     const double &val, 
     const int &row, 
     const int &col){
@@ -116,11 +116,156 @@ void inline cudaAMRSolver::cooMatPushBack(
   this->cooColA_.push_back(col);
 }
 
-// Prepare linear system for uniform grid
+// Functors for generic index accesses 'edgeBoundaryCell' and 'cornerBoundaryCell'
+struct WestNeighbourIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + iy*BSX + ix-1; }
+};
+
+struct NorthNeighbourIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + (iy+1)*BSX + ix; }
+};
+
+struct EastNeighbourIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + iy*BSX + ix+1; }
+};
+
+struct SouthNeighbourIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + (iy-1)*BSX + ix; }
+};
+
+struct WestmostCellIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + iy*BSX + 0; }
+};
+
+struct NorthmostCellIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + (BSY-1)*BSX + ix; }
+};
+
+struct EastmostCellIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + iy*BSX + (BSX-1); }
+};
+
+struct SouthmostCellIdx {
+  int operator()(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+  { return block_idx*BSX*BSY + 0*BSX + ix; }
+};
+
+template<typename F1, typename F2, typename F3, typename F4>
+void cudaAMRSolver::edgeBoundaryCell( // excluding corners
+  const int &block_idx,
+  const int &BSX,
+  const int &BSY,
+  const int &ix,
+  const int &iy,
+  F1 n1_func,
+  F2 n2_func,
+  F3 n3_func,
+  const bool &isBoundary4,
+  BlockInfo &rhsNei_4,
+  F4 n4_func)
+{
+    const int sfc_idx = block_idx*BSX*BSY + iy*BSX + ix;
+    const int n1_idx = n1_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 1
+    const int n2_idx = n2_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 2
+    const int n3_idx = n3_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 3
+
+    // Add matrix element associated to in-block neighbours
+    this->cooMatPushBack(1., sfc_idx, n1_idx);
+    this->cooMatPushBack(1., sfc_idx, n2_idx);
+    this->cooMatPushBack(1., sfc_idx, n3_idx);
+
+    if (isBoundary4)
+    { // Adapt diagonal element to satisfy one Neumann BC
+      this->cooMatPushBack(-3., sfc_idx, sfc_idx);
+    }
+    else
+    {
+      double diag_val = -3.;
+      if (this->sim.tmp->Tree(rhsNei_4).Exists())
+      { //then out-of-block neighbour 4 exists and we can safely use rhsNei_4 and access the gridpoint-data etc.
+        const size_t n4_block_idx = rhsNei_4.blockID;
+        const int n4_idx = n4_func(n4_block_idx, BSX, BSY, ix, iy);
+        this->cooMatPushBack(1., sfc_idx, n4_idx);
+
+        // Flux contribution to diagonal value in case of uniorm grid
+        diag_val--;
+      }
+      else { throw; }
+      this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
+    }
+}
+
+template<typename F1, typename F2, typename F3, typename F4>
+void cudaAMRSolver::cornerBoundaryCell(
+    const int &block_idx,
+    const int &BSX,
+    const int &BSY,
+    const int &ix,
+    const int &iy,
+    F1 n1_func,
+    F2 n2_func,
+    const bool &isBoundary3,
+    BlockInfo &rhsNei_3,
+    F3 n3_func,
+    const bool &isBoundary4,
+    BlockInfo &rhsNei_4,
+    F4 n4_func)
+{
+    const int sfc_idx = block_idx*BSX*BSY + iy*BSX + ix;
+    const int n1_idx = n1_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 1
+    const int n2_idx = n2_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 2
+
+    // Add matrix element associated to in-block neighbours
+    this->cooMatPushBack(1., sfc_idx, n1_idx);
+    this->cooMatPushBack(1., sfc_idx, n2_idx);
+
+    if (isBoundary3 && isBoundary4)
+    { // Adapt diagonal element to satisfy two Neumann BC
+      this->cooMatPushBack(-2., sfc_idx, sfc_idx);
+    }
+    else 
+    {
+      double diag_val = -2.;
+      if (!isBoundary3)
+      {
+        if (sim.tmp->Tree(rhsNei_3).Exists())
+        { //then out-of-block neighbour 3 exists and we can safely use rhsNei_3 and access the gridpoint-data etc.
+          const size_t n3_block_idx = rhsNei_3.blockID;
+          const int n3_idx = n3_func(n3_block_idx, BSX, BSY, ix, iy);
+          this->cooMatPushBack(1., sfc_idx, n3_idx);
+
+          // Flux contribution to diagonal value in case of uniorm grid
+          diag_val--;
+        }
+        else { throw; }
+      }
+      if (!isBoundary4)
+      {
+        if (this->sim.tmp->Tree(rhsNei_4).Exists())
+        { //then out-of-block neighbour 4 exists and we can safely use rhsNei_4 and access the gridpoint-data etc.
+          const size_t n4_block_idx = rhsNei_4.blockID;
+          const int n4_idx = n4_func(n4_block_idx, BSX, BSY, ix, iy);
+          this->cooMatPushBack(1., sfc_idx, n4_idx);
+
+          // Flux contribution to diagonal value in case of uniorm grid
+          diag_val--;
+        }
+        else { throw; }
+      }
+      this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
+    }
+}
+
 void cudaAMRSolver::Get_LS()
 {
-  std::cout << "[cudaAMRSolver]: Preparing linear system... \n";
-  sim.startProfiler("Poisson solver: unifLinsysPrepHost()");
+  sim.startProfiler("Poisson solver: LS");
 
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
@@ -147,12 +292,6 @@ void cudaAMRSolver::Get_LS()
   this->cooValA_.reserve(5 * N);
   this->cooRowA_.reserve(5 * N);
   this->cooColA_.reserve(5 * N);
-
-  size_t double_bd = 0;
-  size_t north_bd = 0;
-  size_t south_bd = 0;
-  size_t east_bd = 0;
-  size_t west_bd = 0;
 
   // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
   for(size_t i=0; i< Nblocks; i++)
@@ -229,216 +368,152 @@ void cudaAMRSolver::Get_LS()
       this->cooMatPushBack(1., sfc_idx, nn_idx);
     }
 
-    // Add matrix elements associated to contributions from north/south on western/eastern boundary of block (excl.corners)
-    for(int iy=1; iy<BSY-1; iy++)
-    for(int ix=0; ix<BSX; ix+=(BSX-1))
-    { // The inner loop executes on ix = [0, BSX-1] (western/eastern boundary) where no interaction with
-      // neighbouring blocks takes place
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      const int sn_idx = i*BSX*BSY+(iy-1)*BSX+ix; // south neighbour 
-      const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
-      // Add matrix element associated to south cell
-      this->cooMatPushBack(1., sfc_idx, sn_idx);
-      // Add matrix element associated to north cell
-      this->cooMatPushBack(1., sfc_idx, nn_idx);
-    }
-
-    // Add matrix elements associated to contributions from east/west cells on western boundary of block (excl. corners)
     for(int iy=1; iy<BSY-1; iy++)
     {
-      const int ix = 0;
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      const int en_idx = sfc_idx+1; // east neighbour
+      // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
+      int ix = 0;
+      this->edgeBoundaryCell(
+          i, 
+          BSX, 
+          BSY, 
+          ix, 
+          iy, 
+          NorthNeighbourIdx(),
+          EastNeighbourIdx(),
+          SouthNeighbourIdx(),
+          isWestBoundary,
+          rhsNei_west,
+          EastmostCellIdx());
 
-      // Add matrix element associated to east cell
-      this->cooMatPushBack(1., sfc_idx, en_idx);
-
-      if (isWestBoundary){
-        this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-        west_bd++;
-      }
-      else{
-        this->cooMatPushBack(-4., sfc_idx, sfc_idx);
-        if (sim.tmp->Tree(rhsNei_west).Exists())
-        {
-          //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
-          const size_t i_west = rhsNei_west.blockID;
-          const int wn_idx = i_west*BSX*BSY+iy*BSX+(BSX-1); // eastmost cell of western block
-          this->cooMatPushBack(1., sfc_idx, wn_idx);
-        }
-        else { throw; }
-      }
+      // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
+      ix = BSX-1;
+      this->edgeBoundaryCell(
+          i,
+          BSX, 
+          BSY,
+          ix,
+          iy,
+          SouthNeighbourIdx(),
+          WestNeighbourIdx(),
+          NorthNeighbourIdx(),
+          isEastBoundary,
+          rhsNei_east,
+          WestmostCellIdx());
     }
 
-    // Add matrix elements associated to contributions from east/west cells on eastern boundary of block (excl. corners)
-    for(int iy=1; iy<BSY-1; iy++)
+    for(int ix=1; ix<BSX-1; ix++)
     {
-      const int ix = BSX-1;
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      const int wn_idx = sfc_idx-1; // west neighbour
+      // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
+      int iy = BSY-1;
+      this->edgeBoundaryCell(
+          i, 
+          BSX, 
+          BSY, 
+          ix, 
+          iy, 
+          EastNeighbourIdx(),
+          SouthNeighbourIdx(),
+          WestNeighbourIdx(),
+          isNorthBoundary,
+          rhsNei_north,
+          SouthmostCellIdx());
 
-      // Add matrix element associated to west cell
-      this->cooMatPushBack(1., sfc_idx, wn_idx);
-
-      if (isEastBoundary){
-        this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-        east_bd++;
-      }
-      else{
-        this->cooMatPushBack(-4., sfc_idx, sfc_idx);
-        if (sim.tmp->Tree(rhsNei_east).Exists())
-        {
-          //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
-          const size_t i_east = rhsNei_east.blockID;
-          const int en_idx = i_east*BSX*BSY+iy*BSX+0; // westmost cell of eastern block
-          this->cooMatPushBack(1., sfc_idx, en_idx);
-        }
-        else { throw; }
-      }
+      // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
+      iy = 0;
+      this->edgeBoundaryCell(
+          i,
+          BSX,
+          BSY,
+          ix,
+          iy,
+          WestNeighbourIdx(),
+          NorthNeighbourIdx(),
+          EastNeighbourIdx(),
+          isSouthBoundary,
+          rhsNei_south,
+          NorthmostCellIdx());
     }
-
-    // Add matrix elements associated to contributions from west/east on southern/northern boundary of block (with corners)
-    for(int ix=0; ix<BSX; ix++)
-    for(int iy=0; iy<BSY; iy+=(BSY-1))
-    { // The inner loop executes on iy = {0, BSY-1} (southern/northern boundary), at ix = [0, BSX-1] interaction
-      // with western/eastern block takes place
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-
-      // Add matrix element associated to west cell
-      if (ix > 0){
-        const int wn_idx = sfc_idx-1; // west neighbour
-        this->cooMatPushBack(1., sfc_idx, wn_idx);
-      }
-      else{
-        if (!isWestBoundary){
-          if (sim.tmp->Tree(rhsNei_west).Exists()){
-            const size_t i_west = rhsNei_west.blockID;
-            const int wn_idx = i_west*BSX*BSY+iy*BSX+(BSX-1); // eastmost cell of western block
-            this->cooMatPushBack(1., sfc_idx, wn_idx);
-          }
-          else{ throw; }
-        }
-        // If western boundary, the diagonal element is modified when north/south contributions are considered
-      }
-      // Add matrix element associated to east cell
-      if (ix < BSX - 1){
-        const int en_idx = sfc_idx+1; // east neighbour
-        this->cooMatPushBack(1., sfc_idx, en_idx);
-      }
-      else {
-        if (!isEastBoundary){
-          if (sim.tmp->Tree(rhsNei_east).Exists()){
-            const size_t i_east = rhsNei_east.blockID;
-            const int en_idx = i_east*BSX*BSY+iy*BSX+0; // westmost cell of eastern block
-            this->cooMatPushBack(1., sfc_idx, en_idx);
-          }
-          else { throw; }
-        }
-        // If eastern boundary, the diagonal element is modified when north/south contributions are considered
-      }
-    }
-
-    // Add matrix elements associated to contributions from north/south cells on southern boundary of block (with corners)
-    for(int ix=0; ix<BSX;ix++)
     {
-      const int iy = 0;
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      const int nn_idx = i*BSX*BSY+(iy+1)*BSX+ix; // north neighbour
+      // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
+      int ix = 0;
+      int iy = BSY-1;
+      this->cornerBoundaryCell(
+          i,
+          BSX,
+          BSY,
+          ix,
+          iy,
+          EastNeighbourIdx(),
+          SouthNeighbourIdx(),
+          isWestBoundary,
+          rhsNei_west,
+          EastmostCellIdx(),
+          isNorthBoundary,
+          rhsNei_north,
+          SouthmostCellIdx());
 
-      // Add matrix element associated to north cell
-      this->cooMatPushBack(1., sfc_idx, nn_idx);
+      // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
+      ix = BSX-1;
+      iy = BSY-1;
+      this->cornerBoundaryCell(
+          i,
+          BSX,
+          BSY,
+          ix,
+          iy,
+          SouthNeighbourIdx(),
+          WestNeighbourIdx(),
+          isNorthBoundary,
+          rhsNei_north,
+          SouthmostCellIdx(),
+          isEastBoundary,
+          rhsNei_east,
+          WestmostCellIdx());
+      
+      // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
+      ix = BSX-1;
+      iy = 0;
+      this->cornerBoundaryCell(
+          i,
+          BSX,
+          BSY,
+          ix,
+          iy,
+          WestNeighbourIdx(),
+          NorthNeighbourIdx(),
+          isEastBoundary,
+          rhsNei_east,
+          WestmostCellIdx(),
+          isSouthBoundary,
+          rhsNei_south,
+          NorthmostCellIdx());
 
-      if(isSouthBoundary){
-        south_bd++;
-        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
-        { // Two boundary conditions to consider for diagonal element
-          this->cooMatPushBack(-2., sfc_idx, sfc_idx);
-          double_bd++;
-          west_bd += isWestBoundary ? 1 : 0;
-          east_bd += isEastBoundary ? 1 : 0;
-        }
-        else
-        { // One boundary condition to consider for diagonal element
-          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-        }
-      }
-      else{
-        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
-        { // Could still be east/west boundary!
-          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-          west_bd += isWestBoundary ? 1 : 0;
-          east_bd += isEastBoundary ? 1 : 0;
-        }
-        else
-        { // Otherwise the diagonal element does not change
-          this->cooMatPushBack(-4., sfc_idx, sfc_idx);
-        }
-        if (sim.tmp->Tree(rhsNei_south).Exists())
-        {
-          //then west neighbor exists and we can safely use rhsNei_west and access the gridpoint-data etc.
-          const size_t i_south = rhsNei_south.blockID;
-          const int sn_idx = i_south*BSX*BSY+(BSY-1)*BSX+ix; // northmost cell of southern block
-          this->cooMatPushBack(1., sfc_idx, sn_idx);
-        }
-        else { throw; }
-      }
-    }
-
-    // Add matrix elements associated to contributions from north/south cells on northern boundary of block (with corners)
-    for(int ix=0; ix<BSX;ix++)
-    {
-      const int iy = BSY-1;
-      const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      const int sn_idx = i*BSX*BSY+(iy-1)*BSX+ix; // south neighbour
-
-      // Add matrix element associated to south cell
-      this->cooMatPushBack(1., sfc_idx, sn_idx);
-
-      if (isNorthBoundary){
-        north_bd++;
-        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
-        { // Two boundary conditions to consider for diagonal element
-          this->cooMatPushBack(-2., sfc_idx, sfc_idx);
-          double_bd++;
-          west_bd += isWestBoundary ? 1 : 0;
-          east_bd += isEastBoundary ? 1 : 0;
-        }
-        else
-        { // One boundary condition to consider for diagonal element
-          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-        }
-      }
-      else{
-        if((isWestBoundary && ix == 0) || (isEastBoundary && ix == (BSX-1)))
-        { // Could still be east/west boundary!
-          this->cooMatPushBack(-3., sfc_idx, sfc_idx);
-          west_bd += isWestBoundary ? 1 : 0;
-          east_bd += isEastBoundary ? 1 : 0;
-        }
-        else
-        { // Otherwise the diagonal element does not change
-          this->cooMatPushBack(-4., sfc_idx, sfc_idx);
-        }
-        if (sim.tmp->Tree(rhsNei_north).Exists())
-        {
-          //then west neighbor exists and we can safely use rhsNei_north and access the gridpoint-data etc.
-          const size_t i_north = rhsNei_north.blockID;
-          const int nn_idx = i_north*BSX*BSY+0*BSX+ix; // southmost cell belonging to north block
-          this->cooMatPushBack(1., sfc_idx, nn_idx);
-        }
-        else { throw; }
-      }
+      // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
+      ix = 0;
+      iy = 0;
+      this->cornerBoundaryCell(
+          i,
+          BSX,
+          BSY,
+          ix,
+          iy,
+          NorthNeighbourIdx(),
+          EastNeighbourIdx(),
+          isSouthBoundary,
+          rhsNei_south,
+          NorthmostCellIdx(),
+          isWestBoundary,
+          rhsNei_west,
+          EastmostCellIdx());
     }
   }
-  std::cout << "Corner BC's: " << double_bd << std::endl;
-  std::cout << "North BC's: " << north_bd << std::endl;
-  std::cout << "East BC's: " << east_bd << std::endl;
-  std::cout << "South BC's: " << south_bd << std::endl;
-  std::cout << "West BC's: " << west_bd << std::endl;
   // Save params of current linear system
   m_ = N; // rows
   n_ = N; // cols
   nnz_ = this->cooValA_.size(); // non-zero elements
+  std::cout << "Rows: " << m_  
+            << " cols: " << n_ 
+            << " non-zero elements: " << nnz_ << std::endl;
 
   sim.stopProfiler();
 }

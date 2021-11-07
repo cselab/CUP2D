@@ -43,7 +43,37 @@ protected:
   int nnz_; // non-zero elements
 
   // Method to push back values to coo sparse matrix representaiton
-  void inline cooMatPushBack(const double&, const int&, const int&);
+  void cooMatPushBack(const double&, const int&, const int&);
+  // Method to construct matrix row for cell on edge of block
+  template<typename F1, typename F2, typename F3, typename F4>
+  void edgeBoundaryCell(
+      const int &block_idx,
+      const int &BSX,
+      const int &BSY,
+      const int &ix,
+      const int &iy,
+      F1 n1_func,
+      F2 n2_func,
+      F3 n3_func,
+      const bool &isBoundary4,
+      cubism::BlockInfo &rhsNei_4,
+      F4 n4_func);
+  // Method to construct matrix row for cell on corner of block
+  template<typename F1, typename F2, typename F3, typename F4>
+  void cornerBoundaryCell(
+    const int &block_idx,
+    const int &BSX,
+    const int &BSY,
+    const int &ix,
+    const int &iy,
+    F1 n1_func,
+    F2 n2_func,
+    const bool &isBoundary3,
+    cubism::BlockInfo &rhsNei_3,
+    F3 n3_func,
+    const bool &isBoundary4,
+    cubism::BlockInfo &rhsNei_4,
+    F4 n4_func);
   // Method to compute A and b for the current mesh
   void Get_LS();
   // Host-side variables for linear system
