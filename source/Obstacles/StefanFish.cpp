@@ -73,7 +73,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
   {
     CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
     if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-    const double DT = sim.dt/Tperiod, time = sim.time;
+    const double DT = sim.dt/Tperiod;//, time = sim.time;
     // Control pos diffs
     const double   xDiff = (centerOfMass[0] - origC[0])/length;
     const double   yDiff = (centerOfMass[1] - origC[1])/length;
