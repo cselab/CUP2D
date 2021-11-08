@@ -165,8 +165,11 @@ void cudaAMRSolver::neiBlockElement(
   const int &ix,
   const int &iy,
   const int &sfc_idx,
+  const int &rhs_level,
   double &diag_val,
-  BlockInfo &rhsNei,
+  cubism::BlockInfo &rhsNei,
+  const long long &rhsNei_Zchild_1,
+  const long long &rhsNei_Zchild_2,
   F1 n_func)
 {
   if (this->sim.tmp->Tree(rhsNei).Exists())
@@ -178,22 +181,87 @@ void cudaAMRSolver::neiBlockElement(
     // Flux contribution to diagonal value in case of uniorm grid
     diag_val--;
   }
-  else { throw; }
+  else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
+  {
+    //then east neighbor does not exist and there is a coarser block in its place
+    BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_level - 1 ,rhsNei.Zparent );
+    if (this->sim.tmp->Tree(rhsNei_c).Exists())
+    {
+      /*
+              -----------------------------
+              |      |      |      .      |
+              |      | f_2  | c_12 . c_22 |
+              |      |      |      .      |
+              |______|______|. . . . . . .|
+              |      |      |      .      |
+              |      | f_1  | c_11 . c_21 |
+              |      |      |      .      |
+              -----------------------------
+                   fine         coarse
+        
+        Note from diagram that the location of fine cell with respect to its coarse
+        neighbour affects which interpolation it gets.  Hence, logic should consider
+        whether the current fine cell that we're constructing matrix row for is
+        even/odd, and western/northern/eastern/southern with respect to coarse neigbour 
+      */
+      const size_t nc_block_idx = rhsNei_c.blockID;
+      const int nc_idx = n_func(nc_block_idx, BSX, BSY, ix, iy);
+      // At the moment interpolation c_11 = c_21 = c_12 = c_22 = p_{nc_idx}
+      this->cooMatPushBack(1., sfc_idx, nc_idx);
+      // If interpolation turns out to be depenant on second edge (corners), may need to use
+      // a hash map with 'col' as index to accumulate contributions
+
+      // With current interpolation flux contribution to diagonal element is unaffected for finer cell
+      diag_val--;
+
+    }
+    else { abort(); }
+  }
+  else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
+  {
+    // It is assumed that 'Zchild_1' and 'Zchild_2' respect this order:
+    //Zchild[0][0][0] is (2i  ,2j  ,2k  )
+    //Zchild[1][0][0] is (2i+1,2j  ,2k  )
+    //Zchild[0][1][0] is (2i  ,2j+1,2k  )
+    //Zchild[1][1][0] is (2i+1,2j+1,2k  )
+    BlockInfo &rhsNei_f1 = this->sim.tmp->getBlockInfoAll(rhs_level + 1 , rhsNei_Zchild_1);
+    BlockInfo &rhsNei_f2 = this->sim.tmp->getBlockInfoAll(rhs_level + 1 , rhsNei_Zchild_2);
+    if (this->sim.tmp->Tree(rhsNei_f1).Exists() && this->sim.tmp->Tree(rhsNei_f2).Exists())
+    {
+      // Two fine neighbours
+      const size_t nf1_block_idx = rhsNei_f1.blockID;   
+      const int nf1_idx = n_func(nf1_block_idx, BSX, BSY, ix, iy);
+      this->cooMatPushBack(1., sfc_idx, nf1_idx);
+
+      const size_t nf2_block_idx = rhsNei_f2.blockID;   
+      const int nf2_idx = n_func(nf2_block_idx, BSX, BSY, ix, iy);
+      this->cooMatPushBack(1., sfc_idx, nf2_idx);
+
+      // For now with simple interpolation c_11 = c_21 = c_12 = c_22 = p_{ij}
+      // two fluxes ==> two diagonal contributions
+      diag_val -= 2.;
+    }
+    else { abort(); }
+  }
+  else { abort(); }
 }
 
 template<typename F1, typename F2, typename F3, typename F4>
 void cudaAMRSolver::edgeBoundaryCell( // excluding corners
-  const int &block_idx,
-  const int &BSX,
-  const int &BSY,
-  const int &ix,
-  const int &iy,
-  F1 n1_func,
-  F2 n2_func,
-  F3 n3_func,
-  const bool &isBoundary4,
-  BlockInfo &rhsNei_4,
-  F4 n4_func)
+    const int &block_idx,
+    const int &BSX,
+    const int &BSY,
+    const int &ix,
+    const int &iy,
+    F1 n1_func,
+    F2 n2_func,
+    F3 n3_func,
+    const int &rhs_level,
+    const bool &isBoundary4,
+    cubism::BlockInfo &rhsNei_4,
+    const long long &rhsNei4_Zchild_1,
+    const long long &rhsNei4_Zchild_2,
+    F4 n4_func)
 {
     const int sfc_idx = block_idx*BSX*BSY + iy*BSX + ix;
     const int n1_idx = n1_func(block_idx, BSX, BSY, ix, iy); // in-block neighbour 1
@@ -212,7 +280,19 @@ void cudaAMRSolver::edgeBoundaryCell( // excluding corners
     else
     {
       double diag_val = -3.;
-      this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_4, n4_func);
+      this->neiBlockElement(
+          block_idx, 
+          BSX, 
+          BSY, 
+          ix, 
+          iy, 
+          sfc_idx, 
+          rhs_level,
+          diag_val, 
+          rhsNei_4, 
+          rhsNei4_Zchild_1,
+          rhsNei4_Zchild_2,
+          n4_func);
       // Adapt diagonal element to account for contributions from coarser/finer mesh
       this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
     }
@@ -227,11 +307,16 @@ void cudaAMRSolver::cornerBoundaryCell(
     const int &iy,
     F1 n1_func,
     F2 n2_func,
+    const int &rhs_level,
     const bool &isBoundary3,
-    BlockInfo &rhsNei_3,
+    cubism::BlockInfo &rhsNei_3,
+    const long long &rhsNei3_Zchild_1,
+    const long long &rhsNei3_Zchild_2,
     F3 n3_func,
     const bool &isBoundary4,
-    BlockInfo &rhsNei_4,
+    cubism::BlockInfo &rhsNei_4,
+    const long long &rhsNei4_Zchild_1,
+    const long long &rhsNei4_Zchild_2,
     F4 n4_func)
 {
     const int sfc_idx = block_idx*BSX*BSY + iy*BSX + ix;
@@ -251,11 +336,35 @@ void cudaAMRSolver::cornerBoundaryCell(
       double diag_val = -2.;
       if (!isBoundary3)
       { // Add matrix element associated to out-of-block neighbour 3
-        this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_3, n3_func);
+        this->neiBlockElement(
+            block_idx, 
+            BSX, 
+            BSY, 
+            ix, 
+            iy, 
+            sfc_idx, 
+            rhs_level,
+            diag_val, 
+            rhsNei_3, 
+            rhsNei3_Zchild_1,
+            rhsNei3_Zchild_2,
+            n3_func);
       }
       if (!isBoundary4)
       { // Add matrix element associated to out-of-block neighbour 4
-        this->neiBlockElement(block_idx, BSX, BSY, ix, iy, sfc_idx, diag_val, rhsNei_4, n4_func);
+        this->neiBlockElement(
+            block_idx, 
+            BSX, 
+            BSY, 
+            ix, 
+            iy, 
+            sfc_idx, 
+            rhs_level,
+            diag_val, 
+            rhsNei_4, 
+            rhsNei4_Zchild_1,
+            rhsNei4_Zchild_2,
+            n4_func);
       }
       // Adapt diagonal element to account for contributions from coarser/finer mesh
       this->cooMatPushBack(diag_val, sfc_idx, sfc_idx);
@@ -305,8 +414,8 @@ void cudaAMRSolver::Get_LS()
     for(int ix=0; ix<BSX; ix++)
     {
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
-      // b_[sfc_idx] = 0.;
-      // x_[sfc_idx] = 1.;
+      //b_[sfc_idx] = 0.;
+      //x_[sfc_idx] = 5.;
       b_[sfc_idx] = rhs(ix,iy).s;
       x_[sfc_idx] = p(ix,iy).s;
     }
@@ -321,11 +430,6 @@ void cudaAMRSolver::Get_LS()
     const bool isEastBoundary  = (rhs_info.index[0] == MAX_X_BLOCKS); // don't check for east neighbor
     const bool isSouthBoundary = (rhs_info.index[1] == 0           ); // don't check for south neighbor
     const bool isNorthBoundary = (rhs_info.index[1] == MAX_Y_BLOCKS); // don't check for north neighbor
-    if (isWestBoundary) {}//do this
-    if (isEastBoundary) {}//do that
-    if (isSouthBoundary){}//do sth else
-    if (isNorthBoundary){}//do this
-    //keep in mind that a block might be on two boundaries (say west and north) at the same time!
 
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     long long Z_west  = rhs_info.Znei[1-1][1][1];
@@ -380,8 +484,11 @@ void cudaAMRSolver::Get_LS()
           NorthNeighbourIdx(),
           EastNeighbourIdx(),
           SouthNeighbourIdx(),
+          rhs_info.level,
           isWestBoundary,
           rhsNei_west,
+          rhsNei_west.Zchild[1][0][0],
+          rhsNei_west.Zchild[1][1][0],
           EastmostCellIdx());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
@@ -395,8 +502,11 @@ void cudaAMRSolver::Get_LS()
           SouthNeighbourIdx(),
           WestNeighbourIdx(),
           NorthNeighbourIdx(),
+          rhs_info.level,
           isEastBoundary,
           rhsNei_east,
+          rhsNei_east.Zchild[0][0][0],
+          rhsNei_east.Zchild[0][1][0],
           WestmostCellIdx());
     }
 
@@ -413,8 +523,11 @@ void cudaAMRSolver::Get_LS()
           EastNeighbourIdx(),
           SouthNeighbourIdx(),
           WestNeighbourIdx(),
+          rhs_info.level,
           isNorthBoundary,
           rhsNei_north,
+          rhsNei_north.Zchild[0][0][0],
+          rhsNei_north.Zchild[1][0][0],
           SouthmostCellIdx());
 
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
@@ -428,8 +541,11 @@ void cudaAMRSolver::Get_LS()
           WestNeighbourIdx(),
           NorthNeighbourIdx(),
           EastNeighbourIdx(),
+          rhs_info.level,
           isSouthBoundary,
           rhsNei_south,
+          rhsNei_south.Zchild[0][1][0],
+          rhsNei_south.Zchild[1][1][0],
           NorthmostCellIdx());
     }
     {
@@ -444,11 +560,16 @@ void cudaAMRSolver::Get_LS()
           iy,
           EastNeighbourIdx(),
           SouthNeighbourIdx(),
+          rhs_info.level,
           isWestBoundary,
           rhsNei_west,
+          rhsNei_west.Zchild[1][0][0],
+          rhsNei_west.Zchild[1][1][0],
           EastmostCellIdx(),
           isNorthBoundary,
           rhsNei_north,
+          rhsNei_north.Zchild[0][0][0],
+          rhsNei_north.Zchild[1][0][0],
           SouthmostCellIdx());
 
       // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
@@ -462,11 +583,16 @@ void cudaAMRSolver::Get_LS()
           iy,
           SouthNeighbourIdx(),
           WestNeighbourIdx(),
+          rhs_info.level,
           isNorthBoundary,
           rhsNei_north,
+          rhsNei_north.Zchild[0][0][0],
+          rhsNei_north.Zchild[1][0][0],
           SouthmostCellIdx(),
           isEastBoundary,
           rhsNei_east,
+          rhsNei_east.Zchild[0][0][0],
+          rhsNei_east.Zchild[0][1][0],
           WestmostCellIdx());
       
       // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
@@ -480,11 +606,16 @@ void cudaAMRSolver::Get_LS()
           iy,
           WestNeighbourIdx(),
           NorthNeighbourIdx(),
+          rhs_info.level,
           isEastBoundary,
           rhsNei_east,
+          rhsNei_east.Zchild[0][0][0],
+          rhsNei_east.Zchild[0][1][0],
           WestmostCellIdx(),
           isSouthBoundary,
           rhsNei_south,
+          rhsNei_south.Zchild[0][1][0],
+          rhsNei_south.Zchild[1][1][0],
           NorthmostCellIdx());
 
       // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
@@ -498,11 +629,16 @@ void cudaAMRSolver::Get_LS()
           iy,
           NorthNeighbourIdx(),
           EastNeighbourIdx(),
+          rhs_info.level,
           isSouthBoundary,
           rhsNei_south,
+          rhsNei_south.Zchild[0][1][0],
+          rhsNei_south.Zchild[1][1][0],
           NorthmostCellIdx(),
           isWestBoundary,
           rhsNei_west,
+          rhsNei_west.Zchild[1][0][0],
+          rhsNei_west.Zchild[1][1][0],
           EastmostCellIdx());
     }
   }

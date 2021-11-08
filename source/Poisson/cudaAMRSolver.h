@@ -44,8 +44,8 @@ protected:
 
   // Method to push back values to coo sparse matrix representaiton
   void cooMatPushBack(const double&, const int&, const int&);
-  // Method to off-diagonal matrix element associated to 'rhsNei' block
-  template<typename F1>
+  // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
+  template<typename F>
   void neiBlockElement(
     const int &block_idx,
     const int &BSX,
@@ -53,23 +53,29 @@ protected:
     const int &ix,
     const int &iy,
     const int &sfc_idx,
+    const int &rhs_level,
     double &diag_val,
     cubism::BlockInfo &rhsNei,
-    F1 n_func);
+    const long long &rhsNei_Zchild_1,
+    const long long &rhsNei_Zchild_2,
+    F n_func);
   // Method to construct matrix row for cell on edge of block
   template<typename F1, typename F2, typename F3, typename F4>
   void edgeBoundaryCell(
-      const int &block_idx,
-      const int &BSX,
-      const int &BSY,
-      const int &ix,
-      const int &iy,
-      F1 n1_func,
-      F2 n2_func,
-      F3 n3_func,
-      const bool &isBoundary4,
-      cubism::BlockInfo &rhsNei_4,
-      F4 n4_func);
+    const int &block_idx,
+    const int &BSX,
+    const int &BSY,
+    const int &ix,
+    const int &iy,
+    F1 n1_func,
+    F2 n2_func,
+    F3 n3_func,
+    const int &rhs_level,
+    const bool &isBoundary4,
+    cubism::BlockInfo &rhsNei_4,
+    const long long &rhsNei4_Zchild_1,
+    const long long &rhsNei4_Zchild_2,
+    F4 n4_func);
   // Method to construct matrix row for cell on corner of block
   template<typename F1, typename F2, typename F3, typename F4>
   void cornerBoundaryCell(
@@ -80,11 +86,16 @@ protected:
     const int &iy,
     F1 n1_func,
     F2 n2_func,
+    const int &rhs_level,
     const bool &isBoundary3,
     cubism::BlockInfo &rhsNei_3,
+    const long long &rhsNei3_Zchild_1,
+    const long long &rhsNei3_Zchild_2,
     F3 n3_func,
     const bool &isBoundary4,
     cubism::BlockInfo &rhsNei_4,
+    const long long &rhsNei4_Zchild_1,
+    const long long &rhsNei4_Zchild_2,
     F4 n4_func);
   // Method to compute A and b for the current mesh
   void Get_LS();
@@ -106,15 +117,9 @@ protected:
          .
          .
          0 0 0 ... K
-    where each K is a small 8x8 matrix that multipli3es each 8x8 block
+    where each K is a small (BSX*BSY)x(BSX*BSY) matrix that multipli3es each (BSX*BSY)x(BSX*BSY) block
   */
-  //These vectors are used to store the inverse of K
-  //We only store the non-zero elements of the inverse
-  // std::vector<std::vector<double>> Ld;
-  // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
-  // std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
-
-  // Row major linearly indexed matrix containing inverse preconditioner
+  // Row major linearly indexed matrix containing inverse preconditioner K_2^{-1}
   std::vector<double> P_inv_; 
 
 };
