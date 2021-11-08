@@ -7,7 +7,7 @@
 #include "bicgstab.h"
 
 #ifndef GRID_SIZE
-#define GRID_SIZE 400
+#define GRID_SIZE 2100
 #endif
 
 #ifdef BICGSTAB_PROFILER
@@ -188,6 +188,13 @@ extern "C" void BiCGSTAB(
         CUSPARSE_MV_ALG_DEFAULT, 
         SpMVBuff)); 
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_nu, 1, d_b, 1)); // r <- -A*x_0 + b
+
+#ifdef BICGSTAB_PROFILER
+  // Check norm of A*x_0
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &x_error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream));
+  std::cout << "  [BiCGSTAB]: || A*x_0 || = " << x_error_init << std::endl;
+#endif
   
   // Calculate x_error_init for max_rel_error comparisons
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
@@ -236,7 +243,7 @@ extern "C" void BiCGSTAB(
       if(restarts >= max_restarts){
         break;
       }
-      std::cout << "[BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
+      std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
       checkCudaErrors(cudaStreamSynchronize(solver_stream)); 
@@ -326,7 +333,7 @@ extern "C" void BiCGSTAB(
     if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "[BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       bConverged = true;
       break;
     }
@@ -340,10 +347,10 @@ extern "C" void BiCGSTAB(
   }
 
   if( bConverged )
-    std::cout <<  "[BiCGSTAB]: Error norm (relative) = " << x_error << "/" << max_error 
+    std::cout <<  "  [BiCGSTAB]: Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "[BiCGSTAB]: Iteration " << max_iter 
+    std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
               << ". Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
 
@@ -385,8 +392,8 @@ extern "C" void BiCGSTAB(
 #ifdef BICGSTAB_PROFILER
   stopProfiler(elapsed_bicgstab, start_bicgstab, stop_bicgstab, solver_stream);
   
-  std::cout << "[BiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
-  std::cout << "[BiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
+  std::cout << "  [BiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
+  std::cout << "  [BiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
 #endif
 
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
@@ -635,13 +642,19 @@ extern "C" void pBiCGSTAB(
         CUSPARSE_MV_ALG_DEFAULT, 
         SpMVBuff)); 
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_nu, 1, d_b, 1)); // r <- -A*x_0 + b
+
+#ifdef BICGSTAB_PROFILER
+  // Check norm of A*x_0
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &x_error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream));
+  std::cout << "  [pBiCGSTAB]: || A*x_0 || = " << x_error_init << std::endl;
+#endif
   
   // Calculate x_error_init for max_rel_error comparisons
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
   checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
 
-  std::cout << "FIRST NORM: " << x_error_init << std::endl;
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
@@ -683,7 +696,7 @@ extern "C" void pBiCGSTAB(
       if(restarts >= max_restarts){
         break;
       }
-      std::cout << "[BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
+      std::cout << "  [pBiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
       checkCudaErrors(cudaStreamSynchronize(solver_stream)); 
@@ -795,7 +808,7 @@ extern "C" void pBiCGSTAB(
     if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "[pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       bConverged = true;
       break;
     }
@@ -809,10 +822,10 @@ extern "C" void pBiCGSTAB(
   }
 
   if( bConverged )
-    std::cout <<  "[pBiCGSTAB] Error norm (relative) = " << x_error << "/" << max_error 
+    std::cout <<  "  [pBiCGSTAB] Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "[pBiCGSTAB]: Iteration " << max_iter 
+    std::cout <<  "  [pBiCGSTAB]: Iteration " << max_iter 
               << ". Error norm (relative) = " << x_error << "/" << max_error 
               << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
 
@@ -855,9 +868,9 @@ extern "C" void pBiCGSTAB(
 #ifdef BICGSTAB_PROFILER
   stopProfiler(elapsed_bicgstab, start_bicgstab, stop_bicgstab, solver_stream);
   
-  std::cout << "[BiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
-  std::cout << "[BiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
-  std::cout << "[BiCGSTAB]: preconditioning:    " << (elapsed_precondition/elapsed_bicgstab)*100. << "%." << std::endl;
+  std::cout << "  [pBiCGSTAB]: total elapsed time: " << elapsed_bicgstab << " [ms]." << std::endl;
+  std::cout << "  [pBiCGSTAB]: memory transfers:   " << (elapsed_memcpy/elapsed_bicgstab)*100. << "%." << std::endl;
+  std::cout << "  [pBiCGSTAB]: preconditioning:    " << (elapsed_precondition/elapsed_bicgstab)*100. << "%." << std::endl;
 #endif
 
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
