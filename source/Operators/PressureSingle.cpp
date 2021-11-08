@@ -681,7 +681,7 @@ void PressureSingle::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -743,7 +743,7 @@ void PressureSingle::preventCollidingObstacles() const
         if (iForced || jForced)
         {
             std::cout << "Forced objects not supported for collision." << std::endl;
-            MPI_Abort(MPI_COMM_WORLD,1);
+            MPI_Abort(sim.chi->getCartComm(),1);
         }
 
         double ho1[3];
