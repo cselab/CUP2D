@@ -789,7 +789,7 @@ void PressureSingle::preventCollidingObstacles() const
         const Real CZ = 0.5*(iPZ+jPZ);
 
         //3. Take care of the collision. Assume elastic collision (kinetic energy is conserved)
-        ElasticCollision1(m1,m2,I1,I2,v1,v2,o1,o2,hv1,hv2,ho1,ho2,C1,C2,NX,NY,NZ,CX,CY,CZ,vc1,vc2);
+        ElasticCollision(m1,m2,I1,I2,v1,v2,o1,o2,hv1,hv2,ho1,ho2,C1,C2,NX,NY,NZ,CX,CY,CZ,vc1,vc2);
         shapes[i]->u = hv1[0];
         shapes[i]->v = hv1[1];
         //shapes[i]->transVel[2] = hv1[2];
