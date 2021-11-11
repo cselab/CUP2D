@@ -28,6 +28,7 @@
 #include "Obstacles/Windmill.h"
 #include "Obstacles/Teardrop.h"
 #include "Obstacles/Waterturbine.h"
+#include "Obstacles/ExperimentFish.h"
 
 #include <algorithm>
 #include <iterator>
@@ -237,6 +238,8 @@ void Simulation::createShapes()
         shape = new Teardrop(         sim, ffparser, center);
       else if (objectName=="waterturbine")
         shape = new Waterturbine(     sim, ffparser, center);
+      else if (objectName=="experimentFish")
+        shape = new ExperimentFish(   sim, ffparser, center);
       assert(shape not_eq nullptr);
       shape->obstacleID = k++;
       sim.shapes.push_back(shape);
