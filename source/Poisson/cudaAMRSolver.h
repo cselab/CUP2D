@@ -47,13 +47,11 @@ protected:
   // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
   template<typename F>
   void neiBlockElement(
-    const int &block_idx,
+    cubism::BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
     const int &ix,
     const int &iy,
-    const int &sfc_idx,
-    const int &rhs_level,
     double &diag_val,
     cubism::BlockInfo &rhsNei,
     const std::array<int,3> &Zchild_idx1,
@@ -62,7 +60,7 @@ protected:
   // Method to construct matrix row for cell on edge of block
   template<typename F1, typename F2, typename F3, typename F4>
   void edgeBoundaryCell(
-    const int &block_idx,
+    cubism::BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
     const int &ix,
@@ -70,7 +68,6 @@ protected:
     F1 n1_func,
     F2 n2_func,
     F3 n3_func,
-    const int &rhs_level,
     const bool &isBoundary4,
     cubism::BlockInfo &rhsNei_4,
     const std::array<int,3> &rhsNei4_Zchild_idx1,
@@ -79,14 +76,13 @@ protected:
   // Method to construct matrix row for cell on corner of block
   template<typename F1, typename F2, typename F3, typename F4>
   void cornerBoundaryCell(
-    const int &block_idx,
+    cubism::BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
     const int &ix,
     const int &iy,
     F1 n1_func,
     F2 n2_func,
-    const int &rhs_level,
     const bool &isBoundary3,
     cubism::BlockInfo &rhsNei_3,
     const std::array<int,3> &rhsNei3_Zchild_idx1,
