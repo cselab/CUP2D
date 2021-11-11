@@ -38,6 +38,7 @@ class StefanFish: public Fish
 
 class CurvatureFish : public FishData
 {
+  const Real amplitudeFactor, phaseShift, Tperiod;
  public:
   // PID controller of body curvature:
   Real curv_PID_fac = 0;
@@ -76,10 +77,11 @@ class CurvatureFish : public FishData
  public:
 
   CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-  : FishData(L, T, phi, _h, _A),   rK(_alloc(Nm)),vK(_alloc(Nm)),
-    rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)) {
+  : FishData(L, _h), amplitudeFactor(_A),  phaseShift(phi),  Tperiod(T), rK(_alloc(Nm)), vK(_alloc(Nm)),
+    rC(_alloc(Nm)), vC(_alloc(Nm)), rB(_alloc(Nm)), vB(_alloc(Nm)) 
+    {
       _computeWidth();
-      writeMidline2File(0, "initialCheck");
+      // writeMidline2File(0, "initialCheck");
     }
 
   void resetAll() override {

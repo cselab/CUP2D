@@ -15,7 +15,7 @@ class TeardropData : public FishData
   const Real tRatio;
  public:
   TeardropData(Real L, Real _h, Real _tRatio)
-  : FishData(L, 0, 0, _h, 0), tRatio(_tRatio) { _computeWidth(); }
+  : FishData(L, _h), tRatio(_tRatio) { _computeWidth(); }
 
   void computeMidline(const Real time, const Real dt) override;
   Real _width(const Real s, const Real L) override

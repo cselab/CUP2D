@@ -9,11 +9,8 @@
 
 using namespace cubism;
 
-FishData::FishData(Real L, Real Tp, Real phi, Real _h, const Real A):
- length(L), Tperiod(Tp), phaseShift(phi), h(_h), amplitudeFactor(A),
- rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),vX(_alloc(Nm)),vY(_alloc(Nm)),
- norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
- width(_alloc(Nm))
+FishData::FishData(Real L, Real _h):
+ length(L), h(_h), rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),vX(_alloc(Nm)),vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)), width(_alloc(Nm))
 {
   if( dSref <= 0 ){
     std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;

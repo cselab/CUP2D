@@ -39,9 +39,8 @@ struct FishSkin
 struct FishData
 {
  public:
-  const Real length, Tperiod, phaseShift, h;
-  const Real waveLength = 1;
-  const Real amplitudeFactor;
+  // Length and minimal gridspacing
+  const Real length, h;
 
   // Midline is discretized by more points in first fraction and last fraction:
   const Real fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
@@ -126,7 +125,7 @@ struct FishData
   }
 
  public:
-  FishData(Real L, Real Tp, Real phi, Real _h, const Real A=1);
+  FishData(Real L, Real _h);
   virtual ~FishData();
 
   Real integrateLinearMomentum(Real CoM[2], Real vCoM[2]);

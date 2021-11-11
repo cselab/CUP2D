@@ -13,6 +13,7 @@ using namespace cubism;
 
 class NeuroFish : public FishData
 {
+    const Real amplitudeFactor, phaseShift, Tperiod;
 public:
     double t_next = 0.0; // Time for next action
     double target[2] = {0.0, 0.0}; // Target location
@@ -57,7 +58,7 @@ protected:
 
 public:
     NeuroFish(Real L, Real T, Real phi, Real _h, Real _A)
-            : FishData(L, T, phi, _h, _A), rK(_alloc(Nm)), vK(_alloc(Nm)),
+            : FishData(L, _h), amplitudeFactor(_A),  phaseShift(phi),  Tperiod(T), rK(_alloc(Nm)), vK(_alloc(Nm)),
               rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), vUC(_alloc(Nm)),
               rMuscSignal(_alloc(Nm)), vMuscSignal(_alloc(Nm)),
               spatialDerivativeMuscSignal(_alloc(Nm)), spatialDerivativeDMuscSignal(_alloc(Nm)),

@@ -5,7 +5,6 @@
 //
 
 #include "CarlingFish.h"
-#include "FishUtilities.h"
 
 using namespace cubism;
 

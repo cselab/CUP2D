@@ -13,6 +13,7 @@ using namespace cubism;
 
 class BehaviorCurvatureFish : public FishData
 {
+    const Real amplitudeFactor, phaseShift, Tperiod;
 public:
     double t_next = 0.0; // Time for next action
     double target[2] = {0.0, 0.0}; // Target location
@@ -44,7 +45,7 @@ protected:
     Schedulers::ParameterSchedulerScalar tauTailScheduler; // phase scheduler
 public:
     BehaviorCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-            : FishData(L, T, phi, _h, _A), rK(_alloc(Nm)), vK(_alloc(Nm)),
+            : FishData(L, _h), amplitudeFactor(_A),  phaseShift(phi),  Tperiod(T), rK(_alloc(Nm)), vK(_alloc(Nm)),
               rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), vUC(_alloc(Nm)),
               tauTail(0.0), vTauTail(0.0), alpha(0.0) {
         _computeWidth();

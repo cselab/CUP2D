@@ -451,8 +451,8 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
   #endif
 
   // write curvature values
-  curvatureScheduler.gimmeValues(t,                curvaturePoints,Nm,rS,rC,vC);
-  rlBendingScheduler.gimmeValues(t,periodPIDval,length, bendPoints,Nm,rS,rB,vB);
+  curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
+  rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS, rB, vB);
 
   // next term takes into account the derivative of periodPIDval in darg:
   const Real diffT = TperiodPID? 1 - (t-time0)*periodPIDdif/periodPIDval : 1;
@@ -462,7 +462,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
 
   #pragma omp parallel for schedule(static)
   for(int i=0; i<Nm; ++i) {
-    const Real arg = arg0 - 2*M_PI*rS[i]/length/waveLength;
+    const Real arg = arg0 - 2*M_PI*rS[i]/length;
     rK[i] = amplitudeFactor* rC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac);
     vK[i] = amplitudeFactor*(vC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac)
                             +rC[i]*(std::cos(arg)*darg+ vB[i] +curv_PID_dif));
