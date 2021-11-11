@@ -56,8 +56,8 @@ protected:
     const int &rhs_level,
     double &diag_val,
     cubism::BlockInfo &rhsNei,
-    const long long &rhsNei_Zchild_1,
-    const long long &rhsNei_Zchild_2,
+    const std::array<int,3> &Zchild_idx1,
+    const std::array<int,3> &Zchild_idx2,
     F n_func);
   // Method to construct matrix row for cell on edge of block
   template<typename F1, typename F2, typename F3, typename F4>
@@ -73,8 +73,8 @@ protected:
     const int &rhs_level,
     const bool &isBoundary4,
     cubism::BlockInfo &rhsNei_4,
-    const long long &rhsNei4_Zchild_1,
-    const long long &rhsNei4_Zchild_2,
+    const std::array<int,3> &rhsNei4_Zchild_idx1,
+    const std::array<int,3> &rhsNei4_Zchild_idx2,
     F4 n4_func);
   // Method to construct matrix row for cell on corner of block
   template<typename F1, typename F2, typename F3, typename F4>
@@ -89,13 +89,13 @@ protected:
     const int &rhs_level,
     const bool &isBoundary3,
     cubism::BlockInfo &rhsNei_3,
-    const long long &rhsNei3_Zchild_1,
-    const long long &rhsNei3_Zchild_2,
+    const std::array<int,3> &rhsNei3_Zchild_idx1,
+    const std::array<int,3> &rhsNei3_Zchild_idx2,
     F3 n3_func,
     const bool &isBoundary4,
     cubism::BlockInfo &rhsNei_4,
-    const long long &rhsNei4_Zchild_1,
-    const long long &rhsNei4_Zchild_2,
+    const std::array<int,3> &rhsNei4_Zchild_idx1,
+    const std::array<int,3> &rhsNei4_Zchild_idx2,
     F4 n4_func);
   // Method to compute A and b for the current mesh
   void Get_LS();
