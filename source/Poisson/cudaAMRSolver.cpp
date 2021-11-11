@@ -175,7 +175,7 @@ void cudaAMRSolver::neiBlockElement(
 
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { //then out-of-block neighbour exists and we can safely use rhsNei and access the gridpoint-data etc.
-    const size_t n_block_idx = rhsNei.blockID;
+    const int n_block_idx = rhsNei.blockID;
     const int n_idx = n_func(n_block_idx, BSX, BSY, ix, iy);
     this->cooMatPushBack(1., sfc_idx, n_idx);
 
@@ -184,7 +184,6 @@ void cudaAMRSolver::neiBlockElement(
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
-    //then east neighbor does not exist and there is a coarser block in its place
     BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 ,rhsNei.Zparent );
     if (this->sim.tmp->Tree(rhsNei_c).Exists())
     {
@@ -220,7 +219,7 @@ void cudaAMRSolver::neiBlockElement(
       }
       else { abort(); } // Something went wrong
 
-      const size_t nc_block_idx = rhsNei_c.blockID;
+      const int nc_block_idx = rhsNei_c.blockID;
       const int nc_idx = n_func(nc_block_idx, BSX, BSY, ix_c, iy_c);
       // At the moment interpolation c_11 = c_21 = c_12 = c_22 = p_{nc_idx}
       this->cooMatPushBack(1., sfc_idx, nc_idx);
@@ -266,7 +265,7 @@ void cudaAMRSolver::neiBlockElement(
       const int ix_f = (ix % (BSX/2)) * 2;
       const int iy_f = (iy % (BSY/2)) * 2;
       // Two fine neighbours
-      const size_t nf_block_idx = rhsNei_f.blockID;   
+      const int nf_block_idx = rhsNei_f.blockID;   
       const int nf1_idx = n_func(nf_block_idx, BSX, BSY, ix_f, iy_f);
       this->cooMatPushBack(1., sfc_idx, nf1_idx);
 
@@ -415,8 +414,8 @@ void cudaAMRSolver::Get_LS()
   //Get a vector of all BlockInfos of the grid we're interested in
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
-  const size_t Nblocks = RhsInfo.size();
-  const size_t N = BSX*BSY*Nblocks;
+  const int Nblocks = RhsInfo.size();
+  const int N = BSX*BSY*Nblocks;
 
   // Allocate memory for solution 'x' and RHS vector 'b' on host
   this->x_.resize(N);
@@ -432,7 +431,7 @@ void cudaAMRSolver::Get_LS()
 
   // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
   // adding a critical section to push_back makes things worse as threads fight for access
-  for(size_t i=0; i< Nblocks; i++)
+  for(int i=0; i< Nblocks; i++)
   {    
     BlockInfo &rhs_info = RhsInfo[i];
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
@@ -684,7 +683,7 @@ void cudaAMRSolver::solve()
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
-  const size_t Nblocks = zInfo.size();
+  const int Nblocks = zInfo.size();
 
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
@@ -724,7 +723,7 @@ void cudaAMRSolver::solve()
   #pragma omp parallel
   {
      #pragma omp for reduction (+:avg,avg1)
-     for(size_t i=0; i< Nblocks; i++)
+     for(int i=0; i< Nblocks; i++)
      {
         ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
         const double vv = zInfo[i].h*zInfo[i].h;
@@ -741,7 +740,7 @@ void cudaAMRSolver::solve()
         avg = avg/avg1;
      }
      #pragma omp for
-     for(size_t i=0; i< Nblocks; i++)
+     for(int i=0; i< Nblocks; i++)
      {
         ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
         for(int iy=0; iy<VectorBlock::sizeY; iy++)
