@@ -72,7 +72,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
   {
     CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
     if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-    const double DT = sim.dt/Tperiod, time = sim.time;
+    const double DT = sim.dt/Tperiod;//, time = sim.time;
     // Control pos diffs
     const double   xDiff = (centerOfMass[0] - origC[0])/length;
     const double   yDiff = (centerOfMass[1] - origC[1])/length;
@@ -129,7 +129,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
       const double difIangIdy = coefIangIdy * velIangIdy;
       const double periodFac = 1.0 - xDiff;
       const double periodVel =     - relU;
-
+#if 0
       if(not sim.muteAll) {
         std::ofstream filePID;
         std::stringstream ssF;
@@ -140,6 +140,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
                      <<" "<<valIangIdy<<" "<<difIangIdy
                      <<" "<<periodFac <<" "<<periodVel <<"\n";
       }
+#endif
       const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
       const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
@@ -157,6 +158,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
       const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
       const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
+#if 0
       if(not sim.muteAll) {
         std::ofstream filePID;
         std::stringstream ssF;
@@ -165,6 +167,7 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
         filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
                      <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
       }
+#endif
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
     }
   }
