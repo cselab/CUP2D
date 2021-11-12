@@ -41,7 +41,7 @@ if [[ "$?" -gt "0" ]] ; then
 source launchSbatch.sh
 else
 cd ${FOLDERNAME}
-srun -n $SLURM_NNODES -c 1 --ntasks-per-node=12 --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+srun --nodes $SLURM_NNODES --ntasks-per-node=12 --cpus-per-task=1 --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 fi
 
 ###################################################################################################
