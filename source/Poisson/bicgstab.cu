@@ -200,8 +200,9 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
   checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream));
+  std::cout << "  [BiCGSTAB]: Initial norm: " << x_error_init << std::endl;
 
-  std::cout << "FIRST NORM: " << x_error_init << std::endl;
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
 
@@ -654,6 +655,8 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
   checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
   checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream));
+  std::cout << "  [pBiCGSTAB]:  Initial norm: " << x_error_init << std::endl;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));

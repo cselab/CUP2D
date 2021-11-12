@@ -9,40 +9,30 @@
 
 using namespace cubism;
 
-int WestNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy){ 
-  return block_idx*BSX*BSY + iy*BSX + ix-1; 
-}
-
-int NorthNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy){ 
-  return block_idx*BSX*BSY + (iy+1)*BSX + ix;
-}
-
-int EastNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy){ 
-  return block_idx*BSX*BSY + iy*BSX + ix+1; 
-}
-
-int SouthNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
-{ return block_idx*BSX*BSY + (iy-1)*BSX + ix; }
-
-int WestmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
-{ return block_idx*BSX*BSY + iy*BSX + 0; }
-
-int NorthmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
-{ return block_idx*BSX*BSY + (BSY-1)*BSX + ix; }
-
-int EastmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
-{ return block_idx*BSX*BSY + iy*BSX + (BSX-1); }
-
-int SouthmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
-{ return block_idx*BSX*BSY + 0*BSX + ix; }
-
-long long get_Zchild(BlockInfo &info, const std::array<int,3> &Zchild_idx){
-  return info.Zchild[Zchild_idx[0]][Zchild_idx[1]][Zchild_idx[2]];
-}
-
 enum Compass {North, East, South, West};
 
-class NorthEdge{
+class EdgeCellIndexer{
+  protected:
+    static int WestNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + iy*BSX + ix-1; }
+    static int NorthNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + (iy+1)*BSX + ix;}
+    static int EastNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + iy*BSX + ix+1; }
+    static int SouthNeighbourIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + (iy-1)*BSX + ix; }
+    static int WestmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + iy*BSX + 0; }
+    static int NorthmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + (BSY-1)*BSX + ix; }
+    static int EastmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + iy*BSX + (BSX-1); }
+    static int SouthmostCellIdx(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
+    { return block_idx*BSX*BSY + 0*BSX + ix; }
+};
+
+
+class NorthEdge : public EdgeCellIndexer{
   public:
     static int block_n1(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return EastNeighbourIdx(block_idx, BSY, BSY, ix, iy); }
@@ -53,12 +43,15 @@ class NorthEdge{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return SouthmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
+    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
+    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
+
     constexpr static Compass EdgeType = {North};
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,0,0};
 };
 
-class EastEdge{
+class EastEdge : public EdgeCellIndexer{
   public:
     static int block_n1(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return SouthNeighbourIdx(block_idx, BSY, BSY, ix, iy); }
@@ -69,12 +62,15 @@ class EastEdge{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return WestmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
+    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
+    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
+
     constexpr static Compass EdgeType = {East};
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {0,1,0};
 };
 
-class SouthEdge{
+class SouthEdge : public EdgeCellIndexer{
   public:
     static int block_n1(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return WestNeighbourIdx(block_idx, BSY, BSY, ix, iy); }
@@ -85,12 +81,15 @@ class SouthEdge{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return NorthmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
+    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
+    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
+
     constexpr static Compass EdgeType = {South};
     constexpr static std::array<int,3> Zchild1_idx = {0,1,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
 
-class WestEdge{
+class WestEdge : public EdgeCellIndexer{
   public:
     static int block_n1(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return NorthNeighbourIdx(block_idx, BSY, BSY, ix, iy); }
@@ -100,6 +99,9 @@ class WestEdge{
     { return SouthNeighbourIdx(block_idx, BSY, BSY, ix, iy); }
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return EastmostCellIdx(block_idx, BSY, BSY, ix, iy); }
+
+    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
+    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
 
     constexpr static Compass EdgeType = {West};
     constexpr static std::array<int,3> Zchild1_idx = {1,0,0};
@@ -269,7 +271,7 @@ void cudaAMRSolver::neiBlockElement(
       { // Adding LS columns associated to flux from Northern/Southern boundary 
         if (rhs_info.index[0] % 2 == 1) ix_c += (BSX / 2);
       }
-      else { abort(); } // Something went wrong
+      else { throw std::runtime_error("Runtime1"); } // Something went wrong
 
       const int nc_block_idx = rhsNei_c.blockID;
       const int nc_idx = helper.neiBlock_n(nc_block_idx, BSX, BSY, ix_c, iy_c);
@@ -282,7 +284,7 @@ void cudaAMRSolver::neiBlockElement(
       diag_val--;
 
     }
-    else { abort(); }
+    else { throw std::runtime_error("Runtime2"); }
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
@@ -296,19 +298,13 @@ void cudaAMRSolver::neiBlockElement(
     long long rhsNei_Zchild;
     if (helper.EdgeType == East || helper.EdgeType == West)
     { // Adding LS columns associated to flux from Western/Eastern boundary
-      if (iy < BSY / 2)
-        rhsNei_Zchild = get_Zchild(rhsNei, helper.Zchild1_idx);
-      else
-        rhsNei_Zchild = get_Zchild(rhsNei, helper.Zchild2_idx);
+      rhsNei_Zchild = iy < BSY / 2 ? helper.Zchild1(rhsNei) : helper.Zchild2(rhsNei);
     }
     else if (helper.EdgeType == North || helper.EdgeType == South)
     { // Adding LS columns associated to flux from Northern/Southern boundary 
-      if (ix < BSX / 2)
-        rhsNei_Zchild = get_Zchild(rhsNei, helper.Zchild1_idx);
-      else
-        rhsNei_Zchild = get_Zchild(rhsNei, helper.Zchild2_idx);
+      rhsNei_Zchild = ix < BSX / 2 ? helper.Zchild1(rhsNei) : helper.Zchild2(rhsNei); 
     }
-    else { abort(); } // Something went wrong
+    else { throw std::runtime_error("Runtime3"); } // Something went wrong
 
     BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1 , rhsNei_Zchild);
     if (this->sim.tmp->Tree(rhsNei_f).Exists())
@@ -328,9 +324,16 @@ void cudaAMRSolver::neiBlockElement(
       // two fluxes ==> two diagonal contributions
       diag_val -= 2.;
     }
-    else { abort(); }
+    else { 
+//      std::cout << "rhs_info.blockID: " << rhs_info.blockID << ", rhs_info.level: " << rhs_info.level << std::endl;
+//      std::cout << "rhsNei.blockID: " << rhsNei.blockID << ", rhsNei.level: " << rhsNei.level << std::endl;
+//      std::cout << "rhsNei_f.blockID: " << rhsNei_f.blockID << ", rhsNei_f.level: " << rhsNei_f.level << std::endl;
+//      std::cout << "Edge type: " << helper.EdgeType << std::endl;
+//      std::cout << "Zchild1_idx: " << helper.Zchild1_idx[0] << helper.Zchild1_idx[1] << helper.Zchild1_idx[2] << std::endl;
+//      std::cout << "Zchild2_idx: " << helper.Zchild2_idx[0] << helper.Zchild2_idx[1] << helper.Zchild2_idx[2] << std::endl;
+      throw std::runtime_error("Runtime4"); }
   }
-  else { abort(); }
+  else { throw std::runtime_error("Runtime5"); }
 }
 
 template<class EdgeHelper>
@@ -362,6 +365,7 @@ void cudaAMRSolver::edgeBoundaryCell( // excluding corners
     else
     {
       double diag_val = -3.;
+      //std::cout << "Edge construction. \n ";
       this->neiBlockElement(
           rhs_info, 
           BSX, 
@@ -408,6 +412,7 @@ void cudaAMRSolver::cornerBoundaryCell(
       double diag_val = -2.;
       if (!isBoundary1)
       { // Add matrix element associated to out-of-block neighbour 3
+//      std::cout << "Corner1 construction. \n ";
         this->neiBlockElement(
             rhs_info, 
             BSX, 
@@ -420,6 +425,7 @@ void cudaAMRSolver::cornerBoundaryCell(
       }
       if (!isBoundary2)
       { // Add matrix element associated to out-of-block neighbour 4
+//      std::cout << "Corner2 construction. \n ";
         this->neiBlockElement(
             rhs_info, 
             BSX, 
@@ -441,6 +447,7 @@ void cudaAMRSolver::Get_LS()
 
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
+  std::cout << "BSX: " << BSX << ", BSY: " << BSY << std::endl;
 
   //This returns an array with the blocks that the coarsest possible 
   //mesh would have (i.e. all blocks are at level 0)
@@ -472,6 +479,8 @@ void cudaAMRSolver::Get_LS()
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
     ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
+//    std::cout << "Constructing block " << i << std::endl;
+
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
@@ -494,6 +503,10 @@ void cudaAMRSolver::Get_LS()
     const bool isSouthBoundary = (rhs_info.index[1] == 0           ); // don't check for south neighbor
     const bool isNorthBoundary = (rhs_info.index[1] == MAX_Y_BLOCKS); // don't check for north neighbor
 
+//    std::cout <<"Westbd: " << isWestBoundary;
+//    std::cout <<", eastbd: " << isEastBoundary;
+//    std::cout <<", southbd: " << isSouthBoundary;
+//    std::cout <<", northbd: " << isNorthBoundary << std::endl;
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     long long Z_west  = rhs_info.Znei[1-1][1][1];
     long long Z_east  = rhs_info.Znei[1+1][1][1];
@@ -538,6 +551,7 @@ void cudaAMRSolver::Get_LS()
     {
       // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
       int ix = 0;
+//      std::cout << "Construct west: " << iy << std::endl;
       this->edgeBoundaryCell(
           rhs_info, 
           BSX, 
@@ -549,6 +563,7 @@ void cudaAMRSolver::Get_LS()
           WestEdge());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
+//      std::cout << "Construct east: " << iy << std::endl;
       ix = BSX-1;
       this->edgeBoundaryCell(
           rhs_info,
@@ -564,6 +579,7 @@ void cudaAMRSolver::Get_LS()
     for(int ix=1; ix<BSX-1; ix++)
     {
       // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
+//      std::cout << "Construct north: " << ix << std::endl;
       int iy = BSY-1;
       this->edgeBoundaryCell(
           rhs_info, 
@@ -575,6 +591,7 @@ void cudaAMRSolver::Get_LS()
           rhsNei_north,
           NorthEdge());
 
+//      std::cout << "Construct south: " << ix << std::endl;
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
       iy = 0;
       this->edgeBoundaryCell(
