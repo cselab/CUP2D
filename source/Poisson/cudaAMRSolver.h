@@ -45,54 +45,41 @@ protected:
   // Method to push back values to coo sparse matrix representaiton
   void cooMatPushBack(const double&, const int&, const int&);
   // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
-  template<typename F>
+  template<class EdgeHelper >
   void neiBlockElement(
-    cubism::BlockInfo &rhs_info,
-    const int &BSX,
-    const int &BSY,
-    const int &ix,
-    const int &iy,
-    double &diag_val,
-    cubism::BlockInfo &rhsNei,
-    const std::array<int,3> &Zchild_idx1,
-    const std::array<int,3> &Zchild_idx2,
-    F n_func);
+      cubism::BlockInfo &rhs_info,
+      const int &BSX,
+      const int &BSY,
+      const int &ix,
+      const int &iy,
+      double &diag_val,
+      cubism::BlockInfo &rhsNei,
+      EdgeHelper helper);
   // Method to construct matrix row for cell on edge of block
-  template<typename F1, typename F2, typename F3, typename F4>
-  void edgeBoundaryCell(
-    cubism::BlockInfo &rhs_info,
-    const int &BSX,
-    const int &BSY,
-    const int &ix,
-    const int &iy,
-    F1 n1_func,
-    F2 n2_func,
-    F3 n3_func,
-    const bool &isBoundary4,
-    cubism::BlockInfo &rhsNei_4,
-    const std::array<int,3> &rhsNei4_Zchild_idx1,
-    const std::array<int,3> &rhsNei4_Zchild_idx2,
-    F4 n4_func);
+  template<class EdgeHelper>
+  void edgeBoundaryCell( // excluding corners
+      cubism::BlockInfo &rhs_info,
+      const int &BSX,
+      const int &BSY,
+      const int &ix,
+      const int &iy,
+      const bool &isBoundary,
+      cubism::BlockInfo &rhsNei,
+      EdgeHelper helper);
   // Method to construct matrix row for cell on corner of block
-  template<typename F1, typename F2, typename F3, typename F4>
+  template<class EdgeHelper1, class EdgeHelper2>
   void cornerBoundaryCell(
-    cubism::BlockInfo &rhs_info,
-    const int &BSX,
-    const int &BSY,
-    const int &ix,
-    const int &iy,
-    F1 n1_func,
-    F2 n2_func,
-    const bool &isBoundary3,
-    cubism::BlockInfo &rhsNei_3,
-    const std::array<int,3> &rhsNei3_Zchild_idx1,
-    const std::array<int,3> &rhsNei3_Zchild_idx2,
-    F3 n3_func,
-    const bool &isBoundary4,
-    cubism::BlockInfo &rhsNei_4,
-    const std::array<int,3> &rhsNei4_Zchild_idx1,
-    const std::array<int,3> &rhsNei4_Zchild_idx2,
-    F4 n4_func);
+      cubism::BlockInfo &rhs_info,
+      const int &BSX,
+      const int &BSY,
+      const int &ix,
+      const int &iy,
+      const bool &isBoundary1,
+      cubism::BlockInfo &rhsNei_1,
+      EdgeHelper1 helper1, 
+      const bool &isBoundary2,
+      cubism::BlockInfo &rhsNei_2,
+      EdgeHelper2 helper2);
   // Method to compute A and b for the current mesh
   void Get_LS();
   // Host-side variables for linear system
