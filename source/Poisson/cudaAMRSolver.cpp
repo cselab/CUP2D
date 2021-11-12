@@ -54,8 +54,8 @@ class NorthEdge{
     { return SouthmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
     constexpr static Compass EdgeType = {North};
-    constexpr static std::array<int,3> Zchild1_idx = {0,1,0};
-    constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
+    constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
+    constexpr static std::array<int,3> Zchild2_idx = {1,0,0};
 };
 
 class EastEdge{
