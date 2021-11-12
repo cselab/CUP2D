@@ -81,7 +81,7 @@ class CurvatureFish : public FishData
     rC(_alloc(Nm)), vC(_alloc(Nm)), rB(_alloc(Nm)), vB(_alloc(Nm)) 
     {
       _computeWidth();
-      // writeMidline2File(0, "initialCheck");
+      writeMidline2File(0, "initialCheck");
     }
 
   void resetAll() override {

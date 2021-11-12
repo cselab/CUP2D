@@ -16,14 +16,7 @@ ExperimentFish::ExperimentFish(SimulationData&s, ArgumentParser&p, double C[2])
   const std::string path = p("-path").asString();
   const Real dtDataset = p("-dtDataset").asDouble();
   myFish = new ExperimentDataFish(length, sim.minH, path, timeStart, dtDataset);
-  if( s.verbose ) printf("[CUP2D] - ExperimentDataFish %d %f\n", myFish->Nm, length);
-}
-
-void ExperimentFish::create(const std::vector<BlockInfo>& vInfo) {
-  // Only start creating the fish after timeStart has passed
-  if( sim.time < timeStart )
-    return
-  Fish::create(vInfo);
+  if( s.verbose ) printf("[CUP2D] - ExperimentDataFish %s %d %f\n", path.c_str(), myFish->Nm, length);
 }
 
 void ExperimentFish::updatePosition(double dt)
@@ -76,9 +69,12 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt)
     tNext += dtDataset;
     idxLast = idxNext;
     idxNext++;
-    u     = ( centerOfMassData[idxNext][0] - centerOfMassData[idxLast][0] ) / dtDataset;
-    u     = ( centerOfMassData[idxNext][1] - centerOfMassData[idxLast][1] ) / dtDataset;
-    omega = ( centerOfMassData[idxNext][2] - centerOfMassData[idxLast][2] ) / dtDataset;
+    // Only start moving the fish after timeStart has passed
+    if( t >= timeStart ) {
+      u     = ( centerOfMassData[idxNext][0] - centerOfMassData[idxLast][0] ) / dtDataset;
+      v     = ( centerOfMassData[idxNext][1] - centerOfMassData[idxLast][1] ) / dtDataset;
+      omega = ( ( centerOfMassData[idxNext][2] - centerOfMassData[idxLast][2] ) / dtDataset ) * ( M_PI / 180 );
+    } 
     std::array<Real ,6> lastMidlineValues; 
     std::copy_n(midlineData[idxLast].begin(), 6, lastMidlineValues.begin()); 
     std::array<Real ,6> nextMidlineValues; 

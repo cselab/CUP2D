@@ -61,6 +61,7 @@ void FishData::writeMidline2File(const int step_id, std::string filename)
     //dummy.changeVelocityToComputationalFrame(udef);
     fprintf(f, "%g %g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i],width[i]);
   }
+  fflush(0);
 }
 
 void FishData::_computeMidlineNormals() const

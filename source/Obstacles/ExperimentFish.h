@@ -15,7 +15,6 @@ class ExperimentFish: public Fish
  public:
   ExperimentFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
 
-  void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updatePosition(double dt) override;
   void updateVelocity(double dt) override;
 };
@@ -41,9 +40,10 @@ public:
   
   ExperimentDataFish(Real L, Real _h, std::string path, Real _timeStart, Real _dtDataset )
   : FishData(L, _h), timeStart(_timeStart), dtDataset(_dtDataset) { 
-    midlineData = loadFile( path + "Fish2_Centerline.txt" );
-    centerOfMassData = loadFile( path + "Fish2_COM_angle.txt" );
+    midlineData = loadFile( path + "/dummyCenterline.txt" );
+    centerOfMassData = loadFile( path + "/dummyCoM.txt" );
     _computeWidth(); 
+    writeMidline2File(0, "initialCheck");
   }
 
   std::vector<std::vector<Real>> loadFile( const std::string path );
