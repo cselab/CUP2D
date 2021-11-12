@@ -4,17 +4,18 @@
 //  Distributed under the terms of the MIT license.
 //
 
-#include "CarlingFish.h"
+#include "ExperimentFish.h"
 #include "FishData.h"
 #include "FishUtilities.h"
 
 using namespace cubism;
 
 ExperimentFish::ExperimentFish(SimulationData&s, ArgumentParser&p, double C[2])
-  : Fish(s,p,C), timeStart(p("-tStart").asDouble()), dtDataset(p("-dtDataset").asDouble()) 
+  : Fish(s,p,C), timeStart( p("-tStart").asDouble() )  
 {
   const std::string path = p("-path").asString();
-  myFish = new ExperimentDataFish(length, path, sim.minH);
+  const Real dtDataset = p("-dtDataset").asDouble();
+  myFish = new ExperimentDataFish(length, sim.minH, path, timeStart, dtDataset);
   if( s.verbose ) printf("[CUP2D] - ExperimentDataFish %d %f\n", myFish->Nm, length);
 }
 
@@ -32,61 +33,44 @@ void ExperimentFish::updatePosition(double dt)
 
 void ExperimentFish::updateVelocity(double dt)
 {
-  u = myfish->u;
-  v = myfish->v;
-  omega = myfish->omega;
+  ExperimentDataFish* const expFish = dynamic_cast<ExperimentDataFish*>( myFish );
+  u = expFish->u;
+  v = expFish->v;
+  omega = expFish->omega;
 }
 
-void ExperimentDataFish::loadCenterOfMass( const std::string path ) {
-  std::string filename = path + "Fish2_COM.txt";
-  std::ifstream myfile(filename);
+std::vector<std::vector<Real>> ExperimentDataFish::loadFile( const std::string path ) {
+  std::vector<std::vector<Real>> data;
+  std::ifstream myfile(path);
   if( myfile.is_open() )
   {
-    double tempCoM;
+    double temp;
+    std::string line;
     while( std::getline(myfile,line) )
     {
-      std::vector<double> centerOfMass;
+      std::vector<Real> lineData;
       std::istringstream readingStream(line);
-      while (readingStream >> tempCoM)
-        centerOfMass.push_back(tempCoM);
-      centerOfMassData.push_back(centerOfMass);
+      while (readingStream >> temp)
+        lineData.push_back(temp);
+      data.push_back(lineData);
     }
     myfile.close();
   }
   else{
-    cout << "[ExperimentFish] Unable to open center of mass file " << filename << std::endl;
+    cout << "[ExperimentFish] Unable to open center of mass file " << path << std::endl;
     fflush(0);
     abort();
   }
+  return data;
 }
-
-void ExperimentDataFish::loadCenterlines( const std::string path ) {
-  std::string filename = path + "Fish2.txt";
-  std::ifstream myfile(filename);
-  if( myfile.is_open() )
-  {
-    double tempCenterline;
-    while( std::getline(myfile,line) )
-    {
-      std::vector<double> centerline;
-      std::istringstream readingStream(line);
-      while (readingStream >> tempCenterline)
-        centerline.push_back(tempCenterline);
-      centerlineData.push_back(centerline);
-    }
-    myfile.close();
-  }
-  else{
-    cout << "[ExperimentDataFish] Unable to open centerline file " << filename << std::endl;
-    fflush(0);
-    abort();
-  }
-}
-
 
 void ExperimentDataFish::computeMidline(const Real t, const Real dt)
 {
-  if( sim.time >= tNext )
+  // define interpolation points on midline
+  const std::array<Real ,6> midlinePoints = { (Real)0, (Real).15*length,
+    (Real).4*length, (Real).65*length, (Real).9*length, length
+  };
+  if( t >= tNext )
   {
     tLast = tNext;
     tNext += dtDataset;
@@ -95,9 +79,13 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt)
     u     = ( centerOfMassData[idxNext][0] - centerOfMassData[idxLast][0] ) / dtDataset;
     u     = ( centerOfMassData[idxNext][1] - centerOfMassData[idxLast][1] ) / dtDataset;
     omega = ( centerOfMassData[idxNext][2] - centerOfMassData[idxLast][2] ) / dtDataset;
-    curvatureScheduler.transition(t, tLast, tNext, midlineData[idxLast], midlineData[idxNext]);
+    std::array<Real ,6> lastMidlineValues; 
+    std::copy_n(midlineData[idxLast].begin(), 6, lastMidlineValues.begin()); 
+    std::array<Real ,6> nextMidlineValues; 
+    std::copy_n(midlineData[idxNext].begin(), 6, nextMidlineValues.begin());  
+    midlineScheduler.transition(t, tLast, tNext, lastMidlineValues, nextMidlineValues);
   }
-  curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rY, vY);
+  midlineScheduler.gimmeValues(t, midlinePoints, Nm, rS, rY, vY);
 
   rX[0] = 0.0;
   vX[0] = 0.0;
