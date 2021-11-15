@@ -11,48 +11,48 @@ using namespace cubism;
 __attribute__((optimize("-O1")))
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
-  const double exponent = 2;
-  const double e = 1e-6;
-  const double b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
-  const double b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
-  const double b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
-  const double g1 = 0.1;
-  const double g2 = 0.6;
-  const double g3 = 0.3;
-  const double what1 = g1/pow(b1+e,exponent);
-  const double what2 = g2/pow(b2+e,exponent);
-  const double what3 = g3/pow(b3+e,exponent);
-  const double aux = 1.0/((what1+what3)+what2);
-  const double w1 = what1*aux;
-  const double w2 = what2*aux;
-  const double w3 = what3*aux;
-  const double f1 = (11.0/6.0)*u + ( ( 1.0/3.0)*um2- (7.0/6.0)*um1);
-  const double f2 = (5.0 /6.0)*u + ( (-1.0/6.0)*um1+ (1.0/3.0)*up1);
-  const double f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
+  const Real exponent = 2;
+  const Real e = 1e-6;
+  const Real b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+  const Real b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+  const Real b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
+  const Real g1 = 0.1;
+  const Real g2 = 0.6;
+  const Real g3 = 0.3;
+  const Real what1 = g1/pow(b1+e,exponent);
+  const Real what2 = g2/pow(b2+e,exponent);
+  const Real what3 = g3/pow(b3+e,exponent);
+  const Real aux = 1.0/((what1+what3)+what2);
+  const Real w1 = what1*aux;
+  const Real w2 = what2*aux;
+  const Real w3 = what3*aux;
+  const Real f1 = (11.0/6.0)*u + ( ( 1.0/3.0)*um2- (7.0/6.0)*um1);
+  const Real f2 = (5.0 /6.0)*u + ( (-1.0/6.0)*um1+ (1.0/3.0)*up1);
+  const Real f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
   return (w1*f1+w3*f3)+w2*f2;
 }
 
 __attribute__((optimize("-O1")))
 static inline Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
-  const double exponent = 2;
-  const double e = 1e-6;
-  const double b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
-  const double b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
-  const double b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
-  const double g1 = 0.3;
-  const double g2 = 0.6;
-  const double g3 = 0.1;
-  const double what1 = g1/pow(b1+e,exponent);
-  const double what2 = g2/pow(b2+e,exponent);
-  const double what3 = g3/pow(b3+e,exponent);
-  const double aux = 1.0/((what1+what3)+what2);
-  const double w1 = what1*aux;
-  const double w2 = what2*aux;
-  const double w3 = what3*aux;
-  const double f1 = ( 1.0/3.0)*u + ( (-1.0/6.0)*um2+ (5.0/6.0)*um1);
-  const double f2 = ( 5.0/6.0)*u + ( ( 1.0/3.0)*um1- (1.0/6.0)*up1);
-  const double f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
+  const Real exponent = 2;
+  const Real e = 1e-6;
+  const Real b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+  const Real b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+  const Real b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
+  const Real g1 = 0.3;
+  const Real g2 = 0.6;
+  const Real g3 = 0.1;
+  const Real what1 = g1/pow(b1+e,exponent);
+  const Real what2 = g2/pow(b2+e,exponent);
+  const Real what3 = g3/pow(b3+e,exponent);
+  const Real aux = 1.0/((what1+what3)+what2);
+  const Real w1 = what1*aux;
+  const Real w2 = what2*aux;
+  const Real w3 = what3*aux;
+  const Real f1 = ( 1.0/3.0)*u + ( (-1.0/6.0)*um2+ (5.0/6.0)*um1);
+  const Real f2 = ( 5.0/6.0)*u + ( ( 1.0/3.0)*um1- (1.0/6.0)*up1);
+  const Real f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
   return (w1*f1+w3*f3)+w2*f2;
 }
 
@@ -60,8 +60,8 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
                                             const Real u  ,
                                             const Real up1, const Real up2, const Real up3)
 {
-  double fp = 0.0;
-  double fm = 0.0;
+  Real fp = 0.0;
+  Real fm = 0.0;
   if (U > 0)
   {
     fp = weno5_plus (um2,um1,u,up1,up2);
@@ -132,22 +132,22 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
 
 struct KernelAdvectDiffuse
 {
-  KernelAdvectDiffuse(const SimulationData & s, const double c, const double uinfx, const double uinfy) : sim(s),coef(c)
+  KernelAdvectDiffuse(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy) : sim(s),coef(c)
   {
     uinf[0] = uinfx;
     uinf[1] = uinfy;
   }
   const SimulationData & sim;
-  const double coef;
-  double uinf [2];
+  const Real coef;
+  Real uinf [2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
 
   void operator()(VectorLab & lab, const BlockInfo& info) const
   {
-    const double h = info.h;
-    const double dfac = sim.nu*sim.dt;
-    const double afac = -sim.dt*h;
+    const Real h = info.h;
+    const Real dfac = sim.nu*sim.dt;
+    const Real afac = -sim.dt*h;
     VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
@@ -161,7 +161,7 @@ struct KernelAdvectDiffuse
     VectorBlock::ElementType * faceYm = nullptr;
     VectorBlock::ElementType * faceYp = nullptr;
 
-    const double aux_coef = dfac*coef;
+    const Real aux_coef = dfac*coef;
 
     if (tempCase != nullptr)
     {
@@ -210,7 +210,7 @@ struct KernelAdvectDiffuse
 };
 
 
-void advDiff::operator()(const double dt)
+void advDiff::operator()(const Real dt)
 {
   sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
@@ -243,7 +243,7 @@ void advDiff::operator()(const double dt)
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
     const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-    const double ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
+    const Real ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
@@ -265,7 +265,7 @@ void advDiff::operator()(const double dt)
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
     const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-    const double ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
+    const Real ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {

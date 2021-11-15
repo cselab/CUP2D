@@ -160,7 +160,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
-void Fish::updatePosition(double dt)
+void Fish::updatePosition(Real dt)
 {
   // update position and angles
   Shape::updatePosition(dt);

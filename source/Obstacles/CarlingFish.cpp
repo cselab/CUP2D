@@ -10,7 +10,7 @@
 
 using namespace cubism;
 
-CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p, double C[2])
+CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p, Real C[2])
   : Fish(s,p,C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new AmplitudeFish(length, Tperiod, phaseShift, sim.minH, ampFac);

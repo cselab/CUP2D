@@ -22,7 +22,7 @@ class Windmill : public Shape
 
  public:
 
-  Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
+  Windmill(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
   }
@@ -34,8 +34,8 @@ class Windmill : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void updateVelocity(double dt) override;
-  void updatePosition(double dt) override;
+  void updateVelocity(Real dt) override;
+  void updatePosition(Real dt) override;
 
   void setTarget(std::array<Real, 2> target_pos);
   void printVelAtTarget();
@@ -45,12 +45,13 @@ class Windmill : public Shape
 
   void printValues();
   
-  void act( double action );
-  double reward(std::array<Real, 2> target_vel, Real C, Real D);
-  std::vector<double> state();
+  void act( Real action );
+  Real reward(std::array<Real, 2> target_vel, Real C, Real D);
+  std::vector<Real> state();
 
   // Helpers for reward function
-  std::vector<double> average(std::array<Real, 2> pSens) const;
+  //std::vector<Real> average(std::array<Real, 2> pSens) const;
+  std::vector<Real> average(std::array<Real, 2> pSens) const;
   
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 

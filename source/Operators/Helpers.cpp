@@ -10,7 +10,7 @@
 
 using namespace cubism;
 
-void IC::operator()(const double dt)
+void IC::operator()(const Real dt)
 {
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -53,8 +53,8 @@ Real findMaxU::run() const
       totM += facMom;
     }
   }
-  double temp[3] = {momX,momY,totM};
-  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  Real temp[3] = {momX,momY,totM};
+  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
   momX = temp[0];
   momY = temp[1];
   totM = temp[2];
@@ -78,8 +78,8 @@ Real findMaxU::run() const
       v = std::max( v, std::fabs( VEL(ix,iy).u[1] ) );
     }
   }
-  double quantities[4] = {U,V,u,v};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_DOUBLE,MPI_MAX, sim.chi->getCartComm());
+  Real quantities[4] = {U,V,u,v};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX, sim.chi->getCartComm());
   U = quantities[0];
   V = quantities[1];
   u = quantities[2];
@@ -145,7 +145,7 @@ void Checker::run(std::string when) const
   }
 }
 
-void ApplyObjVel::operator()(const double dt)
+void ApplyObjVel::operator()(const Real dt)
 {
   const size_t Nblocks = velInfo.size();
 

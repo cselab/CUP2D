@@ -20,12 +20,12 @@ class PressureSingle : public Operator
 
   bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;
-  void pressureCorrection(const double dt);
+  void pressureCorrection(const Real dt);
   void integrateMomenta(Shape * const shape) const;
-  void penalize(const double dt) const;
+  void penalize(const Real dt) const;
 
  public:
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   PressureSingle(SimulationData& s);
   ~PressureSingle();

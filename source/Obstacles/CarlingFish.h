@@ -10,7 +10,7 @@ class CarlingFish: public Fish
 {
  public:
 
-  CarlingFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
+  CarlingFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
   void resetAll() override;
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 };

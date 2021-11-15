@@ -13,7 +13,10 @@
 #include <omp.h>
 
 #ifndef _FLOAT_PRECISION_
+//using Real = long double;
+//#define MPI_Real MPI_LONG_DOUBLE
 using Real = double;
+#define MPI_Real MPI_DOUBLE
 #else // _FLOAT_PRECISION_
 using Real = float;
 #endif // _FLOAT_PRECISION_
@@ -101,7 +104,7 @@ struct ScalarElement
   {
      return (s >= other.s);
   }
-  double magnitude()
+  Real magnitude()
   {
     return s;
   }
@@ -176,8 +179,8 @@ struct VectorElement
   }
   bool operator<(const VectorElement &other) const
   {
-    double s1 = 0.0;
-    double s2 = 0.0;
+    Real s1 = 0.0;
+    Real s2 = 0.0;
     for(int i=0; i<DIM; ++i)
     {
       s1 +=u[i]*u[i];
@@ -188,8 +191,8 @@ struct VectorElement
   }
   bool operator>(const VectorElement &other) const
   {
-    double s1 = 0.0;
-    double s2 = 0.0;
+    Real s1 = 0.0;
+    Real s2 = 0.0;
     for(int i=0; i<DIM; ++i)
     {
       s1 +=u[i]*u[i];
@@ -200,8 +203,8 @@ struct VectorElement
   }
   bool operator<=(const VectorElement &other) const
   {
-    double s1 = 0.0;
-    double s2 = 0.0;
+    Real s1 = 0.0;
+    Real s2 = 0.0;
     for(int i=0; i<DIM; ++i)
     {
       s1 +=u[i]*u[i];
@@ -212,8 +215,8 @@ struct VectorElement
   }
   bool operator>=(const VectorElement &other) const
   {
-    double s1 = 0.0;
-    double s2 = 0.0;
+    Real s1 = 0.0;
+    Real s2 = 0.0;
     for(int i=0; i<DIM; ++i)
     {
       s1 +=u[i]*u[i];
@@ -223,9 +226,9 @@ struct VectorElement
     return (s1 >= s2);
   }
 
-  double magnitude()
+  Real magnitude()
   {
-    double s1 = 0.0;
+    Real s1 = 0.0;
     for(int i=0; i<DIM; ++i)
     {
       s1 +=u[i]*u[i];

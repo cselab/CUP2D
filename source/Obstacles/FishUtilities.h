@@ -157,13 +157,13 @@ class IF2D_Interpolation1D
 class Synapse
 {
 public:
-    double g = 0;
-    double dg = 0;
-    const double tau1 = 0.006 / 0.044;
-    const double tau2 = 0.008 / 0.044;
-    double prevTime = 0.0;
-    std::vector<double> activationTimes;
-    std::vector<double> activationAmplitudes;
+    Real g = 0;
+    Real dg = 0;
+    const Real tau1 = 0.006 / 0.044;
+    const Real tau2 = 0.008 / 0.044;
+    Real prevTime = 0.0;
+    std::vector<Real> activationTimes;
+    std::vector<Real> activationAmplitudes;
 public:
     void reset() {
         g = 0.0;
@@ -172,15 +172,15 @@ public:
         activationTimes.clear();
         activationAmplitudes.clear();
     }
-    void advance(const double t) {
+    void advance(const Real t) {
 //        printf("[Synapse][advance]\n");
         dg = 0;
-        double dt = t - prevTime;
+        Real dt = t - prevTime;
 //        printf("[Synapse][advance] activationTimes.size() %ld\n", activationTimes.size());
         for (size_t i=0;i<activationTimes.size();i++) {
-            const double deltaT = t - activationTimes.at(i);
+            const Real deltaT = t - activationTimes.at(i);
 //            printf("[Synapse][advance] deltaT %f\n", deltaT);
-            const double dBiExp = -1 / tau2 * std::exp(-deltaT / tau2) + 1 / tau1 * std::exp(-deltaT / tau1);
+            const Real dBiExp = -1 / tau2 * std::exp(-deltaT / tau2) + 1 / tau1 * std::exp(-deltaT / tau1);
 //            printf("[Synapse][advance] dBiExp %f\n", dBiExp);
             dg += activationAmplitudes.at(i) * dBiExp;
 //            printf("[Synapse][advance] dg %f\n", dg);
@@ -190,13 +190,13 @@ public:
         forget(t);
 //        printf("[Synapse][advance][end]\n");
     }
-    void excite(const double t, const double amp) {
+    void excite(const Real t, const Real amp) {
 //        printf("[Synapse][excite]\n");
         activationTimes.push_back(t);
         activationAmplitudes.push_back(amp);
 //        printf("[Synapse][excite][end]\n");
     }
-    void forget(const double t)
+    void forget(const Real t)
     {
 //        printf("[Synapse][forget]\n");
         if (activationTimes.size() != 0) {
@@ -211,11 +211,11 @@ public:
         }
 //        printf("[Synapse][forget][end]\n");
     }
-    double value()
+    Real value()
     {
         return g;
     }
-    double speed()
+    Real speed()
     {
         return dg;
     }
@@ -225,9 +225,9 @@ template<int Npoints>
 class Oscillation
 {
 public:
-    double d = 0.0;
-    double t0 = 0.0;
-    double prev_fmod = 0.0;
+    Real d = 0.0;
+    Real t0 = 0.0;
+    Real prev_fmod = 0.0;
     std::vector<Real> signal = std::vector<Real>(Npoints, 0.0);
     std::vector<Real> signal_out = std::vector<Real>(Npoints, 0.0);
 public:
@@ -239,7 +239,7 @@ public:
         signal.clear();
         signal_out.clear();
     }
-    void modify(const double t0_in, const double f_in, const double d_in) {
+    void modify(const Real t0_in, const Real f_in, const Real d_in) {
 //        printf("[Oscillation][modify]\n");
         d = d_in;
         t0 = t0_in;
@@ -251,7 +251,7 @@ public:
         signal_out = signal;
 //        printf("[Oscillation][modify][end]\n");
     }
-    void advance(const double t)
+    void advance(const Real t)
     {
 //        printf("[Oscillation][advance]\n");
         if (fmod(t - t0, d) < prev_fmod && t>t0) {
@@ -547,7 +547,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     std::vector<std::array<Real, Npoints>> timeActivatedVec_coarse;
     std::vector<std::array<Real, Npoints>> muscSignalVec_coarse;
     std::vector<std::array<Real, Npoints>> dMuscSignalVec_coarse;
-    std::vector<double> amplitudeVec;
+    std::vector<Real> amplitudeVec;
 
 
     virtual void resetAll()
@@ -577,8 +577,8 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
 
             // Delete spikes that are no longer relevant
             for (int i=0;i<numActiveSpikes;i++) {
-                const double relaxationTime = (Npoints + 1) * tau1 + tau2;
-                const double activeSpikeTime = t-timeActivatedVec_coarse.at(i).at(0);
+                const Real relaxationTime = (Npoints + 1) * tau1 + tau2;
+                const Real activeSpikeTime = t-timeActivatedVec_coarse.at(i).at(0);
                 if (activeSpikeTime >= relaxationTime) {
                     numActiveSpikes -= 1;
                     this->neuroSignalVec_coarse.erase(neuroSignalVec_coarse.begin() + i);
@@ -604,12 +604,12 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     }
 
 
-    void advanceCoarseArrays(const double time_current) {
+    void advanceCoarseArrays(const Real time_current) {
 //        printf("[numActiveSpikes][%d]\n", numActiveSpikes);
-        const double delta_t = time_current - this->prevTime;
+        const Real delta_t = time_current - this->prevTime;
         for (int i = 0; i < numActiveSpikes; i++) {
             for (int j = 0; j < Npoints; j++) {
-                const double deltaT = time_current - this->timeActivatedVec_coarse.at(i).at(j);
+                const Real deltaT = time_current - this->timeActivatedVec_coarse.at(i).at(j);
                 if (deltaT >= 0) {
 //                    printf("[i=%d][j=%d]\n", i, j);
                     // Activate current node but don't switch off previous one.
@@ -617,7 +617,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
                         this->neuroSignalVec_coarse.at(i).at(j) = this->neuroSignalVec_coarse.at(i)[j - 1];
                     }
                     // Begin the muscle response at the new node.
-                    const double dBiExp = -1 / this->tau2 * std::exp(-deltaT / this->tau2) +
+                    const Real dBiExp = -1 / this->tau2 * std::exp(-deltaT / this->tau2) +
                                           1 / this->tau1 * std::exp(-deltaT / this->tau1);
 
                     this->dMuscSignalVec_coarse.at(i).at(j) = this->neuroSignalVec_coarse.at(i).at(j) * dBiExp;
@@ -683,12 +683,12 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints>
     }
 
 
-    void advance(const double t)
+    void advance(const Real t)
     {
         oscillation.advance(t);
         for (int i=0; i<Npoints; i++) {
 //            printf("[Scheduler][advance]\n");
-            const double oscAmp = oscillation.signal_out.at(i);
+            const Real oscAmp = oscillation.signal_out.at(i);
             printf("[Scheduler][advance] signal_i %f\n", oscillation.signal.at(i));
 //            printf("[Scheduler][advance] oscAmp_i %f\n", oscAmp);
             if (oscAmp != 0) {synapses.at(i).excite(t, oscAmp);}
@@ -696,10 +696,10 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints>
             muscle_value.at(i) = synapses.at(i).value();
             muscle_speed.at(i) = synapses.at(i).speed();
 
-            if (i==0) {printf("[Scheduler][advance] muscle_value_0 %f\n", muscle_value.at(0));}
+            if (i==0) {printf("[Scheduler][advance] muscle_value_0 %f\n", (double)muscle_value.at(0));}
 //            if (i==0) {printf("[Scheduler][advance] synapse_0 amplitude %f\n", synapses.at(0).activationAmplitudes.at(0));}
             if (i==0) {printf("[Scheduler][advance] synapse_0 numActivations %ld\n", synapses.at(0).activationAmplitudes.size());}
-            if (i==10) {printf("[Scheduler][advance] muscle_value_10 %f\n", muscle_value.at(10));}
+            if (i==10) {printf("[Scheduler][advance] muscle_value_10 %f\n", (double)muscle_value.at(10));}
 //            if (i==9) {printf("[Scheduler][advance] synapse_9 amplitude %f\n", synapses.at(9).activationAmplitudes.at(0));}
             if (i==10) {printf("[Scheduler][advance] synapse_10 numActivations %ld\n", synapses.at(10).activationAmplitudes.size());}
 

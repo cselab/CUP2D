@@ -16,14 +16,14 @@ class Shape
   unsigned obstacleID = 0;
   std::vector<ObstacleBlock*> obstacleBlocks;
   // general quantities
-  const double origC[2], origAng;
-  double center[2]; // for single density, this corresponds to centerOfMass
-  double centerOfMass[2];
-  double d_gm[2] = {0,0}; // distance of center of geometry to center of mass
-  double labCenterOfMass[2] = {0,0};
-  double orientation = origAng;
+  const Real origC[2], origAng;
+  Real center[2]; // for single density, this corresponds to centerOfMass
+  Real centerOfMass[2];
+  Real d_gm[2] = {0,0}; // distance of center of geometry to center of mass
+  Real labCenterOfMass[2] = {0,0};
+  Real orientation = origAng;
 
-  const double rhoS;
+  const Real rhoS;
   const bool bFixed;
   const bool bFixedx;
   const bool bFixedy;
@@ -31,32 +31,32 @@ class Shape
   const bool bForcedx;
   const bool bForcedy;
   const bool bBlockang;
-  const double forcedu;
-  const double forcedv;
-  const double forcedomega;
+  const Real forcedu;
+  const Real forcedv;
+  const Real forcedomega;
   const bool bDumpSurface;
-  const double timeForced;
+  const Real timeForced;
 
-  double M = 0;
-  double J = 0;
-  double u = forcedu; // in lab frame, not sim frame
-  double v = forcedv; // in lab frame, not sim frame
-  double omega = forcedomega;
-  double fluidAngMom = 0;
-  double fluidMomX = 0;
-  double fluidMomY = 0;
-  double penalDX = 0;
-  double penalDY = 0;
-  double penalM = 0;
-  double penalJ = 0;
-  double appliedForceX = 0;
-  double appliedForceY = 0;
-  double appliedTorque = 0;
+  Real M = 0;
+  Real J = 0;
+  Real u = forcedu; // in lab frame, not sim frame
+  Real v = forcedv; // in lab frame, not sim frame
+  Real omega = forcedomega;
+  Real fluidAngMom = 0;
+  Real fluidMomX = 0;
+  Real fluidMomY = 0;
+  Real penalDX = 0;
+  Real penalDY = 0;
+  Real penalM = 0;
+  Real penalJ = 0;
+  Real appliedForceX = 0;
+  Real appliedForceY = 0;
+  Real appliedTorque = 0;
 
-  double perimeter=0, forcex=0, forcey=0, forcex_P=0, forcey_P=0;
-  double forcex_V=0, forcey_V=0, torque=0, torque_P=0, torque_V=0;
-  double drag=0, thrust=0, lift=0, circulation=0, Pout=0, PoutNew=0, PoutBnd=0, defPower=0;
-  double defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
+  Real perimeter=0, forcex=0, forcey=0, forcex_P=0, forcey_P=0;
+  Real forcex_V=0, forcey_V=0, torque=0, torque_P=0, torque_V=0;
+  Real drag=0, thrust=0, lift=0, circulation=0, Pout=0, PoutNew=0, PoutBnd=0, defPower=0;
+  Real defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
 
   virtual void resetAll()
   {
@@ -95,7 +95,7 @@ class Shape
   }
 */
  public:
-  Shape( SimulationData& s, cubism::ArgumentParser& p, double C[2] );
+  Shape( SimulationData& s, cubism::ArgumentParser& p, Real C[2] );
 
   virtual ~Shape();
 
@@ -108,56 +108,56 @@ class Shape
 
   virtual void create(const std::vector<cubism::BlockInfo>& vInfo) = 0;
 
-  virtual void updateVelocity(double dt);
-  virtual void updatePosition(double dt);
+  virtual void updateVelocity(Real dt);
+  virtual void updatePosition(Real dt);
 
-  void setCentroid(double C[2])
+  void setCentroid(Real C[2])
   {
     this->center[0] = C[0];
     this->center[1] = C[1];
-    const double cost = std::cos(this->orientation);
-    const double sint = std::sin(this->orientation);
+    const Real cost = std::cos(this->orientation);
+    const Real sint = std::sin(this->orientation);
     this->centerOfMass[0] = C[0] - cost*this->d_gm[0] + sint*this->d_gm[1];
     this->centerOfMass[1] = C[1] - sint*this->d_gm[0] - cost*this->d_gm[1];
   }
 
-  void setCenterOfMass(double com[2])
+  void setCenterOfMass(Real com[2])
   {
     this->centerOfMass[0] = com[0];
     this->centerOfMass[1] = com[1];
-    const double cost = std::cos(this->orientation);
-    const double sint = std::sin(this->orientation);
+    const Real cost = std::cos(this->orientation);
+    const Real sint = std::sin(this->orientation);
     this->center[0] = com[0] + cost*this->d_gm[0] - sint*this->d_gm[1];
     this->center[1] = com[1] + sint*this->d_gm[0] + cost*this->d_gm[1];
   }
 
-  void getCentroid(double centroid[2]) const
+  void getCentroid(Real centroid[2]) const
   {
     centroid[0] = this->center[0];
     centroid[1] = this->center[1];
   }
 
-  virtual void getCenterOfMass(double com[2]) const
+  virtual void getCenterOfMass(Real com[2]) const
   {
     com[0] = this->centerOfMass[0];
     com[1] = this->centerOfMass[1];
   }
 
-  void getLabPosition(double com[2]) const
+  void getLabPosition(Real com[2]) const
   {
     com[0] = this->labCenterOfMass[0];
     com[1] = this->labCenterOfMass[1];
   }
 
-  double getU() const { return u; }
-  double getV() const { return v; }
-  double getW() const { return omega; }
+  Real getU() const { return u; }
+  Real getV() const { return v; }
+  Real getW() const { return omega; }
 
-  double getOrientation() const
+  Real getOrientation() const
   {
     return this->orientation;
   }
-  void setOrientation(const double angle)
+  void setOrientation(const Real angle)
   {
     this->orientation = angle;
   }
@@ -165,8 +165,8 @@ class Shape
   virtual Real getMinRhoS() const;
 
   struct Integrals {
-    const double x, y, m, j, u, v, a;
-    Integrals(double _x, double _y, double _m, double _j, double _u, double _v, double _a) :
+    const Real x, y, m, j, u, v, a;
+    Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a) :
     x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
     Integrals(const Integrals&c) :
       x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
@@ -176,7 +176,7 @@ class Shape
 
   virtual void removeMoments(const std::vector<cubism::BlockInfo>& vInfo);
 
-  virtual void updateLabVelocity( int mSum[2], double uSum[2] );
+  virtual void updateLabVelocity( int mSum[2], Real uSum[2] );
 
   void penalize();
 

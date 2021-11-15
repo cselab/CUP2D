@@ -75,26 +75,26 @@ class ComputeLHS : public Operator
   }
 
 
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
     const LHSkernel K(sim);
     compute<LHSkernel,ScalarGrid,ScalarLab,ScalarGrid>(K,*sim.pres,true,sim.tmp);
     if( sim.bMeanConstraint ) {
       int index = -1;
-      double mean = 0.0;
+      Real mean = 0.0;
       std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
       const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
       for (size_t i = 0 ; i < lhsInfo.size() ; i++)
       {
        cubism::BlockInfo & info = lhsInfo[i];
        if ( isCorner(info) ) index = i;//info.blockID;
-       const double h2 = info.h*info.h;
+       const Real h2 = info.h*info.h;
        ScalarBlock & __restrict__ X   = *(ScalarBlock*) xInfo[info.blockID].ptrBlock;
        for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
        for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
          mean += h2 * X(ix,iy).s;
       }
-      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_DOUBLE,MPI_SUM,sim.chi->getCartComm());
+      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getCartComm());
       if (index != -1)
       {
        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
@@ -116,12 +116,12 @@ class AMRSolver
   AMRSolver(SimulationData& s);
   void solve();
   ComputeLHS Get_LHS;
-  std::vector<std::vector<double>> Ld;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
-  double getA(int I1, int I2);
+  std::vector<std::vector<Real>> Ld;
+  std::vector <  std::vector <std::vector< std::pair<int,Real> > > >L_row;
+  std::vector <  std::vector <std::vector< std::pair<int,Real> > > >L_col;
+  Real getA(int I1, int I2);
   void getZ(std::vector<cubism::BlockInfo> & zInfo);
-  double getA_local(int I1,int I2);
+  Real getA_local(int I1,int I2);
 
   bool isCorner(cubism::BlockInfo & info)
   {

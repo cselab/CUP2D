@@ -24,12 +24,12 @@ struct GradChiOnTmp
     // 2. chi > 0 and chi < 0.9 (if bAdaptChiGradient=true)
     // Option 2 is equivalent to grad(chi) != 0
     const int offset = (info.level == sim.tmp->getlevelMax()-1) ? 2 : 1;
-    const double threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
+    const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
     for(int x=-offset; x<VectorBlock::sizeX+offset; ++x)
     {
-      lab(x,y).s = std::min(lab(x,y).s,1.0);
-      lab(x,y).s = std::max(lab(x,y).s,0.0);
+      lab(x,y).s = std::min(lab(x,y).s,(Real)1.0);
+      lab(x,y).s = std::max(lab(x,y).s,(Real)0.0);
       if (lab(x,y).s > 0.0 && lab(x,y).s < threshold)
       {
         TMP(0,0).s = 2*sim.Rtol;
@@ -40,7 +40,7 @@ struct GradChiOnTmp
 };
 
 
-void AdaptTheMesh::operator()(const double dt)
+void AdaptTheMesh::operator()(const Real dt)
 {
   if (sim.step > 10 && sim.step % 20 != 0) return;
   //if (sim.step > 10 && sim.step % 5 != 0) return;

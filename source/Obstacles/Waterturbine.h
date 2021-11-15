@@ -16,7 +16,7 @@ class Waterturbine : public Shape
 
  public:
 
-  Waterturbine(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
+  Waterturbine(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
   }

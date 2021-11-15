@@ -25,12 +25,12 @@ FishData::FishData(Real L, Real Tp, Real phi, Real _h, const Real A):
   int k = 0;
   // extension head
   for(int i=0; i<Nend; ++i, k++)
-    rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((double)Nend-1.);
+    rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((Real)Nend-1.);
   // interior points
   for(int i=0; i<Nmid; ++i, k++) rS[k+1] = rS[k] + dSmid;
   // extension tail
   for(int i=0; i<Nend; ++i, k++)
-    rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((double)Nend-1.);
+    rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);
   assert(k+1==Nm);
   // cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
   rS[k] = std::min(rS[k], (Real)L);
@@ -62,7 +62,7 @@ void FishData::writeMidline2File(const int step_id, std::string filename)
   for (int i=0; i<Nm; i++) {
     //dummy.changeToComputationalFrame(temp);
     //dummy.changeVelocityToComputationalFrame(udef);
-    fprintf(f, "%g %g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i],width[i]);
+    fprintf(f, "%g %g %g %g %g %g\n", (double)rS[i],(double)rX[i],(double)rY[i],(double)vX[i],(double)vY[i],(double)width[i]);
   }
 }
 
@@ -197,7 +197,7 @@ void FishData::computeSurface() const
 }
 
 void FishData::computeSkinNormals(const Real theta_comp,
-                                  const double CoM_comp[3]) const
+                                  const Real CoM_comp[3]) const
 {
   const Real Rmatrix2D[2][2]={ { std::cos(theta_comp),-std::sin(theta_comp)},
                                { std::sin(theta_comp), std::cos(theta_comp)} };
@@ -276,7 +276,7 @@ void FishData::surfaceToCOMFrame(const Real theta_internal,
 }
 
 void FishData::surfaceToComputationalFrame(const Real theta_comp,
-                                           const double CoM_interpolated[2]) const
+                                           const Real CoM_interpolated[2]) const
 {
   const Real Rmatrix2D[2][2] = {
     { std::cos(theta_comp),-std::sin(theta_comp)},
@@ -295,7 +295,7 @@ void FishData::surfaceToComputationalFrame(const Real theta_comp,
   }
 }
 
-void AreaSegment::changeToComputationalFrame(const double pos[2],const Real angle)
+void AreaSegment::changeToComputationalFrame(const Real pos[2],const Real angle)
 {
   // we are in CoM frame and change to comp frame --> first rotate around CoM (which is at (0,0) in CoM frame), then update center
   const Real Rmatrix2D[2][2] = {

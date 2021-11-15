@@ -32,7 +32,7 @@ void Disk::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
-void Disk::updateVelocity(double dt)
+void Disk::updateVelocity(Real dt)
 {
   Shape::updateVelocity(dt);
   if(tAccel > 0) {
@@ -64,7 +64,7 @@ void HalfDisk::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
-void HalfDisk::updateVelocity(double dt)
+void HalfDisk::updateVelocity(Real dt)
 {
   Shape::updateVelocity(dt);
   if(tAccel > 0) {

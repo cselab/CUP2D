@@ -58,14 +58,14 @@ void NacaData::computeMidline(const Real t, const Real dt)
   }
 }
 
-Naca::Naca(SimulationData&s, ArgumentParser&p, double C[2])
+Naca::Naca(SimulationData&s, ArgumentParser&p, Real C[2])
   : Fish(s,p,C), Apitch( p("-Apitch").asDouble(0.0)*M_PI/180 ), Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)), fixedCenterDist(p("-fixedCenterDist").asDouble(0))  {
   const Real tRatio = p("-tRatio").asDouble(0.12);
   myFish = new NacaData(length, sim.minH, tRatio);
-  if( s.verbose ) printf("[CUP2D] - NacaData Nm=%d L=%f t=%f A=%f w=%f xvel=%f yvel=%f tAccel=%f fixedCenterDist=%f\n",myFish->Nm, length, tRatio, Apitch, Fpitch, forcedu, forcedv, tAccel, fixedCenterDist);
+  if( s.verbose ) printf("[CUP2D] - NacaData Nm=%d L=%f t=%f A=%f w=%f xvel=%f yvel=%f tAccel=%f fixedCenterDist=%f\n",myFish->Nm, (double)length, (double)tRatio, (double)Apitch, (double)Fpitch, (double)forcedu, (double)forcedv, (double)tAccel, (double)fixedCenterDist);
 }
 
-void Naca::updateVelocity(double dt)
+void Naca::updateVelocity(Real dt)
 {
   const Real omegaAngle = 2*M_PI*Fpitch;
   const Real angle = Apitch*std::sin(omegaAngle*sim.time);
@@ -86,7 +86,7 @@ void Naca::updateVelocity(double dt)
   // std::cout << "u=" << u << ", v=" << v << "\n";
 }
 
-void Naca::updateLabVelocity( int nSum[2], double uSum[2] )
+void Naca::updateLabVelocity( int nSum[2], Real uSum[2] )
 {
   if(bFixedx){
    (nSum[0])++; 

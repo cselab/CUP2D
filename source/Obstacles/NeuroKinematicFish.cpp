@@ -14,8 +14,8 @@ using namespace cubism;
 class NeuroFish : public FishData
 {
 public:
-    double t_next = 0.0; // Time for next action
-    double target[2] = {0.0, 0.0}; // Target location
+    Real t_next = 0.0; // Time for next action
+    Real target[2] = {0.0, 0.0}; // Target location
     bool act1 = true;
     bool act2 = true;
     bool act3 = true;
@@ -113,21 +113,21 @@ public:
 
     /*************************** ACTION REPERTOIRE ***********************************/
 
-    void burst(const Real t_current, const std::vector<double> &a) {
+    void burst(const Real t_current, const std::vector<Real> &a) {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
         // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
         // Schedule a burst with given modulation and timing factor
-        const double modulationFactor = a[0];
-        const double timingFactor = a[1];
+        const Real modulationFactor = a[0];
+        const Real timingFactor = a[1];
 
         // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-        const double curvatureFactor = modulationFactor / this->length;
+        const Real curvatureFactor = modulationFactor / this->length;
 
         // Define the curvature values of the burst
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -155,21 +155,21 @@ public:
         printf("t_next is: %f\n", this->t_next);
     }
 
-    void scoot(const Real t_current, const std::vector<double> &a) {
+    void scoot(const Real t_current, const std::vector<Real> &a) {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
         // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
         // Schedule a burst with given modulation and timing factor
-        const double modulationFactor = a[0];
-        const double timingFactor = a[1];
+        const Real modulationFactor = a[0];
+        const Real timingFactor = a[1];
 
         // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-        const double curvatureFactor = modulationFactor / this->length;
+        const Real curvatureFactor = modulationFactor / this->length;
 
         // Define the curvature values of the burst
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -197,21 +197,21 @@ public:
         printf("t_next is: %f\n", this->t_next);
     }
 
-    void coast(const Real t_current, const std::vector<double> &a) {
+    void coast(const Real t_current, const std::vector<Real> &a) {
     // Current time must be later than time at which action should be performed.
     // (PW) commented to resolve compilation error with config=debug
     // assert(t_current >= t_rlAction);
 
     // Fix the phase of the burst. Normally I should deduce the phase required based on the current
     // curvature configuration.
-    const double tailPhase = 0.0;
+    const Real tailPhase = 0.0;
 
     // Schedule a burst with given modulation and timing factor
-    const double modulationFactor = a[0];
-    const double timingFactor = a[1];
+    const Real modulationFactor = a[0];
+    const Real timingFactor = a[1];
 
     // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-    const double curvatureFactor = modulationFactor / this->length;
+    const Real curvatureFactor = modulationFactor / this->length;
 
     // Define the curvature values of the burst
     const std::array<Real ,6> baselineCurvatureValues = {
@@ -239,7 +239,7 @@ public:
     printf("t_next is: %f\n", this->t_next);
 }
 
-    void hybrid(const Real t_current, const std::vector<double> &a)
+    void hybrid(const Real t_current, const std::vector<Real> &a)
     {
 
         // Store last action into the older action placeholder
@@ -254,10 +254,10 @@ public:
         lastC = a[2];
         lastTimingFactor = a[3];
 
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
-        const double baselineCurvatureFactor = lastC * lastBeta / this->length;
-        const double undulatoryCurvatureFactor = 1 / this->length;
+        const Real baselineCurvatureFactor = lastC * lastBeta / this->length;
+        const Real undulatoryCurvatureFactor = 1 / this->length;
         const std::array<Real ,6> baselineCurvatureValues = {
                 (Real)0.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor, (Real)-4.0 * baselineCurvatureFactor,
                 (Real)-1.0 * baselineCurvatureFactor, (Real)-1.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor
@@ -289,7 +289,7 @@ public:
         printf("t_next is: %f\n", this->t_next);
     }
 
-    void spike(const Real t_current, const std::vector<double> &a) {
+    void spike(const Real t_current, const std::vector<Real> &a) {
 
         // Store last action into the older action placeholder
         oldrAmplitude = lastAmplitude;
@@ -324,39 +324,39 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
     // Define the compliance function (1/wS)
     Real* compliance_fine  = new Real[Nm];
     const int NCompliancePoints = 10;
-//    std::array<double, 9> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 1};
-    std::array<double, 10> criticalSpinePoints = {0.0, 0.11111111, 0.22222222, 0.33333333, 0.44444444, 0.55555556, 0.66666667, 0.77777778, 0.88888889, 1.0};
-    std::array<double, 10> compliancePoints = {0.00, 0.04, 0.2, 0.4, 0.60, 0.78, 0.9, 0.85, 0.60, 0.20};
-//    std::array<double, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60, 0.75, 0.9, 0.85, 0.60};
+//    std::array<Real, 9> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 1};
+    std::array<Real, 10> criticalSpinePoints = {0.0, 0.11111111, 0.22222222, 0.33333333, 0.44444444, 0.55555556, 0.66666667, 0.77777778, 0.88888889, 1.0};
+    std::array<Real, 10> compliancePoints = {0.00, 0.04, 0.2, 0.4, 0.60, 0.78, 0.9, 0.85, 0.60, 0.20};
+//    std::array<Real, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60, 0.75, 0.9, 0.85, 0.60};
 
     IF2D_Interpolation1D::naturalCubicSpline(criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints, rS, compliance_fine, Nm);
 
     if (t>=0.0 && act1){
         printf("\n\n\n first action \n\n\n");
-        std::vector<double> a{500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
+        std::vector<Real> a{500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act1=false;
     }
     if (t>=0.3138 && act2){
         printf("\n\n\n second action \n\n\n");
-        std::vector<double> a{-500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
+        std::vector<Real> a{-500, 0.01569, 0.013}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act2=false;
     }
     if (t>=0.6276 && act3){
-        std::vector<double> a{300, 0.0157, 0.013}; // a good starting heuristic is = firing time/10
+        std::vector<Real> a{300, 0.0157, 0.013}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act3=false;
     }
     if (t>=0.9414 && act4){
-        std::vector<double> a{-300, 0.0157, 0.147}; // a good starting heuristic is = firing time/10
+        std::vector<Real> a{-300, 0.0157, 0.147}; // a good starting heuristic is = firing time/10
         neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
         act4=false;
     }
 
     neuroKinematicScheduler.gimmeValues(t,length, curvaturePoints, Nm, rS, rMuscSignal, vMuscSignal);
 
-    const double curvMax = 2*M_PI/length;
+    const Real curvMax = 2*M_PI/length;
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
         const Real curvCmd = rMuscSignal[i] * compliance_fine[i] / length;
@@ -382,7 +382,7 @@ void NeuroFish::computeMidline(const Real t, const Real dt)
 }
 
 // Core functions
-NeuroKinematicFish::NeuroKinematicFish(SimulationData&s, ArgumentParser&p, double C[2]): Fish(s,p,C)
+NeuroKinematicFish::NeuroKinematicFish(SimulationData&s, ArgumentParser&p, Real C[2]): Fish(s,p,C)
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new NeuroFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -403,17 +403,17 @@ void NeuroKinematicFish::create(const std::vector<BlockInfo>& vInfo)
     Fish::create(vInfo);
 }
 
-void NeuroKinematicFish::act(const Real t_rlAction, const std::vector<double>& a) const
+void NeuroKinematicFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 {
     NeuroFish* const cFish = dynamic_cast<NeuroFish*>( myFish );
     cFish->spike(sim.time, a);
 }
 
 // Functions for state/reward
-std::vector<double> NeuroKinematicFish::state() const
+std::vector<Real> NeuroKinematicFish::state() const
 {
     const NeuroFish* const nFish = dynamic_cast<NeuroFish*>( myFish );
-    std::vector<double> S(12,0);
+    std::vector<Real> S(12,0);
 
     S[0] = this->getRadialDisplacement() / length; // distance from center
     S[1] = this->getPolarAngle(); // polar angle
@@ -431,43 +431,43 @@ std::vector<double> NeuroKinematicFish::state() const
 }
 
 // Helper functions
-void NeuroKinematicFish::setTarget(double inTarget[2]) const
+void NeuroKinematicFish::setTarget(Real inTarget[2]) const
 {
     NeuroFish* const cFish = dynamic_cast<NeuroFish*>( myFish );
     cFish->target[0] = inTarget[0];
     cFish->target[1] = inTarget[1];
 }
 
-void NeuroKinematicFish::getTarget(double outTarget[2]) const
+void NeuroKinematicFish::getTarget(Real outTarget[2]) const
 {
     const NeuroFish* const cFish = dynamic_cast<NeuroFish*>( myFish );
     outTarget[0] = cFish->target[0];
     outTarget[1] = cFish->target[1];
 }
 
-double NeuroKinematicFish::getRadialDisplacement() const {
-    double com[2] = {0, 0};
+Real NeuroKinematicFish::getRadialDisplacement() const {
+    Real com[2] = {0, 0};
     this->getCenterOfMass(com);
-    double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
+    Real radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
     return radialDisplacement;
 }
 
-double NeuroKinematicFish::getPolarAngle() const {
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double polarAngle = std::atan2(com[1], com[0]);
+Real NeuroKinematicFish::getPolarAngle() const {
+    Real com[2] = {0, 0}; this->getCenterOfMass(com);
+    Real polarAngle = std::atan2(com[1], com[0]);
     return polarAngle;
 }
 
-double NeuroKinematicFish::getDistanceFromTarget() const {
-    double com[2] = {0.0, 0.0};
-    double target[2] = {0.0, 0.0};
+Real NeuroKinematicFish::getDistanceFromTarget() const {
+    Real com[2] = {0.0, 0.0};
+    Real target[2] = {0.0, 0.0};
     this->getCenterOfMass(com);
     this->getTarget(target);
-    double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
+    Real distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
     return distanceFromTarget;
 }
 
-double NeuroKinematicFish::getTimeNextAct() const {
+Real NeuroKinematicFish::getTimeNextAct() const {
     const NeuroFish* const cFish = dynamic_cast<NeuroFish*>( myFish );
     return cFish->t_next;
 }

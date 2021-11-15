@@ -30,7 +30,7 @@ struct FillBlocks_Cylinder
     { pos[1] - radius - safety, pos[1] + radius + safety }
   };
 
-  FillBlocks_Cylinder(Real R, Real h, double C[2], Real rho) :
+  FillBlocks_Cylinder(Real R, Real h, Real C[2], Real rho) :
     radius(R), safety(2*h), rhoS(rho), pos{(Real)C[0], (Real)C[1]} {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
@@ -53,7 +53,7 @@ struct FillBlocks_HalfCylinder
     { pos[1] - radius - safety, pos[1] + radius + safety }
   };
 
-  FillBlocks_HalfCylinder(Real R, Real h, double C[2], Real rho, Real ang):
+  FillBlocks_HalfCylinder(Real R, Real h, Real C[2], Real rho, Real ang):
     radius(R), safety(2*h), pos{(Real)C[0],(Real)C[1]}, angle(ang), rhoS(rho) {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
@@ -82,7 +82,7 @@ struct FillBlocks_Ellipse
   };
 
   FillBlocks_Ellipse(const Real _e0, const Real _e1, const Real h,
-    const double C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(2*h),
+    const Real C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(2*h),
     pos{(Real)C[0], (Real)C[1]}, angle(ang), rhoS(rho) {}
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {
@@ -102,7 +102,7 @@ struct FillBlocks_Plate
     { pos[1] - LX - LY - safety, pos[1] + LX + LY + safety}
   };
 
-  FillBlocks_Plate(Real lx, Real ly, Real h, const double C[2], Real ang,
+  FillBlocks_Plate(Real lx, Real ly, Real h, const Real C[2], Real ang,
     Real avel, Real rho): LX(lx), LY(ly), safety(h*2),
     pos{ (Real) C[0], (Real) C[1] }, angle(ang), angvel(avel), rhoS(rho) { }
 
@@ -127,7 +127,7 @@ struct FillBlocks_VarRhoCylinder
     { pos[1] - radius - 2*h, pos[1] + radius + 2*h }
   };
 
-  FillBlocks_VarRhoCylinder(Real R, Real _h, const double C[2], Real rhoT,
+  FillBlocks_VarRhoCylinder(Real R, Real _h, const Real C[2], Real rhoT,
     Real rhoB, Real ang) : radius(R), h(_h), rhoTop(rhoT), rhoBot(rhoB),
     angle(ang), pos{ (Real) C[0], (Real) C[1] } {}
 
@@ -151,7 +151,7 @@ struct FillBlocks_VarRhoEllipse
     { pos[1] - std::max(e0,e1) - 2*h, pos[1] + std::max(e0,e1) + 2*h }
   };
 
-  FillBlocks_VarRhoEllipse(Real _e0, Real _e1, Real _h, const double C[2],
+  FillBlocks_VarRhoEllipse(Real _e0, Real _e1, Real _h, const Real C[2],
     Real ang, Real rhoT, Real rhoB): e0(_e0), e1(_e1), h(_h),
     pos{(Real)C[0], (Real)C[1]}, angle(ang), rhoTop(rhoT), rhoBot(rhoB) {}
 
