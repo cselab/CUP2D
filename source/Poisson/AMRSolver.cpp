@@ -103,22 +103,22 @@ void AMRSolver::Get_LHS ()
         for(int ix=0; ix<BSX; ++ix)
         {
           //mean+=lab(ix,iy).s*h2;
-          if (ix == 0 && iy == 0){
-            LHS(ix,iy).s = 0; 
-            continue;
-          }
-          if (ix == 0 && iy == (BSY-1)){
-            LHS(ix,iy).s = 0; 
-            continue;
-          }
-          if (ix == (BSX-1) && iy == 0){
-            LHS(ix,iy).s = 0; 
-            continue;
-          }
-          if (ix == (BSX-1) && iy == (BSY-1)){
-            LHS(ix,iy).s = 0; 
-            continue;
-          }
+//          if (ix == 0 && iy == 0){
+//            LHS(ix,iy).s = 0; 
+//            continue;
+//          }
+//          if (ix == 0 && iy == (BSY-1)){
+//            LHS(ix,iy).s = 0; 
+//            continue;
+//          }
+//          if (ix == (BSX-1) && iy == 0){
+//            LHS(ix,iy).s = 0; 
+//            continue;
+//          }
+//          if (ix == (BSX-1) && iy == (BSY-1)){
+//            LHS(ix,iy).s = 0; 
+//            continue;
+//          }
           LHS(ix,iy).s = ( lab(ix-1,iy).s + 
                            lab(ix+1,iy).s + 
                            lab(ix,iy-1).s + 
@@ -141,25 +141,29 @@ void AMRSolver::Get_LHS ()
         if (faceXm != nullptr)
         {
           int ix = 0;
-          for(int iy=1; iy<BSY-1; ++iy)
+          //for(int iy=1; iy<BSY-1; ++iy)
+          for(int iy=0; iy<BSY; ++iy)
             faceXm[iy] = lab(ix,iy) - lab(ix-1,iy);
         }
         if (faceXp != nullptr)
         {
           int ix = BSX-1;
-          for(int iy=1; iy<BSY-1; ++iy)
+          //for(int iy=1; iy<BSY-1; ++iy)
+          for(int iy=0; iy<BSY; ++iy)
             faceXp[iy] = lab(ix,iy) - lab(ix+1,iy);
         }
         if (faceYm != nullptr)
         {
           int iy = 0;
-          for(int ix=1; ix<BSX-1; ++ix)
+          //for(int ix=1; ix<BSX-1; ++ix)
+          for(int ix=0; ix<BSX; ++ix)
             faceYm[ix] = lab(ix,iy) - lab(ix,iy-1);
         }
         if (faceYp != nullptr)
         {
           int iy = BSY-1;
-          for(int ix=1; ix<BSX-1; ++ix)
+          //for(int ix=1; ix<BSX-1; ++ix)
+          for(int ix=0; ix<BSX; ++ix)
             faceYp[ix] = lab(ix,iy) - lab(ix,iy+1);
         }
       }

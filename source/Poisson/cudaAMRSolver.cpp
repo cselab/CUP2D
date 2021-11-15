@@ -43,12 +43,7 @@ class NorthEdge : public EdgeCellIndexer{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return SouthmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
-    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
-    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
-
     constexpr static Compass EdgeType = {North};
-    constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
-    constexpr static std::array<int,3> Zchild2_idx = {1,0,0};
 };
 
 class EastEdge : public EdgeCellIndexer{
@@ -62,12 +57,7 @@ class EastEdge : public EdgeCellIndexer{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return WestmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
-    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
-    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
-
     constexpr static Compass EdgeType = {East};
-    constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
-    constexpr static std::array<int,3> Zchild2_idx = {0,1,0};
 };
 
 class SouthEdge : public EdgeCellIndexer{
@@ -81,12 +71,7 @@ class SouthEdge : public EdgeCellIndexer{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return NorthmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
-    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
-    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
-
     constexpr static Compass EdgeType = {South};
-    constexpr static std::array<int,3> Zchild1_idx = {0,1,0};
-    constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
 
 class WestEdge : public EdgeCellIndexer{
@@ -100,12 +85,7 @@ class WestEdge : public EdgeCellIndexer{
     static int neiBlock_n(const int &block_idx, const int &BSX, const int &BSY, const int &ix, const int &iy)
     { return EastmostCellIdx(block_idx, BSY, BSY, ix, iy); }
 
-    static long long Zchild1(BlockInfo &info) { return info.Zchild[Zchild1_idx[0]][Zchild1_idx[1]][Zchild1_idx[2]]; }
-    static long long Zchild2(BlockInfo &info) { return info.Zchild[Zchild2_idx[0]][Zchild2_idx[1]][Zchild2_idx[2]]; }
-
     constexpr static Compass EdgeType = {West};
-    constexpr static std::array<int,3> Zchild1_idx = {1,0,0};
-    constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
 
 double cudaAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
@@ -263,15 +243,54 @@ void cudaAMRSolver::neiBlockElement(
       // Determine the orientation of the finer rhs_info wrt to the coarse neighbour
       int ix_c = ix / 2;
       int iy_c = iy / 2;
-      if (helper.EdgeType == East || helper.EdgeType == West)
-      { // Adding LS columns associated to flux from Western/Eastern boundary
-        if (rhs_info.index[1] % 2 == 1) iy_c += (BSY / 2);
+      if (helper.EdgeType == North)
+      { 
+        std::cout << "North is coarse, ";
+        ix_c += (rhs_info.index[0] % 2 == 1) ? BSX / 2 : 0;
+        iy_c = -2;
+        if (rhs_info.index[0] % 2 == 1){
+          std::cout << "I am leftward fine ";
+        }
+        else{
+          std::cout << "I am rightward fine ";
+        }
       }
-      else if (helper.EdgeType == North || helper.EdgeType == South)
-      { // Adding LS columns associated to flux from Northern/Southern boundary 
-        if (rhs_info.index[0] % 2 == 1) ix_c += (BSX / 2);
+      else if (helper.EdgeType == East)
+      {
+        std::cout << "East is coarse, ";
+        iy_c += (rhs_info.index[1] % 2 == 1) ? BSY / 2 : 0;
+        ix_c = -2;
+        if (rhs_info.index[1] % 2 == 1){
+          std::cout << "I am upper fine ";
+        }
+        else{
+          std::cout << "I am lower fine ";
+        }
       }
-      else { throw std::runtime_error("Runtime1"); } // Something went wrong
+      else if (helper.EdgeType == South) 
+      {
+        std::cout << "South is coarse, ";
+        ix_c += (rhs_info.index[0] % 2 == 1) ? BSX / 2 : 0;
+        iy_c = -2;
+        if (rhs_info.index[0] % 2 == 1){
+          std::cout << "I am leftward fine ";
+        }
+        else{
+          std::cout << "I am rightward fine ";
+        }
+      }
+      else if (helper.EdgeType == West)
+      { 
+        std::cout << "West is coarse, ";
+        iy_c += (rhs_info.index[1] % 2 == 1) ? BSY / 2 : 0;
+        ix_c = -2;
+        if (rhs_info.index[1] % 2 == 1){
+          std::cout << "I am upper fine";
+        }
+        else{
+          std::cout << "I am lower fine ";
+        }
+      }
 
       const int nc_block_idx = rhsNei_c.blockID;
       const int nc_idx = helper.neiBlock_n(nc_block_idx, BSX, BSY, ix_c, iy_c);
@@ -279,6 +298,8 @@ void cudaAMRSolver::neiBlockElement(
       this->cooMatPushBack(1., sfc_idx, nc_idx);
       // If interpolation turns out to be depenant on second edge (corners), may need to use
       // a hash map with 'col' as index to accumulate contributions
+
+      std::cout << "ix: " << ix << ", iy: " << iy << ", ix_c: " << ix_c << ", iy_c: " << iy_c << std::endl;
 
       // With current interpolation flux contribution to diagonal element is unaffected for finer cell
       diag_val--;
@@ -293,33 +314,89 @@ void cudaAMRSolver::neiBlockElement(
     //Zchild[1][0][0] is (2i+1,2j  ,2k  )
     //Zchild[0][1][0] is (2i  ,2j+1,2k  )
     //Zchild[1][1][0] is (2i+1,2j+1,2k  )
+    int ix_f = (ix % (BSX/2)) * 2;
+    int iy_f = (iy % (BSY/2)) * 2;
 
     // Determine which fine block the current coarse edge neighbours
-    long long rhsNei_Zchild;
-    if (helper.EdgeType == East || helper.EdgeType == West)
-    { // Adding LS columns associated to flux from Western/Eastern boundary
-      rhsNei_Zchild = iy < BSY / 2 ? helper.Zchild1(rhsNei) : helper.Zchild2(rhsNei);
+    BlockInfo *rhsNei_f;
+    if (helper.EdgeType == North)
+    {
+      iy_f = -2;
+      std::cout << "I am coarse, north is ";
+      if (ix < BSX / 2) 
+      {
+        std::cout << "lower fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][0][0]));
+      }
+      else              
+      {
+        std::cout << "upper fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][0][0]));
+      }
     }
-    else if (helper.EdgeType == North || helper.EdgeType == South)
-    { // Adding LS columns associated to flux from Northern/Southern boundary 
-      rhsNei_Zchild = ix < BSX / 2 ? helper.Zchild1(rhsNei) : helper.Zchild2(rhsNei); 
+    else if (helper.EdgeType == East)
+    {
+      ix_f = -2;
+      std::cout << "I am coarse, east is ";
+      if (iy < BSY / 2) 
+      {
+        std::cout << "lower fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][0][0]));
+      }
+      else              
+      {
+        std::cout << "upper fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][1][0]));
+      }
     }
-    else { throw std::runtime_error("Runtime3"); } // Something went wrong
+    else if (helper.EdgeType == South)
+    {
+      iy_f = -2;
+      std::cout << "I am coarse, south is ";
+      if (ix < BSX / 2) 
+      {
+        std::cout << "lower fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][1][0]));
+      }
+      else              
+      {
+        std::cout << "upper fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][1][0]));
+      }
+    }
+    else if (helper.EdgeType == West)
+    {
+      ix_f = -2;
+      std::cout << "I am coarse, west is ";
+      if (iy < BSY / 2) 
+      {
+        std::cout << "lower fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][0][0]));
+      }
+      else              
+      {
+        std::cout << "upper fine: ";
+        rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][1][0]));
+      }
+    }
 
-    BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1 , rhsNei_Zchild);
-    if (this->sim.tmp->Tree(rhsNei_f).Exists())
+    if (this->sim.tmp->Tree(*rhsNei_f).Exists())
     { // Extract indices for two fine neighbour edges.  Depending on the boundary, either 
       // 'ix_f' or 'iy_f' will be completely wrong, but n_func ignores that one
-      const int ix_f = (ix % (BSX/2)) * 2;
-      const int iy_f = (iy % (BSY/2)) * 2;
+
       // Two fine neighbours
-      const int nf_block_idx = rhsNei_f.blockID;   
+      const int nf_block_idx = (*rhsNei_f).blockID;   
       const int nf1_idx = helper.neiBlock_n(nf_block_idx, BSX, BSY, ix_f, iy_f);
       this->cooMatPushBack(1., sfc_idx, nf1_idx);
 
       const int nf2_idx = helper.neiBlock_n(nf_block_idx, BSX, BSY, ix_f+1, iy_f+1);
       this->cooMatPushBack(1., sfc_idx, nf2_idx);
 
+      std::cout << "ix_c: " << ix << ", ix_f1: " << ix_f << ", ix_f2: " << ix_f+1 
+              << ", iy_c: " << iy << ", iy_f1: " << iy_f << ", iy_f2: " << iy_f+1 << std::endl;
+ 
+
+      std::cout << "nf1_idx: " << nf1_idx << ", nf2_idx: " << nf2_idx << std::endl;
       // For now with simple interpolation c_11 = c_21 = c_12 = c_22 = p_{ij}
       // two fluxes ==> two diagonal contributions
       diag_val -= 2.;
@@ -329,8 +406,6 @@ void cudaAMRSolver::neiBlockElement(
 //      std::cout << "rhsNei.blockID: " << rhsNei.blockID << ", rhsNei.level: " << rhsNei.level << std::endl;
 //      std::cout << "rhsNei_f.blockID: " << rhsNei_f.blockID << ", rhsNei_f.level: " << rhsNei_f.level << std::endl;
 //      std::cout << "Edge type: " << helper.EdgeType << std::endl;
-//      std::cout << "Zchild1_idx: " << helper.Zchild1_idx[0] << helper.Zchild1_idx[1] << helper.Zchild1_idx[2] << std::endl;
-//      std::cout << "Zchild2_idx: " << helper.Zchild2_idx[0] << helper.Zchild2_idx[1] << helper.Zchild2_idx[2] << std::endl;
       throw std::runtime_error("Runtime4"); }
   }
   else { throw std::runtime_error("Runtime5"); }
@@ -479,7 +554,7 @@ void cudaAMRSolver::Get_LS()
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
     ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
-//    std::cout << "Constructing block " << i << std::endl;
+    std::cout << "Constructing block " << i << std::endl;
 
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY; iy++)
@@ -551,7 +626,7 @@ void cudaAMRSolver::Get_LS()
     {
       // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
       int ix = 0;
-//      std::cout << "Construct west: " << iy << std::endl;
+      std::cout << "Construct west: " << iy << std::endl;
       this->edgeBoundaryCell(
           rhs_info, 
           BSX, 
@@ -563,7 +638,7 @@ void cudaAMRSolver::Get_LS()
           WestEdge());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
-//      std::cout << "Construct east: " << iy << std::endl;
+      std::cout << "Construct east: " << iy << std::endl;
       ix = BSX-1;
       this->edgeBoundaryCell(
           rhs_info,
@@ -579,7 +654,7 @@ void cudaAMRSolver::Get_LS()
     for(int ix=1; ix<BSX-1; ix++)
     {
       // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
-//      std::cout << "Construct north: " << ix << std::endl;
+      std::cout << "Construct north: " << ix << std::endl;
       int iy = BSY-1;
       this->edgeBoundaryCell(
           rhs_info, 
@@ -591,7 +666,7 @@ void cudaAMRSolver::Get_LS()
           rhsNei_north,
           NorthEdge());
 
-//      std::cout << "Construct south: " << ix << std::endl;
+      std::cout << "Construct south: " << ix << std::endl;
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
       iy = 0;
       this->edgeBoundaryCell(
@@ -604,71 +679,73 @@ void cudaAMRSolver::Get_LS()
           rhsNei_south,
           SouthEdge());
     }
-    {
-      // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
-      int ix = 0;
-      int iy = BSY-1;
-      this->cornerBoundaryCell(
-          rhs_info,
-          BSX,
-          BSY,
-          ix,
-          iy,
-          isWestBoundary,
-          rhsNei_west,
-          WestEdge(),
-          isNorthBoundary,
-          rhsNei_north,
-          NorthEdge());
+    // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
+    int ix = 0;
+    int iy = BSY-1;
+    std::cout << "Construct north-west: " << std::endl;
+    this->cornerBoundaryCell(
+        rhs_info,
+        BSX,
+        BSY,
+        ix,
+        iy,
+        isWestBoundary,
+        rhsNei_west,
+        WestEdge(),
+        isNorthBoundary,
+        rhsNei_north,
+        NorthEdge());
 
-      // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
-      ix = BSX-1;
-      iy = BSY-1;
-      this->cornerBoundaryCell(
-          rhs_info,
-          BSX,
-          BSY,
-          ix,
-          iy,
-          isNorthBoundary,
-          rhsNei_north,
-          NorthEdge(),
-          isEastBoundary,
-          rhsNei_east,
-          EastEdge());
-      
-      // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
-      ix = BSX-1;
-      iy = 0;
-      this->cornerBoundaryCell(
-          rhs_info,
-          BSX,
-          BSY,
-          ix,
-          iy,
-          isEastBoundary,
-          rhsNei_east,
-          EastEdge(),
-          isSouthBoundary,
-          rhsNei_south,
-          SouthEdge());
+    // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
+    ix = BSX-1;
+    iy = BSY-1;
+    std::cout << "Construct north-east: " << std::endl;
+    this->cornerBoundaryCell(
+        rhs_info,
+        BSX,
+        BSY,
+        ix,
+        iy,
+        isNorthBoundary,
+        rhsNei_north,
+        NorthEdge(),
+        isEastBoundary,
+        rhsNei_east,
+        EastEdge());
+    
+    // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
+    ix = BSX-1;
+    iy = 0;
+    std::cout << "Construct south-east: " << std::endl;
+    this->cornerBoundaryCell(
+        rhs_info,
+        BSX,
+        BSY,
+        ix,
+        iy,
+        isEastBoundary,
+        rhsNei_east,
+        EastEdge(),
+        isSouthBoundary,
+        rhsNei_south,
+        SouthEdge());
 
-      // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
-      ix = 0;
-      iy = 0;
-      this->cornerBoundaryCell(
-          rhs_info,
-          BSX,
-          BSY,
-          ix,
-          iy,
-          isSouthBoundary,
-          rhsNei_south,
-          SouthEdge(),
-          isWestBoundary,
-          rhsNei_west,
-          WestEdge());
-    }
+    // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
+    ix = 0;
+    iy = 0;
+    std::cout << "Construct south-west: " << std::endl;
+    this->cornerBoundaryCell(
+        rhs_info,
+        BSX,
+        BSY,
+        ix,
+        iy,
+        isSouthBoundary,
+        rhsNei_south,
+        SouthEdge(),
+        isWestBoundary,
+        rhsNei_west,
+        WestEdge());
   }
   // Save params of current linear system
   m_ = N; // rows
