@@ -127,8 +127,8 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 
     void scoot(const Real t_current, const std::vector<Real> &a) {
@@ -169,8 +169,8 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-        printf("Performing a scoot with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a scoot with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 
     void coast(const Real t_current, const std::vector<Real> &a) {
@@ -211,8 +211,8 @@ public:
     undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
     tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-    printf("Performing a coast with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-    printf("t_next is: %f\n", this->t_next);
+    printf("Performing a coast with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+    printf("t_next is: %f\n", (double)this->t_next);
 }
 
     void hybrid(const Real t_current, const std::vector<Real> &a)
@@ -261,8 +261,8 @@ public:
         baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
-        printf("Performing a hybrid action with beta %f, kappa %f, c %f\n", lastBeta, lastKappa, lastC);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a hybrid action with beta %f, kappa %f, c %f\n", (double)lastBeta, (double)lastKappa, (double)lastC);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 };
 
@@ -327,7 +327,7 @@ ZebraFish::ZebraFish(SimulationData&s, ArgumentParser&p, Real C[2]): Fish(s,p,C)
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new BehaviorCurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-    if( s.verbose ) printf("[CUP2D] - BehaviorCurvatureFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+    if( s.verbose ) printf("[CUP2D] - BehaviorCurvatureFish %d %f %f %f\n",myFish->Nm, (double)length, (double)Tperiod, (double)phaseShift);
 }
 
 void ZebraFish::resetAll() {

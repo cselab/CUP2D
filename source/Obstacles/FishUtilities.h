@@ -689,7 +689,7 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints>
         for (int i=0; i<Npoints; i++) {
 //            printf("[Scheduler][advance]\n");
             const Real oscAmp = oscillation.signal_out.at(i);
-            printf("[Scheduler][advance] signal_i %f\n", oscillation.signal.at(i));
+            printf("[Scheduler][advance] signal_i %f\n", (double)oscillation.signal.at(i));
 //            printf("[Scheduler][advance] oscAmp_i %f\n", oscAmp);
             if (oscAmp != 0) {synapses.at(i).excite(t, oscAmp);}
             synapses.at(i).advance(t);

@@ -312,7 +312,7 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
       return i;
     }
   }
-  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", pos[0], pos[1]);
+  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", (double)pos[0], (double)pos[1]);
   fflush(0); abort();
   return 0;
 };

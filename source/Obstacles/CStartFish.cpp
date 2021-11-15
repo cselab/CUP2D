@@ -209,11 +209,11 @@ public:
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
 
         if (firstAction) {
-            printf("FIRST ACTION %f\n", lastPhiUndulatory);
+            printf("FIRST ACTION %f\n", (double)lastPhiUndulatory);
             phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, lastPhiUndulatory);
             firstAction = false;
         } else {
-            printf("Next action %f\n", lastPhiUndulatory);
+            printf("Next action %f\n", (double)lastPhiUndulatory);
             phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
         }
 
@@ -295,11 +295,11 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
 
-        printf("\nAction duration is: %f\n", actionDuration);
-        printf("t_next is: %f\n", this->t_next);
-        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
-        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
-        printf("Scheduled a transition between %f and %f to tau %f\n", t_current, t_next, lastTau);
+        printf("\nAction duration is: %f\n", (double)actionDuration);
+        printf("t_next is: %f\n", (double)this->t_next);
+        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", (double)t_current, (double)t_next, (double)lastB3, (double)lastB4, (double)lastB5);
+        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", (double)t_current, (double)t_next, (double)lastK3, (double)lastK4, (double)lastK5);
+        printf("Scheduled a transition between %f and %f to tau %f\n", (double)t_current, (double)t_next, (double)lastTau);
     }
 
     ~ControlledCurvatureFish() override {
@@ -739,7 +739,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
     // Save the midpoint curvature to file
     FILE * f1 = fopen("curvature_values.dat","a+");
-    fprintf(f1,"%f  %g  %d\n", t, rK[Nmid], Nmid);
+    fprintf(f1,"%f  %g  %d\n", (double)t, (double)rK[Nmid], Nmid);
     fclose(f1);
 
 //    this->nextDump += 0.01; // dump time 0.01
@@ -771,7 +771,7 @@ CStartFish::CStartFish(SimulationData&s, ArgumentParser&p, Real C[2]):
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new ControlledCurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-    if( s.verbose ) printf("[CUP2D] - ControlledCurvatureFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+    if( s.verbose ) printf("[CUP2D] - ControlledCurvatureFish %d %f %f %f\n",myFish->Nm, (double)length, (double)Tperiod, (double)phaseShift);
 }
 
 void CStartFish::create(const std::vector<BlockInfo>& vInfo)
