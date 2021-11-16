@@ -43,7 +43,7 @@ void decompose_1D(long long tasks, long long & my_start, long long & my_end)
   my_end = my_start + my_share;
 }
 
-std::vector<BlockGroup> get_amr_groups(std::string filename)
+std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt)
 {
   hid_t file_id,  fapl_id;
   hid_t dataset_origins, fspace_origins;
@@ -81,6 +81,7 @@ std::vector<BlockGroup> get_amr_groups(std::string filename)
   H5Fclose(file_id);
   H5close();
 
+  double minh = 1e10;
   std::vector<BlockGroup> groups(dim_origins/4);
   for (size_t i = 0 ; i < groups.size() ; i++)
   {
@@ -88,6 +89,7 @@ std::vector<BlockGroup> get_amr_groups(std::string filename)
     groups[i].oy = origins[4*i+1]; 
     groups[i].oz = origins[4*i+2]; 
     groups[i].h  = origins[4*i+3]; 
+    minh = std::min(minh,groups[i].h);
     groups[i].nx       = indices[7*i  ];
     groups[i].ny       = indices[7*i+1];
     groups[i].nz       = indices[7*i+2];
@@ -95,6 +97,43 @@ std::vector<BlockGroup> get_amr_groups(std::string filename)
     groups[i].index[1] = indices[7*i+4];
     groups[i].index[2] = indices[7*i+5];
     groups[i].level    = indices[7*i+6];
+  }
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  if (rank == 0)
+  {
+    std::stringstream s;
+    s << "<?xml version=\"1.0\" ?>\n";
+    s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
+    s << "<Xdmf Version=\"2.0\">\n";
+    s << "<Domain>\n";
+    s << " <Grid Name=\"OctTree\" GridType=\"Collection\">\n";
+    //s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
+    s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
+    for (size_t i = 0 ; i < groups.size() ; i++)
+    {
+      const BlockGroup & group = groups[i];
+      const int nXX = group.nx;
+      const int nYY = group.ny;
+      s << "  <Grid GridType=\"Uniform\">\n";
+      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " <<  2 << "     " <<  nYY/BS+1 << "     " << nXX/BS+1 << "\"/>\n";
+      s << "       <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
+      s << "          <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
+      s << "              " << std::scientific << group.oz << " " << group.oy<< " " << group.ox<< "\n";
+      s << "          </DataItem>\n";
+      s << "          <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
+      s << "             " << std::scientific << BS*minh << " " <<BS*group.h << " " << BS*group.h << "\n";
+      s << "          </DataItem>\n";
+      s << "       </Geometry>\n";
+      s << "  </Grid>\n\n";
+    }
+    s << " </Grid>\n";
+    s << "</Domain>\n";
+    s << "</Xdmf>\n";
+    std::string st = s.str();
+    std::ofstream out((filename + "-uniform-grid.xmf").c_str());
+    out << st;
+    out.close();
   }
   return groups;
 }
@@ -161,7 +200,9 @@ void convert_to_uniform(std::string filename,int tttt)
 
   std::vector<double> amr = get_amr_dataset(filename);
 
-  std::vector<BlockGroup> allGroups = get_amr_groups(filename);
+  std::vector<BlockGroup> allGroups = get_amr_groups(filename,tttt);
+  //return;
+
   std::vector<long long> base(allGroups.size());
   base[0] = 0;
   for (size_t i = 1 ; i < allGroups.size() ; i++)
