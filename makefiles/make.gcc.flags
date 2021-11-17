@@ -21,7 +21,6 @@ endif
 
 else
 
-NVFLAGS+= -DNDEBUG -O3 --use_fast_math
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
 
 endif

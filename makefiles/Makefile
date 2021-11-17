@@ -46,7 +46,6 @@ OBJECTS = \
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
-NVFLAGS += -D_FLOAT_PRECISION_
 endif
 
 usemap ?= true
