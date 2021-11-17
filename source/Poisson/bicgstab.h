@@ -13,6 +13,13 @@ extern "C" void BiCGSTAB(
     const double max_rel_error,
     const int max_restarts); // if max_restarts == 0 defaults to normal BiCGSTAB without tricks
 
+#ifdef __DEBUG__
+__global__ void preconditionVec(
+    const int N,
+    const double* const Q,
+    double* const x);
+#endif
+
 extern "C" void pBiCGSTAB(
     const int m, // rows
     const int n, // cols

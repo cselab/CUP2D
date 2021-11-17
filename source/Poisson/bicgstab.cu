@@ -140,10 +140,8 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaMallocAsync(&d_t, m * sizeof(double), solver_stream));
 
   // Initialize variables to evaluate convergence
-  double x_error = 1e50;
-  double x_error_init = 1e50;
-  double* d_xprev = NULL;
-  checkCudaErrors(cudaMallocAsync(&d_xprev, m * sizeof(double), solver_stream));
+  double error = 1e50;
+  double error_init = 1e50;
 
   // Create descriptors for variables that will pass through cuSPARSE
   cusparseSpMatDescr_t spDescrA;
@@ -191,17 +189,15 @@ extern "C" void BiCGSTAB(
 
 #ifdef BICGSTAB_PROFILER
   // Check norm of A*x_0
-  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &x_error_init));
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
-  std::cout << "  [BiCGSTAB]: || A*x_0 || = " << x_error_init << std::endl;
+  std::cout << "  [BiCGSTAB]: || A*x_0 || = " << error_init << std::endl;
 #endif
   
-  // Calculate x_error_init for max_rel_error comparisons
-  checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
-  checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
-  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
+  // Calculate error_init for max_rel_error comparisons
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_b, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
-  std::cout << "  [BiCGSTAB]: Initial norm: " << x_error_init << std::endl;
+  std::cout << "  [BiCGSTAB]: Initial norm: " << error_init << std::endl;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
@@ -244,7 +240,7 @@ extern "C" void BiCGSTAB(
       if(restarts >= max_restarts){
         break;
       }
-      std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
+      std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
       checkCudaErrors(cudaStreamSynchronize(solver_stream)); 
@@ -278,24 +274,11 @@ extern "C" void BiCGSTAB(
     double alpha_den;
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
+//    std::cout << "alpha_den: " << alpha_den << std::endl;
     alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
 
     // 6. h = alpha*p_i + x_{i-1}
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha, d_p, 1, d_x, 1));
-
-    // 7. If h accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream));
-
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
-    // if(x_error <= max_error)
-    {
-      std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;
-      bConverged = true;
-      break;
-    }
 
     // 8. s = -alpha * nu_i + r_{i-1}
     const double nalpha = -alpha;
@@ -323,37 +306,35 @@ extern "C" void BiCGSTAB(
     omega = omega_num / (omega_den * omega_den + eps);
 
     // 11. x_i = omega_i * s + h
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega, d_b, 1, d_x, 1));
 
-    // 12. If x_i accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream));
+    // 13. r_i = -omega_i * t + s
+    nomega = -omega;
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_b, 1, &error));
 
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
-    // if(x_error <= max_error)
+    // If x_i accurate enough then quit
+    if((error <= max_error) || (error / error_init <= max_rel_error))
     {
       std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
       bConverged = true;
       break;
     }
 
-    // 13. r_i = -omega_i * t + s
-    nomega = -omega;
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
-
     // Update *_prev values for next iteration
     rho_prev = rho_curr;
+    std::cout << "ITER: " << k << ", alpha: " << alpha << ", omega: " << omega 
+              << ", rho_curr: " << rho_curr << ", beta: " << beta 
+              << std::endl;
   }
 
   if( bConverged )
-    std::cout <<  "  [BiCGSTAB]: Error norm (relative) = " << x_error << "/" << max_error 
-              << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+    std::cout <<  "  [BiCGSTAB]: Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
   else
     std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
-              << ". Error norm (relative) = " << x_error << "/" << max_error 
-              << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+              << ". Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
 
 
 #ifdef BICGSTAB_PROFILER
@@ -376,7 +357,6 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_p, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_nu, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_t, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_xprev, solver_stream));
   checkCudaErrors(cudaFreeAsync(SpMVBuff, solver_stream));
 
 
@@ -449,19 +429,11 @@ __global__ void preconditionVec(
     __syncthreads();
 
     double aux = 0.;
-    for (int j(0); j<B; j+=8)
+    for (int j(0); j<B; j++)
     { // Each thread applies a row of preconditionner to x
       aux += Q_[rowQ + j] * x_[j];
-      aux += Q_[rowQ + j+1] * x_[j+1];
-      aux += Q_[rowQ + j+2] * x_[j+2];
-      aux += Q_[rowQ + j+3] * x_[j+3];
-      aux += Q_[rowQ + j+4] * x_[j+4];
-      aux += Q_[rowQ + j+5] * x_[j+5];
-      aux += Q_[rowQ + j+6] * x_[j+6];
-      aux += Q_[rowQ + j+7] * x_[j+7];
     }
     x[i] = aux;
-    __syncthreads();
   }
 }
 
@@ -483,6 +455,7 @@ extern "C" void pBiCGSTAB(
   if (B % 8 != 0){
     throw;
   }
+  std::cout << "h_x" << h_x[0] << " " << h_x[1] << h_x[2] << std::endl;
   // --------------------------------------------- Set-up streams and handles ---------------------------------------
   cudaStream_t solver_stream;
   cublasHandle_t cublas_handle;
@@ -597,10 +570,8 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cudaMallocAsync(&d_z, m * sizeof(double), solver_stream));
 
   // Initialize variables to evaluate convergence
-  double x_error = 1e50;
-  double x_error_init = 1e50;
-  double* d_xprev = NULL;
-  checkCudaErrors(cudaMallocAsync(&d_xprev, m * sizeof(double), solver_stream));
+  double error = 1e50;
+  double error_init = 1e50;
 
   // Create descriptors for variables that will pass through cuSPARSE
   cusparseSpMatDescr_t spDescrA;
@@ -646,17 +617,15 @@ extern "C" void pBiCGSTAB(
 
 #ifdef BICGSTAB_PROFILER
   // Check norm of A*x_0
-  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &x_error_init));
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_nu, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
-  std::cout << "  [pBiCGSTAB]: || A*x_0 || = " << x_error_init << std::endl;
+  std::cout << "  [pBiCGSTAB]: || A*x_0 || = " << error_init << std::endl;
 #endif
   
   // Calculate x_error_init for max_rel_error comparisons
-  checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1));
-  checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_b, 1, d_xprev, 1)); // initial solution guess stored in d_b
-  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error_init));
+  checkCudaErrors(cublasDnrm2(cublas_handle, m, d_b, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream));
-  std::cout << "  [pBiCGSTAB]:  Initial norm: " << x_error_init << std::endl;
+  std::cout << "  [pBiCGSTAB]: Initial norm: " << error_init << std::endl;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
@@ -699,7 +668,7 @@ extern "C" void pBiCGSTAB(
       if(restarts >= max_restarts){
         break;
       }
-      std::cout << "  [pBiCGSTAB]: Restart at iteration: " << k << " norm: " << x_error <<" Initial norm: " << x_error_init << std::endl;
+      std::cout << "  [pBiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_rhat, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle, m, d_rhat, 1, &rho_curr));
       checkCudaErrors(cudaStreamSynchronize(solver_stream)); 
@@ -744,24 +713,11 @@ extern "C" void pBiCGSTAB(
     double alpha_den;
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
+//    std::cout << "alpha_den: " << alpha_den << std::endl;
     alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
 
     // 7. h = alpha*z + x_{i-1}
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &alpha, d_z, 1, d_x, 1));
-
-    // 8. If h accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream));
-
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
-    // if(x_error <= max_error)
-    {
-      std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;
-      bConverged = true;
-      break;
-    }
 
     // 9. s = -alpha * nu_i + r_{i-1}
     const double nalpha = -alpha;
@@ -800,15 +756,17 @@ extern "C" void pBiCGSTAB(
     omega = omega_num / (omega_den * omega_den + eps);
 
     // 13. x_i = omega_i * z + h
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_x, 1, d_xprev, 1)); // copy previous value for future norm calculation
     checkCudaErrors(cublasDaxpy(cublas_handle, m, &omega, d_z, 1, d_x, 1));
 
-    // 14. If x_i accurate enough then quit
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nye, d_x, 1, d_xprev, 1));
-    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_xprev, 1, &x_error));
+    // 15. r_i = -omega_i * t + s
+    nomega = -omega;
+    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
+
+    // If x_i accurate enough then quit
+    checkCudaErrors(cublasDnrm2(cublas_handle, m, d_b, 1, &error));
     checkCudaErrors(cudaStreamSynchronize(solver_stream));
 
-    if((x_error <= max_error) || (x_error / x_error_init <= max_rel_error))
+    if((error <= max_error) || (error / error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
       std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
@@ -816,21 +774,20 @@ extern "C" void pBiCGSTAB(
       break;
     }
 
-    // 15. r_i = -omega_i * t + s
-    nomega = -omega;
-    checkCudaErrors(cublasDaxpy(cublas_handle, m, &nomega, d_t, 1, d_b, 1));
-
     // Update *_prev values for next iteration
     rho_prev = rho_curr;
+    std::cout << "ITER: " << k << ", alpha: " << alpha << ", omega: " << omega 
+              << ", rho_curr: " << rho_curr << ", beta: " << beta 
+              << std::endl;
   }
 
   if( bConverged )
-    std::cout <<  "  [pBiCGSTAB] Error norm (relative) = " << x_error << "/" << max_error 
-              << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+    std::cout <<  "  [pBiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
   else
     std::cout <<  "  [pBiCGSTAB]: Iteration " << max_iter 
-              << ". Error norm (relative) = " << x_error << "/" << max_error 
-              << " (" << x_error/x_error_init  << "/" << max_rel_error << ")" << std::endl;
+              << ". Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
 
 
 #ifdef BICGSTAB_PROFILER
@@ -853,7 +810,6 @@ extern "C" void pBiCGSTAB(
   checkCudaErrors(cudaFreeAsync(d_nu, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_t, solver_stream));
   checkCudaErrors(cudaFreeAsync(d_z, solver_stream));
-  checkCudaErrors(cudaFreeAsync(d_xprev, solver_stream));
   checkCudaErrors(cudaFreeAsync(SpMVBuff, solver_stream));
 
 

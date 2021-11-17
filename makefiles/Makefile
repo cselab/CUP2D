@@ -146,8 +146,8 @@ cuda%.o : %.cpp bicgstab.o
 cudasimulation: cudamain.o $(NVOBJECTS) bicgstab.o
 	$(CXX) -DGPU_POISSON cudamain.o bicgstab.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
 
-debugBiCGSTAB: debugBiCGSTAB.cpp bicgstab.cpp bicgstab.cu
-	nvcc -g -G $(NVLIBS) ../source/debugBiCGSTAB.cpp ../source/Poisson/bicgstab.cu -o $@
+debugBiCGSTAB: debugBiCGSTAB.cu bicgstab.cu
+	nvcc -g -G -D__DEBUG__ $(NVLIBS) $(NVFLAGS) ../source/debugBiCGSTAB.cu ../source/Poisson/bicgstab.cu -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
