@@ -12,14 +12,8 @@
 #include <vector>
 #include <omp.h>
 
-#ifndef _FLOAT_PRECISION_
-//using Real = long double;
-//#define MPI_Real MPI_LONG_DOUBLE
 using Real = double;
 #define MPI_Real MPI_DOUBLE
-#else // _FLOAT_PRECISION_
-using Real = float;
-#endif // _FLOAT_PRECISION_
 
 #include <Cubism/ArgumentParser.h>
 #include <Cubism/Grid.h>
@@ -38,7 +32,7 @@ using Real = float;
 
 #ifndef _DIM_
 #define _DIM_ 2
-#endif//_BS_
+#endif//_DIM_
 
 
 struct ScalarElement
