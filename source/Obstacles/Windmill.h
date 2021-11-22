@@ -13,6 +13,11 @@ class Windmill : public Shape
   std::array<Real, 2> dimensions = {0.1, 0.1};
   Real energy = 0;
 
+  double x_start = 0.7;
+  double x_end = 0.7 + 0.0875;
+  double y_start = 0.35;
+  double y_end = 1.05;
+
  public:
 
   Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
@@ -41,6 +46,10 @@ class Windmill : public Shape
   
   void act( double action );
   double reward(std::array<Real, 2> target_vel, Real C, Real D);
+
+  std::vector<double> vel_profile();
+  int numRegion(const std::array<Real, 2> point, double height) const;
+
   std::vector<double> state();
 
   // Helpers for reward function

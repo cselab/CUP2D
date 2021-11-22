@@ -76,6 +76,9 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
 void Windmill::updateVelocity(double dt)
 {
   Shape::updateVelocity(dt);
+
+  // update omega according to a velocity function of time
+  //omega = velocity_over_time(sim.time);
 }
 
 void Windmill::updatePosition(double dt)
@@ -87,6 +90,12 @@ void Windmill::updatePosition(double dt)
   energy += r_energy;
   // std::vector<double> avg = easyAverage();
   // std::vector<double> avg2 = sophAverage();
+
+  if (std::floor(10*(sim.time + sim.dt)) - std::floor(10*(sim.time)) != 0) // every .1 seconds print velocity profile
+  {
+    vel_profile();
+  }
+
 }
 
 void Windmill::setTarget(std::array<Real, 2> target_pos)
@@ -154,7 +163,8 @@ void Windmill::act( double action )
   // windscale is around 0.15, lengthscale is around 0.0375, so action is multiplied by around 16
   //appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
 
-  appliedTorque = action;
+  //appliedTorque = action;
+  omega = action;
   printValues();
 }
 
@@ -178,18 +188,36 @@ double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
   // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
   // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   // compute average
-  
-  std::vector<Real> avg = easyAverage();
-  // compute norm of difference beween target and average velocity
-  //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
-  std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
 
-  Real r_flow = - D * std::sqrt( diff[0]*diff[0] + diff[1]*diff[1] );
+  std::array<Real, 32> true_profile = {0.0117094, 0.0118713, 0.0120126, 0.0121298, 0.0122235, 0.0122405, 0.0116373, 0.00707957,
+                                       0.0125024, 0.0537881, 0.0965903, 0.101789, 0.0676126, 0.0271084, 0.00552582, 0.00977532,
+                                       0.0129954, 0.0133042, 0.0114955, 0.00804636, 0.00881718, 0.0221757, 0.0595386, 0.107892,
+                                       0.102329, 0.0453045, 0.0106931, 0.0173096, 0.0200404, 0.0201389, 0.0199034, 0.0197252};
 
-  if (std::isfinite(r_flow) == false)
+  std::vector<double> curr_profile = vel_profile();
+
+  Real r_flow = 0;
+
+  for(int i=0; i < 32; ++i)
   {
-    printNanRewards(false, r_flow);
+    // used to be r_flow += std::sqrt( (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]) );
+    r_flow += (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]);
   }
+
+  r_flow = -D * std::sqrt(r_flow);
+  //r_flow *= -D;
+  
+  // std::vector<Real> avg = easyAverage();
+  // // compute norm of difference beween target and average velocity
+  // //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
+  // std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
+
+  // Real r_flow = - D * std::sqrt( diff[0]*diff[0] + diff[1]*diff[1] );
+
+  // if (std::isfinite(r_flow) == false)
+  // {
+  //   printNanRewards(false, r_flow);
+  //}
 
   //double r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
   //need characteristic speed
@@ -206,6 +234,92 @@ double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
   // return r_flow;
   
   // return C*r_energy;
+}
+
+std::vector<double> Windmill::vel_profile()
+{
+  // We take a region of size 0.7 * 0.0875, which cuts 4 vertical blocks in half along a vertical line
+  // we choose to split these 4 blocks in the vertical dimension into 32 intervals
+  // each one of the 32 intervals has a height of 0.7/32 = 0.021875
+  // we average the velocity in each of the 32 intervals
+
+  std::vector<double> vel_profile(32, 0.0);
+  std::vector<double> vel_avg(32, 0.0);
+  std::vector<double> region_area(32, 0.0);
+
+  double height = 0.021875;
+
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          int num = numRegion(oSens, height);
+          if (num)
+          {
+            region_area[num-1] += da;
+            vel_avg[num-1] += std::sqrt(b(i, j).u[0]*b(i, j).u[0] + b(i, j).u[1]*b(i, j).u[1]) * da;
+          }
+        }
+      }
+  }
+
+  // divide each vel_avg by the corresponding area
+
+  if(not sim.muteAll)
+  {
+    std::stringstream ssF;
+    ssF<<sim.path2file<<"/velocity_profile_"<<obstacleID<<".dat";
+    std::stringstream & fout = logger.get_stream(ssF.str());
+    fout<<sim.time;
+
+    for (int k = 0; k < 32; ++k)
+    {
+      vel_profile[k] = vel_avg[k]/region_area[k];
+      fout<<" "<<vel_profile[k];
+    }
+    fout<<std::endl;
+    
+    fout.flush();
+  }
+
+
+  return vel_profile;
+
+}
+
+int Windmill::numRegion(const std::array<Real, 2> point, double height) const
+{
+  // returns 0 if outside of the box
+  std::array<Real, 2> lower_left = {x_start, y_start};
+  std::array<Real, 2> upper_right = {x_end, y_end};
+  double rel_pos_height = point[1] - lower_left[1];
+  //std::array<Real, 2> rel_pos = {point[0] - lower_left[0], point[1] - lower_left[1]};
+  int num = 0;
+
+  if(point[0] >= lower_left[0] && point[0] <= upper_right[0])
+  {
+    if(point[1] >= lower_left[1] && point[1] <= upper_right[1])
+    {
+      // point is inside the rectangle to compute velocity profile
+      // now find out in what region of the rectangle we are in
+      num = static_cast<int>(std::ceil(rel_pos_height/height));
+      
+      return num;
+    }
+  }
+
+  return 0;
 }
 
 
@@ -281,7 +395,7 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 
 std::vector<double> Windmill::easyAverage() const
 {
-   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
   // dummy average
   std::vector<double> sum = {0.0, 0.0};
@@ -491,105 +605,113 @@ std::array<int, 2> Windmill::safeIdInBlock(const std::array<Real,2> pos, const s
 
 std::vector<std::vector<double>> Windmill::getUniformGrid()
 {
-
+  /*
   // // get pointer on block
   // // const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
-  // const unsigned int nX = VectorBlock::sizeX;
-  // const unsigned int nY = VectorBlock::sizeY;
+  const unsigned int nX = VectorBlock::sizeX;
+  const unsigned int nY = VectorBlock::sizeY;
   
 
-  // std::vector<VectorBlock *> velblocks = sim.vel->GetBlocks();
-  // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-  // std::array<int, 3> bpd = sim.vel->getMaxBlocks();
-  // const unsigned int unx = bpd[0]*(1<<(levelMax-1))*nX;
-  // const unsigned int uny = bpd[1]*(1<<(levelMax-1))*nY;
-  // const unsigned int NCHANNELS = 2;
+  std::vector<VectorBlock *> velblocks = sim.vel->GetBlocks();
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  std::array<int, 3> bpd = sim.vel->getMaxBlocks();
+  const unsigned int unx = bpd[0]*(1<<(levelMax-1))*nX;
+  const unsigned int uny = bpd[1]*(1<<(levelMax-1))*nY;
+  const unsigned int NCHANNELS = 2;
 
 
-  // std::vector <float> uniform_mesh(uny*unx*NCHANNELS);
+  std::vector <float> uniform_mesh(uny*unx*NCHANNELS);
 
-  // for (size_t i = 0 ; i < velInfo.size() ; i++)
-  // {
-  //   const int level = velInfo[i].level;
-  //   const VectorBlock& block = * (const VectorBlock*) velInfo[t].ptrBlock;
+  for (size_t i = 0 ; i < velInfo.size() ; i++)
+  {
+    const int level = velInfo[i].level;
+    const BlockInfo & info = velInfo[i];
+    const VectorBlock& block = * (const VectorBlock*) info.ptrBlock;
 
-  //   for (unsigned int y = 0; y < nY; y++)
-  //   for (unsigned int x = 0; x < nX; x++)
-  //   {
-  //     //////// need to clarify this stuff
-  //     float output[NCHANNELS]={0.0};
-  //     float dudx  [NCHANNELS]={0.0};
-  //     float dudy  [NCHANNELS]={0.0};
-  //     TStreamer::operate(block, x, y, 0, (float *)output); //StreamerVector in Definitions.h
+    for (unsigned int y = 0; y < nY; y++)
+    for (unsigned int x = 0; x < nX; x++)
+    {
+      //////// need to clarify this stuff
+      float output[NCHANNELS]={0.0};
+      float dudx  [NCHANNELS]={0.0};
+      float dudy  [NCHANNELS]={0.0};
+      TStreamer::operate(block, x, y, 0, (float *)output); //StreamerVector in Definitions.h
 
-  //     if (x!= 0 && x!= nX-1)
-  //     {
-  //       float output_p [NCHANNELS]={0.0};
-  //       float output_m [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x+1, y, 0, (float *)output_p);
-  //       TStreamer::operate(block, x-1, y, 0, (float *)output_m);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudx[j] = 0.5*(output_p[j]-output_m[j]);
-  //     }
-  //     else if (x==0)
-  //     {
-  //       float output_p [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x+1, y, 0, (float *)output_p);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudx[j] = output_p[j]-output[j];        
-  //     }
-  //     else
-  //     {
-  //       float output_m [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x-1, y, 0, (float *)output_m);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudx[j] = output[j]-output_m[j];        
-  //     }
+      if (x!= 0 && x!= nX-1)
+      {
+        float output_p [NCHANNELS]={0.0};
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+        TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = 0.5*(output_p[j]-output_m[j]);
+      }
+      else if (x==0)
+      {
+        float output_p [NCHANNELS]={0.0};
+        TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = output_p[j]-output[j];        
+      }
+      else
+      {
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = output[j]-output_m[j];        
+      }
 
-  //     if (y!= 0 && y!= nY-1)
-  //     {
-  //       float output_p [NCHANNELS]={0.0};
-  //       float output_m [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x, y+1, 0, (float *)output_p);
-  //       TStreamer::operate(block, x, y-1, 0, (float *)output_m);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudy[j] = 0.5*(output_p[j]-output_m[j]);
-  //     }
-  //     else if (y==0)
-  //     {
-  //       float output_p [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x, y+1, 0, (float *)output_p);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudy[j] = output_p[j]-output[j];        
-  //     }
-  //     else
-  //     {
-  //       float output_m [NCHANNELS]={0.0};
-  //       TStreamer::operate(block, x, y-1, 0, (float *)output_m);
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         dudy[j] = output[j]-output_m[j];        
-  //     }
+      if (y!= 0 && y!= nY-1)
+      {
+        float output_p [NCHANNELS]={0.0};
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+        TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = 0.5*(output_p[j]-output_m[j]);
+      }
+      else if (y==0)
+      {
+        float output_p [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = output_p[j]-output[j];        
+      }
+      else
+      {
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = output[j]-output_m[j];        
+      }
 
-  //     int iy_start = (info.index[1]*nY + y)*(1<< ( (levelMax-1)-level ) );
-  //     int ix_start = (info.index[0]*nX + x)*(1<< ( (levelMax-1)-level ) );
+      int iy_start = (info.index[1]*nY + y)*(1<< ( (levelMax-1)-level ) );
+      int ix_start = (info.index[0]*nX + x)*(1<< ( (levelMax-1)-level ) );
 
-  //     const int points = 1<< ( (levelMax-1)-level ); 
-  //     const double dh = 1.0/points;
+      const int points = 1<< ( (levelMax-1)-level ); 
+      const double dh = 1.0/points;
 
-  //     for (int iy = iy_start; iy< iy_start + (1<< ( (levelMax-1)-level ) ); iy++)
-  //     for (int ix = ix_start; ix< ix_start + (1<< ( (levelMax-1)-level ) ); ix++)
-  //     {
-  //       double cx = (ix - ix_start - points/2 + 1 - 0.5)*dh;
-  //       double cy = (iy - iy_start - points/2 + 1 - 0.5)*dh;
-  //       for (unsigned int j = 0; j < NCHANNELS; ++j)
-  //         uniform_mesh[iy*NCHANNELS*unx+ix*NCHANNELS+j] = output[j]+ cx*dudx[j]+ cy*dudy[j];
-  //     }
-  //   }
+      for (int iy = iy_start; iy< iy_start + (1<< ( (levelMax-1)-level ) ); iy++)
+      for (int ix = ix_start; ix< ix_start + (1<< ( (levelMax-1)-level ) ); ix++)
+      {
+        double cx = (ix - ix_start - points/2 + 1 - 0.5)*dh;
+        double cy = (iy - iy_start - points/2 + 1 - 0.5)*dh;
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          uniform_mesh[iy*NCHANNELS*unx+ix*NCHANNELS+j] = output[j]+ cx*dudx[j]+ cy*dudy[j];
+      }
+    }
 
-  //   }
+    }
 
-  // }
+  }
   
+  */
 
+}
 
+double velocity_over_time(double time)
+{
+  double w_max = 12.56;
+  double frequency = 1.0;
+  return w_max * sin(2*M_PI*frequency * time);
 }
