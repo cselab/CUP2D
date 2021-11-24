@@ -119,27 +119,27 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
   int N = BSX*BSY;
   L.resize(N);
   L_inv.resize(N);
-  for (int i = 0 ; i<N ; i++)
+  for (int i(0); i<N ; i++)
   {
     L[i].resize(i+1);
     L_inv[i].resize(i+1);
-    // L_inv will act as right block in GJ algorithm, init it as identity
+    // L_inv will act as right block in GJ algorithm, init as identity
     for (int j(0); j<=i; j++){
       L_inv[i][j] = (i == j) ? 1. : 0.;
     }
   }
 
   // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
-  for (int i = 0 ; i<N ; i++)
+  for (int i(0); i<N ; i++)
   {
-    double s1=0;
-    for (int k=0; k<=i-1; k++)
+    double s1 = 0;
+    for (int k(0); k<=i-1; k++)
       s1 += L[i][k]*L[i][k];
     L[i][i] = sqrt(getA_local(i,i) - s1);
-    for (int j=i+1; j<N; j++)
+    for (int j(i+1); j<N; j++)
     {
       double s2 = 0;
-      for (int k=0; k<=i-1; k++)
+      for (int k(0); k<=i-1; k++)
         s2 += L[i][k]*L[j][k];
       L[j][i] = (getA_local(j,i)-s2) / L[i][i];
     }
@@ -147,37 +147,31 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
 
   /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
      L will act as the left block (it does not need to be modified in the process), 
-     L_inv will act as the right block and at the end of the algo will contain the inverse*/
+     L_inv will act as the right block and at the end of the algo will contain the inverse */
   for (int br(0); br<N; br++)
-    { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
-    const double bsf = 1. / L[br][br]; // scaling factor for base row
+  { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
+    const double bsf = 1. / L[br][br];
     for (int c(0); c<=br; c++)
-    {
       L_inv[br][c] *= bsf;
-    }
 
     for (int wr(br+1); wr<N; wr++)
     { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
       const double wsf = L[wr][br];
       for (int c(0); c<=br; c++)
-      { // For the right block matrix the trasformation has to be applied for the whole row
         L_inv[wr][c] -= (wsf * L_inv[br][c]);
-      }
     }
   }
 
-  // P_inv_ holds inverse preconditionner in row major order!  This is leads to better memory access
-  // in the kernel that applies this preconditioner, but note that cuBLAS assumes column major
-  // matrices by default
-  P_inv_.resize(N * N); // use linear indexing for this matrix
-  for (int i(0); i<N; i++){
-    for (int j(0); j<N; j++){
-      double aux = 0.;
-      for (int k(0); k<N; k++){
-        aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.; // P_inv_ = (L^T)^{-1} L^{-1}
-      }
-      P_inv_[i*N+j] = aux;
-    }
+  // P_inv_ holds inverse preconditionner in row major order!
+  P_inv_.resize(N * N);
+  for (int i(0); i<N; i++)
+  for (int j(0); j<N; j++)
+  {
+    double aux = 0.;
+    for (int k(0); k<N; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+      aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
+
+    P_inv_[i*N+j] = aux;
   }
 }
 
@@ -245,61 +239,25 @@ void cudaAMRSolver::neiBlockElement(
       int iy_c = iy / 2;
       if (helper.EdgeType == North)
       { 
-        std::cout << "North is coarse, ";
         ix_c += (rhs_info.index[0] % 2 == 1) ? BSX / 2 : 0;
-        iy_c = -2;
-        if (rhs_info.index[0] % 2 == 1){
-          std::cout << "I am leftward fine ";
-        }
-        else{
-          std::cout << "I am rightward fine ";
-        }
       }
       else if (helper.EdgeType == East)
       {
-        std::cout << "East is coarse, ";
         iy_c += (rhs_info.index[1] % 2 == 1) ? BSY / 2 : 0;
-        ix_c = -2;
-        if (rhs_info.index[1] % 2 == 1){
-          std::cout << "I am upper fine ";
-        }
-        else{
-          std::cout << "I am lower fine ";
-        }
       }
       else if (helper.EdgeType == South) 
       {
-        std::cout << "South is coarse, ";
         ix_c += (rhs_info.index[0] % 2 == 1) ? BSX / 2 : 0;
-        iy_c = -2;
-        if (rhs_info.index[0] % 2 == 1){
-          std::cout << "I am leftward fine ";
-        }
-        else{
-          std::cout << "I am rightward fine ";
-        }
       }
       else if (helper.EdgeType == West)
       { 
-        std::cout << "West is coarse, ";
         iy_c += (rhs_info.index[1] % 2 == 1) ? BSY / 2 : 0;
-        ix_c = -2;
-        if (rhs_info.index[1] % 2 == 1){
-          std::cout << "I am upper fine";
-        }
-        else{
-          std::cout << "I am lower fine ";
-        }
       }
 
       const int nc_block_idx = rhsNei_c.blockID;
       const int nc_idx = helper.neiBlock_n(nc_block_idx, BSX, BSY, ix_c, iy_c);
       // At the moment interpolation c_11 = c_21 = c_12 = c_22 = p_{nc_idx}
       this->cooMatPushBack(1., sfc_idx, nc_idx);
-      // If interpolation turns out to be depenant on second edge (corners), may need to use
-      // a hash map with 'col' as index to accumulate contributions
-
-      std::cout << "ix: " << ix << ", iy: " << iy << ", ix_c: " << ix_c << ", iy_c: " << iy_c << std::endl;
 
       // With current interpolation flux contribution to diagonal element is unaffected for finer cell
       diag_val--;
@@ -321,61 +279,45 @@ void cudaAMRSolver::neiBlockElement(
     BlockInfo *rhsNei_f;
     if (helper.EdgeType == North)
     {
-      iy_f = -2;
-      std::cout << "I am coarse, north is ";
       if (ix < BSX / 2) 
       {
-        std::cout << "lower fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][0][0]));
       }
       else              
       {
-        std::cout << "upper fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][0][0]));
       }
     }
     else if (helper.EdgeType == East)
     {
-      ix_f = -2;
-      std::cout << "I am coarse, east is ";
       if (iy < BSY / 2) 
       {
-        std::cout << "lower fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][0][0]));
       }
       else              
       {
-        std::cout << "upper fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][1][0]));
       }
     }
     else if (helper.EdgeType == South)
     {
-      iy_f = -2;
-      std::cout << "I am coarse, south is ";
       if (ix < BSX / 2) 
       {
-        std::cout << "lower fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[0][1][0]));
       }
       else              
       {
-        std::cout << "upper fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][1][0]));
       }
     }
     else if (helper.EdgeType == West)
     {
-      ix_f = -2;
-      std::cout << "I am coarse, west is ";
       if (iy < BSY / 2) 
       {
-        std::cout << "lower fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][0][0]));
       }
       else              
       {
-        std::cout << "upper fine: ";
         rhsNei_f = &(this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei.Zchild[1][1][0]));
       }
     }
@@ -392,21 +334,11 @@ void cudaAMRSolver::neiBlockElement(
       const int nf2_idx = helper.neiBlock_n(nf_block_idx, BSX, BSY, ix_f+1, iy_f+1);
       this->cooMatPushBack(1., sfc_idx, nf2_idx);
 
-      std::cout << "ix_c: " << ix << ", ix_f1: " << ix_f << ", ix_f2: " << ix_f+1 
-              << ", iy_c: " << iy << ", iy_f1: " << iy_f << ", iy_f2: " << iy_f+1 << std::endl;
- 
-
-      std::cout << "nf1_idx: " << nf1_idx << ", nf2_idx: " << nf2_idx << std::endl;
       // For now with simple interpolation c_11 = c_21 = c_12 = c_22 = p_{ij}
       // two fluxes ==> two diagonal contributions
       diag_val -= 2.;
     }
-    else { 
-//      std::cout << "rhs_info.blockID: " << rhs_info.blockID << ", rhs_info.level: " << rhs_info.level << std::endl;
-//      std::cout << "rhsNei.blockID: " << rhsNei.blockID << ", rhsNei.level: " << rhsNei.level << std::endl;
-//      std::cout << "rhsNei_f.blockID: " << rhsNei_f.blockID << ", rhsNei_f.level: " << rhsNei_f.level << std::endl;
-//      std::cout << "Edge type: " << helper.EdgeType << std::endl;
-      throw std::runtime_error("Runtime4"); }
+    else { throw std::runtime_error("Runtime4"); }
   }
   else { throw std::runtime_error("Runtime5"); }
 }
@@ -440,7 +372,6 @@ void cudaAMRSolver::edgeBoundaryCell( // excluding corners
     else
     {
       double diag_val = -3.;
-      //std::cout << "Edge construction. \n ";
       this->neiBlockElement(
           rhs_info, 
           BSX, 
@@ -487,7 +418,6 @@ void cudaAMRSolver::cornerBoundaryCell(
       double diag_val = -2.;
       if (!isBoundary1)
       { // Add matrix element associated to out-of-block neighbour 3
-//      std::cout << "Corner1 construction. \n ";
         this->neiBlockElement(
             rhs_info, 
             BSX, 
@@ -500,7 +430,6 @@ void cudaAMRSolver::cornerBoundaryCell(
       }
       if (!isBoundary2)
       { // Add matrix element associated to out-of-block neighbour 4
-//      std::cout << "Corner2 construction. \n ";
         this->neiBlockElement(
             rhs_info, 
             BSX, 
@@ -522,7 +451,6 @@ void cudaAMRSolver::Get_LS()
 
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
-  std::cout << "BSX: " << BSX << ", BSY: " << BSY << std::endl;
 
   //This returns an array with the blocks that the coarsest possible 
   //mesh would have (i.e. all blocks are at level 0)
@@ -554,15 +482,15 @@ void cudaAMRSolver::Get_LS()
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
     ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
-    std::cout << "Constructing block " << i << std::endl;
-
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
       const int sfc_idx = i*BSX*BSY+iy*BSX+ix;
+      //double arr[2];
+      //rhs_info.pos(arr,ix,iy);
       //b_[sfc_idx] = 0.;
-      //x_[sfc_idx] = 5.;
+      //x_[sfc_idx] = arr[0]*arr[0]*arr[0];
       b_[sfc_idx] = rhs(ix,iy).s;
       x_[sfc_idx] = p(ix,iy).s;
     }
@@ -578,10 +506,6 @@ void cudaAMRSolver::Get_LS()
     const bool isSouthBoundary = (rhs_info.index[1] == 0           ); // don't check for south neighbor
     const bool isNorthBoundary = (rhs_info.index[1] == MAX_Y_BLOCKS); // don't check for north neighbor
 
-//    std::cout <<"Westbd: " << isWestBoundary;
-//    std::cout <<", eastbd: " << isEastBoundary;
-//    std::cout <<", southbd: " << isSouthBoundary;
-//    std::cout <<", northbd: " << isNorthBoundary << std::endl;
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     long long Z_west  = rhs_info.Znei[1-1][1][1];
     long long Z_east  = rhs_info.Znei[1+1][1][1];
@@ -626,7 +550,6 @@ void cudaAMRSolver::Get_LS()
     {
       // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
       int ix = 0;
-      std::cout << "Construct west: " << iy << std::endl;
       this->edgeBoundaryCell(
           rhs_info, 
           BSX, 
@@ -638,7 +561,6 @@ void cudaAMRSolver::Get_LS()
           WestEdge());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
-      std::cout << "Construct east: " << iy << std::endl;
       ix = BSX-1;
       this->edgeBoundaryCell(
           rhs_info,
@@ -654,7 +576,6 @@ void cudaAMRSolver::Get_LS()
     for(int ix=1; ix<BSX-1; ix++)
     {
       // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
-      std::cout << "Construct north: " << ix << std::endl;
       int iy = BSY-1;
       this->edgeBoundaryCell(
           rhs_info, 
@@ -666,7 +587,6 @@ void cudaAMRSolver::Get_LS()
           rhsNei_north,
           NorthEdge());
 
-      std::cout << "Construct south: " << ix << std::endl;
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
       iy = 0;
       this->edgeBoundaryCell(
@@ -682,7 +602,6 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
     int ix = 0;
     int iy = BSY-1;
-    std::cout << "Construct north-west: " << std::endl;
     this->cornerBoundaryCell(
         rhs_info,
         BSX,
@@ -699,7 +618,6 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
     ix = BSX-1;
     iy = BSY-1;
-    std::cout << "Construct north-east: " << std::endl;
     this->cornerBoundaryCell(
         rhs_info,
         BSX,
@@ -716,7 +634,6 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
     ix = BSX-1;
     iy = 0;
-    std::cout << "Construct south-east: " << std::endl;
     this->cornerBoundaryCell(
         rhs_info,
         BSX,
@@ -733,7 +650,6 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
     ix = 0;
     iy = 0;
-    std::cout << "Construct south-west: " << std::endl;
     this->cornerBoundaryCell(
         rhs_info,
         BSX,

@@ -390,53 +390,6 @@ extern "C" void BiCGSTAB(
   checkCudaErrors(cudaStreamDestroy(solver_stream));
 }
 
-/* 
-   Kernel to apply the inverse of preconditionner to each block of the grid 
-          | Q 0 0  ...  . |
-          | 0 Q 0  ...  . |
-          | .   .       . |
-    x <-- | .     .     . | x
-          | .       .   . |
-          | .         . 0 |
-          | 0 0 0 ... 0 Q |
-   where x, y are N-dimensioinal vector and Q (=P_inv) a BxB matrix
-
-  NOTE: this kernel is hardcoded for either BSX or BSY to be a multiple of 8! 
-*/
-__global__ void preconditionVec(
-    const int N,
-    const double* const Q,
-    double* const x)
-    
-{
-  const int B = blockDim.x;     // B can be inferred from block dimension
-  const int rowQ = threadIdx.x * B; // row of x <- Qx assigned to thread
-
-  extern __shared__ double s[]; // establish pointer to shared memory
-  double* x_ = s;               // B doubles for x from this block 
-  double* Q_ = &x_[B];          // BxB double for K
-
-  for (int i(0); i<B; i++)
-  { // Copy Q to Q_ one row at a time
-    const int idx = i*B + threadIdx.x;
-    Q_[idx] = Q[idx];
-  }
-
-  // Grid-stride loop over blocks
-  for (int i(blockIdx.x*blockDim.x + threadIdx.x); i<N; i += blockDim.x * gridDim.x)
-  { 
-    x_[threadIdx.x] = x[i]; // write x to shared mem x_
-    __syncthreads();
-
-    double aux = 0.;
-    for (int j(0); j<B; j++)
-    { // Each thread applies a row of preconditionner to x
-      aux += Q_[rowQ + j] * x_[j];
-    }
-    x[i] = aux;
-  }
-}
-
 extern "C" void pBiCGSTAB(
     const int m, // rows
     const int n, // cols
@@ -452,10 +405,6 @@ extern "C" void pBiCGSTAB(
     const double max_rel_error,
     const int max_restarts) // if max_restarts == 0 defaults to normal BiCGSTAB without tricks
 {
-  if (B % 8 != 0){
-    throw;
-  }
-  std::cout << "h_x" << h_x[0] << " " << h_x[1] << h_x[2] << std::endl;
   // --------------------------------------------- Set-up streams and handles ---------------------------------------
   cudaStream_t solver_stream;
   cublasHandle_t cublas_handle;
@@ -466,6 +415,8 @@ extern "C" void pBiCGSTAB(
   // Set handles to stream
   checkCudaErrors(cublasSetStream(cublas_handle, solver_stream));
   checkCudaErrors(cusparseSetStream(cusparse_handle, solver_stream));
+
+//  checkCudaErrors(cublasSetMathMode(cublas_handle, CUBLAS_PEDANTIC_MATH));
 
 #ifdef BICGSTAB_PROFILER
   // ------------------------------------------------- Setup profiler -----------------------------------------------
@@ -551,11 +502,6 @@ extern "C" void pBiCGSTAB(
       - d_b <-> r_0, r_i, s
       - d_z <-> y, z
   */
-  
-  // Define preconditioning kernel launch configuration
-  size_t gridSz = std::min(GRID_SIZE, m / B);
-  size_t blockSz = B; 
-  size_t sharedMemSz = (B + B*B) * sizeof(double); // in bytes!
 
   // Initialize BiCGSTAB arrays and allocate memory
   double* d_rhat = NULL;
@@ -689,9 +635,7 @@ extern "C" void pBiCGSTAB(
 #ifdef BICGSTAB_PROFILER
     startProfiler(start_precondition, solver_stream);
 #endif
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_p, 1, d_z, 1)); // z <- p_i
-    preconditionVec<<<gridSz, blockSz, sharedMemSz, solver_stream>>>(m, d_P_inv, d_z); // z <- K_2^{-1}*z
-    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cublasDgemm(cublas_handle, CUBLAS_OP_T, CUBLAS_OP_N, B, m / B, B, &eye, d_P_inv, B, d_p, B, &nil, d_z, B));
 #ifdef BICGSTAB_PROFILER
     stopProfiler(elapsed_precondition, start_precondition, stop_precondition, solver_stream);
 #endif
@@ -713,7 +657,6 @@ extern "C" void pBiCGSTAB(
     double alpha_den;
     checkCudaErrors(cublasDdot(cublas_handle, m, d_rhat, 1, d_nu, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
     checkCudaErrors(cudaStreamSynchronize(solver_stream)); // sync for host division
-//    std::cout << "alpha_den: " << alpha_den << std::endl;
     alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
 
     // 7. h = alpha*z + x_{i-1}
@@ -727,9 +670,7 @@ extern "C" void pBiCGSTAB(
 #ifdef BICGSTAB_PROFILER
     startProfiler(start_precondition, solver_stream);
 #endif
-    checkCudaErrors(cublasDcopy(cublas_handle, m, d_b, 1, d_z, 1)); // z <- s
-    preconditionVec<<<gridSz, blockSz, sharedMemSz, solver_stream>>>(m, d_P_inv, d_z); // z <- K_2^{-1}*z
-    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cublasDgemm(cublas_handle, CUBLAS_OP_T, CUBLAS_OP_N, B, m / B, B, &eye, d_P_inv, B, d_b, B, &nil, d_z, B));
 #ifdef BICGSTAB_PROFILER
     stopProfiler(elapsed_precondition, start_precondition, stop_precondition, solver_stream);
 #endif
@@ -776,9 +717,6 @@ extern "C" void pBiCGSTAB(
 
     // Update *_prev values for next iteration
     rho_prev = rho_curr;
-    std::cout << "ITER: " << k << ", alpha: " << alpha << ", omega: " << omega 
-              << ", rho_curr: " << rho_curr << ", beta: " << beta 
-              << std::endl;
   }
 
   if( bConverged )

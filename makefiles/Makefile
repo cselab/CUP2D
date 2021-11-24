@@ -81,7 +81,7 @@ ifneq ($(ERROR),)
 $(error $(ERROR))
 endif
 
-all: debugRL simulation cudasimulation testBiCGSTAB testPreconditioner libcup.a cup.cflags.txt cup.libs.txt
+all: debugRL simulation cudasimulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
@@ -145,12 +145,6 @@ cuda%.o : %.cpp
 
 cudasimulation: cudamain.o $(NVOBJECTS) bicgstab.o
 	$(CXX) -DGPU_POISSON cudamain.o bicgstab.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
-
-testBiCGSTAB: bicgstab.cu testBiCGSTAB.cpp 
-	nvcc -g -G $(NVLIBS) $(NVFLAGS) ../test/testBiCGSTAB.cpp ../source/Poisson/bicgstab.cu -o $@
-
-testPreconditioner : bicgstab.cu testPreconditioner.cu
-	nvcc -g -G -D__DEBUG__ $(NVLIBS) $(NVFLAGS) ../test/testPreconditioner.cu ../source/Poisson/bicgstab.cu -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
