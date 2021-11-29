@@ -10,6 +10,7 @@
 
 using namespace cubism;
 
+#if 1
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
    static constexpr int BSX = VectorBlock::sizeX;
@@ -61,6 +62,93 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
      }
    }
 }
+#else
+void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
+{
+  const size_t Nblocks = zInfo.size();
+
+  #pragma omp parallel
+  {
+    const int nx = VectorBlock::sizeX;
+    const int ny = VectorBlock::sizeY;
+    const int nx2 = nx + 2;
+    const int ny2 = ny + 2;
+    const int N = nx*ny;
+    const int N2 = nx2*ny2;
+    std::vector<float> p (N2,0.0);
+    std::vector<float> r (N ,0.0);
+    std::vector<float> x (N ,0.0);
+    std::vector<float> Ax(N ,0.0);
+
+    #pragma omp for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+        ScalarBlock & __restrict__ b  = *(ScalarBlock*) zInfo[i].ptrBlock;
+
+	long double norm0 = 0;
+        long double rr = 0;
+        long double a2 = 0;
+        long double beta = 0;
+        for(int iy=0; iy<ny; iy++)
+        for(int ix=0; ix<nx; ix++)
+        {
+            x[ix+iy*nx] = 0.0;
+            r[ix+iy*nx] = b(ix,iy).s;
+            norm0 += r[ix+iy*nx]*r[ix+iy*nx];
+            p[(ix+1)+(iy+1)*nx2] = r[ix+iy*nx];
+            rr += r[ix+iy*nx]*r[ix+iy*nx];
+        }
+        norm0 = sqrt(norm0)/N;
+        long double norm = 0;
+        if (norm0 > 1e-16)
+        for (int k = 0 ; k < 100 ; k ++)
+        {
+            a2 = 0;
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*nx2;
+                Ax[index1] = ((p[index2 + 1] + p[index2 - 1]) + (p[index2 + nx2] + p[index2 - nx2])) - 4.0*p[index2];
+                a2 += p[index2]*Ax[index1];
+            }
+            const long double a = rr/a2;//rr/(a2+1e-55);
+            long double norm_new = 0;
+            beta = 0;
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*nx2;
+                x[index1] += a*p [index2];
+                r[index1] -= a*Ax[index1];
+                norm_new += r[index1]*r[index1];
+            }
+            beta = norm_new;
+            norm_new = sqrt(norm_new)/N;
+            norm = norm_new;
+            if (norm/norm0< 1e-7) break;
+            long double temp = rr;
+            rr = beta;
+            beta /= temp;//(temp+1e-55);
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*(nx+2);
+                p[index2] =r[index1] + beta*p[index2];
+            }
+        }
+        for(int iy=0; iy<ScalarBlock::sizeY; iy++)
+        for(int ix=0; ix<ScalarBlock::sizeX; ix++)
+        {
+            const int index1 = ix+iy*nx;
+            b(ix,iy).s = x[index1];
+        }
+    }    
+  }
+}
+#endif
 
 Real AMRSolver::getA_local(int I1,int I2)
 {
@@ -129,7 +217,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
      }
      for (int j = 0 ; j<N ; j++)
      {
-       for (int i = j ; i < N ; i++)
+       for (int i = j+1 ; i < N ; i++)
        {
          if ( abs(L[i][j]) > 1e-10 ) L_col[tid][j].push_back({i,L[i][j]});
        }
