@@ -53,9 +53,9 @@ protected:
       const int &BSY,
       const int &ix,
       const int &iy,
+      std::map<int,double> &row_map,
       cubism::BlockInfo &rhsNei,
-      EdgeHelper helper,
-      std::vector< std::map<int,double> > &row_map);
+      EdgeHelper helper);
   // Method to construct matrix row for cell on edge of block
   template<class EdgeHelper>
   void edgeBoundaryCell( // excluding corners
@@ -66,8 +66,7 @@ protected:
       const int &iy,
       const bool &isBoundary,
       cubism::BlockInfo &rhsNei,
-      EdgeHelper helper,
-      std::vector< std::map<int,double> > &row_map);
+      EdgeHelper helper);
   // Method to construct matrix row for cell on corner of block
   template<class EdgeHelper1, class EdgeHelper2>
   void cornerBoundaryCell(
@@ -81,8 +80,7 @@ protected:
       EdgeHelper1 helper1, 
       const bool &isBoundary2,
       cubism::BlockInfo &rhsNei_2,
-      EdgeHelper2 helper2,
-      std::vector< std::map<int,double> > &row_map);
+      EdgeHelper2 helper2);
   // Method to compute A and b for the current mesh
   void Get_LS();
   // Host-side variables for linear system
