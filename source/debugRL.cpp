@@ -15,9 +15,9 @@
 #define NACTIONS 2
 
 // declarations of functions defined further below
-std::vector<double> readIC( std::string filename );
-std::vector<std::vector<double>> readActions( std::string filename );
-void setInitialConditions( StefanFish *agent, std::vector<double> initialConditions );
+std::vector<Real> readIC( std::string filename );
+std::vector<std::vector<Real>> readActions( std::string filename );
+void setInitialConditions( StefanFish *agent, std::vector<Real> initialConditions );
 
 int main(int argc, char **argv)
 {
@@ -46,15 +46,15 @@ int main(int argc, char **argv)
   size_t numActions = actions.size();
 
   // Variables for time and step conditions
-  double t = 0;        // Current time
-  double dtAct;        // Time until next action
-  double tNextAct = 0; // Time of next action
+  Real t = 0;        // Current time
+  Real dtAct;        // Time until next action
+  Real tNextAct = 0; // Time of next action
 
   // Environment loop
   for( size_t a = 0; a < numActions; a++)
   {
     // Reading new action
-    std::vector<double> action = actions[a];
+    std::vector<Real> action = actions[a];
 
     // Setting action
     agent->act(t, action);
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     while ( t < tNextAct )
     {
       // Compute timestep
-      const double dt = std::min(_environment->calcMaxTimestep(), dtAct);
+      const Real dt = std::min(_environment->calcMaxTimestep(), dtAct);
       t += dt;
 
       // Advance simulation
@@ -76,11 +76,11 @@ int main(int argc, char **argv)
   delete _environment;
 }
 
-std::vector<double> readIC( std::string filename )
+std::vector<Real> readIC( std::string filename )
 {
   std::string line;
-  double tempIC;
-  std::vector<double> initialConditions;
+  Real tempIC;
+  std::vector<Real> initialConditions;
 
   std::ifstream myfile(filename);
   if( myfile.is_open() )
@@ -103,18 +103,18 @@ std::vector<double> readIC( std::string filename )
   return initialConditions;
 } 
 
-std::vector<std::vector<double>> readActions( std::string filename )
+std::vector<std::vector<Real>> readActions( std::string filename )
 {
   std::string line;
-  double tempA;
-  std::vector<std::vector<double>> actions;
+  Real tempA;
+  std::vector<std::vector<Real>> actions;
 
   std::ifstream myfile(filename);
   if( myfile.is_open() )
   {
     while( std::getline(myfile,line) )
     {
-      std::vector<double> action(NACTIONS);
+      std::vector<Real> action(NACTIONS);
       std::istringstream readingStream(line);
       while (readingStream >> tempA)
         action.push_back(tempA);
@@ -126,7 +126,7 @@ std::vector<std::vector<double>> readActions( std::string filename )
     cout << "[debugRL] Unable to open actions file, setting (0,0) for 20 actions\n";
     for( size_t i = 0; i<20; i++ )
     {
-      std::vector<double> action(2,0.0);
+      std::vector<Real> action(2,0.0);
       actions.push_back(action);
     }
   }
@@ -134,16 +134,16 @@ std::vector<std::vector<double>> readActions( std::string filename )
   return actions;
 }
 
-void setInitialConditions(StefanFish *agent, std::vector<double> initialConditions )
+void setInitialConditions(StefanFish *agent, std::vector<Real> initialConditions )
 {
   // Initial conditions
-  double initialAngle = initialConditions[0];
-  std::vector<double> initialPosition{initialConditions[1], initialConditions[2]};
+  Real initialAngle = initialConditions[0];
+  std::vector<Real> initialPosition{initialConditions[1], initialConditions[2]};
 
   printf("[debugRL] Initial Condition:\n");
-  printf("[debugRL] angle: %f\n", initialAngle);
-  printf("[debugRL] x: %f\n", initialPosition[0]);
-  printf("[debugRL] y: %f\n", initialPosition[1]);
+  printf("[debugRL] angle: %f\n", (double)initialAngle);
+  printf("[debugRL] x: %f\n", (double)initialPosition[0]);
+  printf("[debugRL] y: %f\n", (double)initialPosition[1]);
 
   // Setting initial position and orientation for the fish
   agent->setCenterOfMass(initialPosition.data());

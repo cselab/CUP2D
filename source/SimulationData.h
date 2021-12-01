@@ -33,45 +33,45 @@ struct SimulationData
   int levelStart;
 
   // refinement/compression tolerance for voriticy magnitude
-  double Rtol;
-  double Ctol;
+  Real Rtol;
+  Real Ctol;
 
   // boolean to switch between refinement according to chi or grad(chi)
   bool bAdaptChiGradient;
 
   // maximal simulation extent (direction with max(bpd))
-  double extent;
+  Real extent;
 
   // simulation extents
   std::array<Real,2> extents;
 
   // timestep / cfl condition
-  double dt;
-  double CFL;
+  Real dt;
+  Real CFL;
 
   // simulation ending parameters
   int nsteps;
-  double endTime;
+  Real endTime;
 
   // penalisation coefficient
-  double lambda;
+  Real lambda;
 
   // constant for explicit penalisation lambda=dlm/dt
-  double dlm;
+  Real dlm;
 
   // kinematic viscosity
-  double nu;
+  Real nu;
   
   // poisson solver parameters
-  double PoissonTol;    // absolute error tolerance
-  double PoissonTolRel; // relative error tolerance
+  Real PoissonTol;    // absolute error tolerance
+  Real PoissonTolRel; // relative error tolerance
   int maxPoissonRestarts; // maximal number of restarts of Poisson solver
   int maxPoissonIterations; // maximal number of iterations of Poisson solver
   bool bMeanConstraint; // regularizing the poisson equation using the mean
 
   // output setting
   int dumpFreq;
-  double dumpTime;
+  Real dumpTime;
   bool verbose;
   bool muteAll;
   std::string path4serialization;
@@ -96,7 +96,7 @@ struct SimulationData
   std::vector<Shape*> shapes;
 
   // simulation time
-  double time = 0;
+  Real time = 0;
   bool Euler = false;
 
   // simulation step
@@ -107,13 +107,13 @@ struct SimulationData
   Real uinfy = 0;
   Real uinfx_old = 0;
   Real uinfy_old = 0;
-  double dt_old;
+  Real dt_old;
 
   // largest velocity measured
-  double uMax_measured = 0;
+  Real uMax_measured = 0;
 
   // time of next dump
-  double nextDumpTime = 0;
+  Real nextDumpTime = 0;
 
   // bools specifying whether we dump or not
   bool _bDump = false;
@@ -129,8 +129,8 @@ struct SimulationData
   bool bOver() const;
 
   // minimal and maximal gridspacing possible
-  double minH;
-  double maxH;
+  Real minH;
+  Real maxH;
 
   // minimal gridspacing present on grid
   double getH()
@@ -139,9 +139,9 @@ struct SimulationData
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
-      minHGrid = std::min(infos[i].h_gridpoint, minHGrid);
+      minHGrid = std::min((Real)infos[i].h_gridpoint, minHGrid);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_DOUBLE, MPI_MIN, comm);
+    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
     return minHGrid;
   }
 

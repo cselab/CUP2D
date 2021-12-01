@@ -10,6 +10,7 @@
 
 using namespace cubism;
 
+#if 1
 void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
 {
    static constexpr int BSX = VectorBlock::sizeX;
@@ -27,7 +28,7 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
        //1. z = L^{-1}r
        for (int I = 0; I < N ; I++)
        {
-         double rhs = 0.0;
+         Real rhs = 0.0;
          for (size_t jj = 0 ; jj < L_row[tid][I].size(); jj++)
          {
            const int J = L_row[tid][I][jj].first;
@@ -42,7 +43,7 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
        //2. z = L^T{-1}r
        for (int I = N-1; I >= 0 ; I--)
        {
-         double rhs = 0.0;
+         Real rhs = 0.0;
          for (size_t jj = 0 ; jj < L_col[tid][I].size(); jj++)
          {
            const int J = L_col[tid][I][jj].first;
@@ -61,8 +62,95 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
      }
    }
 }
+#else
+void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
+{
+  const size_t Nblocks = zInfo.size();
 
-double AMRSolver::getA_local(int I1,int I2)
+  #pragma omp parallel
+  {
+    const int nx = VectorBlock::sizeX;
+    const int ny = VectorBlock::sizeY;
+    const int nx2 = nx + 2;
+    const int ny2 = ny + 2;
+    const int N = nx*ny;
+    const int N2 = nx2*ny2;
+    std::vector<float> p (N2,0.0);
+    std::vector<float> r (N ,0.0);
+    std::vector<float> x (N ,0.0);
+    std::vector<float> Ax(N ,0.0);
+
+    #pragma omp for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+        ScalarBlock & __restrict__ b  = *(ScalarBlock*) zInfo[i].ptrBlock;
+
+	long double norm0 = 0;
+        long double rr = 0;
+        long double a2 = 0;
+        long double beta = 0;
+        for(int iy=0; iy<ny; iy++)
+        for(int ix=0; ix<nx; ix++)
+        {
+            x[ix+iy*nx] = 0.0;
+            r[ix+iy*nx] = b(ix,iy).s;
+            norm0 += r[ix+iy*nx]*r[ix+iy*nx];
+            p[(ix+1)+(iy+1)*nx2] = r[ix+iy*nx];
+            rr += r[ix+iy*nx]*r[ix+iy*nx];
+        }
+        norm0 = sqrt(norm0)/N;
+        long double norm = 0;
+        if (norm0 > 1e-16)
+        for (int k = 0 ; k < 100 ; k ++)
+        {
+            a2 = 0;
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*nx2;
+                Ax[index1] = ((p[index2 + 1] + p[index2 - 1]) + (p[index2 + nx2] + p[index2 - nx2])) - 4.0*p[index2];
+                a2 += p[index2]*Ax[index1];
+            }
+            const long double a = rr/a2;//rr/(a2+1e-55);
+            long double norm_new = 0;
+            beta = 0;
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*nx2;
+                x[index1] += a*p [index2];
+                r[index1] -= a*Ax[index1];
+                norm_new += r[index1]*r[index1];
+            }
+            beta = norm_new;
+            norm_new = sqrt(norm_new)/N;
+            norm = norm_new;
+            if (norm/norm0< 1e-7) break;
+            long double temp = rr;
+            rr = beta;
+            beta /= temp;//(temp+1e-55);
+            for(int iy=0; iy<ny; iy++)
+            for(int ix=0; ix<nx; ix++)
+            {
+                const int index1 = ix+iy*nx;
+                const int index2 = (ix+1)+(iy+1)*(nx+2);
+                p[index2] =r[index1] + beta*p[index2];
+            }
+        }
+        for(int iy=0; iy<ScalarBlock::sizeY; iy++)
+        for(int ix=0; ix<ScalarBlock::sizeX; ix++)
+        {
+            const int index1 = ix+iy*nx;
+            b(ix,iy).s = x[index1];
+        }
+    }    
+  }
+}
+#endif
+
+Real AMRSolver::getA_local(int I1,int I2)
 {
    static constexpr int BSX = VectorBlock::sizeX;
    int j1 = I1 / BSX;
@@ -85,7 +173,7 @@ double AMRSolver::getA_local(int I1,int I2)
 
 AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
 {
-   std::vector<std::vector<double>> L;
+   std::vector<std::vector<Real>> L;
 
    int BSX = VectorBlock::sizeX;
    int BSY = VectorBlock::sizeY;
@@ -98,13 +186,13 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
    }
    for (int i = 0 ; i<N ; i++)
    {
-     double s1=0;
+     Real s1=0;
      for (int k=0; k<=i-1; k++)
        s1 += L[i][k]*L[i][k];
      L[i][i] = sqrt(getA_local(i,i) - s1);
      for (int j=i+1; j<N; j++)
      {
-       double s2 = 0;
+       Real s2 = 0;
        for (int k=0; k<=i-1; k++)
          s2 += L[i][k]*L[j][k];
        L[j][i] = (getA_local(j,i)-s2) / L[i][i];
@@ -129,7 +217,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
      }
      for (int j = 0 ; j<N ; j++)
      {
-       for (int i = j ; i < N ; i++)
+       for (int i = j+1 ; i < N ; i++)
        {
          if ( abs(L[i][j]) > 1e-10 ) L_col[tid][j].push_back({i,L[i][j]});
        }
@@ -158,12 +246,12 @@ void AMRSolver::solve()
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const size_t Nblocks = zInfo.size();
   const size_t N = BSX*BSY*Nblocks;
-  std::vector<double> x   (N);
-  std::vector<double> r   (N);
-  std::vector<double> p   (N,0.0); //initialize p = 0
-  std::vector<double> v   (N,0.0); //initialize v = 0
-  std::vector<double> s   (N);
-  std::vector<double> rhat(N);
+  std::vector<Real> x   (N);
+  std::vector<Real> r   (N);
+  std::vector<Real> p   (N,0.0); //initialize p = 0
+  std::vector<Real> v   (N,0.0); //initialize v = 0
+  std::vector<Real> s   (N);
+  std::vector<Real> rhat(N);
   std::vector <Real> x_opt(N);
 
 
@@ -191,9 +279,9 @@ void AMRSolver::solve()
 
   //   - (1c) We substract A*x0 from r. 
   //          Here we also set rhat = r and compute the initial guess error norm.
-  double norm = 0.0; //initial residual norm
-  double norm_opt = 0.0; //initial residual norm
-  double norm_max = 0.0;
+  Real norm = 0.0; //initial residual norm
+  Real norm_opt = 0.0; //initial residual norm
+  Real norm_max = 0.0;
   //#pragma omp parallel for reduction (+:norm)
   for (size_t i=0; i < Nblocks; i++)
   {
@@ -207,21 +295,21 @@ void AMRSolver::solve()
       norm_max = std::max(norm_max,std::fabs(r[i*BSX*BSY+iy*BSX+ix]));
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
-  MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
+  MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,m_comm);
+  MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_Real,MPI_MAX,m_comm);
   norm = std::sqrt(norm);
   norm = norm_max;
 
   //2. Set some bi-conjugate gradient parameters
-  double rho   = 1.0;
-  double alpha = 1.0;
-  double omega = 1.0;
-  const double eps = 1e-21;
-  const double max_error     = sim.step < 10 ? 0.0 : sim.PoissonTol;//* sim.uMax_measured / sim.dt;
-  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;//min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
-  double min_norm = 1e50;
-  double rho_m1;
-  double init_norm=norm;
+  Real rho   = 1.0;
+  Real alpha = 1.0;
+  Real omega = 1.0;
+  const Real eps = 1e-21;
+  const Real max_error     = sim.step < 10 ? 0.0 : sim.PoissonTol;//* sim.uMax_measured / sim.dt;
+  const Real max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;//min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  Real min_norm = 1e50;
+  Real rho_m1;
+  Real init_norm=norm;
   bool useXopt = false;
   bool serious_breakdown = false;
   int restarts = 0;
@@ -238,8 +326,8 @@ void AMRSolver::solve()
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
     rho_m1 = rho;
     rho = 0.0;
-    double norm_1 = 0.0;
-    double norm_2 = 0.0;
+    Real norm_1 = 0.0;
+    Real norm_2 = 0.0;
     norm_max = 0;
     #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
     for(size_t i=0; i< N; i++)
@@ -251,7 +339,7 @@ void AMRSolver::solve()
       norm_max = std::max(norm_max,std::fabs(r[i]));
     }
     norm = norm_max;
-    MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_DOUBLE,MPI_MAX,m_comm);
+    MPI_Allreduce(MPI_IN_PLACE,&norm_max,1,MPI_Real,MPI_MAX,m_comm);
     norm = norm_max;
     if (norm < min_norm)
     {
@@ -268,14 +356,14 @@ void AMRSolver::solve()
       bConverged = true;
       break;
     }
-    double quantities[3] = {rho,norm_1,norm_2};
-    MPI_Allreduce(MPI_IN_PLACE,&quantities,3,MPI_DOUBLE,MPI_SUM,m_comm);
+    Real quantities[3] = {rho,norm_1,norm_2};
+    MPI_Allreduce(MPI_IN_PLACE,&quantities,3,MPI_Real,MPI_SUM,m_comm);
     rho = quantities[0]; norm_1 = quantities[1] ; norm_2 = quantities[2];
 
-    double beta = rho / (rho_m1+eps) * alpha / (omega+eps);
+    Real beta = rho / (rho_m1+eps) * alpha / (omega+eps);
     norm_1 = sqrt(norm_1);
     norm_2 = sqrt(norm_2);
-    const double cosTheta = rho/norm_1/norm_2; 
+    const Real cosTheta = rho/norm_1/norm_2; 
     serious_breakdown = std::fabs(cosTheta) < 1e-8;
     if (serious_breakdown && restarts < max_restarts)
     {
@@ -289,7 +377,7 @@ void AMRSolver::solve()
           rhat[i] = r[i];
           rho += r[i]*rhat[i];
         }
-        MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_Real,MPI_SUM,m_comm);
         alpha = 1.;
         omega = 1.;
         rho_m1 = 1.;
@@ -322,7 +410,7 @@ void AMRSolver::solve()
     //10. z = K_2^{-1} s
     #pragma omp parallel
     {
-        double alpha_t = 0.0;
+        Real alpha_t = 0.0;
         #pragma omp for
         for (size_t i=0; i < Nblocks; i++)
         {
@@ -338,7 +426,7 @@ void AMRSolver::solve()
         #pragma omp atomic
         alpha += alpha_t;
     }
-    MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_DOUBLE,MPI_SUM,m_comm);
+    MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_Real,MPI_SUM,m_comm);
     alpha = rho / (alpha + eps);
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
@@ -357,8 +445,8 @@ void AMRSolver::solve()
     getZ(zInfo);
     Get_LHS(0); // t <-- Az //t stored in AxVector
     //12. omega = ...
-    double aux1 = 0;
-    double aux2 = 0;
+    Real aux1 = 0;
+    Real aux2 = 0;
     #pragma omp parallel for reduction (+:aux1,aux2)
     for (size_t i=0; i < Nblocks; i++)
     {
@@ -371,8 +459,8 @@ void AMRSolver::solve()
         aux2 += Ax(ix,iy).s * Ax(ix,iy).s;
       }
     }
-    double temp[2] = {aux1,aux2};
-    MPI_Allreduce(MPI_IN_PLACE,&temp,2,MPI_DOUBLE,MPI_SUM,m_comm);
+    Real temp[2] = {aux1,aux2};
+    MPI_Allreduce(MPI_IN_PLACE,&temp,2,MPI_Real,MPI_SUM,m_comm);
     aux1 = temp[0]; aux2 = temp[1] ;
     omega = aux1 / (aux2+eps); 
 
@@ -415,8 +503,8 @@ void AMRSolver::solve()
     for (size_t i=0; i < N; i++)
       x[i] = x_opt[i];
   }
-  double avg = 0;
-  double avg1 = 0;
+  Real avg = 0;
+  Real avg1 = 0;
   //#pragma omp parallel
   {
      //#pragma omp for reduction (+:avg,avg1)
@@ -424,7 +512,7 @@ void AMRSolver::solve()
      for(size_t i=0; i< Nblocks; i++)
      {
         ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-        const double vv = zInfo[i].h*zInfo[i].h;
+        const Real vv = zInfo[i].h*zInfo[i].h;
         for(int iy=0; iy<VectorBlock::sizeY; iy++)
         for(int ix=0; ix<VectorBlock::sizeX; ix++)
         {
@@ -436,8 +524,8 @@ void AMRSolver::solve()
      ////#pragma omp barrier
      ////#pragma omp master
      ////{
-        double quantities[2] = {avg,avg1};
-        MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_DOUBLE,MPI_SUM,m_comm);
+        Real quantities[2] = {avg,avg1};
+        MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,m_comm);
         avg = quantities[0]; avg1 = quantities[1] ;
         avg = avg/avg1;
      ////}

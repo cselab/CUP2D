@@ -18,7 +18,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
 namespace {
 
-void ComputeJ(const double * Rc, const double * R, const double * N, const double * I, double *J)
+void ComputeJ(const Real * Rc, const Real * R, const Real * N, const Real * I, Real *J)
 {
     //Invert I
     const Real m00 = 1.0; //I[0]; //set to these values for 2D!
@@ -41,50 +41,50 @@ void ComputeJ(const double * Rc, const double * R, const double * N, const doubl
     a12 *= determinant;
     a22 *= determinant;
 
-    const double aux_0 = ( Rc[1] - R[1] )*N[2] - ( Rc[2] - R[2] )*N[1];
-    const double aux_1 = ( Rc[2] - R[2] )*N[0] - ( Rc[0] - R[0] )*N[2];
-    const double aux_2 = ( Rc[0] - R[0] )*N[1] - ( Rc[1] - R[1] )*N[0];
+    const Real aux_0 = ( Rc[1] - R[1] )*N[2] - ( Rc[2] - R[2] )*N[1];
+    const Real aux_1 = ( Rc[2] - R[2] )*N[0] - ( Rc[0] - R[0] )*N[2];
+    const Real aux_2 = ( Rc[0] - R[0] )*N[1] - ( Rc[1] - R[1] )*N[0];
     J[0] = a00*aux_0 + a01*aux_1 + a02*aux_2;
     J[1] = a01*aux_0 + a11*aux_1 + a12*aux_2;
     J[2] = a02*aux_0 + a12*aux_1 + a22*aux_2;
 }
 
 
-void ElasticCollision (const double  m1,const double  m2,
-                       const double *I1,const double *I2,
-                       const double *v1,const double *v2,
-                       const double *o1,const double *o2,
-                       double *hv1,double *hv2,
-                       double *ho1,double *ho2,
-                       const double *C1,const double *C2,
-                       const double  NX,const double  NY,const double NZ,
-                       const double  CX,const double  CY,const double CZ,
-                       double *vc1,double *vc2)
+void ElasticCollision (const Real  m1,const Real  m2,
+                       const Real *I1,const Real *I2,
+                       const Real *v1,const Real *v2,
+                       const Real *o1,const Real *o2,
+                       Real *hv1,Real *hv2,
+                       Real *ho1,Real *ho2,
+                       const Real *C1,const Real *C2,
+                       const Real  NX,const Real  NY,const Real NZ,
+                       const Real  CX,const Real  CY,const Real CZ,
+                       Real *vc1,Real *vc2)
 {
-    const double e = 1.0; // coefficient of restitution
-    const double N[3] ={NX,NY,NZ};
-    const double C[3] ={CX,CY,CZ};
+    const Real e = 1.0; // coefficient of restitution
+    const Real N[3] ={NX,NY,NZ};
+    const Real C[3] ={CX,CY,CZ};
 
-    const double k1[3] = { N[0]/m1, N[1]/m1, N[2]/m1};
-    const double k2[3] = {-N[0]/m2,-N[1]/m2,-N[2]/m2};
-    double J1[3];
-    double J2[3]; 
+    const Real k1[3] = { N[0]/m1, N[1]/m1, N[2]/m1};
+    const Real k2[3] = {-N[0]/m2,-N[1]/m2,-N[2]/m2};
+    Real J1[3];
+    Real J2[3]; 
     ComputeJ(C,C1,N,I1,J1);
     ComputeJ(C,C2,N,I2,J2);
     J2[0] = -J2[0];
     J2[1] = -J2[1];
     J2[2] = -J2[2];
 
-    double u1DEF[3];
+    Real u1DEF[3];
     u1DEF[0] = vc1[0] - v1[0] - ( o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]) );
     u1DEF[1] = vc1[1] - v1[1] - ( o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]) );
     u1DEF[2] = vc1[2] - v1[2] - ( o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]) );
-    double u2DEF[3];
+    Real u2DEF[3];
     u2DEF[0] = vc2[0] - v2[0] - ( o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]) );
     u2DEF[1] = vc2[1] - v2[1] - ( o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) );
     u2DEF[2] = vc2[2] - v2[2] - ( o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) );
 
-    const double nom = e*( (vc1[0]-vc2[0])*N[0] + 
+    const Real nom = e*( (vc1[0]-vc2[0])*N[0] + 
                            (vc1[1]-vc2[1])*N[1] + 
                            (vc1[2]-vc2[2])*N[2] )
                        + ( (v1[0]-v2[0] + u1DEF[0] - u2DEF[0] )*N[0] + 
@@ -97,14 +97,14 @@ void ElasticCollision (const double  m1,const double  m2,
                      (o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) )* N[1]+
                      (o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) )* N[2]);
 
-    const double denom = -(1.0/m1+1.0/m2) + 
+    const Real denom = -(1.0/m1+1.0/m2) + 
                +( ( J1[1]*(C[2]-C1[2]) - J1[2]*(C[1]-C1[1]) ) *(-N[0])+
                   ( J1[2]*(C[0]-C1[0]) - J1[0]*(C[2]-C1[2]) ) *(-N[1])+
                   ( J1[0]*(C[1]-C1[1]) - J1[1]*(C[0]-C1[0]) ) *(-N[2]))
                -( ( J2[1]*(C[2]-C2[2]) - J2[2]*(C[1]-C2[1]) ) *(-N[0])+
                   ( J2[2]*(C[0]-C2[0]) - J2[0]*(C[2]-C2[2]) ) *(-N[1])+
                   ( J2[0]*(C[1]-C2[1]) - J2[1]*(C[0]-C2[0]) ) *(-N[2]));
-    const double impulse = nom/(denom+1e-21);
+    const Real impulse = nom/(denom+1e-21);
     hv1[0] = v1[0] + k1[0]*impulse;
     hv1[1] = v1[1] + k1[1]*impulse;
     hv1[2] = v1[2] + k1[2]*impulse;
@@ -189,7 +189,7 @@ struct pressureCorrectionKernel
   }
 };
 
-void PressureSingle::pressureCorrection(const double dt)
+void PressureSingle::pressureCorrection(const Real dt)
 {
   const pressureCorrectionKernel K(sim);
   compute<pressureCorrectionKernel,ScalarGrid,ScalarLab,VectorGrid>(K,*sim.pres,true,sim.tmpV);
@@ -217,13 +217,13 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
   const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0];
   const Real Cy = shape->centerOfMass[1];
-  double PM=0, PJ=0, PX=0, PY=0, UM=0, VM=0, AM=0; //linear momenta
+  Real PM=0, PJ=0, PX=0, PY=0, UM=0, VM=0, AM=0; //linear momenta
 
   #pragma omp parallel for reduction(+:PM,PJ,PX,PY,UM,VM,AM)
   for(size_t i=0; i<Nblocks; i++)
   {
     const VectorBlock& __restrict__ VEL = *(VectorBlock*)velInfo[i].ptrBlock;
-    const double hsq = velInfo[i].h*velInfo[i].h;
+    const Real hsq = velInfo[i].h*velInfo[i].h;
 
     if(OBLOCK[velInfo[i].blockID] == nullptr) continue;
     const CHI_MAT & __restrict__ rho = OBLOCK[velInfo[i].blockID]->rho;
@@ -246,7 +246,7 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
         const Real Xlamdt = chi[iy][ix] * lambdt;
         const Real F = hsq * rho[iy][ix] * Xlamdt / (1 + Xlamdt);
       #endif
-      double p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
+      Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
       PM += F;
       PJ += F * (p[0]*p[0] + p[1]*p[1]);
       PX += F * p[0];  PY += F * p[1];
@@ -254,8 +254,8 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
       AM += F * (p[0]*udiff[1] - p[1]*udiff[0]);
     }
   }
-  double quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  Real quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
   PM = quantities[0]; 
   PJ = quantities[1]; 
   PX = quantities[2]; 
@@ -268,7 +268,7 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
   shape->penalDX=PX; shape->penalDY=PY; shape->penalM=PM; shape->penalJ=PJ;
 }
 
-void PressureSingle::penalize(const double dt) const
+void PressureSingle::penalize(const Real dt) const
 {
   std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
 
@@ -540,7 +540,7 @@ void PressureSingle::preventCollidingObstacles() const
     };
     std::vector<CollisionInfo> collisions(N);
 
-    std::vector <double> n_vec(3*N,0.0);
+    std::vector <Real> n_vec(3*N,0.0);
 
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i<N; ++i)
@@ -659,7 +659,7 @@ void PressureSingle::preventCollidingObstacles() const
         }
     }
 
-    std::vector<double> buffer(20*N); //CollisionInfo holds 20 doubles
+    std::vector<Real> buffer(20*N); //CollisionInfo holds 20 Reals
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -685,7 +685,7 @@ void PressureSingle::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getCartComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -716,16 +716,16 @@ void PressureSingle::preventCollidingObstacles() const
     for (size_t j=i+1; j<N; ++j)
     {
         if (i==j) continue;
-        const double m1 = shapes[i]->M;
-        const double m2 = shapes[j]->M;
-        const double v1[3]={shapes[i]->u,shapes[i]->v,0.0};
-        const double v2[3]={shapes[j]->u,shapes[j]->v,0.0};
-        const double o1[3]={0,0,shapes[i]->omega};
-        const double o2[3]={0,0,shapes[j]->omega};
-        const double C1[3]={shapes[i]->centerOfMass[0],shapes[i]->centerOfMass[1],0};
-        const double C2[3]={shapes[j]->centerOfMass[0],shapes[j]->centerOfMass[1],0};
-        const double I1[6]={1.0,0,0,0,0,shapes[i]->J};
-        const double I2[6]={1.0,0,0,0,0,shapes[j]->J};
+        const Real m1 = shapes[i]->M;
+        const Real m2 = shapes[j]->M;
+        const Real v1[3]={shapes[i]->u,shapes[i]->v,0.0};
+        const Real v2[3]={shapes[j]->u,shapes[j]->v,0.0};
+        const Real o1[3]={0,0,shapes[i]->omega};
+        const Real o2[3]={0,0,shapes[j]->omega};
+        const Real C1[3]={shapes[i]->centerOfMass[0],shapes[i]->centerOfMass[1],0};
+        const Real C2[3]={shapes[j]->centerOfMass[0],shapes[j]->centerOfMass[1],0};
+        const Real I1[6]={1.0,0,0,0,0,shapes[i]->J};
+        const Real I2[6]={1.0,0,0,0,0,shapes[j]->J};
 
         auto & coll       = collisions[i];
         auto & coll_other = collisions[j];
@@ -750,10 +750,10 @@ void PressureSingle::preventCollidingObstacles() const
             MPI_Abort(sim.chi->getCartComm(),1);
         }
 
-        double ho1[3];
-        double ho2[3];
-        double hv1[3];
-        double hv2[3];
+        Real ho1[3];
+        Real ho2[3];
+        Real hv1[3];
+        Real hv2[3];
 
         //1. Compute collision normal vector (NX,NY,NZ)
         const Real norm_i = std::sqrt(coll.ivecX*coll.ivecX + coll.ivecY*coll.ivecY + coll.ivecZ*coll.ivecZ);
@@ -773,8 +773,8 @@ void PressureSingle::preventCollidingObstacles() const
         const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
         const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
 
-        /*const*/ double vc1[3] = {coll.iMomX/coll.iM, coll.iMomY/coll.iM, coll.iMomZ/coll.iM};
-        /*const*/ double vc2[3] = {coll.jMomX/coll.jM, coll.jMomY/coll.jM, coll.jMomZ/coll.jM};
+        /*const*/ Real vc1[3] = {coll.iMomX/coll.iM, coll.iMomY/coll.iM, coll.iMomZ/coll.iM};
+        /*const*/ Real vc2[3] = {coll.jMomX/coll.jM, coll.jMomY/coll.jM, coll.jMomZ/coll.jM};
 
 
         if(projVel<=0) continue; // vel goes away from collision: no need to bounce
@@ -830,7 +830,7 @@ void PressureSingle::preventCollidingObstacles() const
 }
 
 
-void PressureSingle::operator()(const double dt)
+void PressureSingle::operator()(const Real dt)
 {
   sim.startProfiler("Pressure");
   const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
@@ -838,7 +838,7 @@ void PressureSingle::operator()(const double dt)
   const size_t Nblocks = velInfo.size();
 
   //TODO: replace this kkk with a proper index!
-  std::vector<double> correction (Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
+  std::vector<Real> correction (Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
   size_t kkk = 0;
   if (sim.step > 10)
   for (size_t i=0; i < Nblocks; i++)
@@ -848,7 +848,7 @@ void PressureSingle::operator()(const double dt)
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      const double dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
+      const Real dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
       correction[kkk] = dpdt*sim.dt;
       kkk ++;
     }

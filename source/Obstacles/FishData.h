@@ -54,7 +54,7 @@ struct FishData
 
   // thus Nend enforced to be divisible by 4
   const int Nend = (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  const double dSref = fracRefined * length * 2 / Nend - dSmid;
+  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
 
   const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
 
@@ -138,8 +138,8 @@ struct FishData
   void surfaceToCOMFrame(const Real theta_internal,
                          const Real CoM_internal[2]) const;
   void surfaceToComputationalFrame(const Real theta_comp,
-                                   const double CoM_interpolated[2]) const;
-  void computeSkinNormals(const Real theta_comp, const double CoM_comp[3]) const;
+                                   const Real CoM_interpolated[2]) const;
+  void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
   void writeMidline2File(const int step_id, std::string filename);
 
   virtual void computeMidline(const Real time, const Real dt) = 0;
@@ -162,7 +162,7 @@ struct AreaSegment
   c{ (bb[0][1]+bb[0][0])/2,        (bb[1][1]+bb[1][0])/2 }
   { assert(w[0]>0); assert(w[1]>0); }
 
-  void changeToComputationalFrame(const double position[2], const Real angle);
+  void changeToComputationalFrame(const Real position[2], const Real angle);
   bool isIntersectingWithAABB(const Real start[2],const Real end[2]) const;
 };
 
@@ -199,7 +199,7 @@ struct PutFishOnBlocks
     x[1]=Rmatrix2D[0][1]*p[0] + Rmatrix2D[1][1]*p[1];
   }
 
-  PutFishOnBlocks(const FishData& cf, const double pos[2],
+  PutFishOnBlocks(const FishData& cf, const Real pos[2],
     const Real ang): cfish(cf), position{(Real)pos[0],(Real)pos[1]}, angle(ang) { }
   virtual ~PutFishOnBlocks() {}
 

@@ -29,25 +29,25 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     //// in the case of the windmill we have 3 ellipses that are not centered at 0
 
     // center of ellipse 1 wrt to center of windmill,at T=0
-    double center_orig1[2] = {smajax/2, -(smajax/2)*std::tan(M_PI/6)};
+    Real center_orig1[2] = {smajax/2, -(smajax/2)*std::tan(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
+    Real center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
     FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
 
     // center of ellipse 2 wrt to center of windmill,at T=0
-    double center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
+    Real center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
     // center of ellipse 1 wrt to origin
-    double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
+    Real center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
     FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
 
     // center of ellipse 3 wrt to center of windmill,at T=0
-    double center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
+    Real center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
+    Real center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
     FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
@@ -85,12 +85,12 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
   #endif
 }
 
-void Windmill::updateVelocity(double dt)
+void Windmill::updateVelocity(Real dt)
 {
   Shape::updateVelocity(dt);
 }
 
-void Windmill::updatePosition(double dt)
+void Windmill::updatePosition(Real dt)
 {
   Shape::updatePosition(dt);
 
@@ -113,8 +113,8 @@ void Windmill::printVelAtTarget()
     std::stringstream & fout = logger.get_stream(ssF.str());
 
     // compute average
-    std::vector<double>  avg = average(target);
-    double norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
+    std::vector<Real>  avg = average(target);
+    Real norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
 
     fout<<sim.time<<" "<<norm<<std::endl;
     fout.flush();
@@ -158,7 +158,7 @@ void Windmill::printValues()
 
 
 
-void Windmill::act( double action )
+void Windmill::act( Real action )
 {
   // dimensionful applied torque from dimensionless action, divide by second squared
   // windscale is around 0.15, lengthscale is around 0.0375, so action is multiplied by around 16
@@ -168,11 +168,11 @@ void Windmill::act( double action )
   printValues();
 }
 
-double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
+Real Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
 {
   // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  // double r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
-  // double r_energy = -C * appliedTorque*appliedTorque*omega*omega*sim.dt;
+  // Real r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
+  // Real r_energy = -C * appliedTorque*appliedTorque*omega*omega*sim.dt;
   // need characteristic energy
   //r_energy /= (lengthscale*windscale);
   Real r_energy = C*energy;
@@ -201,13 +201,13 @@ double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
     printNanRewards(false, r_flow);
   }
 
-  //double r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
+  //Real r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
   //need characteristic speed
   //r_flow /= windscale;
 
-  // double r_flow = 0;
+  // Real r_flow = 0;
 
-  printf("Energy_reward: %f \n Flow_reward: %f \n", r_energy, r_flow);
+  printf("Energy_reward: %f \n Flow_reward: %f \n", (double)r_energy, (double)r_flow);
 
   printRewards(r_energy, r_flow);
   printVelAtTarget();
@@ -219,10 +219,10 @@ double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
 }
 
 
-std::vector<double>  Windmill::state()
+std::vector<Real>  Windmill::state()
 {
   // intitialize state vector
-  std::vector<double> state(2);
+  std::vector<Real> state(2);
 
   // angle
   state[0] = orientation;
@@ -238,7 +238,8 @@ std::vector<double>  Windmill::state()
 /* helpers to compute reward */
 
 // average function
-std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
+//std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
+std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
 {
   #if 0
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
@@ -264,8 +265,8 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
   VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
   vellab.load(sensBinfo, 0); VectorLab & __restrict__ V = vellab;
 
-  double avgX=0.0;
-  double avgY=0.0;
+  Real avgX=0.0;
+  Real avgY=0.0;
 
   // average velocity in a cube of 11 points per direction around the point of interest (5 on each side)
   for (ssize_t i = -5; i < 6; ++i)
@@ -280,9 +281,10 @@ std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
   avgX/=121.0;
   avgY/=121.0;
   #endif
-  double avgX = 0;
-  double avgY = 0;
-  return std::vector<double> {avgX, avgY};
+  Real avgX = 0;
+  Real avgY = 0;
+  //return std::vector<Real> {avgX, avgY};
+  return std::vector<Real> {avgX, avgY};
 }
 
 // function that finds block id of block containing pos (x,y)
@@ -310,7 +312,7 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
       return i;
     }
   }
-  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", pos[0], pos[1]);
+  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", (double)pos[0], (double)pos[1]);
   fflush(0); abort();
   return 0;
 };

@@ -206,7 +206,7 @@ void Simulation::createShapes()
       // Comments and empty lines ignored:
       if(objectName.empty() or objectName[0]=='#') continue;
       FactoryFileLineParser ffparser(line_stream);
-      double center[2] = {
+      Real center[2] = {
         ffparser("-xpos").asDouble(.5*sim.extents[0]),
         ffparser("-ypos").asDouble(.5*sim.extents[1])
       };
@@ -306,28 +306,28 @@ void Simulation::simulate() { if(sim.rank == 0) { std::cout
 	std::cout << "[CUP2D] Starting Simulation..." << std::endl; } while (1)
 	{
     // sim.startProfiler("DT");
-    const double dt = calcMaxTimestep();
+    const Real dt = calcMaxTimestep();
     // sim.stopProfiler();
     if (advance(dt)) break; } }
 
-double Simulation::calcMaxTimestep()
+Real Simulation::calcMaxTimestep()
 {
   sim.dt_old = sim.dt;
-  double CFL = sim.CFL;
-  const double h = sim.getH();
+  Real CFL = sim.CFL;
+  const Real h = sim.getH();
   const auto findMaxU_op = findMaxU(sim);
   sim.uMax_measured = findMaxU_op.run();
 
   if( CFL > 0 )
   {
-    const double dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
-    const double dtAdvection = h / ( sim.uMax_measured + 1e-8 );
+    const Real dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
+    const Real dtAdvection = h / ( sim.uMax_measured + 1e-8 );
     // ramp up CFL
     const int rampup = 100;
     if (sim.step < rampup)
     {
-      const double x = (sim.step + 1.0)/rampup;
-      const double rampupFactor = std::exp(std::log(1e-3)*(1-x));
+      const Real x = (sim.step + 1.0)/rampup;
+      const Real rampupFactor = std::exp(std::log(1e-3)*(1-x));
       sim.dt = rampupFactor*std::min({ dtDiffusion, CFL * dtAdvection});
     }
     else //if (sim.time < 0.5)
@@ -336,7 +336,7 @@ double Simulation::calcMaxTimestep()
     }
     //else 
     //{
-    //  const double CFL_ramp = (sim.time < 1.5) ? (0.1-sim.CFL)*(sim.time-0.5) + sim.CFL : 0.1;
+    //  const Real CFL_ramp = (sim.time < 1.5) ? (0.1-sim.CFL)*(sim.time-0.5) + sim.CFL : 0.1;
     //  sim.dt = std::min({dtDiffusion, CFL_ramp * dtAdvection});
     //}
   }
@@ -351,17 +351,17 @@ double Simulation::calcMaxTimestep()
   return sim.dt;
 }
 
-bool Simulation::advance(const double dt)
+bool Simulation::advance(const Real dt)
 {
   MPI_Barrier(sim.comm);
 
-  const double CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
+  const Real CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   if (sim.rank == 0)
   {
     std::cout
   <<"=======================================================================\n";
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, sim.time, dt, sim.uinfx, sim.uinfy, sim.uMax_measured, CFL); 
+      sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
   }
 
   assert(dt>2.2e-16);
@@ -385,7 +385,7 @@ bool Simulation::advance(const double dt)
 
   // // For debuging state function SMARTCYLINDER
   // SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
-  // std::vector<double> target{0.8,0.5};
+  // std::vector<Real> target{0.8,0.5};
   // auto state = agent->state( target );
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
   // std::cout << "[CUP2D] Computed state:" << std::endl;
@@ -397,14 +397,14 @@ bool Simulation::advance(const double dt)
   // // For debugging reward function for windmills
   // Windmill *agent = dynamic_cast<Windmill *>(getShapes()[1]);
   // // J = 2.9e-6
-  // double upper_bound_act = 1e-5;
+  // Real upper_bound_act = 1e-5;
   // std::uniform_real_distribution dist(0.0, upper_bound_act);
   // std::default_random_engine rd;
   // agent->act(dist(rd)); // put torque on the windmill
   // std::array<Real, 2> target{0.4,0.5};
-  // std::vector<double> target_vel{0.0,0.0};
-  // double C = 1e8;
-  // double r = agent->reward(target, target_vel, C);
+  // std::vector<Real> target_vel{0.0,0.0};
+  // Real C = 1e8;
+  // Real r = agent->reward(target, target_vel, C);
 
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
   // std::cout << "[CUP2D] Computed reward:" << std::endl;

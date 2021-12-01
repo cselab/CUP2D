@@ -10,35 +10,35 @@
 class CStartFish: public Fish
 {
 public:
-    void act(const Real lTact, const std::vector<double>& a) const;
-    void actCStart(const Real lTact, const std::vector<double>& a) const;
-    void actTurn(const Real lTact, const std::vector<double>& a) const;
-    void setTarget(double desiredTarget[2]) const;
-    void getTarget(double outTarget[2]) const;
-//    void actSimple(const Real lTact, const std::vector<double>& a) const;
-//    void actModulate(const Real lTact, const std::vector<double>& a) const;
-    double getPrep() const;
+    void act(const Real lTact, const std::vector<Real>& a) const;
+    void actCStart(const Real lTact, const std::vector<Real>& a) const;
+    void actTurn(const Real lTact, const std::vector<Real>& a) const;
+    void setTarget(Real desiredTarget[2]) const;
+    void getTarget(Real outTarget[2]) const;
+//    void actSimple(const Real lTact, const std::vector<Real>& a) const;
+//    void actModulate(const Real lTact, const std::vector<Real>& a) const;
+    Real getPrep() const;
 
     void resetAll() override;
-    CStartFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
+    CStartFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
     void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
     // member functions for state/reward
-    std::vector<double> stateEscape() const;
-    std::vector<double> stateSequentialEscape() const;
-    std::vector<double> stateEscapeTradeoff() const;
-    std::vector<double> stateEscapeVariableEnergy() const;
-    std::vector<double> stateTarget() const;
-    std::vector<double> stateCStart() const;
-    double getRadialDisplacement() const;
-    double getDistanceFromTarget() const;
-    double getTimeNextAct() const;
-    void setEnergyExpended(const double setEnergyExpended);
-    void setDistanceTprop(const double distanceTprop);
-    double getDistanceTprop() const;
-    void setVirtualOrigin(const double vo[2]);
-    void setEnergyBudget(const double baselineEnergy);
-    double getEnergyBudget() const;
-    double getEnergyExpended() const;
-    double getPolarAngle() const;
+    std::vector<Real> stateEscape() const;
+    std::vector<Real> stateSequentialEscape() const;
+    std::vector<Real> stateEscapeTradeoff() const;
+    std::vector<Real> stateEscapeVariableEnergy() const;
+    std::vector<Real> stateTarget() const;
+    std::vector<Real> stateCStart() const;
+    Real getRadialDisplacement() const;
+    Real getDistanceFromTarget() const;
+    Real getTimeNextAct() const;
+    void setEnergyExpended(const Real setEnergyExpended);
+    void setDistanceTprop(const Real distanceTprop);
+    Real getDistanceTprop() const;
+    void setVirtualOrigin(const Real vo[2]);
+    void setEnergyBudget(const Real baselineEnergy);
+    Real getEnergyBudget() const;
+    Real getEnergyExpended() const;
+    Real getPolarAngle() const;
 };

@@ -42,7 +42,7 @@ class IC : public Operator
   public:
   IC(SimulationData& s) : Operator(s) { }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName() {
     return "IC";
@@ -54,7 +54,7 @@ class ApplyObjVel : public Operator
   public:
   ApplyObjVel(SimulationData& s) : Operator(s) { }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName() {
     return "ApplyObjVel";
@@ -69,7 +69,7 @@ struct KernelVorticity
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0,1}};
   void operator()(VectorLab & lab, const cubism::BlockInfo& info) const
   {
-    const double i2h = 0.5/info.h;
+    const Real i2h = 0.5/info.h;
     auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
     for(int y=0; y<VectorBlock::sizeY; ++y)
     for(int x=0; x<VectorBlock::sizeX; ++x)
@@ -82,12 +82,12 @@ class computeVorticity : public Operator
  public:
   computeVorticity(SimulationData& s) : Operator(s){ }
 
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
     const KernelVorticity mykernel(sim);
     compute<KernelVorticity,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
-    double maxv = -1e10;
-    double minv = -1e10;
+    Real maxv = -1e10;
+    Real minv = -1e10;
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
@@ -98,9 +98,9 @@ class computeVorticity : public Operator
         minv = std::max(minv,-TMP(x,y).s);
       }
     }
-    double buffer[2] = {maxv,minv};
-    double recvbuf[2];
-    MPI_Reduce(buffer,recvbuf, 2, MPI_DOUBLE, MPI_MAX, 0, sim.chi->getCartComm());
+    Real buffer[2] = {maxv,minv};
+    Real recvbuf[2];
+    MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getCartComm());
     recvbuf[1]=-recvbuf[1];
     if (sim.rank == 0)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;

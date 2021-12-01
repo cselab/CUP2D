@@ -17,7 +17,7 @@ class Naca: public Fish
 
  public:
 
-  Naca(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
-  void updateVelocity(double dt) override;
-  void updateLabVelocity( int mSum[2], double uSum[2] ) override;
+  Naca(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
+  void updateVelocity(Real dt) override;
+  void updateLabVelocity( int mSum[2], Real uSum[2] ) override;
 };

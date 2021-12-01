@@ -15,7 +15,7 @@ class ComputeForces : public Operator
   const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
 
 public:
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   ComputeForces(SimulationData& s);
   ~ComputeForces() {}

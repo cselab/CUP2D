@@ -16,16 +16,16 @@ class StefanFish: public Fish
   const bool bCorrectTrajectory;
   const bool bCorrectPosition;
  public:
-  void act(const Real lTact, const std::vector<double>& a) const;
-  double getLearnTPeriod() const;
-  double getPhase(const double t) const;
+  void act(const Real lTact, const std::vector<Real>& a) const;
+  Real getLearnTPeriod() const;
+  Real getPhase(const Real t) const;
 
   void resetAll() override;
-  StefanFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
+  StefanFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
   // member functions for state in RL
-  std::vector<double> state() const;
+  std::vector<Real> state() const;
 
   // Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;

@@ -33,8 +33,8 @@ public:
   void init();
   void startObstacles();
   void simulate();
-  double calcMaxTimestep();
-  bool advance(const double DT);
+  Real calcMaxTimestep();
+  bool advance(const Real DT);
 
   const std::vector<Shape*>& getShapes() { return sim.shapes; }
 };

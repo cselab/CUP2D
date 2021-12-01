@@ -13,12 +13,12 @@ using namespace cubism;
 
 //#define EXPL_INTEGRATE_MOM
 
-static constexpr double EPS = std::numeric_limits<double>::epsilon();
+static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getMinRhoS() const { return rhoS; }
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u*u + v*v); }
 
-void Shape::updateVelocity(double dt)
+void Shape::updateVelocity(Real dt)
 {
   #ifdef EXPL_INTEGRATE_MOM
   if(not bForcedx  || sim.time > timeForced) 
@@ -28,15 +28,16 @@ void Shape::updateVelocity(double dt)
   if(not bBlockang || sim.time > timeForced)
     omega = ( fluidAngMom + dt * appliedTorque ) / penalJ;
   #else  
+  //A and b need to be declared as double (not Real)
   double A[3][3] = {
-    {   penalM,       0, -penalDY },
-    {        0,  penalM,  penalDX },
-    { -penalDY, penalDX,  penalJ  }
+    { (double)  penalM, (double)      0, (double) -penalDY },
+    { (double)       0, (double) penalM, (double)  penalDX },
+    { (double)-penalDY, (double)penalDX, (double)  penalJ  }
   };
   double b[3] = {
-    fluidMomX   + dt * appliedForceX,
-    fluidMomY   + dt * appliedForceY,
-    fluidAngMom + dt * appliedTorque
+    (double) (fluidMomX   + dt * appliedForceX),
+    (double) (fluidMomY   + dt * appliedForceY),
+    (double) (fluidAngMom + dt * appliedTorque)
   };
   
   if(bForcedx && sim.time < timeForced) {
@@ -63,13 +64,13 @@ void Shape::updateVelocity(double dt)
   #endif
 }
 
-void Shape::updateLabVelocity( int nSum[2], double uSum[2] )
+void Shape::updateLabVelocity( int nSum[2], Real uSum[2] )
 {
   if(bFixedx) { (nSum[0])++; uSum[0] -= u; }
   if(bFixedy) { (nSum[1])++; uSum[1] -= v; }
 }
 
-void Shape::updatePosition(double dt)
+void Shape::updatePosition(Real dt)
 {
   // Remember, uinf is -ubox, therefore we sum it to u body to get
   // velocity of shapre relative to the sim box
@@ -82,7 +83,7 @@ void Shape::updatePosition(double dt)
   orientation = orientation> M_PI ? orientation-2*M_PI : orientation;
   orientation = orientation<-M_PI ? orientation+2*M_PI : orientation;
 
-  const double cosang = std::cos(orientation), sinang = std::sin(orientation);
+  const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
 
   center[0] = centerOfMass[0] + cosang*d_gm[0] - sinang*d_gm[1];
   center[1] = centerOfMass[1] + sinang*d_gm[0] + cosang*d_gm[1];
@@ -96,7 +97,7 @@ void Shape::updatePosition(double dt)
   if(not sim.muteAll && sim.rank == 0)
   {
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
-        " M:%.02e J:%.02e\n", cx, cy, center[0], center[1], angle, u, v, omega, M, J);
+        " M:%.02e J:%.02e\n", (double)cx, (double)cy, (double)center[0], (double)center[1], (double)angle, (double)u, (double)v, (double)omega, (double)M, (double)J);
     std::stringstream ssF;
     ssF<<sim.path2file<<"/velocity_"<<obstacleID<<".dat";
     std::stringstream & fout = logger.get_stream(ssF.str());
@@ -111,11 +112,11 @@ void Shape::updatePosition(double dt)
 
 Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
 {
-  double _x=0, _y=0, _m=0, _j=0, _u=0, _v=0, _a=0;
+  Real _x=0, _y=0, _m=0, _j=0, _u=0, _v=0, _a=0;
   #pragma omp parallel for schedule(dynamic,1) reduction(+:_x,_y,_m,_j,_u,_v,_a)
   for(size_t i=0; i<vInfo.size(); i++)
   {
-    const double hsq = std::pow(vInfo[i].h_gridpoint, 2);
+    const Real hsq = std::pow(vInfo[i].h_gridpoint, 2);
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if(pos == nullptr) continue;
     const CHI_MAT & __restrict__ CHI = pos->chi;
@@ -125,9 +126,9 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
     for(int ix=0; ix<ObstacleBlock::sizeX; ++ix)
     {
       if (CHI[iy][ix] <= 0) continue;
-      double p[2];
+      Real p[2];
       vInfo[i].pos(p, ix, iy);
-      const double rhochi = CHI[iy][ix] * RHO[iy][ix] * hsq;
+      const Real rhochi = CHI[iy][ix] * RHO[iy][ix] * hsq;
       p[0] -= centerOfMass[0];
       p[1] -= centerOfMass[1];
       _x += rhochi*p[0];
@@ -139,8 +140,8 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
       _a += rhochi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
     }
   }
-  double quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  Real quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
   _x = quantities[0];
   _y = quantities[1];
   _m = quantities[2];
@@ -161,8 +162,8 @@ void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
 
   //with current center put shape on grid, with current shape on grid we updated
   //the center of mass, now recompute the distance betweeen the two:
-  const double dCx = center[0]-centerOfMass[0];
-  const double dCy = center[1]-centerOfMass[1];
+  const Real dCx = center[0]-centerOfMass[0];
+  const Real dCy = center[1]-centerOfMass[1];
   d_gm[0] =  dCx*std::cos(orientation) +dCy*std::sin(orientation);
   d_gm[1] = -dCx*std::sin(orientation) +dCy*std::cos(orientation);
 
@@ -175,7 +176,7 @@ void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
 
     for(int iy=0; iy<ObstacleBlock::sizeY; ++iy)
     for(int ix=0; ix<ObstacleBlock::sizeX; ++ix) {
-        double p[2];
+        Real p[2];
         vInfo[i].pos(p, ix, iy);
         p[0] -= centerOfMass[0];
         p[1] -= centerOfMass[1];
@@ -189,8 +190,8 @@ void Shape::diagnostics()
 {
   /*
   const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const double hsq = std::pow(vInfo[0].h_gridpoint, 2);
-  double _a=0, _m=0, _x=0, _y=0, _t=0;
+  const Real hsq = std::pow(vInfo[0].h_gridpoint, 2);
+  Real _a=0, _m=0, _x=0, _y=0, _t=0;
   #pragma omp parallel for schedule(dynamic) reduction(+:_a,_m,_x,_y,_t)
   for(size_t i=0; i<vInfo.size(); i++) {
       const auto pos = obstacleBlocks[vInfo[i].blockID];
@@ -200,14 +201,14 @@ void Shape::diagnostics()
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         if (pos->chi[iy][ix] <= 0) continue;
-        const double Xs = pos->chi[iy][ix] * hsq;
-        double p[2];
+        const Real Xs = pos->chi[iy][ix] * hsq;
+        Real p[2];
         vInfo[i].pos(p, ix, iy);
         p[0] -= centerOfMass[0];
         p[1] -= centerOfMass[1];
         const Real*const udef = pos->udef[iy][ix];
-        const double uDiff = b(ix,iy).u - (u -omega*p[1] +udef[0]);
-        const double vDiff = b(ix,iy).v - (v +omega*p[0] +udef[1]);
+        const Real uDiff = b(ix,iy).u - (u -omega*p[1] +udef[0]);
+        const Real vDiff = b(ix,iy).v - (v +omega*p[0] +udef[1]);
         _a += Xs;
         _m += Xs;
         _x += uDiff*Xs;
@@ -245,7 +246,7 @@ void Shape::computeForces()
     defPowerBnd += block->defPowerBnd;
     PoutBnd += block->PoutBnd;        defPower += block->defPower;
   }
-  double quantities[19];
+  Real quantities[19];
   quantities[ 0] = circulation;
   quantities[ 1] = perimeter  ;
   quantities[ 2] = forcex     ;
@@ -265,7 +266,7 @@ void Shape::computeForces()
   quantities[16] = thrust     ;
   quantities[17] = defPowerBnd;
   quantities[18] = defPower   ;
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM, sim.chi->getCartComm());
   circulation = quantities[ 0];
   perimeter   = quantities[ 1];
   forcex      = quantities[ 2];
@@ -289,8 +290,8 @@ void Shape::computeForces()
   //derived quantities:
   Pthrust    = thrust * std::sqrt(u*u + v*v);
   Pdrag      =   drag * std::sqrt(u*u + v*v);
-  const double denUnb = Pthrust- std::min(defPower, (double)0);
-  const double demBnd = Pthrust-          defPowerBnd;
+  const Real denUnb = Pthrust- std::min(defPower, (Real)0);
+  const Real demBnd = Pthrust-          defPowerBnd;
   EffPDef    = Pthrust/std::max(denUnb, EPS);
   EffPDefBnd = Pthrust/std::max(demBnd, EPS);
 
@@ -340,7 +341,7 @@ void Shape::computeForces()
   }
 }
 
-Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
+Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   sim(s), origC{C[0],C[1]}, origAng( p("-angle").asDouble(0)*M_PI/180 ),
   center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),
   rhoS(      p("-rhoS").asDouble(1) ),
@@ -355,7 +356,7 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, double C[2] ) :
   forcedv(  -p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)),
   bDumpSurface(p("-dumpSurf").asInt(0)),
-  timeForced(p("-timeForced").asDouble(std::numeric_limits<double>::max()))
+  timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max()))
   {}
 
 Shape::~Shape()

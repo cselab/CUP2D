@@ -548,7 +548,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     std::vector<std::array<Real, Npoints>> timeActivatedVec_coarse;
     std::vector<std::array<Real, Npoints>> muscSignalVec_coarse;
     std::vector<std::array<Real, Npoints>> dMuscSignalVec_coarse;
-    std::vector<double> amplitudeVec;
+    std::vector<Real> amplitudeVec;
 
 
     virtual void resetAll()
@@ -578,8 +578,8 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
 
             // Delete spikes that are no longer relevant
             for (int i=0;i<numActiveSpikes;i++) {
-                const double relaxationTime = (Npoints + 1) * tau1 + tau2;
-                const double activeSpikeTime = t-timeActivatedVec_coarse.at(i).at(0);
+                const Real relaxationTime = (Npoints + 1) * tau1 + tau2;
+                const Real activeSpikeTime = t-timeActivatedVec_coarse.at(i).at(0);
                 if (activeSpikeTime >= relaxationTime) {
                     numActiveSpikes -= 1;
                     this->neuroSignalVec_coarse.erase(neuroSignalVec_coarse.begin() + i);
@@ -605,12 +605,12 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
     }
 
 
-    void advanceCoarseArrays(const double time_current) {
+    void advanceCoarseArrays(const Real time_current) {
 //        printf("[numActiveSpikes][%d]\n", numActiveSpikes);
-        const double delta_t = time_current - this->prevTime;
+        const Real delta_t = time_current - this->prevTime;
         for (int i = 0; i < numActiveSpikes; i++) {
             for (int j = 0; j < Npoints; j++) {
-                const double deltaT = time_current - this->timeActivatedVec_coarse.at(i).at(j);
+                const Real deltaT = time_current - this->timeActivatedVec_coarse.at(i).at(j);
                 if (deltaT >= 0) {
 //                    printf("[i=%d][j=%d]\n", i, j);
                     // Activate current node but don't switch off previous one.
@@ -618,7 +618,7 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints>
                         this->neuroSignalVec_coarse.at(i).at(j) = this->neuroSignalVec_coarse.at(i)[j - 1];
                     }
                     // Begin the muscle response at the new node.
-                    const double dBiExp = -1 / this->tau2 * std::exp(-deltaT / this->tau2) +
+                    const Real dBiExp = -1 / this->tau2 * std::exp(-deltaT / this->tau2) +
                                           1 / this->tau1 * std::exp(-deltaT / this->tau1);
 
                     this->dMuscSignalVec_coarse.at(i).at(j) = this->neuroSignalVec_coarse.at(i).at(j) * dBiExp;
@@ -684,23 +684,23 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints>
     }
 
 
-    void advance(const double t)
+    void advance(const Real t)
     {
         oscillation.advance(t);
         for (int i=0; i<Npoints; i++) {
 //            printf("[Scheduler][advance]\n");
-            const double oscAmp = oscillation.signal_out.at(i);
-            printf("[Scheduler][advance] signal_i %f\n", oscillation.signal.at(i));
+            const Real oscAmp = oscillation.signal_out.at(i);
+            printf("[Scheduler][advance] signal_i %f\n", (double)oscillation.signal.at(i));
 //            printf("[Scheduler][advance] oscAmp_i %f\n", oscAmp);
             if (oscAmp != 0) {synapses.at(i).excite(t, oscAmp);}
             synapses.at(i).advance(t);
             muscle_value.at(i) = synapses.at(i).value();
             muscle_speed.at(i) = synapses.at(i).speed();
 
-            if (i==0) {printf("[Scheduler][advance] muscle_value_0 %f\n", muscle_value.at(0));}
+            if (i==0) {printf("[Scheduler][advance] muscle_value_0 %f\n", (double)muscle_value.at(0));}
 //            if (i==0) {printf("[Scheduler][advance] synapse_0 amplitude %f\n", synapses.at(0).activationAmplitudes.at(0));}
             if (i==0) {printf("[Scheduler][advance] synapse_0 numActivations %ld\n", synapses.at(0).activationAmplitudes.size());}
-            if (i==10) {printf("[Scheduler][advance] muscle_value_10 %f\n", muscle_value.at(10));}
+            if (i==10) {printf("[Scheduler][advance] muscle_value_10 %f\n", (double)muscle_value.at(10));}
 //            if (i==9) {printf("[Scheduler][advance] synapse_9 amplitude %f\n", synapses.at(9).activationAmplitudes.at(0));}
             if (i==10) {printf("[Scheduler][advance] synapse_10 numActivations %ld\n", synapses.at(10).activationAmplitudes.size());}
 

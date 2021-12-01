@@ -17,7 +17,7 @@ class advDiff : public Operator
  public:
   advDiff(SimulationData& s) : Operator(s) { }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName()
   {

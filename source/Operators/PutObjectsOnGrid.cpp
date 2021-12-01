@@ -10,7 +10,7 @@
 
 using namespace cubism;
 
-static constexpr double EPS = std::numeric_limits<double>::epsilon();
+static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
 struct ComputeSurfaceNormals
 {
@@ -26,18 +26,18 @@ struct ComputeSurfaceNormals
       if(OBLOCK[infoChi.blockID] == nullptr) continue; //obst not in block
       const Real h = infoChi.h;
       ObstacleBlock& o = * OBLOCK[infoChi.blockID];
-      const double i2h = 0.5/h;
-      const double fac = 0.5*h;
+      const Real i2h = 0.5/h;
+      const Real fac = 0.5*h;
       for(int iy=0; iy<ScalarBlock::sizeY; iy++)
       for(int ix=0; ix<ScalarBlock::sizeX; ix++)
       {
-          const double gradHX = labChi(ix+1,iy).s-labChi(ix-1,iy).s;
-          const double gradHY = labChi(ix,iy+1).s-labChi(ix,iy-1).s;
+          const Real gradHX = labChi(ix+1,iy).s-labChi(ix-1,iy).s;
+          const Real gradHY = labChi(ix,iy+1).s-labChi(ix,iy-1).s;
           if (gradHX*gradHX + gradHY*gradHY < 1e-12) continue;
-          const double gradUX = i2h*(labSDF(ix+1,iy).s-labSDF(ix-1,iy).s);
-          const double gradUY = i2h*(labSDF(ix,iy+1).s-labSDF(ix,iy-1).s);
-          const double gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-          const double D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
+          const Real gradUX = i2h*(labSDF(ix+1,iy).s-labSDF(ix-1,iy).s);
+          const Real gradUY = i2h*(labSDF(ix,iy+1).s-labSDF(ix,iy-1).s);
+          const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+          const Real D = fac*(gradHX*gradUX + gradHY*gradUY)/gradUSq;
           if (std::fabs(D) > EPS) o.write(ix, iy, D, gradUX, gradUY);
       }
       o.allocate_surface();
@@ -78,26 +78,26 @@ struct PutChiOnGrid
         }
         else
         {
-          const double distPx = lab(ix+1,iy).s;
-          const double distMx = lab(ix-1,iy).s;
-          const double distPy = lab(ix,iy+1).s;
-          const double distMy = lab(ix,iy-1).s;
-          const double IplusX = std::max(0.0,distPx);
-          const double IminuX = std::max(0.0,distMx);
-          const double IplusY = std::max(0.0,distPy);
-          const double IminuY = std::max(0.0,distMy);
-          const double gradIX = IplusX-IminuX;
-          const double gradIY = IplusY-IminuY;
-          const double gradUX = distPx-distMx;
-          const double gradUY = distPy-distMy;
-          const double gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+          const Real distPx = lab(ix+1,iy).s;
+          const Real distMx = lab(ix-1,iy).s;
+          const Real distPy = lab(ix,iy+1).s;
+          const Real distMy = lab(ix,iy-1).s;
+          const Real IplusX = std::max((Real)0.0,distPx);
+          const Real IminuX = std::max((Real)0.0,distMx);
+          const Real IplusY = std::max((Real)0.0,distPy);
+          const Real IminuY = std::max((Real)0.0,distMy);
+          const Real gradIX = IplusX-IminuX;
+          const Real gradIY = IplusY-IminuY;
+          const Real gradUX = distPx-distMx;
+          const Real gradUY = distPy-distMy;
+          const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
         #endif
         CHI(ix,iy).s = std::max(CHI(ix,iy).s,X[iy][ix]);
         if(X[iy][ix] > 0)
         {
-          double p[2];
+          Real p[2];
           info.pos(p, ix, iy);
           o.COM_x += X[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
           o.COM_y += X[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
@@ -132,7 +132,7 @@ void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
   }
 }
 
-void PutObjectsOnGrid::operator()(const double dt)
+void PutObjectsOnGrid::operator()(const Real dt)
 {
   sim.startProfiler("PutObjectsGrid");
 
@@ -149,7 +149,7 @@ void PutObjectsOnGrid::operator()(const double dt)
 
   // 2. Update object position
   // Update laboratory frame of reference
-  int nSum[2] = {0, 0}; double uSum[2] = {0, 0};
+  int nSum[2] = {0, 0}; Real uSum[2] = {0, 0};
   for(Shape * const shape : sim.shapes) 
     shape->updateLabVelocity(nSum, uSum);
   if(nSum[0]>0) {sim.uinfx_old = sim.uinfx; sim.uinfx = uSum[0]/nSum[0];}
@@ -160,12 +160,12 @@ void PutObjectsOnGrid::operator()(const double dt)
     shape->updatePosition(dt);
 
     // .. and check if shape is outside the simulation domain
-    double p[2] = {0,0};
+    Real p[2] = {0,0};
     shape->getCentroid(p);
     const auto& extent = sim.extents;
     if (p[0]<0 || p[0]>extent[0] || p[1]<0 || p[1]>extent[1]) {
       printf("[CUP2D] ABORT: Body out of domain [0,%f]x[0,%f] CM:[%e,%e]\n",
-        extent[0], extent[1], p[0], p[1]);
+        (double)extent[0], (double)extent[1], (double)p[0], (double)p[1]);
       fflush(0);
       abort();
     }
@@ -182,7 +182,7 @@ void PutObjectsOnGrid::operator()(const double dt)
   compute<ComputeSurfaceNormals,ScalarGrid,ScalarLab,ScalarGrid,ScalarLab>(K1,*sim.chi,*sim.tmp);
   for(const auto& shape : sim.shapes)
   {
-    double com[3] = {0.0, 0.0, 0.0};
+    Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
     #pragma omp parallel for reduction(+ : com[:3])
     for (size_t i=0; i<OBLOCK.size(); i++)
@@ -192,7 +192,7 @@ void PutObjectsOnGrid::operator()(const double dt)
       com[1] += OBLOCK[i]->COM_x;
       com[2] += OBLOCK[i]->COM_y;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_DOUBLE,MPI_SUM, sim.chi->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
     shape->M = com[0];
     shape->centerOfMass[0] += com[1]/com[0];
     shape->centerOfMass[1] += com[2]/com[0];

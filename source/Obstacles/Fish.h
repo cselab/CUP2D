@@ -21,7 +21,7 @@ class Fish: public Shape
 
   FishData * myFish = nullptr;
   //void apply_pid_corrections();
-  Fish(SimulationData&s, cubism::ArgumentParser&p, double C[2]) : Shape(s,p,C),
+  Fish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]) : Shape(s,p,C),
   length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
   phaseShift(p("-phi").asDouble(0))  {}
   virtual ~Fish() override;

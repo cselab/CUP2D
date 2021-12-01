@@ -16,7 +16,7 @@ void StefanFish::resetAll() {
   Fish::resetAll();
 }
 
-StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, double C[2]):
+StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, Real C[2]):
  Fish(s,p,C), bCorrectTrajectory(p("-pid").asInt(0)),
  bCorrectPosition(p("-pidpos").asInt(0))
 {
@@ -72,34 +72,34 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
   {
     CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
     if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-    const double DT = sim.dt/Tperiod;//, time = sim.time;
+    const Real DT = sim.dt/Tperiod;//, time = sim.time;
     // Control pos diffs
-    const double   xDiff = (centerOfMass[0] - origC[0])/length;
-    const double   yDiff = (centerOfMass[1] - origC[1])/length;
-    const double angDiff =  orientation     - origAng;
-    const double relU = (u + sim.uinfx) / length;
-    const double relV = (v + sim.uinfy) / length;
-    const double angVel = omega, lastAngVel = cFish->lastAvel;
+    const Real   xDiff = (centerOfMass[0] - origC[0])/length;
+    const Real   yDiff = (centerOfMass[1] - origC[1])/length;
+    const Real angDiff =  orientation     - origAng;
+    const Real relU = (u + sim.uinfx) / length;
+    const Real relV = (v + sim.uinfy) / length;
+    const Real angVel = omega, lastAngVel = cFish->lastAvel;
     // compute ang vel at t - 1/2 dt such that we have a better derivative:
-    const double aVelMidP = (angVel + lastAngVel)*Tperiod/2;
-    const double aVelDiff = (angVel - lastAngVel)*Tperiod/sim.dt;
+    const Real aVelMidP = (angVel + lastAngVel)*Tperiod/2;
+    const Real aVelDiff = (angVel - lastAngVel)*Tperiod/sim.dt;
     cFish->lastAvel = angVel; // store for next time
 
     // derivatives of following 2 exponential averages:
-    const double velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel;
-    const double velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
-    const double velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
+    const Real velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel;
+    const Real velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
+    const Real velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
     // exponential averages
     cFish->avgDangle = (1.0 -DT) * cFish->avgDangle +    DT * angDiff;
     cFish->avgDeltaY = (1.0 -DT) * cFish->avgDeltaY +    DT *   yDiff;
     // faster average:
     cFish->avgAngVel = (1-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP;
-    const double avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
+    const Real avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
 
     // integral (averaged) and proportional absolute DY and their derivative
-    const double absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
-    const double velAbsPy =     yDiff>0 ? relV     : -relV;
-    const double velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
+    const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
+    const Real velAbsPy =     yDiff>0 ? relV     : -relV;
+    const Real velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
     assert(origAng<2e-16 && "TODO: rotate pos and vel to fish POV to enable \
                              PID to work even for non-zero angles");
 
@@ -107,28 +107,28 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
     {
       //If angle is positive: positive curvature only if Dy<0 (must go up)
       //If angle is negative: negative curvature only if Dy>0 (must go down)
-      const double IangPdy = (avgDangle *     yDiff < 0)? avgDangle * absPy : 0;
-      const double PangIdy = (angDiff   * avgDeltaY < 0)? angDiff   * absIy : 0;
-      const double IangIdy = (avgDangle * avgDeltaY < 0)? avgDangle * absIy : 0;
+      const Real IangPdy = (avgDangle *     yDiff < 0)? avgDangle * absPy : 0;
+      const Real PangIdy = (angDiff   * avgDeltaY < 0)? angDiff   * absIy : 0;
+      const Real IangIdy = (avgDangle * avgDeltaY < 0)? avgDangle * absIy : 0;
 
       // derivatives multiplied by 0 when term is inactive later:
-      const double velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
-      const double velPangIdy = velAbsIy * angDiff   + absIy * angVel;
-      const double velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
+      const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
+      const Real velPangIdy = velAbsIy * angDiff   + absIy * angVel;
+      const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
 
       //zero also the derivatives when appropriate
-      const double coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
-      const double coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
-      const double coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
+      const Real coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
+      const Real coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
+      const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
 
-      const double valIangPdy = coefIangPdy *    IangPdy;
-      const double difIangPdy = coefIangPdy * velIangPdy;
-      const double valPangIdy = coefPangIdy *    PangIdy;
-      const double difPangIdy = coefPangIdy * velPangIdy;
-      const double valIangIdy = coefIangIdy *    IangIdy;
-      const double difIangIdy = coefIangIdy * velIangIdy;
-      const double periodFac = 1.0 - xDiff;
-      const double periodVel =     - relU;
+      const Real valIangPdy = coefIangPdy *    IangPdy;
+      const Real difIangPdy = coefIangPdy * velIangPdy;
+      const Real valPangIdy = coefPangIdy *    PangIdy;
+      const Real difPangIdy = coefPangIdy * velPangIdy;
+      const Real valIangIdy = coefIangIdy *    IangIdy;
+      const Real difIangIdy = coefIangIdy * velIangIdy;
+      const Real periodFac = 1.0 - xDiff;
+      const Real periodVel =     - relU;
 #if 0
       if(not sim.muteAll) {
         std::ofstream filePID;
@@ -141,8 +141,8 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
                      <<" "<<periodFac <<" "<<periodVel <<"\n";
       }
 #endif
-      const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
-      const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
+      const Real totalTerm = valIangPdy + valPangIdy + valIangIdy;
+      const Real totalDiff = difIangPdy + difPangIdy + difIangIdy;
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
       cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
     }
@@ -150,13 +150,13 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
     // therefore we control the average angle but not the Y disp (which is 0)
     else if (bCorrectTrajectory && sim.dt>0)
     {
-      const double avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
-      const double absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
+      const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
+      const Real absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
       const Real coefInst = angDiff*avgAngVel>0 ? 0.01 : 1, coefAvg = 0.1;
       const Real termInst = angDiff*absAngVel;
       const Real diffInst = angDiff*absAvelDiff + angVel*absAngVel;
-      const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
-      const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
+      const Real totalTerm = coefInst*termInst + coefAvg*avgDangle;
+      const Real totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
 #if 0
       if(not sim.muteAll) {
@@ -174,33 +174,33 @@ void StefanFish::create(const std::vector<BlockInfo>& vInfo)
   Fish::create(vInfo);
 }
 
-void StefanFish::act(const Real t_rlAction, const std::vector<double>& a) const
+void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   cFish->execute(sim.time, t_rlAction, a);
 }
 
-double StefanFish::getLearnTPeriod() const
+Real StefanFish::getLearnTPeriod() const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   return cFish->periodPIDval;
 }
 
-double StefanFish::getPhase(const double t) const
+Real StefanFish::getPhase(const Real t) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  const double T0 = cFish->time0;
-  const double Ts = cFish->timeshift;
-  const double Tp = cFish->periodPIDval;
-  const double arg  = 2*M_PI*((t-T0)/Tp +Ts) + M_PI*phaseShift;
-  const double phase = std::fmod(arg, 2*M_PI);
+  const Real T0 = cFish->time0;
+  const Real Ts = cFish->timeshift;
+  const Real Tp = cFish->periodPIDval;
+  const Real arg  = 2*M_PI*((t-T0)/Tp +Ts) + M_PI*phaseShift;
+  const Real phase = std::fmod(arg, 2*M_PI);
   return (phase<0) ? 2*M_PI + phase : phase;
 }
 
-std::vector<double> StefanFish::state() const
+std::vector<Real> StefanFish::state() const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  std::vector<double> S(10,0);
+  std::vector<Real> S(10,0);
   S[0] = ( center[0] - origC[0] )/ length;
   S[1] = ( center[1] - origC[1] )/ length;
   S[2] = getOrientation();
@@ -331,7 +331,7 @@ std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const
 std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const
 {
   // Buffer to broadcast velcities and gridspacing
-  double velocityH[3] = {0.0, 0.0, 0.0};
+  Real velocityH[3] = {0.0, 0.0, 0.0};
 
   // 1. Compute surface velocity on surface
   // get blockId of surface
@@ -378,13 +378,13 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   #endif
 
   // Allreduce to Bcast surface velocity
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
 
   // Assign skin velocities and grid-spacing
-  const double uSkin = velocityH[0];
-  const double vSkin = velocityH[1];
-  const double h     = velocityH[2];
-  const double invh = 1/h;
+  const Real uSkin = velocityH[0];
+  const Real vSkin = velocityH[1];
+  const Real h     = velocityH[2];
+  const Real invh = 1/h;
 
   // Reset buffer to 0
   velocityH[0] = 0.0; velocityH[1] = 0.0; velocityH[2] = 0.0;
@@ -418,11 +418,11 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   }
 
   // Allreduce to Bcast flow velocity
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_DOUBLE, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
 
   // Assign lifted skin velocities
-  const double uLifted = velocityH[0];
-  const double vLifted = velocityH[1];
+  const Real uLifted = velocityH[0];
+  const Real vLifted = velocityH[1];
 
   // return shear
   return std::array<Real, 2>{{(uLifted - uSkin) * invh,

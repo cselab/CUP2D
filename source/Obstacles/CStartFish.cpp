@@ -53,17 +53,17 @@ public:
     bool firstAction = true;
 
     // Time for next action
-    double t_next = 0.0;
+    Real t_next = 0.0;
 
     // Target location
-    double target[2] = {0.0, 0.0};
+    Real target[2] = {0.0, 0.0};
 
     // Virtual origin
-    double virtualOrigin[2] = {0.5, 0.5};
+    Real virtualOrigin[2] = {0.5, 0.5};
 
     // Energy expended
-    double energyExpended = 0.0;
-    double energyBudget = 0.0;
+    Real energyExpended = 0.0;
+    Real energyBudget = 0.0;
 
     // Dump time
     Real nextDump = 0.0;
@@ -156,7 +156,7 @@ public:
         FishData::resetAll();
     }
 
-    void schedule(const Real t_current, const std::vector<double>&a)
+    void schedule(const Real t_current, const std::vector<Real>&a)
     {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
@@ -185,7 +185,7 @@ public:
         lastPhiUndulatory = a[8];
 
         // RL agent should output normalized curvature values as actions.
-        double curvatureFactor = 1.0 / this->length;
+        Real curvatureFactor = 1.0 / this->length;
 
         // Define the agent-prescribed curvature values
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -210,11 +210,11 @@ public:
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
 
         if (firstAction) {
-            printf("FIRST ACTION %f\n", lastPhiUndulatory);
+            printf("FIRST ACTION %f\n", (double)lastPhiUndulatory);
             phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, lastPhiUndulatory);
             firstAction = false;
         } else {
-            printf("Next action %f\n", lastPhiUndulatory);
+            printf("Next action %f\n", (double)lastPhiUndulatory);
             phiScheduler.transition(t_current, t_current, this->t_next, lastPhiUndulatory, useCurrentDerivative);
         }
 
@@ -239,7 +239,7 @@ public:
 //        printf("t_next is: %f/n", this->t_next);
     }
 
-    void scheduleCStart(const Real t_current, const std::vector<double>&a)
+    void scheduleCStart(const Real t_current, const std::vector<Real>&a)
     {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
@@ -264,7 +264,7 @@ public:
         lastTau = a[6];
 
         // RL agent should output normalized curvature values as actions.
-        double curvatureFactor = 1.0 / this->length;
+        Real curvatureFactor = 1.0 / this->length;
 
         // Define the agent-prescribed curvature values
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -277,9 +277,9 @@ public:
         };
 
         // Using the agent-prescribed action duration get the final time of the prescribed action
-        const double duration1 = 0.7 * this->Tperiod;
-        const double duration2 = this->Tperiod;
-        double actionDuration = 0.0;
+        const Real duration1 = 0.7 * this->Tperiod;
+        const Real duration2 = this->Tperiod;
+        Real actionDuration = 0.0;
         if (t_current < duration1){
             actionDuration = duration1;
             this->t_next = t_current + actionDuration;
@@ -296,11 +296,11 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, lastTau, useCurrentDerivative);
 
-        printf("\nAction duration is: %f\n", actionDuration);
-        printf("t_next is: %f\n", this->t_next);
-        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", t_current, t_next, lastB3, lastB4, lastB5);
-        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", t_current, t_next, lastK3, lastK4, lastK5);
-        printf("Scheduled a transition between %f and %f to tau %f\n", t_current, t_next, lastTau);
+        printf("\nAction duration is: %f\n", (double)actionDuration);
+        printf("t_next is: %f\n", (double)this->t_next);
+        printf("Scheduled a transition between %f and %f to baseline curvatures %f, %f, %f\n", (double)t_current, (double)t_next, (double)lastB3, (double)lastB4, (double)lastB5);
+        printf("Scheduled a transition between %f and %f to undulatory curvatures %f, %f, %f\n", (double)t_current, (double)t_next, (double)lastK3, (double)lastK4, (double)lastK5);
+        printf("Scheduled a transition between %f and %f to tau %f\n", (double)t_current, (double)t_next, (double)lastTau);
     }
 
     ~ControlledCurvatureFish() override {
@@ -330,270 +330,270 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
 //    // 2.43 (2.43) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.394378, -2.583142, -1.678619, -0.955955, -1.064813, -1.925944, 0.443542, 0.232105, 0.489527};
+//        std::vector<Real> a{-4.394378, -2.583142, -1.678619, -0.955955, -1.064813, -1.925944, 0.443542, 0.232105, 0.489527};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.362384 && act2){
-//        std::vector<double> a{-2.485280, -2.338090, -2.242998, -3.490950, -2.925883, -3.385765, 0.375721, 0.164584, 0.662246};
+//        std::vector<Real> a{-2.485280, -2.338090, -2.242998, -3.490950, -2.925883, -3.385765, 0.375721, 0.164584, 0.662246};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.362384+0.342525 ) && act3){
-//        std::vector<double> a{-1.556780, -1.454230, -3.299322, -0.947089, -1.671784, -4.202114, 0.568120, 0.291511, 0.467864};
+//        std::vector<Real> a{-1.556780, -1.454230, -3.299322, -0.947089, -1.671784, -4.202114, 0.568120, 0.291511, 0.467864};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.362384+0.342525  +0.379856 ) && act4){
-//        std::vector<double> a{-1.768546, -1.909876, -3.160618, -3.372401, -3.015401, -3.804584, 0.429210, 0.210001, 0.546459};
+//        std::vector<Real> a{-1.768546, -1.909876, -3.160618, -3.372401, -3.015401, -3.804584, 0.429210, 0.210001, 0.546459};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.362384+0.342525  +0.379856  +0.355883 ) && act5){
-//        std::vector<double> a{-2.432865, -2.854739, -3.499387, -2.548434, -2.434035, -3.313599, 0.505750, 0.344945, 0.467138};
+//        std::vector<Real> a{-2.432865, -2.854739, -3.499387, -2.548434, -2.434035, -3.313599, 0.505750, 0.344945, 0.467138};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 4.60 (4.46) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.501705, -3.187968, -1.854891, -1.047240, -1.004203, -1.631981, 0.481264, 0.196833, 0.517757};
+//        std::vector<Real> a{-4.501705, -3.187968, -1.854891, -1.047240, -1.004203, -1.631981, 0.481264, 0.196833, 0.517757};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.352010 && act2){
-//        std::vector<double> a{-2.756316, -2.709547, -1.935662, -4.053762, -2.921679, -2.575511, 0.289008, 0.129697, 0.726307};
+//        std::vector<Real> a{-2.756316, -2.709547, -1.935662, -4.053762, -2.921679, -2.575511, 0.289008, 0.129697, 0.726307};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.352010+0.332264 ) && act3){
-//        std::vector<double> a{-1.638049, -1.108426, -2.624121, -1.167477, -1.611290, -4.138656, 0.586663, 0.296912, 0.443818};
+//        std::vector<Real> a{-1.638049, -1.108426, -2.624121, -1.167477, -1.611290, -4.138656, 0.586663, 0.296912, 0.443818};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.352010+0.332264  +0.381445 ) && act4){
-//        std::vector<double> a{-1.377286, -1.182907, -2.838169, -3.562582, -2.742909, -3.281147, 0.485458, 0.269470, 0.582267};
+//        std::vector<Real> a{-1.377286, -1.182907, -2.838169, -3.562582, -2.742909, -3.281147, 0.485458, 0.269470, 0.582267};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.352010+0.332264  +0.381445  +0.373374 ) && act5){
-//        std::vector<double> a{-2.900758, -2.963751, -3.068763, -3.405851, -2.479450, -3.010067, 0.508307, 0.347674, 0.452785};
+//        std::vector<Real> a{-2.900758, -2.963751, -3.068763, -3.405851, -2.479450, -3.010067, 0.508307, 0.347674, 0.452785};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 6.76 (6.52) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.585289, -3.687300, -2.015811, -1.126492, -0.961738, -1.414174, 0.512743, 0.169850, 0.541472};
+//        std::vector<Real> a{-4.585289, -3.687300, -2.015811, -1.126492, -0.961738, -1.414174, 0.512743, 0.169850, 0.541472};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.344073 && act2){
-//        std::vector<double> a{-3.003033, -2.964232, -1.752716, -4.584373, -2.963824, -2.046727, 0.243175, 0.110393, 0.753060};
+//        std::vector<Real> a{-3.003033, -2.964232, -1.752716, -4.584373, -2.963824, -2.046727, 0.243175, 0.110393, 0.753060};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.344073+0.326586 ) && act3){
-//        std::vector<double> a{-1.597985, -0.925536, -2.412679, -1.314756, -1.622079, -4.078839, 0.601689, 0.315822, 0.399234};
+//        std::vector<Real> a{-1.597985, -0.925536, -2.412679, -1.314756, -1.622079, -4.078839, 0.601689, 0.315822, 0.399234};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.344073+0.326586  +0.387006 ) && act4){
-//        std::vector<double> a{-1.290073, -0.978738, -2.566674, -3.555598, -2.595279, -2.967997, 0.521687, 0.276598, 0.597619};
+//        std::vector<Real> a{-1.290073, -0.978738, -2.566674, -3.555598, -2.595279, -2.967997, 0.521687, 0.276598, 0.597619};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.344073+0.326586  +0.387006  +0.375470 ) && act5){
-//        std::vector<double> a{-3.073839, -3.003205, -2.826751, -3.870952, -2.643668, -2.919011, 0.496321, 0.363866, 0.477231};
+//        std::vector<Real> a{-3.073839, -3.003205, -2.826751, -3.870952, -2.643668, -2.919011, 0.496321, 0.363866, 0.477231};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 8.92 (8.63) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.631036, -3.965183, -2.125765, -1.172344, -0.942524, -1.273069, 0.532867, 0.149158, 0.556593};
+//        std::vector<Real> a{-4.631036, -3.965183, -2.125765, -1.172344, -0.942524, -1.273069, 0.532867, 0.149158, 0.556593};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.337988 && act2){
-//        std::vector<double> a{-3.196996, -3.078392, -1.673658, -4.997335, -3.095449, -1.776184, 0.213846, 0.097741, 0.769822};
+//        std::vector<Real> a{-3.196996, -3.078392, -1.673658, -4.997335, -3.095449, -1.776184, 0.213846, 0.097741, 0.769822};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.337988+ 0.322865) && act3){
-//        std::vector<double> a{-1.607076, -0.850258, -2.341231, -1.436818, -1.631797, -3.979139, 0.601293, 0.320120, 0.374928};
+//        std::vector<Real> a{-1.607076, -0.850258, -2.341231, -1.436818, -1.631797, -3.979139, 0.601293, 0.320120, 0.374928};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.337988+0.322865  + 0.388271) && act4){
-//        std::vector<double> a{-1.223661, -0.879590, -2.385597, -3.710325, -2.581477, -2.784000, 0.515169, 0.261528, 0.618091};
+//        std::vector<Real> a{-1.223661, -0.879590, -2.385597, -3.710325, -2.581477, -2.784000, 0.515169, 0.261528, 0.618091};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.337988+0.322865  + 0.388271 +0.371038 ) && act5){
-//        std::vector<double> a{-3.027528, -2.960710, -2.698337, -3.973508, -2.710399, -2.852488, 0.482810, 0.358837, 0.491252};
+//        std::vector<Real> a{-3.027528, -2.960710, -2.698337, -3.973508, -2.710399, -2.852488, 0.482810, 0.358837, 0.491252};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 11.08 (10.86) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.654859, -4.076202, -2.180449, -1.187806, -0.939436, -1.174666, 0.545970, 0.131844, 0.563827};
+//        std::vector<Real> a{-4.654859, -4.076202, -2.180449, -1.187806, -0.939436, -1.174666, 0.545970, 0.131844, 0.563827};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.332895 && act2){
-//        std::vector<double> a{-3.316472, -3.124565, -1.651551, -5.262369, -3.253724, -1.647494, 0.192940, 0.090957, 0.783653};
+//        std::vector<Real> a{-3.316472, -3.124565, -1.651551, -5.262369, -3.253724, -1.647494, 0.192940, 0.090957, 0.783653};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.332895+0.320870 ) && act3){
-//        std::vector<double> a{-1.626424, -0.827613, -2.316539, -1.546340, -1.647769, -3.846736, 0.597161, 0.316748, 0.365782};
+//        std::vector<Real> a{-1.626424, -0.827613, -2.316539, -1.546340, -1.647769, -3.846736, 0.597161, 0.316748, 0.365782};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.332895+0.320870  +0.387279 ) && act4){
-//        std::vector<double> a{-1.162392, -0.819409, -2.285829, -3.925021, -2.639759, -2.648756, 0.496513, 0.246885, 0.641182};
+//        std::vector<Real> a{-1.162392, -0.819409, -2.285829, -3.925021, -2.639759, -2.648756, 0.496513, 0.246885, 0.641182};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.332895 +0.320870  +0.387279  +0.366731 ) && act5){
-//        std::vector<double> a{-2.947716, -2.930931, -2.639388, -3.999925, -2.733923, -2.798701, 0.472590, 0.349387, 0.498743};
+//        std::vector<Real> a{-2.947716, -2.930931, -2.639388, -3.999925, -2.733923, -2.798701, 0.472590, 0.349387, 0.498743};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 13.25 (12.89) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.669092, -4.091029, -2.199815, -1.180366, -0.946546, -1.099139, 0.557086, 0.117021, 0.564826};
+//        std::vector<Real> a{-4.669092, -4.091029, -2.199815, -1.180366, -0.946546, -1.099139, 0.557086, 0.117021, 0.564826};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.328536 && act2){
-//        std::vector<double> a{-3.400822, -3.138930, -1.636164, -5.450703, -3.434716, -1.576357, 0.174830, 0.085556, 0.796697};
+//        std::vector<Real> a{-3.400822, -3.138930, -1.636164, -5.450703, -3.434716, -1.576357, 0.174830, 0.085556, 0.796697};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.328536+ 0.319281) && act3){
-//        std::vector<double> a{-1.634065, -0.824726, -2.326143, -1.616123, -1.677073, -3.704563, 0.589777, 0.313482, 0.360904};
+//        std::vector<Real> a{-1.634065, -0.824726, -2.326143, -1.616123, -1.677073, -3.704563, 0.589777, 0.313482, 0.360904};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.328536+ 0.319281 + 0.386318) && act4){
-//        std::vector<double> a{-1.121264, -0.791190, -2.207700, -4.057422, -2.697201, -2.545713, 0.481230, 0.240465, 0.658457};
+//        std::vector<Real> a{-1.121264, -0.791190, -2.207700, -4.057422, -2.697201, -2.545713, 0.481230, 0.240465, 0.658457};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.328536+ 0.319281 + 0.386318 + 0.364843) && act5){
-//        std::vector<double> a{-2.895961, -2.930388, -2.581198, -4.021605, -2.761964, -2.743145, 0.463994, 0.345237, 0.507538};
+//        std::vector<Real> a{-2.895961, -2.930388, -2.581198, -4.021605, -2.761964, -2.743145, 0.463994, 0.345237, 0.507538};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 15.41 (15.10) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.678779, -4.057009, -2.205809, -1.160044, -0.962561, -1.041059, 0.568015, 0.104891, 0.561295};
+//        std::vector<Real> a{-4.678779, -4.057009, -2.205809, -1.160044, -0.962561, -1.041059, 0.568015, 0.104891, 0.561295};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>= 0.324968 && act2){
-//        std::vector<double> a{-3.483177, -3.133075, -1.617716, -5.589856, -3.619439, -1.533727, 0.159126, 0.080504, 0.809013};
+//        std::vector<Real> a{-3.483177, -3.133075, -1.617716, -5.589856, -3.619439, -1.533727, 0.159126, 0.080504, 0.809013};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.324968 + 0.317795) && act3){
-//        std::vector<double> a{-1.628999, -0.827154, -2.362526, -1.647450, -1.713048, -3.572785, 0.580268, 0.312041, 0.356712};
+//        std::vector<Real> a{-1.628999, -0.827154, -2.362526, -1.647450, -1.713048, -3.572785, 0.580268, 0.312041, 0.356712};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.324968+ 0.317795 + 0.385894) && act4){
-//        std::vector<double> a{-1.101130, -0.788941, -2.138788, -4.122668, -2.731504, -2.464712, 0.471397, 0.244024, 0.669718};
+//        std::vector<Real> a{-1.101130, -0.788941, -2.138788, -4.122668, -2.731504, -2.464712, 0.471397, 0.244024, 0.669718};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.324968+ 0.317795 + 0.385894 + 0.365889) && act5){
-//        std::vector<double> a{-2.873229, -2.956661, -2.518764, -4.062538, -2.801658, -2.686893, 0.458071, 0.346180, 0.514884};
+//        std::vector<Real> a{-2.873229, -2.956661, -2.518764, -4.062538, -2.801658, -2.686893, 0.458071, 0.346180, 0.514884};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 17.57 (17.04) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.685327, -4.005475, -2.212091, -1.138507, -0.988073, -0.997685, 0.578228, 0.095351, 0.555037};
+//        std::vector<Real> a{-4.685327, -4.005475, -2.212091, -1.138507, -0.988073, -0.997685, 0.578228, 0.095351, 0.555037};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.322162 && act2){
-//        std::vector<double> a{-3.581836, -3.104472, -1.592701, -5.698769, -3.811102, -1.501724, 0.145612, 0.074569, 0.820629};
+//        std::vector<Real> a{-3.581836, -3.104472, -1.592701, -5.698769, -3.811102, -1.501724, 0.145612, 0.074569, 0.820629};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.322162 + 0.316050) && act3){
-//        std::vector<double> a{-1.624217, -0.838124, -2.453317, -1.617455, -1.742226, -3.457168, 0.566668, 0.313464, 0.351841};
+//        std::vector<Real> a{-1.624217, -0.838124, -2.453317, -1.617455, -1.742226, -3.457168, 0.566668, 0.313464, 0.351841};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.322162+ 0.316050 + 0.386313) && act4){
-//        std::vector<double> a{-1.102140, -0.801205, -2.078403, -4.132382, -2.744817, -2.417795, 0.465530, 0.254771, 0.673557};
+//        std::vector<Real> a{-1.102140, -0.801205, -2.078403, -4.132382, -2.744817, -2.417795, 0.465530, 0.254771, 0.673557};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.322162 + 0.316050 + 0.386313 + 0.369050) && act5){
-//        std::vector<double> a{-2.875590, -3.001369, -2.466997, -4.079204, -2.833935, -2.637640, 0.454279, 0.353261, 0.521504};
+//        std::vector<Real> a{-2.875590, -3.001369, -2.466997, -4.079204, -2.833935, -2.637640, 0.454279, 0.353261, 0.521504};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // 19.74 (19.16) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.688191, -3.954764, -2.223889, -1.124408, -1.022923, -0.966451, 0.586453, 0.088088, 0.547614};
+//        std::vector<Real> a{-4.688191, -3.954764, -2.223889, -1.124408, -1.022923, -0.966451, 0.586453, 0.088088, 0.547614};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.320026 && act2){
-//        std::vector<double> a{-3.626116, -3.048085, -1.575569, -5.751697, -3.895130, -1.490546, 0.135556, 0.072658, 0.829648};
+//        std::vector<Real> a{-3.626116, -3.048085, -1.575569, -5.751697, -3.895130, -1.490546, 0.135556, 0.072658, 0.829648};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.320026 + 0.315488) && act3){
-//        std::vector<double> a{-1.615091, -0.841790, -2.542467, -1.584894, -1.749461, -3.345980, 0.556286, 0.313125, 0.346116};
+//        std::vector<Real> a{-1.615091, -0.841790, -2.542467, -1.584894, -1.749461, -3.345980, 0.556286, 0.313125, 0.346116};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.320026 + 0.315488 + 0.386213) && act4){
-//        std::vector<double> a{-1.099233, -0.811258, -2.045102, -4.300000, -2.824348, -2.344939, 0.450437, 0.257749, 0.679261};
+//        std::vector<Real> a{-1.099233, -0.811258, -2.045102, -4.300000, -2.824348, -2.344939, 0.450437, 0.257749, 0.679261};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.320026 + 0.315488 + 0.386213 + 0.369926 ) && act5){
-//        std::vector<double> a{-2.852772, -3.007171, -2.454606, -4.112217, -2.857376, -2.629590, 0.450890, 0.363210, 0.520481};
+//        std::vector<Real> a{-2.852772, -3.007171, -2.454606, -4.112217, -2.857376, -2.629590, 0.450890, 0.363210, 0.520481};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 //
 //    // 21.9 (21.31) mJ escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.686684, -3.912884, -2.241593, -1.121328, -1.065105, -0.944875, 0.591863, 0.082740, 0.540199};
+//        std::vector<Real> a{-4.686684, -3.912884, -2.241593, -1.121328, -1.065105, -0.944875, 0.591863, 0.082740, 0.540199};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>= 0.318453 && act2){
-//        std::vector<double> a{-3.640735, -2.963610, -1.554508, -5.782052, -3.937959, -1.483281, 0.127391, 0.071496, 0.836809};
+//        std::vector<Real> a{-3.640735, -2.963610, -1.554508, -5.782052, -3.937959, -1.483281, 0.127391, 0.071496, 0.836809};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=( 0.318453 + 0.315146) && act3){
-//        std::vector<double> a{-1.615101, -0.846640, -2.638458, -1.536289, -1.750644, -3.240543, 0.544093, 0.311599, 0.342352};
+//        std::vector<Real> a{-1.615101, -0.846640, -2.638458, -1.536289, -1.750644, -3.240543, 0.544093, 0.311599, 0.342352};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=( 0.318453 + 0.315146 + 0.385764) && act4){
-//        std::vector<double> a{-1.105307, -0.824289, -2.022394, -4.455174, -2.921277, -2.279189, 0.434638, 0.258321, 0.684365};
+//        std::vector<Real> a{-1.105307, -0.824289, -2.022394, -4.455174, -2.921277, -2.279189, 0.434638, 0.258321, 0.684365};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=( 0.318453 + 0.315146 + 0.385764 + 0.370094) && act5){
-//        std::vector<double> a{-2.849169, -3.017569, -2.438394, -4.134092, -2.877911, -2.616167, 0.447130, 0.369074, 0.520669};
+//        std::vector<Real> a{-2.849169, -3.017569, -2.438394, -4.134092, -2.877911, -2.616167, 0.447130, 0.369074, 0.520669};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
@@ -602,105 +602,105 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
 //    // Parameters of 3D C-start (Gazzola et. al.)
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-1.96, -0.46, -0.56, -6.17, -3.71, -1.09, 0.65, 0.4, 0.1321};
+//        std::vector<Real> a{-1.96, -0.46, -0.56, -6.17, -3.71, -1.09, 0.65, 0.4, 0.1321};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0, 0, 0, -6.17, -3.71, -1.09, 0.65, 1, 0.1321};
+//        std::vector<Real> a{0, 0, 0, -6.17, -3.71, -1.09, 0.65, 1, 0.1321};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 
 //    // Reproduces the 2D C-start (Gazzola et. al.)
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
+//        std::vector<Real> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
+//        std::vector<Real> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.176};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 
 //    // Reproduces the 13(12.7)mJ energy escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.67, -4.09, -2.20, -1.18, -0.95, -1.107, 0.556, 0.1186, 0.565};
+//        std::vector<Real> a{-4.67, -4.09, -2.20, -1.18, -0.95, -1.107, 0.556, 0.1186, 0.565};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.58255* this->Tperiod && act2){
-//        std::vector<double> a{-3.41, -3.15, -1.63, -5.45, -3.44, -1.58, 0.776, 0.0847, 0.796};
+//        std::vector<Real> a{-3.41, -3.15, -1.63, -5.45, -3.44, -1.58, 0.776, 0.0847, 0.796};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
-//        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
+//        std::vector<Real> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
-//        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
+//        std::vector<Real> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.6358) * this->Tperiod && act5){
-//        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
+//        std::vector<Real> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // Reproduces the 7.30mJ energy escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
+//        std::vector<Real> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.58255* this->Tperiod && act2){
-//        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
+//        std::vector<Real> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
-//        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
+//        std::vector<Real> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
-//        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
+//        std::vector<Real> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.680396) * this->Tperiod && act5){
-//        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
+//        std::vector<Real> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
 
 //    // Reproduces the 21.90mJ energy escape
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{-4.686684, -3.912884, -2.241593, -1.121328, -1.065105, -0.944875, 0.591863, 0.082740, 0.540199};
+//        std::vector<Real> a{-4.686684, -3.912884, -2.241593, -1.121328, -1.065105, -0.944875, 0.591863, 0.082740, 0.540199};
 //        this->schedule(t, a);
 //        act1=false;
 //    }
 //    if (t>=0.318453 && act2){
-//        std::vector<double> a{-3.640735, -2.963610, -1.554508, -5.782052, -3.937959, -1.483281, 0.127391, 0.071496, 0.836809};
+//        std::vector<Real> a{-3.640735, -2.963610, -1.554508, -5.782052, -3.937959, -1.483281, 0.127391, 0.071496, 0.836809};
 //        this->schedule(t, a);
 //        act2=false;
 //    }
 //    if (t>=(0.318453 + 0.315146) && act3){
-//        std::vector<double> a{-1.615101, -0.846640, -2.638458, -1.536289, -1.750644, -3.240543, 0.544093, 0.311599, 0.342352};
+//        std::vector<Real> a{-1.615101, -0.846640, -2.638458, -1.536289, -1.750644, -3.240543, 0.544093, 0.311599, 0.342352};
 //        this->schedule(t, a);
 //        act3=false;
 //    }
 //    if (t>=(0.318453 + 0.315146 + 0.385764) && act4){
-//        std::vector<double> a{-1.105307, -0.824289, -2.022394, -4.455174, -2.921277, -2.279189, 0.434638, 0.258321, 0.684365};
+//        std::vector<Real> a{-1.105307, -0.824289, -2.022394, -4.455174, -2.921277, -2.279189, 0.434638, 0.258321, 0.684365};
 //        this->schedule(t, a);
 //        act4=false;
 //    }
 //    if (t>=(0.318453 + 0.315146 + 0.385764 + 0.370094) && act5){
-//        std::vector<double> a{-2.849169, -3.017569, -2.438394, -4.134092, -2.877911, -2.616167, 0.447130, 0.369074, 0.520669};
+//        std::vector<Real> a{-2.849169, -3.017569, -2.438394, -4.134092, -2.877911, -2.616167, 0.447130, 0.369074, 0.520669};
 //        this->schedule(t, a);
 //        act5=false;
 //    }
@@ -712,7 +712,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
     tauTailScheduler.gimmeValues(t, tauTail, vTauTail); // writes to tauTail and vTauTail
     phiScheduler.gimmeValues(t, phiUndulatory, vPhiUndulatory);
 
-    const double curvMax = 2*M_PI/length;
+    const Real curvMax = 2*M_PI/length;
 #pragma omp parallel for schedule(static)
     for(int i=0; i<Nm; ++i) {
 
@@ -740,7 +740,7 @@ void ControlledCurvatureFish::computeMidline(const Real t, const Real dt)
 
     // Save the midpoint curvature to file
     FILE * f1 = fopen("curvature_values.dat","a+");
-    fprintf(f1,"%f  %g  %d\n", t, rK[Nmid], Nmid);
+    fprintf(f1,"%f  %g  %d\n", (double)t, (double)rK[Nmid], Nmid);
     fclose(f1);
 
 //    this->nextDump += 0.01; // dump time 0.01
@@ -767,7 +767,7 @@ void CStartFish::resetAll() {
     Fish::resetAll();
 }
 
-CStartFish::CStartFish(SimulationData&s, ArgumentParser&p, double C[2]):
+CStartFish::CStartFish(SimulationData&s, ArgumentParser&p, Real C[2]):
         Fish(s,p,C)
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
@@ -782,35 +782,35 @@ void CStartFish::create(const std::vector<BlockInfo>& vInfo)
     Fish::create(vInfo);
 }
 
-void CStartFish::act(const Real t_rlAction, const std::vector<double>& a) const
+void CStartFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->schedule(sim.time, a);
 }
 
-void CStartFish::actCStart(const Real lTact, const std::vector<double> &a) const {
+void CStartFish::actCStart(const Real lTact, const std::vector<Real> &a) const {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->scheduleCStart(sim.time, a);
 }
 
-void CStartFish::setTarget(double desiredTarget[2]) const
+void CStartFish::setTarget(Real desiredTarget[2]) const
 {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->target[0] = desiredTarget[0];
     cFish->target[1] = desiredTarget[1];
 }
 
-void CStartFish::getTarget(double outTarget[2]) const
+void CStartFish::getTarget(Real outTarget[2]) const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     outTarget[0] = cFish->target[0];
     outTarget[1] = cFish->target[1];
 }
 
-std::vector<double> CStartFish::stateEscapeTradeoff() const
+std::vector<Real> CStartFish::stateEscapeTradeoff() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(26,0);
+    std::vector<Real> S(26,0);
 
     S[0] = this->getRadialDisplacement() / length; // distance from original position
     S[1] = cFish->dTprop / length;
@@ -841,10 +841,10 @@ std::vector<double> CStartFish::stateEscapeTradeoff() const
     return S;
 }
 
-std::vector<double> CStartFish::stateEscape() const
+std::vector<Real> CStartFish::stateEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(25,0);
+    std::vector<Real> S(25,0);
 
     S[0] = this->getRadialDisplacement() / length; // distance from original position
     S[1] = this->getPolarAngle(); // polar angle from virtual origin
@@ -874,14 +874,14 @@ std::vector<double> CStartFish::stateEscape() const
     return S;
 }
 
-std::vector<double> CStartFish::stateSequentialEscape() const
+std::vector<Real> CStartFish::stateSequentialEscape() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(25,0);
+    std::vector<Real> S(25,0);
 
-    double com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
+    Real com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
     bool propulsionForward = com[0] <= this->origC[0];
-    double signedRadialDisplacement = 0.0;
+    Real signedRadialDisplacement = 0.0;
     if (propulsionForward) {
         signedRadialDisplacement = this->getRadialDisplacement() / length;
     } else {
@@ -916,10 +916,10 @@ std::vector<double> CStartFish::stateSequentialEscape() const
     return S;
 }
 
-std::vector<double> CStartFish::stateEscapeVariableEnergy() const
+std::vector<Real> CStartFish::stateEscapeVariableEnergy() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    std::vector<double> S(25,0);
+    std::vector<Real> S(25,0);
 
     S[0] = this->getRadialDisplacement() / length; // distance from original position
     S[1] = this->getPolarAngle(); // polar angle from virtual origin
@@ -950,20 +950,20 @@ std::vector<double> CStartFish::stateEscapeVariableEnergy() const
     return S;
 }
 
-std::vector<double> CStartFish::stateCStart() const
+std::vector<Real> CStartFish::stateCStart() const
 {
-    std::vector<double> S(2,0);
+    std::vector<Real> S(2,0);
     S[0] = this->getRadialDisplacement() / length; // distance from center
     S[1] = this->getPolarAngle(); // polar angle
     return S;
 }
 
-std::vector<double> CStartFish::stateTarget() const
+std::vector<Real> CStartFish::stateTarget() const
 {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
+    Real com[2] = {0, 0}; this->getCenterOfMass(com);
 
-    std::vector<double> S(15,0);
+    std::vector<Real> S(15,0);
 
     S[0] = this->getDistanceFromTarget() / length; // normalized distance from target
     S[1] = (com[0] - cFish->target[0]) / length; // relative x position away from target
@@ -983,30 +983,30 @@ std::vector<double> CStartFish::stateTarget() const
     return S;
 }
 
-double CStartFish::getRadialDisplacement() const {
-    double com[2] = {0, 0};
+Real CStartFish::getRadialDisplacement() const {
+    Real com[2] = {0, 0};
     this->getCenterOfMass(com);
-    double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
+    Real radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
     return radialDisplacement;
 }
 
-double CStartFish::getDistanceFromTarget() const {
-    double com[2] = {0.0, 0.0};
-    double target[2] = {0.0, 0.0};
+Real CStartFish::getDistanceFromTarget() const {
+    Real com[2] = {0.0, 0.0};
+    Real target[2] = {0.0, 0.0};
     this->getCenterOfMass(com);
     this->getTarget(target);
-    double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
+    Real distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
     return distanceFromTarget;
 }
 
-void CStartFish::setEnergyExpended(const double energyExpended) {
+void CStartFish::setEnergyExpended(const Real energyExpended) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->energyExpended = energyExpended;
 }
 
-void CStartFish::setDistanceTprop(const double distanceTprop) {
+void CStartFish::setDistanceTprop(const Real distanceTprop) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    double com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
+    Real com[2] = {0.0, 0.0}; this->getCenterOfMass(com);
     bool propulsionForward = com[0] <= this->origC[0];
     if (propulsionForward) {
         cFish->dTprop = distanceTprop;
@@ -1015,40 +1015,40 @@ void CStartFish::setDistanceTprop(const double distanceTprop) {
     }
 }
 
-double CStartFish::getDistanceTprop() const {
+Real CStartFish::getDistanceTprop() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->dTprop;
 }
 
-double CStartFish::getEnergyExpended() const {
+Real CStartFish::getEnergyExpended() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->energyExpended;
 }
 
-double CStartFish::getTimeNextAct() const {
+Real CStartFish::getTimeNextAct() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->t_next;
 }
 
-double CStartFish::getPolarAngle() const {
+Real CStartFish::getPolarAngle() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double polarAngle = std::atan2(com[1]- cFish->virtualOrigin[1], com[0]- cFish->virtualOrigin[0]);
+    Real com[2] = {0, 0}; this->getCenterOfMass(com);
+    Real polarAngle = std::atan2(com[1]- cFish->virtualOrigin[1], com[0]- cFish->virtualOrigin[0]);
     return polarAngle;
 }
 
-void CStartFish::setVirtualOrigin(const double vo[2]) {
+void CStartFish::setVirtualOrigin(const Real vo[2]) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->virtualOrigin[0] = vo[0];
     cFish->virtualOrigin[1] = vo[1];
 }
 
-void CStartFish::setEnergyBudget(const double baselineEnergy) {
+void CStartFish::setEnergyBudget(const Real baselineEnergy) {
     ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     cFish->energyBudget = baselineEnergy;
 }
 
-double CStartFish::getEnergyBudget() const {
+Real CStartFish::getEnergyBudget() const {
     const ControlledCurvatureFish* const cFish = dynamic_cast<ControlledCurvatureFish*>( myFish );
     return cFish->energyBudget;
 }

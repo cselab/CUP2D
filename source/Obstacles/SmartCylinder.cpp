@@ -34,19 +34,19 @@ void SmartCylinder::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
-void SmartCylinder::updateVelocity(double dt)
+void SmartCylinder::updateVelocity(Real dt)
 {
   Shape::updateVelocity(dt);
   // update energy used
   energy += ( appliedForceX*u + appliedForceY*v ) * dt;
 }
 
-void SmartCylinder::updatePosition(double dt)
+void SmartCylinder::updatePosition(Real dt)
 {
   Shape::updatePosition(dt);
 }
 
-void SmartCylinder::act( std::vector<double> action )
+void SmartCylinder::act( std::vector<Real> action )
 {
   if(action.size() != 2){
     std::cout << "Two actions required, force in X and force in Y.";
@@ -57,23 +57,23 @@ void SmartCylinder::act( std::vector<double> action )
   appliedForceY = action[1];
 }
 
-double SmartCylinder::reward( std::vector<double> target )
+Real SmartCylinder::reward( std::vector<Real> target )
 {
   // set dist to old dist
   oldDist = dist;
 
-  double dX = target[0]-centerOfMass[0];
-  double dY = target[1]-centerOfMass[1];
+  Real dX = target[0]-centerOfMass[0];
+  Real dY = target[1]-centerOfMass[1];
 
   dist = std::sqrt( dX*dX + dY*dY );
 
   return oldDist-dist;
 }
 
-std::vector<double> SmartCylinder::state( std::vector<double> target )
+std::vector<Real> SmartCylinder::state( std::vector<Real> target )
 {
   // intitialize state vector
-  std::vector<double> state(4);
+  std::vector<Real> state(4);
 
   // relative x position
   state[0] = target[0]-centerOfMass[0];

@@ -15,8 +15,8 @@ class BehaviorCurvatureFish : public FishData
 {
     const Real amplitudeFactor, phaseShift, Tperiod;
 public:
-    double t_next = 0.0; // Time for next action
-    double target[2] = {0.0, 0.0}; // Target location
+    Real t_next = 0.0; // Time for next action
+    Real target[2] = {0.0, 0.0}; // Target location
     bool act1 = true;
     bool act2 = true;
     bool act3 = true;
@@ -90,21 +90,21 @@ public:
 
     /*************************** ACTION REPERTOIRE ***********************************/
 
-    void burst(const Real t_current, const std::vector<double> &a) {
+    void burst(const Real t_current, const std::vector<Real> &a) {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
         // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
         // Schedule a burst with given modulation and timing factor
-        const double modulationFactor = a[0];
-        const double timingFactor = a[1];
+        const Real modulationFactor = a[0];
+        const Real timingFactor = a[1];
 
         // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-        const double curvatureFactor = modulationFactor / this->length;
+        const Real curvatureFactor = modulationFactor / this->length;
 
         // Define the curvature values of the burst
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -128,25 +128,25 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a burst with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 
-    void scoot(const Real t_current, const std::vector<double> &a) {
+    void scoot(const Real t_current, const std::vector<Real> &a) {
         // Current time must be later than time at which action should be performed.
         // (PW) commented to resolve compilation error with config=debug
         // assert(t_current >= t_rlAction);
 
         // Fix the phase of the burst. Normally I should deduce the phase required based on the current
         // curvature configuration.
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
         // Schedule a burst with given modulation and timing factor
-        const double modulationFactor = a[0];
-        const double timingFactor = a[1];
+        const Real modulationFactor = a[0];
+        const Real timingFactor = a[1];
 
         // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-        const double curvatureFactor = modulationFactor / this->length;
+        const Real curvatureFactor = modulationFactor / this->length;
 
         // Define the curvature values of the burst
         const std::array<Real ,6> baselineCurvatureValues = {
@@ -170,25 +170,25 @@ public:
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-        printf("Performing a scoot with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a scoot with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 
-    void coast(const Real t_current, const std::vector<double> &a) {
+    void coast(const Real t_current, const std::vector<Real> &a) {
     // Current time must be later than time at which action should be performed.
     // (PW) commented to resolve compilation error with config=debug
     // assert(t_current >= t_rlAction);
 
     // Fix the phase of the burst. Normally I should deduce the phase required based on the current
     // curvature configuration.
-    const double tailPhase = 0.0;
+    const Real tailPhase = 0.0;
 
     // Schedule a burst with given modulation and timing factor
-    const double modulationFactor = a[0];
-    const double timingFactor = a[1];
+    const Real modulationFactor = a[0];
+    const Real timingFactor = a[1];
 
     // Curvature of the burst is modulated by the modulation factor. Curvatures are normalized.
-    const double curvatureFactor = modulationFactor / this->length;
+    const Real curvatureFactor = modulationFactor / this->length;
 
     // Define the curvature values of the burst
     const std::array<Real ,6> baselineCurvatureValues = {
@@ -212,11 +212,11 @@ public:
     undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
     tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
 
-    printf("Performing a coast with timingFactor %f, and modulationFactor %f\n", timingFactor, modulationFactor);
-    printf("t_next is: %f\n", this->t_next);
+    printf("Performing a coast with timingFactor %f, and modulationFactor %f\n", (double)timingFactor, (double)modulationFactor);
+    printf("t_next is: %f\n", (double)this->t_next);
 }
 
-    void hybrid(const Real t_current, const std::vector<double> &a)
+    void hybrid(const Real t_current, const std::vector<Real> &a)
     {
 
         // Store last action into the older action placeholder
@@ -231,10 +231,10 @@ public:
         lastC = a[2];
         lastTimingFactor = a[3];
 
-        const double tailPhase = 0.74;
+        const Real tailPhase = 0.74;
 
-        const double baselineCurvatureFactor = lastC * lastBeta / this->length;
-        const double undulatoryCurvatureFactor = 1 / this->length;
+        const Real baselineCurvatureFactor = lastC * lastBeta / this->length;
+        const Real undulatoryCurvatureFactor = 1 / this->length;
         const std::array<Real ,6> baselineCurvatureValues = {
                 (Real)0.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor, (Real)-4.0 * baselineCurvatureFactor,
                 (Real)-1.0 * baselineCurvatureFactor, (Real)-1.0 * baselineCurvatureFactor, (Real)0.0 * baselineCurvatureFactor
@@ -262,8 +262,8 @@ public:
         baselineCurvatureScheduler.transition(t_current, t_current, this->t_next, baselineCurvatureValues, useCurrentDerivative);
         undulatoryCurvatureScheduler.transition(t_current, t_current, this->t_next, undulatoryCurvatureValues, useCurrentDerivative);
         tauTailScheduler.transition(t_current, t_current, this->t_next, tailPhase, useCurrentDerivative);
-        printf("Performing a hybrid action with beta %f, kappa %f, c %f\n", lastBeta, lastKappa, lastC);
-        printf("t_next is: %f\n", this->t_next);
+        printf("Performing a hybrid action with beta %f, kappa %f, c %f\n", (double)lastBeta, (double)lastKappa, (double)lastC);
+        printf("t_next is: %f\n", (double)this->t_next);
     }
 };
 
@@ -274,22 +274,22 @@ void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
 //    if (t>=0.0 && act1){
-//        std::vector<double> a{1.0, 0.0, 1.0, 0.4};
+//        std::vector<Real> a{1.0, 0.0, 1.0, 0.4};
 //        this->hybrid(t, a);
 //        act1=false;
 //    }
 //    if (t>=this->t_next && act2){
-//        std::vector<double> a{0.0, 0.0, 1.0, 1.0};
+//        std::vector<Real> a{0.0, 0.0, 1.0, 1.0};
 //        this->hybrid(t, a);
 //        act2=false;
 //    }
 //    if (t>=this->t_next && act3){
-//        std::vector<double> a{1.0, 1.0, 0.0, 1.0};
+//        std::vector<Real> a{1.0, 1.0, 0.0, 1.0};
 //        this->hybrid(t, a);
 //        act3=false;
 //    }
 //    if (t>=this->t_next && act4){
-//        std::vector<double> a{1.0, 0.4};
+//        std::vector<Real> a{1.0, 0.4};
 //        this->coast(t, a);
 //        act4=false;
 //    }
@@ -324,7 +324,7 @@ void BehaviorCurvatureFish::computeMidline(const Real t, const Real dt)
 }
 
 // Core functions
-ZebraFish::ZebraFish(SimulationData&s, ArgumentParser&p, double C[2]): Fish(s,p,C)
+ZebraFish::ZebraFish(SimulationData&s, ArgumentParser&p, Real C[2]): Fish(s,p,C)
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new BehaviorCurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -345,7 +345,7 @@ void ZebraFish::create(const std::vector<BlockInfo>& vInfo)
     Fish::create(vInfo);
 }
 
-void ZebraFish::act(const Real t_rlAction, const std::vector<double>& a) const
+void ZebraFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 {
     BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
     // Define how actions are selected here.
@@ -353,13 +353,13 @@ void ZebraFish::act(const Real t_rlAction, const std::vector<double>& a) const
 }
 
 // Functions for state/reward
-std::vector<double> ZebraFish::state() const
+std::vector<Real> ZebraFish::state() const
 {
     const BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
-    std::vector<double> S(10,0);
-    double com[2] = {0, 0}; this->getCenterOfMass(com);
-    double radialDisplacement = this->getRadialDisplacement();
-    double polarAngle = std::atan2(com[1], com[0]);
+    std::vector<Real> S(10,0);
+    Real com[2] = {0, 0}; this->getCenterOfMass(com);
+    Real radialDisplacement = this->getRadialDisplacement();
+    Real polarAngle = std::atan2(com[1], com[0]);
     S[0] = radialDisplacement / length; // distance from center
     S[1] = polarAngle; // polar angle
     S[2] = getOrientation();
@@ -374,37 +374,37 @@ std::vector<double> ZebraFish::state() const
 }
 
 // Helper functions
-void ZebraFish::setTarget(double inTarget[2]) const
+void ZebraFish::setTarget(Real inTarget[2]) const
 {
     BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
     cFish->target[0] = inTarget[0];
     cFish->target[1] = inTarget[1];
 }
 
-void ZebraFish::getTarget(double outTarget[2]) const
+void ZebraFish::getTarget(Real outTarget[2]) const
 {
     const BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
     outTarget[0] = cFish->target[0];
     outTarget[1] = cFish->target[1];
 }
 
-double ZebraFish::getRadialDisplacement() const {
-    double com[2] = {0, 0};
+Real ZebraFish::getRadialDisplacement() const {
+    Real com[2] = {0, 0};
     this->getCenterOfMass(com);
-    double radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
+    Real radialDisplacement = std::sqrt(std::pow((com[0] - this->origC[0]), 2) + std::pow((com[1] - this->origC[1]), 2));
     return radialDisplacement;
 }
 
-double ZebraFish::getDistanceFromTarget() const {
-    double com[2] = {0.0, 0.0};
-    double target[2] = {0.0, 0.0};
+Real ZebraFish::getDistanceFromTarget() const {
+    Real com[2] = {0.0, 0.0};
+    Real target[2] = {0.0, 0.0};
     this->getCenterOfMass(com);
     this->getTarget(target);
-    double distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
+    Real distanceFromTarget = std::sqrt(std::pow((com[0] - target[0]), 2) + std::pow((com[1] - target[1]), 2));
     return distanceFromTarget;
 }
 
-double ZebraFish::getTimeNextAct() const {
+Real ZebraFish::getTimeNextAct() const {
     const BehaviorCurvatureFish* const cFish = dynamic_cast<BehaviorCurvatureFish*>( myFish );
     return cFish->t_next;
 }

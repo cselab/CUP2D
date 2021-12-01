@@ -46,7 +46,7 @@ class AdaptTheMesh : public Operator
     delete uDef_amr;
   }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName()
   {
