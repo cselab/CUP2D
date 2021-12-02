@@ -133,9 +133,9 @@ struct SimulationData
   Real maxH;
 
   // minimal gridspacing present on grid
-  double getH()
+  Real getH()
   {
-    double minHGrid = std::numeric_limits<double>::infinity();
+    Real minHGrid = std::numeric_limits<Real>::infinity();
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
