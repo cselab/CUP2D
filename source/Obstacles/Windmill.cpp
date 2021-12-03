@@ -15,8 +15,8 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    //// in the case of the windmill we have 3 ellipses that are not centered at 0
-
+    //// original ellipse
+    /*
     // center of ellipse 1 wrt to center of windmill,at T=0
     double center_orig1[2] = {smajax/2, -(smajax/2)*std::tan(M_PI/6)};
     // center of ellipse 1 wrt to origin
@@ -40,6 +40,37 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
     FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    */
+
+    //// symmetrical ellipse
+
+    double frac = 0.55;
+    double d = smajax * (1.0 - 2.0*frac/3.0);
+
+    // center of ellipse 1 wrt to center of windmill,at T=0, bottom one
+    double center_orig1[2] = {d * std::sin(M_PI/6), -d * std::cos(M_PI/6)};
+    // center of ellipse 1 wrt to origin
+    double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
+                         center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
+
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+
+    // center of ellipse 2 wrt to center of windmill,at T=0, top one
+    double center_orig2[2] = {d * std::sin(M_PI/6), +d * std::cos(M_PI/6)};
+    // center of ellipse 1 wrt to origin
+    double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
+                         center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
+
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+
+    // center of ellipse 3 wrt to center of windmill,at T=0, horizontal one
+    double center_orig3[2] = {-d, 0};
+    // center of ellipse 1 wrt to origin
+    double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
+                         center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
+
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+
 
     // fill blocks for the three ellipses
     #pragma omp for schedule(dynamic, 1)
@@ -78,18 +109,12 @@ void Windmill::updateVelocity(double dt)
   Shape::updateVelocity(dt);
 
   // update omega according to a velocity function of time
-  //omega = velocity_over_time(sim.time);
+  omega = velocity_over_time(sim.time);
 }
 
 void Windmill::updatePosition(double dt)
 {
   Shape::updatePosition(dt);
-
-  // compute the energies as well
-  Real r_energy = -std::abs(appliedTorque*omega)*sim.dt;
-  energy += r_energy;
-  // std::vector<double> avg = easyAverage();
-  // std::vector<double> avg2 = sophAverage();
 
   if (std::floor(10*(sim.time + sim.dt)) - std::floor(10*(sim.time)) != 0) // every .1 seconds print velocity profile
   {
@@ -120,13 +145,13 @@ void Windmill::printVelAtTarget()
   }
 }
 
-void Windmill::printRewards(Real r_energy, Real r_flow)
+void Windmill::printRewards(Real r_flow)
 {
   std::stringstream ssF;
   ssF<<sim.path2file<<"/rewards_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<std::endl;
+  fout<<sim.time<<" "<<r_flow<<std::endl;
   fout.flush();
 }
 
@@ -150,7 +175,7 @@ void Windmill::printValues()
   ssF<<sim.path2file<<"/values_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<appliedTorque<<" "<<orientation<<" "<<omega<<std::endl;
+  fout<<sim.time<<" "<<omega<<std::endl;
   fout.flush();
 }
 
@@ -168,72 +193,23 @@ void Windmill::act( double action )
   printValues();
 }
 
-double Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
+double Windmill::reward(Real factor, std::vector<double> true_profile)
 {
-  // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  // double r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
-  // double r_energy = -C * appliedTorque*appliedTorque*omega*omega*sim.dt;
-  // need characteristic energy
-  //r_energy /= (lengthscale*windscale);
-  Real r_energy = C*energy;
-  
-  if (std::isfinite(r_energy) == false)
-  {
-    printNanRewards(true, r_energy);
-  }
-  // reset for next time steps
-  energy = 0;
-
-
-  // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
-  // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-  // compute average
-
-  std::array<Real, 32> true_profile = {0.0117094, 0.0118713, 0.0120126, 0.0121298, 0.0122235, 0.0122405, 0.0116373, 0.00707957,
-                                       0.0125024, 0.0537881, 0.0965903, 0.101789, 0.0676126, 0.0271084, 0.00552582, 0.00977532,
-                                       0.0129954, 0.0133042, 0.0114955, 0.00804636, 0.00881718, 0.0221757, 0.0595386, 0.107892,
-                                       0.102329, 0.0453045, 0.0106931, 0.0173096, 0.0200404, 0.0201389, 0.0199034, 0.0197252};
+  // first element of true profile is actually the time
 
   std::vector<double> curr_profile = vel_profile();
 
-  Real r_flow = 0;
+  Real r_flow = 0.0;
 
   for(int i=0; i < 32; ++i)
   {
     // used to be r_flow += std::sqrt( (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]) );
-    r_flow += (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]);
+    r_flow += (true_profile[i+1]-curr_profile[i])*(true_profile[i+1]-curr_profile[i]);
   }
 
-  r_flow = -D * std::sqrt(r_flow);
-  //r_flow *= -D;
-  
-  // std::vector<Real> avg = easyAverage();
-  // // compute norm of difference beween target and average velocity
-  // //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
-  // std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
-
-  // Real r_flow = - D * std::sqrt( diff[0]*diff[0] + diff[1]*diff[1] );
-
-  // if (std::isfinite(r_flow) == false)
-  // {
-  //   printNanRewards(false, r_flow);
-  //}
-
-  //double r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
-  //need characteristic speed
-  //r_flow /= windscale;
-
-  // double r_flow = 0;
-
-  printf("Energy_reward: %f \n Flow_reward: %f \n", r_energy, r_flow);
-
-  printRewards(r_energy, r_flow);
-  printVelAtTarget();
-
-  return r_energy + r_flow;
-  // return r_flow;
-  
-  // return C*r_energy;
+  r_flow *= -factor;
+  printRewards(r_flow);
+  return r_flow;
 }
 
 std::vector<double> Windmill::vel_profile()
@@ -268,7 +244,8 @@ std::vector<double> Windmill::vel_profile()
           if (num)
           {
             region_area[num-1] += da;
-            vel_avg[num-1] += std::sqrt(b(i, j).u[0]*b(i, j).u[0] + b(i, j).u[1]*b(i, j).u[1]) * da;
+            vel_avg[num-1] += std::sqrt(b(i, j).u[0]*b(i, j).u[0] + b(i, j).u[1]*b(i, j).u[1]) * da; // norm velocity profile
+            //vel_avg[num-1] += b(i, j).u[0] * da; // velocity profile in x direction
           }
         }
       }
@@ -709,9 +686,10 @@ std::vector<std::vector<double>> Windmill::getUniformGrid()
 
 }
 
-double velocity_over_time(double time)
+double Windmill::velocity_over_time(double time)
 {
-  double w_max = 12.56;
-  double frequency = 1.0;
-  return w_max * sin(2*M_PI*frequency * time);
+  double w_max = forcedomega;
+  double frequency = 0.5;
+  double sinus = sin(2*M_PI*frequency * time);
+  return w_max * sinus * sinus;
 }

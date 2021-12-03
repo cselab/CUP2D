@@ -38,14 +38,14 @@ class Windmill : public Shape
 
   void setTarget(std::array<Real, 2> target_pos);
   void printVelAtTarget();
-  void printRewards(Real r_energy, Real r_flow);
+  void printRewards(Real r_flow);
 
   void printNanRewards(bool energy, Real r);
 
   void printValues();
   
   void act( double action );
-  double reward(std::array<Real, 2> target_vel, Real C, Real D);
+  double reward(Real factor, std::vector<double> true_profile);
 
   std::vector<double> vel_profile();
   int numRegion(const std::array<Real, 2> point, double height) const;
@@ -65,6 +65,8 @@ class Windmill : public Shape
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
   std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
+
+  double velocity_over_time(double time);
 
   Real getCharLength() const override
   {
