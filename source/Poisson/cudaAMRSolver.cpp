@@ -111,7 +111,7 @@ class InnerUpperTaylor {
         const int &centre_idx,
         const int &bottom_idx,
         const int &top_idx,
-        std::map<int,double> &row_map)
+        std::map<int,double> &row_map) const
     {
       row_map[centre_idx] += sign*p_centre;
       row_map[bottom_idx] += sign*p_bottom;
@@ -131,7 +131,7 @@ class InnerLowerTaylor {
         const int &centre_idx,
         const int &bottom_idx,
         const int &top_idx,
-        std::map<int,double> &row_map)
+        std::map<int,double> &row_map) const
     {
       row_map[centre_idx] += sign*p_centre;
       row_map[bottom_idx] += sign*p_bottom;
@@ -150,7 +150,7 @@ class CornerUpperTaylor {
         const int &centre_idx,
         const int &offset1_idx,
         const int &offset2_idx,
-        std::map<int,double> &row_map)
+        std::map<int,double> &row_map) const
     {
       row_map[centre_idx] += sign*p_centre;
       row_map[offset1_idx] += sign*p_offset1;
@@ -169,7 +169,7 @@ class CornerLowerTaylor {
         const int &centre_idx,
         const int &offset1_idx,
         const int &offset2_idx,
-        std::map<int,double> &row_map)
+        std::map<int,double> &row_map) const
     {
       row_map[centre_idx] += sign*p_centre;
       row_map[offset1_idx] += sign*p_offset1;
@@ -192,7 +192,7 @@ class PolyInterpolation {
         const int &fine_close_idx,
         const int &fine_far_idx,
         std::map<int,double> &row_map,
-        F taylor)
+        const F &taylor) const
     {
       taylor(sign, coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, row_map);
       row_map[fine_close_idx] += sign * p_fine_close;
@@ -230,9 +230,9 @@ cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
   std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
   std::vector<std::vector<double>> L_inv; // inverse of L
 
-  int BSX = VectorBlock::sizeX;
-  int BSY = VectorBlock::sizeY;
-  int N = BSX*BSY;
+  static constexpr int BSX = VectorBlock::sizeX;
+  static constexpr int BSY = VectorBlock::sizeY;
+  static constexpr int N = BSX*BSY;
   L.resize(N);
   L_inv.resize(N);
   for (int i(0); i<N ; i++)
@@ -296,7 +296,7 @@ cudaAMRSolver::~cudaAMRSolver()
   std::cout << "---------------- Calling on cudaAMRSolver() destructor ------------\n";
 }
 
-void cudaAMRSolver::cooMatPushBack(
+void cudaAMRSolver::cooMatPushBackVal(
     const double &val, 
     const int &row, 
     const int &col){
@@ -307,108 +307,87 @@ void cudaAMRSolver::cooMatPushBack(
 
 void cudaAMRSolver::cooMatPushBackRow(
     const int &row_idx,
-    std::map<int,double> &row_map)
+    const std::map<int,double> &row_map)
 {
-  double aux = 0.;
   for (const auto &[col_idx, val] : row_map)
-  {
-    this->cooMatPushBack(val, row_idx, col_idx);
-    aux+=val;
-  }
-  if (std::abs(aux)>1e-10){
-    std::string errorMessage = "Row: " + std::to_string(row_idx) 
-                             + ", sum: " + std::to_string(aux);
-    throw std::runtime_error(errorMessage);
-  }
-
+    this->cooMatPushBackVal(val, row_idx, col_idx);
 }
 
-template<class EdgeHelper >
-void cudaAMRSolver::neiBlockElement(
-  BlockInfo &rhs_info,
+template<class EdgeIndexer >
+void cudaAMRSolver::makeFlux(
+  const BlockInfo &rhs_info,
   const int &BSX,
   const int &BSY,
   const int &ix,
   const int &iy,
   std::map<int,double> &row_map,
-  BlockInfo &rhsNei,
-  EdgeHelper helper)
+  const BlockInfo &rhsNei,
+  const EdgeIndexer &indexer) const 
 {
   const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
-  PolyInterpolation interpolator;
+  const PolyInterpolation interpolator;
 
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { 
-    const int n_idx = helper.neiblock_n(rhsNei, BSX, BSY, ix, iy);
+    const int n_idx = indexer.neiblock_n(rhsNei, BSX, BSY, ix, iy);
 
     // Map flux associated to out-of-block edges at the same level of refinement
     row_map[n_idx] += 1.; row_map[sfc_idx] += -1.;
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
-    BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
-    if (this->sim.tmp->Tree(rhsNei_c).Exists())
+    const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+
+    const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
+    const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
+    int ix_c = ix / 2;
+    int iy_c = iy / 2;
+    if (NorthSouthEdge && (rhs_info.index[0] % 2 == 1)) // North/South edge leftward fine block 
+      ix_c += BSX / 2;
+    else if (EastWestEdge && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
+      iy_c += BSY / 2;
+
+    // Map flux associated to interpolation at interface
+    const int coarse_centre_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY,ix_c, iy_c);
+    const int fine_far_idx = indexer.inblock_n2(rhs_info, BSX, BSY, ix, iy); // index of cell on opposite inblock edge
+    if ( (ix_c == 0 && NorthSouthEdge) || (iy_c == 0 && EastWestEdge) )
     {
-      const bool NorthSouthEdge = helper.EdgeType == North || helper.EdgeType == South;
-      const bool EastWestEdge = helper.EdgeType == East || helper.EdgeType == West;
-      int ix_c = ix / 2;
-      int iy_c = iy / 2;
-      if (NorthSouthEdge && (rhs_info.index[0] % 2 == 1))
-      { // North/South edge leftward fine block 
-        ix_c += BSX / 2;
-      }
-      if (EastWestEdge && (rhs_info.index[1] % 2 == 1))
-      { // East/West edge top fine block
-        iy_c += BSY / 2;
-      }
+      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c+1,iy_c+1);
+      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c+2,iy_c+2);
 
-      // Map flux associated to interpolation at interface
-      const int coarse_centre_idx = helper.neiblock_n(rhsNei_c, BSX, BSY,ix_c, iy_c);
-      const int fine_far_idx = helper.inblock_n2(rhs_info, BSX, BSY, ix, iy); // index of cell on opposite inblock edge
-      if ( (ix_c == 0 && NorthSouthEdge) || (iy_c == 0 && EastWestEdge) )
-      {
-        const int coarse_offset1_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c+1,iy_c+1);
-        const int coarse_offset2_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c+2,iy_c+2);
-
-        if ( (ix == 0 && NorthSouthEdge) || (iy == 0 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
-        else if ( (ix == 1 && NorthSouthEdge) || (iy == 1 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
-        else { throw std::runtime_error("Interface error 1"); }
-
-      }
-      else if ( (ix_c == (BSX-1) && NorthSouthEdge) || (iy_c == (BSY-1) && EastWestEdge) )
-      {
-        const int coarse_offset1_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c-1,iy_c-1);
-        const int coarse_offset2_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c-2,iy_c-2);
-
-        if ( (ix == BSX-2 && NorthSouthEdge) || (iy == BSY-2 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
-        else if ( (ix == BSX-1 && NorthSouthEdge) || (iy == BSY-1 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
-        else { throw std::runtime_error("Interface error 2"); }
-      }
-      else
-      {
-        const int coarse_offset1_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c-1,iy_c-1); // bottom
-        const int coarse_offset2_idx = helper.neiblock_n(rhsNei_c, BSX, BSY, ix_c+1,iy_c+1); // top
-
-        if ( (ix % 2 == 0 && NorthSouthEdge) || (iy % 2 == 0 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerLowerTaylor());
-        else if ( (ix % 2 == 1 && NorthSouthEdge) || (iy % 2 == 1 && EastWestEdge) )
-          interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerUpperTaylor());
-        else { throw std::runtime_error("Interface error 3"); }
-      }
-
-      // Map negative diagonal contribution to flux
-      row_map[sfc_idx] += -1.;
+      if ( (ix == 0 && NorthSouthEdge) || (iy == 0 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
+      else if ( (ix == 1 && NorthSouthEdge) || (iy == 1 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
     }
-    else { throw std::runtime_error("Runtime2"); }
+    else if ( (ix_c == (BSX-1) && NorthSouthEdge) || (iy_c == (BSY-1) && EastWestEdge) )
+    {
+      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c-1,iy_c-1);
+      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c-2,iy_c-2);
+
+      if ( (ix == BSX-2 && NorthSouthEdge) || (iy == BSY-2 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
+      else if ( (ix == BSX-1 && NorthSouthEdge) || (iy == BSY-1 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
+    }
+    else
+    {
+      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c-1,iy_c-1); // bottom
+      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, BSX, BSY, ix_c+1,iy_c+1); // top
+
+      if ( (ix % 2 == 0 && NorthSouthEdge) || (iy % 2 == 0 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerLowerTaylor());
+      else if ( (ix % 2 == 1 && NorthSouthEdge) || (iy % 2 == 1 && EastWestEdge) )
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerUpperTaylor());
+    }
+
+    // Map negative diagonal contribution to flux
+    row_map[sfc_idx] += -1.;
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
-    const bool NorthSouthEdge = helper.EdgeType == North || helper.EdgeType == South;
-    const bool EastWestEdge = helper.EdgeType == East || helper.EdgeType == West;
+    const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
+    const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
 
     /* Determine which fine block the current coarse edge neighbours.
        It is assumed that members 'Zchild_1' and 'Zchild_2' respect this order:
@@ -419,110 +398,100 @@ void cudaAMRSolver::neiBlockElement(
 
     long long rhsNei_Zchild;
     if (NorthSouthEdge)
-      rhsNei_Zchild = ix < BSX / 2 ? getZchild(rhsNei, helper.Zchild1_idx) : getZchild(rhsNei, helper.Zchild2_idx);
+      rhsNei_Zchild = ix < BSX / 2 ? getZchild(rhsNei, indexer.Zchild1_idx) : getZchild(rhsNei, indexer.Zchild2_idx);
     else if (EastWestEdge)
-      rhsNei_Zchild = iy < BSY / 2 ? getZchild(rhsNei, helper.Zchild1_idx) : getZchild(rhsNei, helper.Zchild2_idx);
-    BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei_Zchild);
+      rhsNei_Zchild = iy < BSY / 2 ? getZchild(rhsNei, indexer.Zchild1_idx) : getZchild(rhsNei, indexer.Zchild2_idx);
+    const BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei_Zchild);
 
-    if (this->sim.tmp->Tree(rhsNei_f).Exists())
-    { 
-      const int ix_f = (ix % (BSX/2)) * 2;
-      const int iy_f = (iy % (BSY/2)) * 2;
+    const int ix_f = (ix % (BSX/2)) * 2;
+    const int iy_f = (iy % (BSY/2)) * 2;
 
-      int coarse_offset1_idx;
-      int coarse_offset2_idx;
-      int fine_close_idx;
-      int fine_far_idx;
+    int coarse_offset1_idx;
+    int coarse_offset2_idx;
+    int fine_close_idx;
+    int fine_far_idx;
 
-      if ( (ix == 0 && iy == 0) || (ix == 0 && iy == BSY-1) || (ix == BSX-1 && iy == 0) || (ix == BSX-1 && iy == BSY-1) )
+    if ( (ix == 0 && iy == 0) || (ix == 0 && iy == BSY-1) || (ix == BSX-1 && iy == 0) || (ix == BSX-1 && iy == BSY-1) )
+    {
+      if ( (ix == 0) && NorthSouthEdge)
       {
-        if ( (ix == 0) && NorthSouthEdge)
-        {
-          coarse_offset1_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
-        }
-        else if ( (iy == 0) && EastWestEdge)
-        {
-          coarse_offset1_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
-        }
-        else if ( (ix == BSX-1) && NorthSouthEdge)
-        {
-          coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
-        }
-        else if ( (iy == BSY-1) && EastWestEdge)
-        {
-          coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
-        }
-        else { throw std::runtime_error("Interface error 4"); }
-
-        // Add flux at left/lower corner interface
-        fine_close_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 0);
-        fine_far_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerLowerTaylor());
-
-        // Add flux at right/higher corner interface
-        fine_close_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 0);
-        fine_far_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerUpperTaylor());
+        coarse_offset1_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
+        coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
       }
-      else
+      else if ( (iy == 0) && EastWestEdge)
       {
-        if (NorthSouthEdge)
-        {
-          coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy);  // bottom
-          coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy);  // top
-        } 
-        else if (EastWestEdge)
-        {
-          coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy); // bottom
-          coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy); // top 
-        } 
-
-        // Add flux at left/lower corner interface
-        fine_close_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 0);
-        fine_far_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerLowerTaylor());
-
-        // Add flux at right/higher corner interface
-        fine_close_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 0);
-        fine_far_idx = helper.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerUpperTaylor());
+        coarse_offset1_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
+        coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
       }
+      else if ( (ix == BSX-1) && NorthSouthEdge)
+      {
+        coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
+        coarse_offset2_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
+      }
+      else if ( (iy == BSY-1) && EastWestEdge)
+      {
+        coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy, 1);
+        coarse_offset2_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy, 2);
+      }
+
+      // Add flux at left/lower corner interface
+      fine_close_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 0);
+      fine_far_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 1);
+      row_map[fine_close_idx] += 1.;
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerLowerTaylor());
+
+      // Add flux at right/higher corner interface
+      fine_close_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 0);
+      fine_far_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 1);
+      row_map[fine_close_idx] += 1.;
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerUpperTaylor());
     }
-    else { throw std::runtime_error("Runtime4"); }
+    else
+    {
+      if (NorthSouthEdge)
+      {
+        coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy);  // bottom
+        coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy);  // top
+      } 
+      else if (EastWestEdge)
+      {
+        coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy); // bottom
+        coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy); // top 
+      } 
+
+      // Add flux at left/lower corner interface
+      fine_close_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 0);
+      fine_far_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f, iy_f, 1);
+      row_map[fine_close_idx] += 1.;
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerLowerTaylor());
+
+      // Add flux at right/higher corner interface
+      fine_close_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 0);
+      fine_far_idx = indexer.neiblock_n(rhsNei_f, BSX, BSY, ix_f+1, iy_f+1, 1);
+      row_map[fine_close_idx] += 1.;
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerUpperTaylor());
+    }
   }
-  else { 
-    std::cout << "rhs_info.blockID: " << rhs_info.blockID << std::endl;
-    std::cout << "EdgeType: " << helper.EdgeType << std::endl;
-    std::cout << "rhs_info.index[0]: " << rhs_info.index[0] << ", rhs_info.index[1]: " << rhs_info.index[1] << std::endl;
-    std::cout << "rhs_info.level: " << rhs_info.level << std::endl;
-    throw std::runtime_error("Runtime5"); }
+  else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
 
-template<class EdgeHelper>
-void cudaAMRSolver::edgeBoundaryCell( // excluding corners
-    BlockInfo &rhs_info,
+template<class EdgeIndexer>
+void cudaAMRSolver::makeEdgeCellRow( // excluding corners
+    const BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
     const int &ix,
     const int &iy,
     const bool &isBoundary,
-    BlockInfo &rhsNei,
-    EdgeHelper helper)
+    const BlockInfo &rhsNei,
+    const EdgeIndexer &indexer)
 {
     std::map<int,double> row_map;
 
     const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
-    const int n1_idx = helper.inblock_n1(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 1
-    const int n2_idx = helper.inblock_n2(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 2
-    const int n3_idx = helper.inblock_n3(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 3
+    const int n1_idx = indexer.inblock_n1(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 1
+    const int n2_idx = indexer.inblock_n2(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 2
+    const int n3_idx = indexer.inblock_n3(rhs_info, BSX, BSY, ix, iy); // in-block neighbour 3
 
     // Map fluxes associated to in-block edges
     row_map[n1_idx] += 1.;
@@ -531,30 +500,30 @@ void cudaAMRSolver::edgeBoundaryCell( // excluding corners
     row_map[sfc_idx] += -3.;
 
     if (!isBoundary)
-      this->neiBlockElement(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei, helper);
+      this->makeFlux(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei, indexer);
 
     this->cooMatPushBackRow(sfc_idx, row_map);
 }
 
-template<class EdgeHelper1, class EdgeHelper2>
-void cudaAMRSolver::cornerBoundaryCell(
-    BlockInfo &rhs_info,
+template<class EdgeIndexer1, class EdgeIndexer2>
+void cudaAMRSolver::makeCornerCellRow(
+    const BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
     const int &ix,
     const int &iy,
     const bool &isBoundary1,
-    BlockInfo &rhsNei_1,
-    EdgeHelper1 helper1, 
+    const BlockInfo &rhsNei_1,
+    const EdgeIndexer1 &indexer1, 
     const bool &isBoundary2,
-    BlockInfo &rhsNei_2,
-    EdgeHelper2 helper2)
+    const BlockInfo &rhsNei_2,
+    const EdgeIndexer2 &indexer2)
 {
     std::map<int,double> row_map;
 
     const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
-    const int n1_idx = helper1.inblock_n2(rhs_info, BSX, BSY, ix, iy); // helper.inblock_n2 is the opposite edge
-    const int n2_idx = helper2.inblock_n2(rhs_info, BSX, BSY, ix, iy); // makes corner input order invariant
+    const int n1_idx = indexer1.inblock_n2(rhs_info, BSX, BSY, ix, iy); // indexer.inblock_n2 is the opposite edge
+    const int n2_idx = indexer2.inblock_n2(rhs_info, BSX, BSY, ix, iy); // makes corner input order invariant
 
     // Map fluxes associated to in-block edges
     row_map[n1_idx] += 1.;
@@ -562,9 +531,9 @@ void cudaAMRSolver::cornerBoundaryCell(
     row_map[sfc_idx] += -2.;
 
     if (!isBoundary1)
-      this->neiBlockElement(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei_1, helper1);
+      this->makeFlux(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei_1, indexer1);
     if (!isBoundary2)
-      this->neiBlockElement(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei_2, helper2);
+      this->makeFlux(rhs_info, BSX, BSY, ix, iy, row_map, rhsNei_2, indexer2);
 
     this->cooMatPushBackRow(sfc_idx, row_map);
 }
@@ -594,35 +563,31 @@ void cudaAMRSolver::Get_LS()
   this->cooValA_.clear();
   this->cooRowA_.clear();
   this->cooColA_.clear();
-  this->cooValA_.reserve(5 * N);
-  this->cooRowA_.reserve(5 * N);
-  this->cooColA_.reserve(5 * N);
+  this->cooValA_.reserve(6 * N);
+  this->cooRowA_.reserve(6 * N);
+  this->cooColA_.reserve(6 * N);
 
   // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
   // adding a critical section to push_back makes things worse as threads fight for access
   for(int i=0; i< Nblocks; i++)
   {    
-    BlockInfo &rhs_info = RhsInfo[i];
-    ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
-    ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
+    const BlockInfo &rhs_info = RhsInfo[i];
+    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
       const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
-      //double arr[2];
-      //rhs_info.pos(arr,ix,iy);
-      //b_[sfc_idx] = 0.;
-      //x_[sfc_idx] = arr[0]*arr[0]*arr[0];
       b_[sfc_idx] = rhs(ix,iy).s;
       x_[sfc_idx] = p(ix,iy).s;
     }
 
     //1.Check if this is a boundary block
-    int aux = 1 << rhs_info.level; // = 2^level
-    int MAX_X_BLOCKS = (blocksPerDim[0])*aux - 1; //this means that if level 0 has blocksPerDim[0] blocks in the x-direction, level rhs.level will have this many blocks
-    int MAX_Y_BLOCKS = (blocksPerDim[1])*aux - 1; //this means that if level 0 has blocksPerDim[1] blocks in the y-direction, level rhs.level will have this many blocks
+    const int aux = 1 << rhs_info.level; // = 2^level
+    const int MAX_X_BLOCKS = blocksPerDim[0]*aux - 1; //this means that if level 0 has blocksPerDim[0] blocks in the x-direction, level rhs.level will have this many blocks
+    const int MAX_Y_BLOCKS = blocksPerDim[1]*aux - 1; //this means that if level 0 has blocksPerDim[1] blocks in the y-direction, level rhs.level will have this many blocks
 
     //index is the (i,j) coordinates of a block at the current level 
     const bool isWestBoundary  = (rhs_info.index[0] == 0           ); // don't check for west neighbor
@@ -631,16 +596,16 @@ void cudaAMRSolver::Get_LS()
     const bool isNorthBoundary = (rhs_info.index[1] == MAX_Y_BLOCKS); // don't check for north neighbor
 
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
-    long long Z_west  = rhs_info.Znei[1-1][1][1];
-    long long Z_east  = rhs_info.Znei[1+1][1][1];
-    long long Z_south = rhs_info.Znei[1][1-1][1];
-    long long Z_north = rhs_info.Znei[1][1+1][1];
+    const long long Z_west  = rhs_info.Znei[1-1][1][1];
+    const long long Z_east  = rhs_info.Znei[1+1][1][1];
+    const long long Z_south = rhs_info.Znei[1][1-1][1];
+    const long long Z_north = rhs_info.Znei[1][1+1][1];
     //rhs.Z == rhs.Znei[1][1][1] is true always
 
-    BlockInfo &rhsNei_west  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_west );
-    BlockInfo &rhsNei_east  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_east );
-    BlockInfo &rhsNei_south = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_south);
-    BlockInfo &rhsNei_north = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_north);
+    const BlockInfo &rhsNei_west  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_west );
+    const BlockInfo &rhsNei_east  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_east );
+    const BlockInfo &rhsNei_south = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_south);
+    const BlockInfo &rhsNei_north = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_north);
 
     //For later: there's a total of three boolean variables:
     // I.   grid->Tree(rhsNei_west).Exists()
@@ -658,36 +623,36 @@ void cudaAMRSolver::Get_LS()
       const int sn_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy);
       const int nn_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy);
       
-      this->cooMatPushBack(1., sfc_idx, wn_idx);
-      this->cooMatPushBack(1., sfc_idx, en_idx);
-      this->cooMatPushBack(1., sfc_idx, sn_idx);
-      this->cooMatPushBack(1., sfc_idx, nn_idx);
-      this->cooMatPushBack(-4, sfc_idx, sfc_idx);
+      this->cooMatPushBackVal(1., sfc_idx, wn_idx);
+      this->cooMatPushBackVal(1., sfc_idx, en_idx);
+      this->cooMatPushBackVal(1., sfc_idx, sn_idx);
+      this->cooMatPushBackVal(1., sfc_idx, nn_idx);
+      this->cooMatPushBackVal(-4, sfc_idx, sfc_idx);
     }
 
     for(int ix=1; ix<BSX-1; ix++)
     { // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
       int iy = BSY-1;
-      this->edgeBoundaryCell(rhs_info, BSX, BSY, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
 
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
       iy = 0;
-      this->edgeBoundaryCell(rhs_info, BSX, BSY, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
     }
 
     for(int iy=1; iy<BSY-1; iy++)
     { // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
       int ix = 0;
-      this->edgeBoundaryCell(rhs_info, BSX, BSY, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
       ix = BSX-1;
-      this->edgeBoundaryCell(rhs_info, BSX, BSY, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
     }
     // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
     int ix = 0;
     int iy = BSY-1;
-    this->cornerBoundaryCell(
+    this->makeCornerCellRow(
         rhs_info, BSX, BSY, ix, iy, 
         isWestBoundary, rhsNei_west, WestEdgeCell(), 
         isNorthBoundary, rhsNei_north, NorthEdgeCell());
@@ -695,7 +660,7 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
     ix = BSX-1;
     iy = BSY-1;
-    this->cornerBoundaryCell(
+    this->makeCornerCellRow(
         rhs_info, BSX, BSY, ix, iy, 
         isNorthBoundary, rhsNei_north, NorthEdgeCell(), 
         isEastBoundary, rhsNei_east, EastEdgeCell());
@@ -703,7 +668,7 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
     ix = BSX-1;
     iy = 0;
-    this->cornerBoundaryCell(
+    this->makeCornerCellRow(
         rhs_info, BSX, BSY, ix, iy, 
         isEastBoundary, rhsNei_east, EastEdgeCell(), 
         isSouthBoundary, rhsNei_south, SouthEdgeCell());
@@ -711,7 +676,7 @@ void cudaAMRSolver::Get_LS()
     // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
     ix = 0;
     iy = 0;
-    this->cornerBoundaryCell(
+    this->makeCornerCellRow(
         rhs_info, BSX, BSY, ix, iy, 
         isSouthBoundary, rhsNei_south, SouthEdgeCell(), 
         isWestBoundary, rhsNei_west, WestEdgeCell());

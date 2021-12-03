@@ -43,44 +43,44 @@ protected:
   int nnz_; // non-zero elements
 
   // Method to push back values to coo sparse matrix representaiton
-  void cooMatPushBack(const double&, const int&, const int&);
-  void cooMatPushBackRow(const int &, std::map<int,double>&);
+  void cooMatPushBackVal(const double&, const int&, const int&);
+  void cooMatPushBackRow(const int &, const std::map<int,double>&);
   // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
-  template<class EdgeHelper >
-  void neiBlockElement(
-      cubism::BlockInfo &rhs_info,
+  template<class EdgeIndexer >
+  void makeFlux(
+      const cubism::BlockInfo &rhs_info,
       const int &BSX,
       const int &BSY,
       const int &ix,
       const int &iy,
       std::map<int,double> &row_map,
-      cubism::BlockInfo &rhsNei,
-      EdgeHelper helper);
+      const cubism::BlockInfo &rhsNei,
+      const EdgeIndexer &helper) const;
   // Method to construct matrix row for cell on edge of block
-  template<class EdgeHelper>
-  void edgeBoundaryCell( // excluding corners
-      cubism::BlockInfo &rhs_info,
+  template<class EdgeIndexer>
+  void makeEdgeCellRow( // excluding corners
+      const cubism::BlockInfo &rhs_info,
       const int &BSX,
       const int &BSY,
       const int &ix,
       const int &iy,
       const bool &isBoundary,
-      cubism::BlockInfo &rhsNei,
-      EdgeHelper helper);
+      const cubism::BlockInfo &rhsNei,
+      const EdgeIndexer &helper);
   // Method to construct matrix row for cell on corner of block
-  template<class EdgeHelper1, class EdgeHelper2>
-  void cornerBoundaryCell(
-      cubism::BlockInfo &rhs_info,
+  template<class EdgeIndexer1, class EdgeIndexer2>
+  void makeCornerCellRow(
+      const cubism::BlockInfo &rhs_info,
       const int &BSX,
       const int &BSY,
       const int &ix,
       const int &iy,
       const bool &isBoundary1,
-      cubism::BlockInfo &rhsNei_1,
-      EdgeHelper1 helper1, 
+      const cubism::BlockInfo &rhsNei_1,
+      const EdgeIndexer1 &helper1, 
       const bool &isBoundary2,
-      cubism::BlockInfo &rhsNei_2,
-      EdgeHelper2 helper2);
+      const cubism::BlockInfo &rhsNei_2,
+      const EdgeIndexer2 &helper2);
   // Method to compute A and b for the current mesh
   void Get_LS();
   // Host-side variables for linear system
