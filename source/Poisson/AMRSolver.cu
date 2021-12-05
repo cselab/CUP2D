@@ -99,7 +99,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
 
   // NULL if device memory not allocated
   d_cooValA_ = NULL;
-  d_cooRowA_ = NULL;
+  d_csrRowA_ = NULL;
   d_cooColA_ = NULL;
   d_x_ = NULL;
   d_r_ = NULL;
@@ -607,9 +607,11 @@ void AMRSolver::getLS()
   // for sparse LHS matrix 'A' (for uniform grid at most 5 elements per row).
   this->cooValA_.clear();
   this->cooRowA_.clear();
+  this->csrRowA_.clear();
   this->cooColA_.clear();
   this->cooValA_.reserve(6 * N);
   this->cooRowA_.reserve(6 * N);
+  this->csrRowA_.reserve(N+1);
   this->cooColA_.reserve(6 * N);
 
   // No 'parallel for' to avoid accidental reorderings of COO elements during push_back
@@ -662,6 +664,7 @@ void AMRSolver::getLS()
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
     {
+      this->csrRowA_.push_back(cooValA_.size());
       // Following logic needs to be in for loop to assure cooRows are ordered
       if ((ix > 0 && ix<BSX_-1) && (iy > 0 && iy<BSY_-1))
       { // Inner cells
@@ -678,44 +681,44 @@ void AMRSolver::getLS()
         this->cooMatPushBackVal(1., sfc_idx, en_idx);
         this->cooMatPushBackVal(1., sfc_idx, nn_idx);
       }
-      if (ix == 0 && (iy > 0 && iy < BSY_-1))
+      else if (ix == 0 && (iy > 0 && iy < BSY_-1))
       { // west cells excluding corners
         this->makeEdgeCellRow(rhs_info, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
       }
-      if (ix == BSX_-1 && (iy > 0 && iy < BSY_-1))
+      else if (ix == BSX_-1 && (iy > 0 && iy < BSY_-1))
       { // east cells excluding corners
         this->makeEdgeCellRow(rhs_info, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
       }
-      if ((ix > 0 && ix < BSX_-1) && iy == 0)
+      else if ((ix > 0 && ix < BSX_-1) && iy == 0)
       { // south cells excluding corners
         this->makeEdgeCellRow(rhs_info, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
       }
-      if ((ix > 0 && ix < BSX_-1) && iy == BSY_-1)
+      else if ((ix > 0 && ix < BSX_-1) && iy == BSY_-1)
       { // north cells excluding corners
         this->makeEdgeCellRow(rhs_info, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
       }
-      if (ix == 0 && iy == 0)
+      else if (ix == 0 && iy == 0)
       { // south-west corner
         this->makeCornerCellRow(
             rhs_info, ix, iy, 
             isSouthBoundary, rhsNei_south, SouthEdgeCell(), 
             isWestBoundary, rhsNei_west, WestEdgeCell());
       }
-      if (ix == BSX_-1 && iy == 0)
+      else if (ix == BSX_-1 && iy == 0)
       { // south-east corner
         this->makeCornerCellRow(
             rhs_info, ix, iy, 
             isEastBoundary, rhsNei_east, EastEdgeCell(), 
             isSouthBoundary, rhsNei_south, SouthEdgeCell());
       }
-      if (ix == 0 && iy == BSY_-1)
+      else if (ix == 0 && iy == BSY_-1)
       { // north-west corner
         this->makeCornerCellRow(
             rhs_info, ix, iy, 
             isWestBoundary, rhsNei_west, WestEdgeCell(), 
             isNorthBoundary, rhsNei_north, NorthEdgeCell());
       }
-      if (ix == BSX_-1 && iy == BSY_-1)
+      else if (ix == BSX_-1 && iy == BSY_-1)
       { // north-east corner
         this->makeCornerCellRow(
             rhs_info, ix, iy, 
@@ -728,6 +731,7 @@ void AMRSolver::getLS()
   m_ = N; // rows
   n_ = N; // cols
   nnz_ = this->cooValA_.size(); // non-zero elements
+  this->csrRowA_.push_back(nnz_);
   std::cout << "Rows: " << m_  
             << " cols: " << n_ 
             << " non-zero elements: " << nnz_ << std::endl;
@@ -764,14 +768,14 @@ void AMRSolver::allocSolver()
 
   // Allocate device memory for linear system
   checkCudaErrors(cudaMallocAsync(&d_cooValA_, nnz_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_cooRowA_, nnz_ * sizeof(int), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_csrRowA_, nnz_ * sizeof(int), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_cooColA_, nnz_ * sizeof(int), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_x_, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_r_, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_P_inv_, BSZ_ * BSZ_ * sizeof(double), solver_stream_));
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(d_cooValA_, cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(d_cooRowA_, cooRowA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_csrRowA_, csrRowA_.data(), (m_+1) * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_cooColA_, cooColA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_x_, x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_r_, b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
@@ -784,7 +788,7 @@ void AMRSolver::allocSolver()
   checkCudaErrors(cudaMallocAsync(&d_t_, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_z_, m_ * sizeof(double), solver_stream_));
   // Create descriptors for variables that will pass through cuSPARSE
-  checkCudaErrors(cusparseCreateCoo(&spDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateCsr(&spDescrA_, m_, n_, nnz_, d_csrRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrX0_, m_, d_x_, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, m_, d_z_, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, m_, d_nu_, CUDA_R_64F));
@@ -816,7 +820,7 @@ void AMRSolver::deallocSolver()
 
   // Free device memory allocated for linear system
   checkCudaErrors(cudaFreeAsync(d_cooValA_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_cooRowA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_csrRowA_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_cooColA_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_x_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_r_, solver_stream_));
