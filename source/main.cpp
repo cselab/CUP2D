@@ -20,6 +20,7 @@ int main(int argc, char **argv)
   Simulation* sim = new Simulation(argc, argv);
   sim->init();
   sim->simulate();
+  delete sim;
 
   time += MPI_Wtime();
   std::cout << "Runtime = " << time << std::endl;
