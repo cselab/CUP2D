@@ -2,7 +2,8 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 
-# Set environmen variables on local machine
+# Set environment variables on local machine
+NVCC=/usr/local/cuda-11.4/bin/nvcc
 MPICXX=/usr/lib64/mpi/gcc/openmpi/bin/mpicxx
 GSL_ROOT=/usr/include/gsl
 HDF5_ROOT=/usr/include
@@ -36,6 +37,7 @@ endif
 
 # SET FLAGS FOR CUBISM
 CPPFLAGS+= -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
@@ -46,7 +48,7 @@ OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Fish.o SmartCylinder.o \
 		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o Windmill.o AMRSolver.o
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
 
 
 ifeq "$(precision)" "single"
@@ -103,13 +105,23 @@ cup.libs.txt:
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(LIBS) -c $< -o $@
 
 %.d: %.cpp
-	$(CXX) $(CPPFLAGS) -c -MD $<
+	$(CXX) $(CPPFLAGS) $(LIBS) -c -MD $<
 
 # COMPILATION INSTRUCTIONS FOR CUDA ENABLED CODE
-NVFLAGS += -std=c++17 
+NVOBJECTS = \
+		cudaSimulation.o cudaSimulationData.o cudaShape.o cudaShapeLibrary.o \
+		cudaShapesSimple.o cudaPressureSingle.o cudaPutObjectsOnGrid.o cudaadvDiff.o \
+		cudaBufferedLogger.o cudaHelpers.o cudaFish.o cudaSmartCylinder.o \
+		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o \
+		cudaComputeForces.o cudaNaca.o cudaCStartFish.o cudaZebraFish.o \
+		cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o
+NVOBJECTS += cuAMRSolver.o # give a different prefix to differentiate %.cpp generated .o
+
+NVFLAGS += -Xcompiler "$(CPPFLAGS)"
+NVLIBS += -Xcompiler "$(LIBS)"
 # Arch flags for maximum compatibility
 NVFLAGS += -arch=sm_52 \
 					 -gencode=arch=compute_52,code=sm_52 \
@@ -122,29 +134,20 @@ NVFLAGS += -arch=sm_52 \
 					 -gencode=arch=compute_86,code=compute_86
 # Arch flags for maximum performance on a particular system
 # NVFLAGS += -arch=sm_75 -gencode=arch=compute_75,code=sm_75
-NVFLAGS += -DGPU_POISSON
-NVFLAGS += -DBICGSTAB_PROFILER
-NVFLAGS += -I$(BUILDDIR)/../source/Poisson/ -I$(BUILDDIR)/../Cubism/include/
-NVFLAGS += -D_BS_=8 -DCUBISM_ALIGNMENT=32 -DDIMENSION=2
+NVFLAGS += -DGPU_POISSON -DBICGSTAB_PROFILER
 
-bicgstab.o: bicgstab.cu 
-	nvcc $(NVFLAGS) -c $< -o $@
-
-NVOBJECTS = \
-		cudaSimulation.o cudaSimulationData.o cudaShape.o cudaShapeLibrary.o cudaShapesSimple.o \
-		cudaPressureSingle.o cudaPutObjectsOnGrid.o cudaadvDiff.o cudaBufferedLogger.o cudaHelpers.o cudaFish.o cudaSmartCylinder.o \
-		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o cudaComputeForces.o \
-		cudaNaca.o cudaCStartFish.o cudaZebraFish.o cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o cudacudaAMRSolver.o
-# cudacudaAMRSolver.o is an absurd name, but one 'cuda' comes from the .cpp filename, and the other from prefix for compiling '.o' files
-
-# Add cuda library  path to linker
 NVLIBS += -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcudart -lcublas -lcusparse
+# MPI compile and link options
+NVLIBS += -I/usr/lib64/mpi/gcc/openmpi/include -L/usr/lib64/mpi/gcc/openmpi/lib64 -lmpi_cxx -lmpi
 
-cuda%.o : %.cpp 
-	$(CXX) -DGPU_POISSON $(CPPFLAGS) $(NVLIBS) -c $< -o $@
+cuAMRSolver.o: AMRSolver.cu 
+	$(NVCC) $(NVFLAGS) $(NVLIBS) -c $< -o $@
 
-cudasimulation: cudamain.o $(NVOBJECTS) bicgstab.o
-	$(CXX) -DGPU_POISSON cudamain.o bicgstab.o $(NVOBJECTS) $(LIBS) $(NVLIBS) -o $@
+cuda%.o : %.cpp
+	$(NVCC) $(NVFLAGS) $(NVLIBS) -c $< -o $@
+
+cudasimulation: cudamain.o $(NVOBJECTS)
+	$(NVCC) cudamain.o $(NVOBJECTS) $(NVFLAGS) $(NVLIBS) -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:

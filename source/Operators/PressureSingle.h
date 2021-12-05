@@ -14,7 +14,7 @@ class Shape;
 #ifndef GPU_POISSON
 #include "../Poisson/AMRSolver.h"
 #else
-#include "../Poisson/cudaAMRSolver.h"
+#include "../Poisson/AMRSolver.cuh"
 #endif
 #include "Cubism/FluxCorrection.h"
 
@@ -26,11 +26,7 @@ class PressureSingle : public Operator
   const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
 
   //PoissonSolver * const pressureSolver;
-#ifndef GPU_POISSON
   AMRSolver * pressureSolver;
-#else
-  cudaAMRSolver * pressureSolver;
-#endif
 
   bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;

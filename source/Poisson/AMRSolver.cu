@@ -4,10 +4,152 @@
 //  Distributed under the terms of the MIT license.
 //
 
-#include "cudaAMRSolver.h"
-#include "bicgstab.h"
+#include "cuda_runtime.h"
+#include "cublas_v2.h"
+#include "cusparse.h"
+
+#include "helper_cuda.h"
+#include "AMRSolver.cuh"
 
 using namespace cubism;
+
+double AMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
+{
+   int j1 = I1 / BSX_;
+   int i1 = I1 % BSX_;
+   int j2 = I2 / BSY_;
+   int i2 = I2 % BSY_;
+   if (i1==i2 && j1==j2)
+     return 4.0;
+   else if (abs(i1-i2) + abs(j1-j2) == 1)
+     return -1.0;
+   else
+     return 0.0;
+}
+
+AMRSolver::AMRSolver(SimulationData& s):sim(s)
+{
+  std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
+  std::vector<std::vector<double>> L_inv; // inverse of L
+
+  L.resize(BSZ_);
+  L_inv.resize(BSZ_);
+  for (int i(0); i<BSZ_ ; i++)
+  {
+    L[i].resize(i+1);
+    L_inv[i].resize(i+1);
+    // L_inv will act as right block in GJ algorithm, init as identity
+    for (int j(0); j<=i; j++){
+      L_inv[i][j] = (i == j) ? 1. : 0.;
+    }
+  }
+
+  // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
+  for (int i(0); i<BSZ_ ; i++)
+  {
+    double s1 = 0;
+    for (int k(0); k<=i-1; k++)
+      s1 += L[i][k]*L[i][k];
+    L[i][i] = sqrt(getA_local(i,i) - s1);
+    for (int j(i+1); j<BSZ_; j++)
+    {
+      double s2 = 0;
+      for (int k(0); k<=i-1; k++)
+        s2 += L[i][k]*L[j][k];
+      L[j][i] = (getA_local(j,i)-s2) / L[i][i];
+    }
+  }
+
+  /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
+     L will act as the left block (it does not need to be modified in the process), 
+     L_inv will act as the right block and at the end of the algo will contain the inverse */
+  for (int br(0); br<BSZ_; br++)
+  { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
+    const double bsf = 1. / L[br][br];
+    for (int c(0); c<=br; c++)
+      L_inv[br][c] *= bsf;
+
+    for (int wr(br+1); wr<BSZ_; wr++)
+    { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
+      const double wsf = L[wr][br];
+      for (int c(0); c<=br; c++)
+        L_inv[wr][c] -= (wsf * L_inv[br][c]);
+    }
+  }
+
+  // P_inv_ holds inverse preconditionner in row major order!
+  P_inv_.resize(BSZ_ * BSZ_);
+  for (int i(0); i<BSZ_; i++)
+  for (int j(0); j<BSZ_; j++)
+  {
+    double aux = 0.;
+    for (int k(0); k<BSZ_; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+      aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
+
+    P_inv_[i*BSZ_+j] = aux;
+  }
+
+  // --------------------------------------- Set-up CUDA streams and handles ---------------------------------------
+  checkCudaErrors(cudaStreamCreate(&solver_stream_));
+  checkCudaErrors(cublasCreate(&cublas_handle_)); 
+  checkCudaErrors(cusparseCreate(&cusparse_handle_)); 
+  // Set handles to stream
+  checkCudaErrors(cublasSetStream(cublas_handle_, solver_stream_));
+  checkCudaErrors(cusparseSetStream(cusparse_handle_, solver_stream_));
+
+  // NULL if device memory not allocated
+  d_cooValA_ = NULL;
+  d_cooValA_sorted_ = NULL;
+  d_cooRowA_ = NULL;
+  d_cooColA_ = NULL;
+  d_x_ = NULL;
+  d_r_ = NULL;
+  d_P_inv_ = NULL;
+
+  d_rhat_ = NULL;
+  d_p_ = NULL;
+  d_nu_ = NULL;
+  d_t_ = NULL;
+  d_z_ = NULL;
+
+#ifdef BICGSTAB_PROFILER
+  // ------------------------------------------------- Setup profiler -----------------------------------------------
+  elapsed_memcpy_ = 0.;
+  elapsed_precondition_ = 0.;
+  elapsed_bicgstab_ = 0.;
+  checkCudaErrors(cudaEventCreate(&start_memcpy_));
+  checkCudaErrors(cudaEventCreate(&stop_memcpy_));
+  checkCudaErrors(cudaEventCreate(&start_precondition_));
+  checkCudaErrors(cudaEventCreate(&stop_precondition_));
+  checkCudaErrors(cudaEventCreate(&start_bicgstab_));
+  checkCudaErrors(cudaEventCreate(&stop_bicgstab_));
+#endif // BICGSTAB_PROFILER
+}
+
+AMRSolver::~AMRSolver()
+{
+  std::cout << "---------------- Calling on AMRSolver() destructor ------------\n";
+
+  // -------------------------------------- Destroy CUDA streams and handles ---------------------------------------
+#ifdef BICGSTAB_PROFILER
+  std::cout << "  [pBiCGSTAB]: total elapsed time: " << elapsed_bicgstab_ << " [ms]." << std::endl;
+  std::cout << "  [pBiCGSTAB]: memory transfers:   " << (elapsed_memcpy_/elapsed_bicgstab_)*100. << "%." << std::endl;
+  std::cout << "  [pBiCGSTAB]: preconditioning:    " << (elapsed_precondition_/elapsed_bicgstab_)*100. << "%." << std::endl;
+  checkCudaErrors(cudaEventDestroy(start_memcpy_));
+  checkCudaErrors(cudaEventDestroy(stop_memcpy_));
+  checkCudaErrors(cudaEventDestroy(start_precondition_));
+  checkCudaErrors(cudaEventDestroy(stop_precondition_));
+  checkCudaErrors(cudaEventDestroy(start_bicgstab_));
+  checkCudaErrors(cudaEventDestroy(stop_bicgstab_));
+#endif
+  checkCudaErrors(cublasDestroy(cublas_handle_)); 
+  checkCudaErrors(cusparseDestroy(cusparse_handle_)); 
+  checkCudaErrors(cudaStreamDestroy(solver_stream_));
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------- 
+// ----------------------------------------------- Host-side construction of linear system -------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------------- 
 
 enum Compass {North, East, South, West};
 
@@ -203,100 +345,8 @@ class PolyInterpolation {
     static constexpr double p_fine_far = -1./5.;
 };
 
-double cudaAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
-{
-   static constexpr int BSX = VectorBlock::sizeX;
-   static constexpr int BSY = VectorBlock::sizeY;
-   int j1 = I1 / BSX;
-   int i1 = I1 % BSX;
-   int j2 = I2 / BSY;
-   int i2 = I2 % BSY;
-   if (i1==i2 && j1==j2)
-   {
-     return 4.0;
-   }
-   else if (abs(i1-i2) + abs(j1-j2) == 1)
-   {
-     return -1.0;
-   }
-   else
-   {
-     return 0.0;
-   }
 
-}
-cudaAMRSolver::cudaAMRSolver(SimulationData& s):sim(s)
-{
-  std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
-  std::vector<std::vector<double>> L_inv; // inverse of L
-
-  static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
-  static constexpr int N = BSX*BSY;
-  L.resize(N);
-  L_inv.resize(N);
-  for (int i(0); i<N ; i++)
-  {
-    L[i].resize(i+1);
-    L_inv[i].resize(i+1);
-    // L_inv will act as right block in GJ algorithm, init as identity
-    for (int j(0); j<=i; j++){
-      L_inv[i][j] = (i == j) ? 1. : 0.;
-    }
-  }
-
-  // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
-  for (int i(0); i<N ; i++)
-  {
-    double s1 = 0;
-    for (int k(0); k<=i-1; k++)
-      s1 += L[i][k]*L[i][k];
-    L[i][i] = sqrt(getA_local(i,i) - s1);
-    for (int j(i+1); j<N; j++)
-    {
-      double s2 = 0;
-      for (int k(0); k<=i-1; k++)
-        s2 += L[i][k]*L[j][k];
-      L[j][i] = (getA_local(j,i)-s2) / L[i][i];
-    }
-  }
-
-  /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
-     L will act as the left block (it does not need to be modified in the process), 
-     L_inv will act as the right block and at the end of the algo will contain the inverse */
-  for (int br(0); br<N; br++)
-  { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
-    const double bsf = 1. / L[br][br];
-    for (int c(0); c<=br; c++)
-      L_inv[br][c] *= bsf;
-
-    for (int wr(br+1); wr<N; wr++)
-    { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
-      const double wsf = L[wr][br];
-      for (int c(0); c<=br; c++)
-        L_inv[wr][c] -= (wsf * L_inv[br][c]);
-    }
-  }
-
-  // P_inv_ holds inverse preconditionner in row major order!
-  P_inv_.resize(N * N);
-  for (int i(0); i<N; i++)
-  for (int j(0); j<N; j++)
-  {
-    double aux = 0.;
-    for (int k(0); k<N; k++) // P_inv_ = (L^T)^{-1} L^{-1}
-      aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
-
-    P_inv_[i*N+j] = aux;
-  }
-}
-
-cudaAMRSolver::~cudaAMRSolver()
-{
-  std::cout << "---------------- Calling on cudaAMRSolver() destructor ------------\n";
-}
-
-void cudaAMRSolver::cooMatPushBackVal(
+void AMRSolver::cooMatPushBackVal(
     const double &val, 
     const int &row, 
     const int &col){
@@ -305,7 +355,7 @@ void cudaAMRSolver::cooMatPushBackVal(
   this->cooColA_.push_back(col);
 }
 
-void cudaAMRSolver::cooMatPushBackRow(
+void AMRSolver::cooMatPushBackRow(
     const int &row_idx,
     const std::map<int,double> &row_map)
 {
@@ -314,7 +364,7 @@ void cudaAMRSolver::cooMatPushBackRow(
 }
 
 template<class EdgeIndexer >
-void cudaAMRSolver::makeFlux(
+void AMRSolver::makeFlux(
   const BlockInfo &rhs_info,
   const int &BSX,
   const int &BSY,
@@ -476,7 +526,7 @@ void cudaAMRSolver::makeFlux(
 }
 
 template<class EdgeIndexer>
-void cudaAMRSolver::makeEdgeCellRow( // excluding corners
+void AMRSolver::makeEdgeCellRow( // excluding corners
     const BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
@@ -506,7 +556,7 @@ void cudaAMRSolver::makeEdgeCellRow( // excluding corners
 }
 
 template<class EdgeIndexer1, class EdgeIndexer2>
-void cudaAMRSolver::makeCornerCellRow(
+void AMRSolver::makeCornerCellRow(
     const BlockInfo &rhs_info,
     const int &BSX,
     const int &BSY,
@@ -538,12 +588,9 @@ void cudaAMRSolver::makeCornerCellRow(
     this->cooMatPushBackRow(sfc_idx, row_map);
 }
 
-void cudaAMRSolver::Get_LS()
+void AMRSolver::getLS()
 {
   sim.startProfiler("Poisson solver: LS");
-
-  static constexpr int BSX = VectorBlock::sizeX;
-  static constexpr int BSY = VectorBlock::sizeY;
 
   //This returns an array with the blocks that the coarsest possible 
   //mesh would have (i.e. all blocks are at level 0)
@@ -553,12 +600,12 @@ void cudaAMRSolver::Get_LS()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
-  const int N = BSX*BSY*Nblocks;
+  const int N = BSX_*BSY_*Nblocks;
 
   // Allocate memory for solution 'x' and RHS vector 'b' on host
   this->x_.resize(N);
   this->b_.resize(N);
-  // Clear contents from previous call of cudaAMRSolver::solve() and reserve memory 
+  // Clear contents from previous call of AMRSolver::solve() and reserve memory 
   // for sparse LHS matrix 'A' (for uniform grid at most 5 elements per row).
   this->cooValA_.clear();
   this->cooRowA_.clear();
@@ -576,10 +623,10 @@ void cudaAMRSolver::Get_LS()
     const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
     // Construct RHS and x_0 vectors for linear system
-    for(int iy=0; iy<BSY; iy++)
-    for(int ix=0; ix<BSX; ix++)
+    for(int iy=0; iy<BSY_; iy++)
+    for(int ix=0; ix<BSX_; ix++)
     {
-      const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
+      const int sfc_idx = CellIndexer::This(rhs_info, BSX_, BSY_, ix, iy);
       b_[sfc_idx] = rhs(ix,iy).s;
       x_[sfc_idx] = p(ix,iy).s;
     }
@@ -614,14 +661,14 @@ void cudaAMRSolver::Get_LS()
     // And only one of them is true
 
     // Add matrix elements associated to interior cells of a block
-    for(int iy=1; iy<BSY-1; iy++)
-    for(int ix=1; ix<BSX-1; ix++)
+    for(int iy=1; iy<BSY_-1; iy++)
+    for(int ix=1; ix<BSX_-1; ix++)
     {
-      const int sfc_idx = CellIndexer::This(rhs_info, BSX, BSY, ix, iy);
-      const int wn_idx = CellIndexer::WestNeighbour(rhs_info, BSX, BSY, ix, iy);
-      const int en_idx = CellIndexer::EastNeighbour(rhs_info, BSX, BSY, ix, iy);
-      const int sn_idx = CellIndexer::SouthNeighbour(rhs_info, BSX, BSY, ix, iy);
-      const int nn_idx = CellIndexer::NorthNeighbour(rhs_info, BSX, BSY, ix, iy);
+      const int sfc_idx = CellIndexer::This(rhs_info, BSX_, BSY_, ix, iy);
+      const int wn_idx = CellIndexer::WestNeighbour(rhs_info, BSX_, BSY_, ix, iy);
+      const int en_idx = CellIndexer::EastNeighbour(rhs_info, BSX_, BSY_, ix, iy);
+      const int sn_idx = CellIndexer::SouthNeighbour(rhs_info, BSX_, BSY_, ix, iy);
+      const int nn_idx = CellIndexer::NorthNeighbour(rhs_info, BSX_, BSY_, ix, iy);
       
       this->cooMatPushBackVal(1., sfc_idx, wn_idx);
       this->cooMatPushBackVal(1., sfc_idx, en_idx);
@@ -630,46 +677,46 @@ void cudaAMRSolver::Get_LS()
       this->cooMatPushBackVal(-4, sfc_idx, sfc_idx);
     }
 
-    for(int ix=1; ix<BSX-1; ix++)
+    for(int ix=1; ix<BSX_-1; ix++)
     { // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
-      int iy = BSY-1;
-      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
+      int iy = BSY_-1;
+      this->makeEdgeCellRow(rhs_info, BSX_, BSY_, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
 
       // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
       iy = 0;
-      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX_, BSY_, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
     }
 
-    for(int iy=1; iy<BSY-1; iy++)
+    for(int iy=1; iy<BSY_-1; iy++)
     { // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
       int ix = 0;
-      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
+      this->makeEdgeCellRow(rhs_info, BSX_, BSY_, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
 
       // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
-      ix = BSX-1;
-      this->makeEdgeCellRow(rhs_info, BSX, BSY, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
+      ix = BSX_-1;
+      this->makeEdgeCellRow(rhs_info, BSX_, BSY_, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
     }
     // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
     int ix = 0;
-    int iy = BSY-1;
+    int iy = BSY_-1;
     this->makeCornerCellRow(
-        rhs_info, BSX, BSY, ix, iy, 
+        rhs_info, BSX_, BSY_, ix, iy, 
         isWestBoundary, rhsNei_west, WestEdgeCell(), 
         isNorthBoundary, rhsNei_north, NorthEdgeCell());
 
     // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
-    ix = BSX-1;
-    iy = BSY-1;
+    ix = BSX_-1;
+    iy = BSY_-1;
     this->makeCornerCellRow(
-        rhs_info, BSX, BSY, ix, iy, 
+        rhs_info, BSX_, BSY_, ix, iy, 
         isNorthBoundary, rhsNei_north, NorthEdgeCell(), 
         isEastBoundary, rhsNei_east, EastEdgeCell());
     
     // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
-    ix = BSX-1;
+    ix = BSX_-1;
     iy = 0;
     this->makeCornerCellRow(
-        rhs_info, BSX, BSY, ix, iy, 
+        rhs_info, BSX_, BSY_, ix, iy, 
         isEastBoundary, rhsNei_east, EastEdgeCell(), 
         isSouthBoundary, rhsNei_south, SouthEdgeCell());
 
@@ -677,7 +724,7 @@ void cudaAMRSolver::Get_LS()
     ix = 0;
     iy = 0;
     this->makeCornerCellRow(
-        rhs_info, BSX, BSY, ix, iy, 
+        rhs_info, BSX_, BSY_, ix, iy, 
         isSouthBoundary, rhsNei_south, SouthEdgeCell(), 
         isWestBoundary, rhsNei_west, WestEdgeCell());
   }
@@ -692,51 +739,353 @@ void cudaAMRSolver::Get_LS()
   sim.stopProfiler();
 }
 
-void cudaAMRSolver::solve()
+// ----------------------------------------------------------------------------------------------------------------------------------- 
+// ----------------------------------------------------------------------------------------------------------------------------------- 
+
+#ifdef BICGSTAB_PROFILER
+static void startProfiler(cudaEvent_t start, cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(start, stream));
+}
+
+static void stopProfiler(float &total_elapsed_ms, cudaEvent_t start, cudaEvent_t stop, cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(stop, stream));
+  checkCudaErrors(cudaEventSynchronize(stop));
+
+  float this_ms = 0.;
+  checkCudaErrors(cudaEventElapsedTime(&this_ms, start, stop));
+  total_elapsed_ms += this_ms;
+}
+#endif // BICGSTAB_PROFILER
+
+void AMRSolver::allocSolver()
+{
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_bicgstab_, solver_stream_);
+  startProfiler(start_memcpy_, solver_stream_);
+#endif // BICGSTAB_PROFILER
+
+  // Allocate device memory for linear system
+  checkCudaErrors(cudaMallocAsync(&d_cooValA_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooValA_sorted_, nnz_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooRowA_, nnz_ * sizeof(int), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_cooColA_, nnz_ * sizeof(int), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_x_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_r_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_P_inv_, BSZ_ * BSZ_ * sizeof(double), solver_stream_));
+  // H2D transfer of linear system
+  checkCudaErrors(cudaMemcpyAsync(d_cooValA_, cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_cooRowA_, cooRowA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_cooColA_, cooColA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_x_, x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_r_, b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv_.data(), BSZ_ * BSZ_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+
+  // Sort COO storage by row
+  // 1. Deduce buffer size necessary for sorting and allocate storage for it
+  size_t coosortBuffSz;
+  void* coosortBuff =NULL;
+  checkCudaErrors(cusparseXcoosort_bufferSizeExt(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, &coosortBuffSz));
+  checkCudaErrors(cudaMallocAsync(&coosortBuff, coosortBuffSz * sizeof(char), solver_stream_));
+  // 2. Set-up permutation vector P to track transformation from un-sorted to sorted list
+  int* d_P = NULL; // not related to d_P_inv
+  checkCudaErrors(cudaMallocAsync(&d_P, nnz_ * sizeof(int), solver_stream_));
+  checkCudaErrors(cusparseCreateIdentityPermutation(cusparse_handle_, nnz_, d_P));
+  // 3. Sort d_cooRowA_ and d_cooCol inplace and apply permutation stored in d_P to d_cooValA_
+  checkCudaErrors(cusparseXcoosortByRow(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_P, coosortBuff));
+  checkCudaErrors(cusparseDgthr(cusparse_handle_, nnz_, d_cooValA_, d_cooValA_sorted_, d_P, CUSPARSE_INDEX_BASE_ZERO));
+  // Free buffers allocated for COO sort
+  checkCudaErrors(cudaFreeAsync(coosortBuff, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_P, solver_stream_));
+
+  // Allocate arrays for BiCGSTAB storage
+  checkCudaErrors(cudaMallocAsync(&d_rhat_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_p_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_nu_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_t_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMallocAsync(&d_z_, m_ * sizeof(double), solver_stream_));
+  // Create descriptors for variables that will pass through cuSPARSE
+  checkCudaErrors(cusparseCreateCoo(&spDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_sorted_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrX0_, m_, d_x_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, m_, d_z_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, m_, d_nu_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrT_, m_, d_t_, CUDA_R_64F));
+  // Allocate work buffer for cusparseSpMV
+  checkCudaErrors(cusparseSpMV_bufferSize(
+        cusparse_handle_, 
+        CUSPARSE_OPERATION_NON_TRANSPOSE, 
+        &eye_, 
+        spDescrA_, 
+        spDescrX0_, 
+        &nil_, 
+        spDescrNu_, 
+        CUDA_R_64F, 
+        CUSPARSE_MV_ALG_DEFAULT, 
+        &SpMVBuffSz_));
+  checkCudaErrors(cudaMallocAsync(&SpMVBuff_, SpMVBuffSz_ * sizeof(char), solver_stream_));
+
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
+#endif
+}
+
+void AMRSolver::deallocSolver()
+{
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy_, solver_stream_);
+#endif 
+
+  // Free device memory allocated for linear system
+  checkCudaErrors(cudaFreeAsync(d_cooValA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooValA_sorted_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooRowA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_cooColA_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_x_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_r_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_P_inv_, solver_stream_));
+  // Cleanup memory allocated for BiCGSTAB arrays
+  checkCudaErrors(cusparseDestroySpMat(spDescrA_));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrX0_));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrZ_));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrNu_));
+  checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
+  checkCudaErrors(cudaFreeAsync(d_rhat_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_p_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_nu_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_t_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(d_z_, solver_stream_));
+  checkCudaErrors(cudaFreeAsync(SpMVBuff_, solver_stream_));
+
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
+  stopProfiler(elapsed_bicgstab_, start_bicgstab_, stop_bicgstab_, solver_stream_);
+#endif
+  checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+}
+
+void AMRSolver::BiCGSTAB()
+{
+  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
+  const double max_rel_error = this->sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+
+  // Initialize variables to evaluate convergence
+  double error = 1e50;
+  double error_init = 1e50;
+
+  // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
+  checkCudaErrors(cusparseSpMV( // A*x_0
+        cusparse_handle_, 
+        CUSPARSE_OPERATION_NON_TRANSPOSE, 
+        &eye_, 
+        spDescrA_, 
+        spDescrX0_, 
+        &nil_, 
+        spDescrNu_, // Use d_nu_ as temporary storage for result A*x_0 
+        CUDA_R_64F, 
+        CUSPARSE_MV_ALG_DEFAULT, 
+        SpMVBuff_)); 
+  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
+
+#ifdef BICGSTAB_PROFILER
+  // Check norm of A*x_0
+  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+  std::cout << "  [pBiCGSTAB]: || A*x_0 || = " << error_init << std::endl;
+#endif
+  
+  // Calculate x_error_init for max_rel_error comparisons
+  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error_init));
+  checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+  std::cout << "  [pBiCGSTAB]: Initial norm: " << error_init << std::endl;
+
+  // 2. Set r_hat = r
+  checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
+
+  // 3. Set initial values to scalars
+  bool bConverged = false;
+  int restarts = 0;
+  double rho_curr = 1.;
+  double rho_prev = 1.;
+  double alpha = 1.;
+  double omega = 1.;
+  double beta = 0.;
+  const double eps = 1e-21;
+
+  // 4. Set initial values of vectors to zero
+  checkCudaErrors(cudaMemsetAsync(d_nu_, 0, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMemsetAsync(d_p_, 0, m_ * sizeof(double), solver_stream_));
+
+  // 5. Start iterations
+  const size_t max_iter = 1000;
+  for(size_t k(0); k<max_iter; k++)
+  {
+    // 1. rho_i = (r_hat, r)
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_r_, 1, &rho_curr));
+    
+    double norm_1 = 0.;
+    double norm_2 = 0.;
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &norm_1));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &norm_2));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for 2. which happens on host
+    // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
+    beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+
+    // Numerical convergence trick
+    const double cosTheta = rho_curr / norm_1 / norm_2;
+    bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
+    if(serious_breakdown && max_restarts > 0)
+    {
+      restarts++;
+      if(restarts >= max_restarts){
+        break;
+      }
+      std::cout << "  [pBiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
+      checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
+      checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &rho_curr));
+      checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
+      rho_curr *= rho_curr;
+      rho_prev = 1.;
+      alpha = 1.;
+      omega = 1.;
+      beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+    }
+
+    // 3. p_i = r_{i-1} + beta(p_{i-1} - omega_{i-1}*nu_i)
+    double nomega = -omega;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_nu_, 1, d_p_, 1)); // p <- -omega_{i-1}*nu_i + p
+    checkCudaErrors(cublasDscal(cublas_handle_, m_, &beta, d_p_, 1));            // p <- beta * p
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &eye_, d_r_, 1, d_p_, 1));    // p <- r_{i-1} + p
+
+    // 4. z <- K_2^{-1} * p_i
+#ifdef BICGSTAB_PROFILER
+    startProfiler(start_precondition_, solver_stream_);
+#endif
+    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_p_, BSZ_, &nil_, d_z_, BSZ_));
+#ifdef BICGSTAB_PROFILER
+    stopProfiler(elapsed_precondition_, start_precondition_, stop_precondition_, solver_stream_);
+#endif
+
+    // 5. nu_i = A * z
+    checkCudaErrors(cusparseSpMV(
+          cusparse_handle_,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &eye_,
+          spDescrA_,
+          spDescrZ_,
+          &nil_,
+          spDescrNu_,
+          CUDA_R_64F,
+          CUSPARSE_MV_ALG_DEFAULT,
+          SpMVBuff_));
+
+    // 6. alpha = rho_i / (r_hat, nu_i)
+    double alpha_den;
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host division
+    alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
+
+    // 7. h = alpha*z + x_{i-1}
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &alpha, d_z_, 1, d_x_, 1));
+
+    // 9. s = -alpha * nu_i + r_{i-1}
+    const double nalpha = -alpha;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nalpha, d_nu_, 1, d_r_, 1));
+
+    // 10. z <- K_2^{-1} * s
+#ifdef BICGSTAB_PROFILER
+    startProfiler(start_precondition_, solver_stream_);
+#endif
+    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_r_, BSZ_, &nil_, d_z_, BSZ_));
+#ifdef BICGSTAB_PROFILER
+    stopProfiler(elapsed_precondition_, start_precondition_, stop_precondition_, solver_stream_);
+#endif
+
+    // 11. t = A * z
+    checkCudaErrors(cusparseSpMV(
+          cusparse_handle_,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &eye_,
+          spDescrA_,
+          spDescrZ_,
+          &nil_,
+          spDescrT_,
+          CUDA_R_64F,
+          CUSPARSE_MV_ALG_DEFAULT,
+          SpMVBuff_));
+    
+    // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
+    double omega_num;
+    double omega_den;
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &omega_num)); // alpha <- (t,s)
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t_, 1, &omega_den));          // beta <- sqrt(t,t)
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host arithmetic
+    omega = omega_num / (omega_den * omega_den + eps);
+
+    // 13. x_i = omega_i * z + h
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &omega, d_z_, 1, d_x_, 1));
+
+    // 15. r_i = -omega_i * t + s
+    nomega = -omega;
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_t_, 1, d_r_, 1));
+
+    // If x_i accurate enough then quit
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+
+    if((error <= max_error) || (error / error_init <= max_rel_error))
+    // if(x_error <= max_error)
+    {
+      std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      bConverged = true;
+      break;
+    }
+
+    // Update *_prev values for next iteration
+    rho_prev = rho_curr;
+  }
+
+  if( bConverged )
+    std::cout <<  "  [pBiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+  else
+    std::cout <<  "  [pBiCGSTAB]: Iteration " << max_iter 
+              << ". Error norm (relative) = " << error << "/" << max_error 
+              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+
+#ifdef BICGSTAB_PROFILER
+  startProfiler(start_memcpy_, solver_stream_);
+#endif
+  // Copy result back to host
+  checkCudaErrors(cudaMemcpyAsync(x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+#ifdef BICGSTAB_PROFILER
+  stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
+#endif
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------- 
+// ----------------------------------------------------------------------------------------------------------------------------------- 
+
+void AMRSolver::solve()
 {
 
-  std::cout << "--------------------- Calling on cudaAMRSolver.solve() ------------------------ \n";
+  std::cout << "--------------------- Calling on AMRSolver.solve() ------------------------ \n";
 
-  this->Get_LS();
+  this->getLS();
+  this->allocSolver();
+  this->BiCGSTAB();
+  this->deallocSolver();
+  this->zeroMean();
+}
 
+void AMRSolver::zeroMean()
+{
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = zInfo.size();
 
-  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
-  const double max_rel_error = sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
-  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-
-//  BiCGSTAB(
-//      m_, 
-//      n_, 
-//      nnz_, 
-//      cooValA_.data(), 
-//      cooRowA_.data(), 
-//      cooColA_.data(), 
-//      x_.data(), 
-//      b_.data(), 
-//      max_error, 
-//      max_rel_error,
-//      max_restarts);
-   pBiCGSTAB(
-      m_, 
-      n_, 
-      nnz_, 
-      cooValA_.data(), 
-      cooRowA_.data(), 
-      cooColA_.data(), 
-      x_.data(), 
-      b_.data(), 
-      BSX * BSY,
-      P_inv_.data(),
-      max_error, 
-      max_rel_error,
-      max_restarts);
-
-  //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
-  //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
   double avg = 0;
   double avg1 = 0;
   #pragma omp parallel

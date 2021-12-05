@@ -6,21 +6,25 @@
 
 #pragma once
 
+#include "cuda_runtime.h"
+#include "cublas_v2.h"
+#include "cusparse.h"
+
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 
-class cudaAMRSolver 
+class AMRSolver 
 {
   /*
   Method used to solve Poisson's equation: https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
   */
 public:
   std::string getName() {
-    return "cudaAMRSolver";
+    return "GPU AMRSolver";
   }
   // Constructor and destructor
-  cudaAMRSolver(SimulationData& s);
-  ~cudaAMRSolver();
+  AMRSolver(SimulationData& s);
+  ~AMRSolver();
 
   //this object is used to compute the "flux corrections" at the interface between a coarse and fine grid point
   //these corrections are used for the coarse cell
@@ -31,6 +35,14 @@ public:
   void solve();
 
 protected:
+  static constexpr int BSX_ = VectorBlock::sizeX;
+  static constexpr int BSY_ = VectorBlock::sizeY;
+  static constexpr int BSZ_ = BSX_*BSY_;
+
+  static constexpr double eye_ = 1.;
+  static constexpr double nye_ = -1.;
+  static constexpr double nil_ = 0.;
+
   //This returns element K_{I1,I2}. It is used when we invert K
   double getA_local(int I1,int I2);
 
@@ -82,7 +94,7 @@ protected:
       const cubism::BlockInfo &rhsNei_2,
       const EdgeIndexer2 &helper2);
   // Method to compute A and b for the current mesh
-  void Get_LS();
+  void getLS();
   // Host-side variables for linear system
   std::vector<double> cooValA_;
   std::vector<int> cooRowA_;
@@ -90,20 +102,49 @@ protected:
   std::vector<double> x_;
   std::vector<double> b_;
 
-  //this stuff below is used for preconditioning the system
-  
-  //Following Wikipedia's notation, we use the preconditioner K_1 * K_2, where K_1 = I is the identity matrix
-  //and K_2 is a block diagonal matrix, i.e.:
-  /*
-         K 0 ...
-   K_2 = 0 K 0 ...
-         .
-         .
-         .
-         0 0 0 ... K
-    where each K is a small (BSX*BSY)x(BSX*BSY) matrix that multipli3es each (BSX*BSY)x(BSX*BSY) block
-  */
   // Row major linearly indexed matrix containing inverse preconditioner K_2^{-1}
   std::vector<double> P_inv_; 
 
+
+  void allocSolver();
+  void deallocSolver();
+  void BiCGSTAB();
+  void zeroMean();
+  cudaStream_t solver_stream_;
+  cublasHandle_t cublas_handle_;
+  cusparseHandle_t cusparse_handle_;
+
+  float elapsed_memcpy_;
+  float elapsed_precondition_;
+  float elapsed_bicgstab_;
+  cudaEvent_t start_memcpy_;
+  cudaEvent_t stop_memcpy_;
+  cudaEvent_t start_precondition_;
+  cudaEvent_t stop_precondition_;
+  cudaEvent_t start_bicgstab_;
+  cudaEvent_t stop_bicgstab_;
+
+  // Device-side varibles for linear system
+  double* d_cooValA_;
+  double* d_cooValA_sorted_;
+  int* d_cooRowA_;
+  int* d_cooColA_;
+  double* d_x_;
+  double* d_r_;
+  double* d_P_inv_;
+  // Device-side intermediate variables for BiCGSTAB
+  double* d_rhat_;
+  double* d_p_;
+  double* d_nu_;
+  double* d_t_;
+  double* d_z_;
+  // Descriptors for variables that will pass through cuSPARSE
+  cusparseSpMatDescr_t spDescrA_;
+  cusparseDnVecDescr_t spDescrX0_;
+  cusparseDnVecDescr_t spDescrZ_;
+  cusparseDnVecDescr_t spDescrNu_;
+  cusparseDnVecDescr_t spDescrT_;
+  // Work buffer for cusparseSpMV
+  size_t SpMVBuffSz_;
+  void* SpMVBuff_;
 };

@@ -8,7 +8,7 @@
 #ifndef GPU_POISSON
 #include "../Poisson/AMRSolver.h"
 #else
-#include "../Poisson/cudaAMRSolver.h"
+#include "../Poisson/AMRSolver.cuh"
 #endif
 #include "../Shape.h"
 
@@ -592,11 +592,7 @@ void PressureSingle::operator()(const double dt)
 //pressureSolver( PoissonSolver::makeSolver(s) ) { }
 PressureSingle::PressureSingle(SimulationData& s) : Operator(s)
 {
-#ifndef GPU_POISSON
   pressureSolver = new AMRSolver(s);
-#else
-  pressureSolver = new cudaAMRSolver(s);
-#endif
 }
 
 PressureSingle::~PressureSingle() {
