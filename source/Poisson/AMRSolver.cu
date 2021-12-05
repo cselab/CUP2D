@@ -99,7 +99,6 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
 
   // NULL if device memory not allocated
   d_cooValA_ = NULL;
-  d_cooValA_sorted_ = NULL;
   d_cooRowA_ = NULL;
   d_cooColA_ = NULL;
   d_x_ = NULL;
@@ -132,9 +131,9 @@ AMRSolver::~AMRSolver()
 
   // -------------------------------------- Destroy CUDA streams and handles ---------------------------------------
 #ifdef BICGSTAB_PROFILER
-  std::cout << "  [pBiCGSTAB]: total elapsed time: " << elapsed_bicgstab_ << " [ms]." << std::endl;
-  std::cout << "  [pBiCGSTAB]: memory transfers:   " << (elapsed_memcpy_/elapsed_bicgstab_)*100. << "%." << std::endl;
-  std::cout << "  [pBiCGSTAB]: preconditioning:    " << (elapsed_precondition_/elapsed_bicgstab_)*100. << "%." << std::endl;
+  std::cout << "  [AMRSolver]: total elapsed time: " << elapsed_bicgstab_ << " [ms]." << std::endl;
+  std::cout << "  [AMRSolver]: memory transfers:   " << (elapsed_memcpy_/elapsed_bicgstab_)*100. << "%." << std::endl;
+  std::cout << "  [AMRSolver]: preconditioning:    " << (elapsed_precondition_/elapsed_bicgstab_)*100. << "%." << std::endl;
   checkCudaErrors(cudaEventDestroy(start_memcpy_));
   checkCudaErrors(cudaEventDestroy(stop_memcpy_));
   checkCudaErrors(cudaEventDestroy(start_precondition_));
@@ -363,6 +362,7 @@ void AMRSolver::cooMatPushBackRow(
     const int &row_idx,
     const std::map<int,double> &row_map)
 {
+  // Sorted by key by default!
   for (const auto &[col_idx, val] : row_map)
     this->cooMatPushBackVal(val, row_idx, col_idx);
 }
@@ -659,72 +659,70 @@ void AMRSolver::getLS()
     // And only one of them is true
 
     // Add matrix elements associated to interior cells of a block
-    for(int iy=1; iy<BSY_-1; iy++)
-    for(int ix=1; ix<BSX_-1; ix++)
+    for(int iy=0; iy<BSY_; iy++)
+    for(int ix=0; ix<BSX_; ix++)
     {
-      const int sfc_idx = CellIndexer::This(rhs_info, ix, iy);
-      const int wn_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy);
-      const int en_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy);
-      const int sn_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy);
-      const int nn_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy);
-      
-      this->cooMatPushBackVal(1., sfc_idx, wn_idx);
-      this->cooMatPushBackVal(1., sfc_idx, en_idx);
-      this->cooMatPushBackVal(1., sfc_idx, sn_idx);
-      this->cooMatPushBackVal(1., sfc_idx, nn_idx);
-      this->cooMatPushBackVal(-4, sfc_idx, sfc_idx);
+      // Following logic needs to be in for loop to assure cooRows are ordered
+      if ((ix > 0 && ix<BSX_-1) && (iy > 0 && iy<BSY_-1))
+      { // Inner cells
+        const int sn_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy);
+        const int wn_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy);
+        const int sfc_idx = CellIndexer::This(rhs_info, ix, iy);
+        const int en_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy);
+        const int nn_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy);
+        
+        // Push back in ascending order for 'col_idx'
+        this->cooMatPushBackVal(1., sfc_idx, sn_idx);
+        this->cooMatPushBackVal(1., sfc_idx, wn_idx);
+        this->cooMatPushBackVal(-4, sfc_idx, sfc_idx);
+        this->cooMatPushBackVal(1., sfc_idx, en_idx);
+        this->cooMatPushBackVal(1., sfc_idx, nn_idx);
+      }
+      if (ix == 0 && (iy > 0 && iy < BSY_-1))
+      { // west cells excluding corners
+        this->makeEdgeCellRow(rhs_info, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
+      }
+      if (ix == BSX_-1 && (iy > 0 && iy < BSY_-1))
+      { // east cells excluding corners
+        this->makeEdgeCellRow(rhs_info, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
+      }
+      if ((ix > 0 && ix < BSX_-1) && iy == 0)
+      { // south cells excluding corners
+        this->makeEdgeCellRow(rhs_info, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
+      }
+      if ((ix > 0 && ix < BSX_-1) && iy == BSY_-1)
+      { // north cells excluding corners
+        this->makeEdgeCellRow(rhs_info, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
+      }
+      if (ix == 0 && iy == 0)
+      { // south-west corner
+        this->makeCornerCellRow(
+            rhs_info, ix, iy, 
+            isSouthBoundary, rhsNei_south, SouthEdgeCell(), 
+            isWestBoundary, rhsNei_west, WestEdgeCell());
+      }
+      if (ix == BSX_-1 && iy == 0)
+      { // south-east corner
+        this->makeCornerCellRow(
+            rhs_info, ix, iy, 
+            isEastBoundary, rhsNei_east, EastEdgeCell(), 
+            isSouthBoundary, rhsNei_south, SouthEdgeCell());
+      }
+      if (ix == 0 && iy == BSY_-1)
+      { // north-west corner
+        this->makeCornerCellRow(
+            rhs_info, ix, iy, 
+            isWestBoundary, rhsNei_west, WestEdgeCell(), 
+            isNorthBoundary, rhsNei_north, NorthEdgeCell());
+      }
+      if (ix == BSX_-1 && iy == BSY_-1)
+      { // north-east corner
+        this->makeCornerCellRow(
+            rhs_info, ix, iy, 
+            isNorthBoundary, rhsNei_north, NorthEdgeCell(), 
+            isEastBoundary, rhsNei_east, EastEdgeCell());
+      }
     }
-
-    for(int ix=1; ix<BSX_-1; ix++)
-    { // Add matrix elements associated to cells on the northern boundary of the block (excl. corners)
-      int iy = BSY_-1;
-      this->makeEdgeCellRow(rhs_info, ix, iy, isNorthBoundary, rhsNei_north, NorthEdgeCell());
-
-      // Add matrix elements associated to cells on the southern boundary of the block (excl. corners)
-      iy = 0;
-      this->makeEdgeCellRow(rhs_info, ix, iy, isSouthBoundary, rhsNei_south, SouthEdgeCell());
-    }
-
-    for(int iy=1; iy<BSY_-1; iy++)
-    { // Add matrix elements associated to cells on the western boundary of the block (excl. corners)
-      int ix = 0;
-      this->makeEdgeCellRow(rhs_info, ix, iy, isWestBoundary, rhsNei_west, WestEdgeCell());
-
-      // Add matrix elements associated to cells on the eastern boundary of the block (excl. corners)
-      ix = BSX_-1;
-      this->makeEdgeCellRow(rhs_info, ix, iy, isEastBoundary, rhsNei_east, EastEdgeCell());
-    }
-    // Add matrix elements associated to cells on the north-west corner of the block (excl. corners)
-    int ix = 0;
-    int iy = BSY_-1;
-    this->makeCornerCellRow(
-        rhs_info, ix, iy, 
-        isWestBoundary, rhsNei_west, WestEdgeCell(), 
-        isNorthBoundary, rhsNei_north, NorthEdgeCell());
-
-    // Add matrix elements associated to cells on the north-east corner of the block (excl. corners)
-    ix = BSX_-1;
-    iy = BSY_-1;
-    this->makeCornerCellRow(
-        rhs_info, ix, iy, 
-        isNorthBoundary, rhsNei_north, NorthEdgeCell(), 
-        isEastBoundary, rhsNei_east, EastEdgeCell());
-    
-    // Add matrix elements associated to cells on the south-east corner of the block (excl. corners)
-    ix = BSX_-1;
-    iy = 0;
-    this->makeCornerCellRow(
-        rhs_info, ix, iy, 
-        isEastBoundary, rhsNei_east, EastEdgeCell(), 
-        isSouthBoundary, rhsNei_south, SouthEdgeCell());
-
-    // Add matrix elements associated to cells on the south-west corner of the block (excl. corners)
-    ix = 0;
-    iy = 0;
-    this->makeCornerCellRow(
-        rhs_info, ix, iy, 
-        isSouthBoundary, rhsNei_south, SouthEdgeCell(), 
-        isWestBoundary, rhsNei_west, WestEdgeCell());
   }
   // Save params of current linear system
   m_ = N; // rows
@@ -766,7 +764,6 @@ void AMRSolver::allocSolver()
 
   // Allocate device memory for linear system
   checkCudaErrors(cudaMallocAsync(&d_cooValA_, nnz_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_cooValA_sorted_, nnz_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_cooRowA_, nnz_ * sizeof(int), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_cooColA_, nnz_ * sizeof(int), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_x_, m_ * sizeof(double), solver_stream_));
@@ -780,23 +777,6 @@ void AMRSolver::allocSolver()
   checkCudaErrors(cudaMemcpyAsync(d_r_, b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv_.data(), BSZ_ * BSZ_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 
-  // Sort COO storage by row
-  // 1. Deduce buffer size necessary for sorting and allocate storage for it
-  size_t coosortBuffSz;
-  void* coosortBuff =NULL;
-  checkCudaErrors(cusparseXcoosort_bufferSizeExt(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, &coosortBuffSz));
-  checkCudaErrors(cudaMallocAsync(&coosortBuff, coosortBuffSz * sizeof(char), solver_stream_));
-  // 2. Set-up permutation vector P to track transformation from un-sorted to sorted list
-  int* d_P = NULL; // not related to d_P_inv
-  checkCudaErrors(cudaMallocAsync(&d_P, nnz_ * sizeof(int), solver_stream_));
-  checkCudaErrors(cusparseCreateIdentityPermutation(cusparse_handle_, nnz_, d_P));
-  // 3. Sort d_cooRowA_ and d_cooCol inplace and apply permutation stored in d_P to d_cooValA_
-  checkCudaErrors(cusparseXcoosortByRow(cusparse_handle_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_P, coosortBuff));
-  checkCudaErrors(cusparseDgthr(cusparse_handle_, nnz_, d_cooValA_, d_cooValA_sorted_, d_P, CUSPARSE_INDEX_BASE_ZERO));
-  // Free buffers allocated for COO sort
-  checkCudaErrors(cudaFreeAsync(coosortBuff, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_P, solver_stream_));
-
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMallocAsync(&d_rhat_, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_p_, m_ * sizeof(double), solver_stream_));
@@ -804,7 +784,7 @@ void AMRSolver::allocSolver()
   checkCudaErrors(cudaMallocAsync(&d_t_, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(cudaMallocAsync(&d_z_, m_ * sizeof(double), solver_stream_));
   // Create descriptors for variables that will pass through cuSPARSE
-  checkCudaErrors(cusparseCreateCoo(&spDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_sorted_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateCoo(&spDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrX0_, m_, d_x_, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, m_, d_z_, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, m_, d_nu_, CUDA_R_64F));
@@ -836,7 +816,6 @@ void AMRSolver::deallocSolver()
 
   // Free device memory allocated for linear system
   checkCudaErrors(cudaFreeAsync(d_cooValA_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_cooValA_sorted_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_cooRowA_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_cooColA_, solver_stream_));
   checkCudaErrors(cudaFreeAsync(d_x_, solver_stream_));
@@ -890,13 +869,13 @@ void AMRSolver::BiCGSTAB()
   // Check norm of A*x_0
   checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-  std::cout << "  [pBiCGSTAB]: || A*x_0 || = " << error_init << std::endl;
+  std::cout << "  [AMRSolver]: || A*x_0 || = " << error_init << std::endl;
 #endif
   
   // Calculate x_error_init for max_rel_error comparisons
   checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-  std::cout << "  [pBiCGSTAB]: Initial norm: " << error_init << std::endl;
+  std::cout << "  [AMRSolver]: Initial norm: " << error_init << std::endl;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
@@ -939,7 +918,7 @@ void AMRSolver::BiCGSTAB()
       if(restarts >= max_restarts){
         break;
       }
-      std::cout << "  [pBiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
+      std::cout << "  [AMRSolver]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
       checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &rho_curr));
       checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
@@ -1035,7 +1014,7 @@ void AMRSolver::BiCGSTAB()
     if((error <= max_error) || (error / error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "  [pBiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      std::cout << "  [AMRSolver]: Converged after " << k << " iterations" << std::endl;;
       bConverged = true;
       break;
     }
@@ -1045,10 +1024,10 @@ void AMRSolver::BiCGSTAB()
   }
 
   if( bConverged )
-    std::cout <<  "  [pBiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
+    std::cout <<  "  [AMRSolver] Error norm (relative) = " << error << "/" << max_error 
               << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
   else
-    std::cout <<  "  [pBiCGSTAB]: Iteration " << max_iter 
+    std::cout <<  "  [AMRSolver]: Iteration " << max_iter 
               << ". Error norm (relative) = " << error << "/" << max_error 
               << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
 

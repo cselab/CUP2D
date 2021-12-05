@@ -120,7 +120,6 @@ protected:
 
   // Device-side varibles for linear system
   double* d_cooValA_;
-  double* d_cooValA_sorted_;
   int* d_cooRowA_;
   int* d_cooColA_;
   double* d_x_;
