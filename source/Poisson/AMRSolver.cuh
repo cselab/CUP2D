@@ -61,8 +61,6 @@ protected:
   template<class EdgeIndexer >
   void makeFlux(
       const cubism::BlockInfo &rhs_info,
-      const int &BSX,
-      const int &BSY,
       const int &ix,
       const int &iy,
       std::map<int,double> &row_map,
@@ -72,8 +70,6 @@ protected:
   template<class EdgeIndexer>
   void makeEdgeCellRow( // excluding corners
       const cubism::BlockInfo &rhs_info,
-      const int &BSX,
-      const int &BSY,
       const int &ix,
       const int &iy,
       const bool &isBoundary,
@@ -83,8 +79,6 @@ protected:
   template<class EdgeIndexer1, class EdgeIndexer2>
   void makeCornerCellRow(
       const cubism::BlockInfo &rhs_info,
-      const int &BSX,
-      const int &BSY,
       const int &ix,
       const int &iy,
       const bool &isBoundary1,
