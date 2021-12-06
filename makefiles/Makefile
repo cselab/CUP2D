@@ -47,6 +47,12 @@ OBJECTS = \
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
 endif
+ifeq "$(precision)" "double"
+CPPFLAGS += -D_DOUBLE_PRECISION_
+endif
+ifeq "$(precision)" "long_double"
+CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
+endif
 
 usemap ?= true
 ifeq "$(usemap)" "true"
