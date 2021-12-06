@@ -13,10 +13,10 @@ class ExperimentFish: public Fish
 {
   const Real timeStart;
  public:
-  ExperimentFish(SimulationData&s, cubism::ArgumentParser&p, double C[2]);
+  ExperimentFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
 
-  void updatePosition(double dt) override;
-  void updateVelocity(double dt) override;
+  void updatePosition(Real dt) override;
+  void updateVelocity(Real dt) override;
 };
 
 

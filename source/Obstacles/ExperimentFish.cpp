@@ -10,21 +10,21 @@
 
 using namespace cubism;
 
-ExperimentFish::ExperimentFish(SimulationData&s, ArgumentParser&p, double C[2])
+ExperimentFish::ExperimentFish(SimulationData&s, ArgumentParser&p, Real C[2])
   : Fish(s,p,C), timeStart( p("-tStart").asDouble() )  
 {
   const std::string path = p("-path").asString();
   const Real dtDataset = p("-dtDataset").asDouble();
   myFish = new ExperimentDataFish(length, sim.minH, path, timeStart, dtDataset);
-  if( s.verbose ) printf("[CUP2D] - ExperimentDataFish %s %d %f\n", path.c_str(), myFish->Nm, length);
+  if( s.verbose ) printf("[CUP2D] - ExperimentDataFish %s %d %f\n", path.c_str(), myFish->Nm, (double)length);
 }
 
-void ExperimentFish::updatePosition(double dt)
+void ExperimentFish::updatePosition(Real dt)
 {
   Shape::updatePosition(dt);
 }
 
-void ExperimentFish::updateVelocity(double dt)
+void ExperimentFish::updateVelocity(Real dt)
 {
   ExperimentDataFish* const expFish = dynamic_cast<ExperimentDataFish*>( myFish );
   u = expFish->u;
@@ -37,7 +37,7 @@ std::vector<std::vector<Real>> ExperimentDataFish::loadFile( const std::string p
   std::ifstream myfile(path);
   if( myfile.is_open() )
   {
-    double temp;
+    Real temp;
     std::string line;
     while( std::getline(myfile,line) )
     {

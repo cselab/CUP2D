@@ -495,7 +495,7 @@ bool PressureSingle::detectCollidingObstacles() const
         const auto pos = velInfo[k].pos<Real>(ix, iy);
 
         // Output collision information
-        printf("[CUP2D, rank %u] %lu hit %lu in [%f %f]\n", sim.rank, i, j, pos[0], pos[1]); fflush(0);
+        printf("[CUP2D, rank %u] %lu hit %lu in [%f %f]\n", sim.rank, i, j, (double)pos[0], (double)pos[1]); fflush(0);
 
         // set boolean to true and tell user
         bCollision = true;

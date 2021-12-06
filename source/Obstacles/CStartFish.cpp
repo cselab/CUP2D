@@ -772,7 +772,7 @@ CStartFish::CStartFish(SimulationData&s, ArgumentParser&p, Real C[2]):
 {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new ControlledCurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-    if( sim.rank == 0 && s.verbose ) printf("[CUP2D] - ControlledCurvatureFish %d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+    if( sim.rank == 0 && s.verbose ) printf("[CUP2D] - ControlledCurvatureFish %d %f %f %f\n",myFish->Nm, (double)length, (double)Tperiod, (double)phaseShift);
 }
 
 void CStartFish::create(const std::vector<BlockInfo>& vInfo)

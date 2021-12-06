@@ -61,7 +61,7 @@ StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, Real C[2]):
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  if( sim.rank == 0 && s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, length,myFish->dSref,myFish->dSmid,sim.minH, Tperiod, phaseShift);
+  if( sim.rank == 0 && s.verbose ) printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n",myFish->Nm, (double)length,(double)myFish->dSref,(double)myFish->dSmid,(double)sim.minH, (double)Tperiod, (double)phaseShift);
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
@@ -371,7 +371,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getCartComm());
   if( sim.rank == 0 && blockIdSurf == -1 )
   {
-    printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", pSurf[0], pSurf[1]);
+    printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
     fflush(0);
     abort();
   }

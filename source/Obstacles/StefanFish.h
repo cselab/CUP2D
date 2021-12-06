@@ -137,7 +137,7 @@ class CurvatureFish : public FishData
 // while t_current would be K * 0.5 plus a fraction of the timestep. This
 // because the new RL discrete step is detected as soon as t_current>=t_rlAction
   void execute(const Real t_current, const Real t_rlAction,
-                              const std::vector<double>&a)
+                              const std::vector<Real>&a)
   {
     assert(t_current >= t_rlAction);
     oldrCurv = lastCurv; // store action

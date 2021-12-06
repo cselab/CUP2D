@@ -32,6 +32,6 @@ class Fish: public Shape
   }
   void removeMoments(const std::vector<cubism::BlockInfo>& vInfo) override;
   virtual void resetAll() override;
-  virtual void updatePosition(double dt) override;
+  virtual void updatePosition(Real dt) override;
   virtual void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 };

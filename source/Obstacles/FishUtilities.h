@@ -421,13 +421,13 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 class Synapse
 {
 public:
-    double g = 0;
-    double dg = 0;
-    const double tau1 = 0.006 / 0.044;
-    const double tau2 = 0.008 / 0.044;
-    double prevTime = 0.0;
-    std::vector<double> activationTimes;
-    std::vector<double> activationAmplitudes;
+    Real g = 0;
+    Real dg = 0;
+    const Real tau1 = 0.006 / 0.044;
+    const Real tau2 = 0.008 / 0.044;
+    Real prevTime = 0.0;
+    std::vector<Real> activationTimes;
+    std::vector<Real> activationAmplitudes;
 public:
     void reset() {
         g = 0.0;
@@ -436,15 +436,15 @@ public:
         activationTimes.clear();
         activationAmplitudes.clear();
     }
-    void advance(const double t) {
+    void advance(const Real t) {
 //        printf("[Synapse][advance]\n");
         dg = 0;
-        double dt = t - prevTime;
+        Real dt = t - prevTime;
 //        printf("[Synapse][advance] activationTimes.size() %ld\n", activationTimes.size());
         for (size_t i=0;i<activationTimes.size();i++) {
-            const double deltaT = t - activationTimes.at(i);
+            const Real deltaT = t - activationTimes.at(i);
 //            printf("[Synapse][advance] deltaT %f\n", deltaT);
-            const double dBiExp = -1 / tau2 * std::exp(-deltaT / tau2) + 1 / tau1 * std::exp(-deltaT / tau1);
+            const Real dBiExp = -1 / tau2 * std::exp(-deltaT / tau2) + 1 / tau1 * std::exp(-deltaT / tau1);
 //            printf("[Synapse][advance] dBiExp %f\n", dBiExp);
             dg += activationAmplitudes.at(i) * dBiExp;
 //            printf("[Synapse][advance] dg %f\n", dg);
@@ -454,13 +454,13 @@ public:
         forget(t);
 //        printf("[Synapse][advance][end]\n");
     }
-    void excite(const double t, const double amp) {
+    void excite(const Real t, const Real amp) {
 //        printf("[Synapse][excite]\n");
         activationTimes.push_back(t);
         activationAmplitudes.push_back(amp);
 //        printf("[Synapse][excite][end]\n");
     }
-    void forget(const double t)
+    void forget(const Real t)
     {
 //        printf("[Synapse][forget]\n");
         if (activationTimes.size() != 0) {
@@ -475,11 +475,11 @@ public:
         }
 //        printf("[Synapse][forget][end]\n");
     }
-    double value()
+    Real value()
     {
         return g;
     }
-    double speed()
+    Real speed()
     {
         return dg;
     }
@@ -489,9 +489,9 @@ template<int Npoints>
 class Oscillation
 {
 public:
-    double d = 0.0;
-    double t0 = 0.0;
-    double prev_fmod = 0.0;
+    Real d = 0.0;
+    Real t0 = 0.0;
+    Real prev_fmod = 0.0;
     std::vector<Real> signal = std::vector<Real>(Npoints, 0.0);
     std::vector<Real> signal_out = std::vector<Real>(Npoints, 0.0);
 public:
@@ -503,7 +503,7 @@ public:
         signal.clear();
         signal_out.clear();
     }
-    void modify(const double t0_in, const double f_in, const double d_in) {
+    void modify(const Real t0_in, const Real f_in, const Real d_in) {
 //        printf("[Oscillation][modify]\n");
         d = d_in;
         t0 = t0_in;
@@ -515,7 +515,7 @@ public:
         signal_out = signal;
 //        printf("[Oscillation][modify][end]\n");
     }
-    void advance(const double t)
+    void advance(const Real t)
     {
 //        printf("[Oscillation][advance]\n");
         if (fmod(t - t0, d) < prev_fmod && t>t0) {
