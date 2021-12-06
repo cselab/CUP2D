@@ -2,14 +2,6 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 
-# Set environment variables on local machine
-NVCC=/usr/local/cuda-11.4/bin/nvcc
-MPICXX=/usr/lib64/mpi/gcc/openmpi/bin/mpicxx
-GSL_ROOT=/usr/include/gsl
-HDF5_ROOT=/usr/include
-
-# 'ifndef GPU_POISSON' in source code insures that the makefile still works as before
-
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
 include make.macos
@@ -120,25 +112,24 @@ NVOBJECTS = \
 		cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o
 NVOBJECTS += cuAMRSolver.o # give a different prefix to differentiate %.cpp generated .o
 
-NVFLAGS += -Xcompiler "$(CPPFLAGS)"
+# Set $(CXX) to do host-side compilation and pass its flags
+NVFLAGS += -ccbin=$(CXX) -Xcompiler "$(CPPFLAGS)"
 NVLIBS += -Xcompiler "$(LIBS)"
-# Arch flags for maximum compatibility
-NVFLAGS += -arch=sm_52 \
-					 -gencode=arch=compute_52,code=sm_52 \
-					 -gencode=arch=compute_60,code=sm_60 \
-					 -gencode=arch=compute_61,code=sm_61 \
-					 -gencode=arch=compute_70,code=sm_70 \
-					 -gencode=arch=compute_75,code=sm_75 \
-					 -gencode=arch=compute_80,code=sm_80 \
-					 -gencode=arch=compute_86,code=sm_86 \
-					 -gencode=arch=compute_86,code=compute_86
-# Arch flags for maximum performance on a particular system
-# NVFLAGS += -arch=sm_75 -gencode=arch=compute_75,code=sm_75
+NVLIBS += -lcudart -lcublas -lcusparse
+# Program specific definitions 
 NVFLAGS += -DGPU_POISSON -DBICGSTAB_PROFILER
-
-NVLIBS += -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lcudart -lcublas -lcusparse
-# MPI compile and link options
-NVLIBS += -I/usr/lib64/mpi/gcc/openmpi/include -L/usr/lib64/mpi/gcc/openmpi/lib64 -lmpi_cxx -lmpi
+# Arch flags for maximum compatibility
+#NVFLAGS += -arch=sm_52 \
+#					 -gencode=arch=compute_52,code=sm_52 \
+#					 -gencode=arch=compute_60,code=sm_60 \
+#					 -gencode=arch=compute_61,code=sm_61 \
+#					 -gencode=arch=compute_70,code=sm_70 \
+#					 -gencode=arch=compute_75,code=sm_75 \
+#					 -gencode=arch=compute_80,code=sm_80 \
+#					 -gencode=arch=compute_86,code=sm_86 \
+#					 -gencode=arch=compute_86,code=compute_86
+# Arch flags for maximum performance on a particular system
+NVFLAGS+= -code=sm_60 -arch=compute_60
 
 cuAMRSolver.o: AMRSolver.cu 
 	$(NVCC) $(NVFLAGS) $(NVLIBS) -c $< -o $@

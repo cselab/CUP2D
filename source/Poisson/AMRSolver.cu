@@ -767,12 +767,12 @@ void AMRSolver::allocSolver()
 #endif // BICGSTAB_PROFILER
 
   // Allocate device memory for linear system
-  checkCudaErrors(cudaMallocAsync(&d_cooValA_, nnz_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_csrRowA_, nnz_ * sizeof(int), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_cooColA_, nnz_ * sizeof(int), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_x_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_r_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_P_inv_, BSZ_ * BSZ_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMalloc(&d_cooValA_, nnz_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_csrRowA_, nnz_ * sizeof(int)));
+  checkCudaErrors(cudaMalloc(&d_cooColA_, nnz_ * sizeof(int)));
+  checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_P_inv_, BSZ_ * BSZ_ * sizeof(double)));
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(d_cooValA_, cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_csrRowA_, csrRowA_.data(), (m_+1) * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
@@ -782,11 +782,11 @@ void AMRSolver::allocSolver()
   checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv_.data(), BSZ_ * BSZ_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 
   // Allocate arrays for BiCGSTAB storage
-  checkCudaErrors(cudaMallocAsync(&d_rhat_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_p_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_nu_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_t_, m_ * sizeof(double), solver_stream_));
-  checkCudaErrors(cudaMallocAsync(&d_z_, m_ * sizeof(double), solver_stream_));
+  checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_p_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_nu_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_t_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_z_, m_ * sizeof(double)));
   // Create descriptors for variables that will pass through cuSPARSE
   checkCudaErrors(cusparseCreateCsr(&spDescrA_, m_, n_, nnz_, d_csrRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrX0_, m_, d_x_, CUDA_R_64F));
@@ -805,7 +805,7 @@ void AMRSolver::allocSolver()
         CUDA_R_64F, 
         CUSPARSE_MV_ALG_DEFAULT, 
         &SpMVBuffSz_));
-  checkCudaErrors(cudaMallocAsync(&SpMVBuff_, SpMVBuffSz_ * sizeof(char), solver_stream_));
+  checkCudaErrors(cudaMalloc(&SpMVBuff_, SpMVBuffSz_ * sizeof(char)));
 
 #ifdef BICGSTAB_PROFILER
   stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
@@ -819,24 +819,24 @@ void AMRSolver::deallocSolver()
 #endif 
 
   // Free device memory allocated for linear system
-  checkCudaErrors(cudaFreeAsync(d_cooValA_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_csrRowA_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_cooColA_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_x_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_r_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_P_inv_, solver_stream_));
+  checkCudaErrors(cudaFree(d_cooValA_));
+  checkCudaErrors(cudaFree(d_csrRowA_));
+  checkCudaErrors(cudaFree(d_cooColA_));
+  checkCudaErrors(cudaFree(d_x_));
+  checkCudaErrors(cudaFree(d_r_));
+  checkCudaErrors(cudaFree(d_P_inv_));
   // Cleanup memory allocated for BiCGSTAB arrays
   checkCudaErrors(cusparseDestroySpMat(spDescrA_));
   checkCudaErrors(cusparseDestroyDnVec(spDescrX0_));
   checkCudaErrors(cusparseDestroyDnVec(spDescrZ_));
   checkCudaErrors(cusparseDestroyDnVec(spDescrNu_));
   checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
-  checkCudaErrors(cudaFreeAsync(d_rhat_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_p_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_nu_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_t_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(d_z_, solver_stream_));
-  checkCudaErrors(cudaFreeAsync(SpMVBuff_, solver_stream_));
+  checkCudaErrors(cudaFree(d_rhat_));
+  checkCudaErrors(cudaFree(d_p_));
+  checkCudaErrors(cudaFree(d_nu_));
+  checkCudaErrors(cudaFree(d_t_));
+  checkCudaErrors(cudaFree(d_z_));
+  checkCudaErrors(cudaFree(SpMVBuff_));
 
 #ifdef BICGSTAB_PROFILER
   stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
