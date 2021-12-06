@@ -13,8 +13,8 @@
 namespace fs = std::filesystem;
 
 #define DIMENSION 2
-#define BS 8
-#define Cfactor 1
+#define BS 16
+#define Cfactor 2
 
 
 
@@ -108,30 +108,34 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt)
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Collection\">\n";
-    //s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
-    s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
+    s << "  <Time Value=\"" << std::scientific << 0.025*tttt << "\"/>\n\n";
+    //s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
     for (size_t i = 0 ; i < groups.size() ; i++)
     {
       const BlockGroup & group = groups[i];
       const int nXX = group.nx;
       const int nYY = group.ny;
+      for (int gy = 0 ; gy < nYY/BS ; gy ++)
+      for (int gx = 0 ; gx < nXX/BS ; gx ++)
+      {
       s << "  <Grid GridType=\"Uniform\">\n";
-      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " <<  2 << "     " <<  nYY/BS+1 << "     " << nXX/BS+1 << "\"/>\n";
+      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " <<  2 << "     " <<  2 << "     " << 2 << "\"/>\n";
       s << "       <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
       s << "          <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
-      s << "              " << std::scientific << group.oz << " " << group.oy<< " " << group.ox<< "\n";
+      s << "              " << std::scientific << group.oz << " " << group.oy + gy * BS *group.h<< " " << group.ox + gx * BS *group.h<< "\n";
       s << "          </DataItem>\n";
       s << "          <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
       s << "             " << std::scientific << BS*minh << " " <<BS*group.h << " " << BS*group.h << "\n";
       s << "          </DataItem>\n";
       s << "       </Geometry>\n";
       s << "  </Grid>\n\n";
+      }
     }
     s << " </Grid>\n";
     s << "</Domain>\n";
     s << "</Xdmf>\n";
     std::string st = s.str();
-    std::ofstream out((filename + "-uniform-grid.xmf").c_str());
+    std::ofstream out((filename + "-uniform-blocks.xmf").c_str());
     out << st;
     out.close();
   }
@@ -339,15 +343,18 @@ void convert_to_uniform(std::string filename,int tttt)
   //dump uniform grid
   {
     #if Cfactor > 1
-      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor/Cfactor,0);
-      #pragma omp parallel for collapse(3)
-      for (int z = 0 ; z < points[2]       ; z += Cfactor)
+      //std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor/Cfactor,0);
+      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor,0);
+      //for (int z = 0 ; z < points[2]       ; z += Cfactor)
+      int z = 0;
+      #pragma omp parallel for collapse(2)
       for (int y = 0 ; y < points[1]       ; y += Cfactor)
       for (int x = 0 ; x < my_end-my_start ; x += Cfactor)
       {
         int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
         const int base = x + y*(my_end-my_start) + z*(my_end-my_start)*points[1];
-        for (int iz = 0 ; iz < Cfactor ; iz++)
+        //for (int iz = 0 ; iz < Cfactor ; iz++)
+	int iz = 0;
         for (int iy = 0 ; iy < Cfactor ; iy++)
         for (int ix = 0 ; ix < Cfactor ; ix++)
           uniform_grid_coarse[i] += uniform_grid[base + ix + iy*(my_end-my_start) + iz*(my_end-my_start)*points[1] ];
