@@ -20,9 +20,9 @@ int main(int argc, char **argv)
   Simulation* sim = new Simulation(argc, argv, MPI_COMM_WORLD);
   sim->init();
   sim->simulate();
-
   time += MPI_Wtime();
   std::cout << "Runtime = " << time << std::endl;
+  delete sim;
   MPI_Finalize();
   return 0;
 }
