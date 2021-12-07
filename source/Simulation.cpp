@@ -16,6 +16,7 @@
 #include "Operators/AdaptTheMesh.h"
 
 #include "Utils/FactoryFileLineParser.h"
+#include "Utils/StackTrace.h"
 
 #include "Obstacles/ShapesSimple.h"
 #include "Obstacles/CarlingFish.h"
@@ -47,6 +48,7 @@ static inline std::vector<std::string> split(const std::string&s,const char dlm)
 
 Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv)
 {
+  enableStackTraceSignalHandling();
   sim.comm = comm;
   int size;
   MPI_Comm_size(sim.comm,&size);

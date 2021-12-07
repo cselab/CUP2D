@@ -27,6 +27,7 @@ set(PYLIB "libcubismup2d")
 # Options.
 option(CUP2D_BUILD_EXE "Build the CubismUP_2D executable" ON)
 option(CUP2D_BUILD_PY "Build Python bindings" ON)
+option(CUP2D_BACKWARD_CPP "Use backward-cpp for stack trace" ON)
 set(CUP2D_BLOCK_SIZE "8" CACHE STRING "Number of grid points in a block, per dimension")
 set(CUP2D_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_2D repository root path")
 set(CUP2D_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_2D build path")
@@ -35,6 +36,17 @@ set_property(CACHE CUP2D_PRECISION PROPERTY STRINGS single double long_double)
 
 
 ### Dependencies.
+
+# backward-cpp
+if (CUP2D_BACKWARD_CPP AND NOT TARGET backward)
+    include(FetchContent)
+    FetchContent_Declare(
+        backward-cpp
+        GIT_REPOSITORY https://github.com/bombela/backward-cpp
+        GIT_TAG v1.6
+        EXCLUDE_FROM_ALL)
+    FetchContent_MakeAvailable(backward-cpp)
+endif()
 
 # Cubism.
 add_subdirectory("${ROOT_DIR}/Cubism")
@@ -95,6 +107,7 @@ add_library(
     "${SRC_DIR}/Simulation.cpp"
     "${SRC_DIR}/SimulationData.cpp"
     "${SRC_DIR}/Utils/BufferedLogger.cpp"
+    "${SRC_DIR}/Utils/StackTrace.cpp"
 )
 
 add_library(cubismup2d::core ALIAS ${CORE})
@@ -115,6 +128,12 @@ elseif ("${CUP2D_PRECISION}" STREQUAL long_double)
     target_compile_definitions(${CORE} PUBLIC _LONG_DOUBLE_PRECISION_)
 else()
     message(FATAL_ERROR "unrecognized CUP2D_PRECISION: ${CUP2D_PRECISION}")
+endif()
+
+if (CUP2D_BACKWARD_CPP)
+    add_backward(${CORE})
+    target_compile_definitions(${CORE} PUBLIC CUP2D_BACKWARD_CPP)
+    target_link_libraries(${CORE} PUBLIC ${BACKWARD_LIBRARIES})
 endif()
 
 if (CUP2D_BUILD_EXE)
