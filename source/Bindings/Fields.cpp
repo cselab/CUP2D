@@ -9,12 +9,6 @@
 
 using namespace pybind11::literals;
 
-template <int T>
-struct Debug;
-
-template <typename T>
-struct Debug2;
-
 namespace cubismup2d {
 namespace {
 
@@ -112,9 +106,9 @@ struct FieldView
     using T = typename Grid::BlockType::ElementType;
     static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
     const auto numCells = grid->getMaxMostRefinedCells();
-    std::vector<ssize_t> shape(2 + kIsVector);
-    shape[0] = numCells[0];
-    shape[1] = numCells[1];
+    std::vector<ssize_t> shape(2 + kIsVector);  // (y, x, [channels])
+    shape[0] = numCells[1];
+    shape[1] = numCells[0];
     if (kIsVector)
       shape[2] = 2;
 

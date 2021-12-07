@@ -61,7 +61,10 @@ static void bindSimulationData(py::module &m)
       .def_readonly("extents", &SimulationData::extents)
       .def_readonly("uinfx", &SimulationData::uinfx)
       .def_readonly("uinfy", &SimulationData::uinfy)
-      .def_readonly("nsteps", &SimulationData::nsteps);
+      .def_readonly("time", &SimulationData::time)
+      .def_readonly("step", &SimulationData::step)
+      .def_readwrite("_nsteps", &SimulationData::nsteps)
+      .def_readwrite("_tend", &SimulationData::endTime);
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(

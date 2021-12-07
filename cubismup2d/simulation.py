@@ -20,8 +20,6 @@ class Simulation(libcup2d.Simulation):
             brinkman_lambda: float = 1e6,
             fdump: int = 0,
             tdump: float = 0.0,
-            tend: float = 0.0,
-            max_steps: int = 0,
             output_dir: str = 'output/',
             serialization_dir: str = 'output/h5/',
             verbose: bool = True,
@@ -41,8 +39,8 @@ class Simulation(libcup2d.Simulation):
             '-lambda', brinkman_lambda,
             '-fdump', fdump,
             '-tdump', tdump,
-            '-tend', tend,
-            '-nsteps', max_steps,
+            '-tend', 0.0,  # Specified through `simulate`.
+            '-nsteps', 0,
             '-file', output_dir,
             '-serialization', serialization_dir,
         ]
@@ -58,3 +56,12 @@ class Simulation(libcup2d.Simulation):
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(serialization_dir, exist_ok=True)
         libcup2d.Simulation.__init__(self, ['DUMMY'] + argv, comm)
+
+    def simulate(self,
+                 *,
+                 nsteps: Optional[int] = None,
+                 tend: Optional[float] = None):
+        sim: libcup2d.SimulationData = self.sim
+        sim._nsteps = sim.step + nsteps if nsteps is not None else 0
+        sim._tend = sim.time + tend if tend is not None else 0.0
+        libcup2d.Simulation.simulate(self)
