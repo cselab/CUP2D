@@ -35,12 +35,30 @@ export GSL_ROOT=/usr
 ```
 
 
-## Installation
+## Compilation
 
 With the above dependencies installed and associated environment variables set the code can be compiled by
 ```
 cd makefiles
 make -j
+```
+
+## Compilation (cmake)
+
+Compile the code using:
+```
+mkdir -p build
+cd build
+cmake ..
+make
+```
+
+Run the tests with (starting from the `build` folder).
+```
+cd ..
+export PYTHONPATH=$(pwd):$PYTHONPATH
+cd tests/python
+./run.sh
 ```
 
 ## Running
