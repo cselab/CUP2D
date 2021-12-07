@@ -111,6 +111,7 @@ add_library(
 )
 
 add_library(cubismup2d::core ALIAS ${CORE})
+target_compile_definitions(${CORE} PUBLIC CUP2D_BLOCK_SIZE=${CUP2D_BLOCK_SIZE})
 target_link_libraries(${CORE} PRIVATE ${PRIVATEDEP})
 target_link_libraries(${CORE} PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(${CORE} PUBLIC MPI::MPI_CXX)
@@ -143,6 +144,7 @@ endif()
 
 if (CUP2D_BUILD_PY)
     set(PYTHON_SOURCES
+        ${SRC_DIR}/Bindings/Fields.cpp
         ${SRC_DIR}/Bindings/Shapes.cpp
         ${SRC_DIR}/Bindings/Simulation.cpp
     )

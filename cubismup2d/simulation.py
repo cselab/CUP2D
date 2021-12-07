@@ -1,6 +1,7 @@
 import libcubismup2d as libcup2d
 
 from typing import Optional, Tuple
+import os
 
 __all__ = ['Simulation']
 
@@ -19,7 +20,8 @@ class Simulation(libcup2d.Simulation):
             brinkman_lambda: float = 1e6,
             fdump: int = 0,
             tdump: float = 0.0,
-            tend: float,
+            tend: float = 0.0,
+            max_steps: int = 0,
             output_dir: str = 'output/',
             serialization_dir: str = 'output/h5/',
             verbose: bool = True,
@@ -40,6 +42,7 @@ class Simulation(libcup2d.Simulation):
             '-fdump', fdump,
             '-tdump', tdump,
             '-tend', tend,
+            '-nsteps', max_steps,
             '-file', output_dir,
             '-serialization', serialization_dir,
         ]
@@ -50,4 +53,8 @@ class Simulation(libcup2d.Simulation):
             comm = MPI._addressof(comm)
         else:
             comm = 0
+
+        # Ideally this should be in Cubism's dump function.
+        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(serialization_dir, exist_ok=True)
         libcup2d.Simulation.__init__(self, ['DUMMY'] + argv, comm)
