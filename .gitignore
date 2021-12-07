@@ -52,11 +52,12 @@ Temporary Items
 test.dSYM
 *.dSYM
 
+build/
+engine_cmaes
 launch/settings/
 policies/*
-test_*
 runs/
-engine_cmaes
+test_*
 
 *.swp
 

@@ -15,9 +15,9 @@ class Simulation
 {
  public:
   SimulationData sim;
+  std::vector<Operator*> pipeline;
  protected:
   cubism::ArgumentParser parser;
-  std::vector<Operator*> pipeline;
 
   void createShapes();
   void parseRuntime();
