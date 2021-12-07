@@ -36,5 +36,5 @@ public:
   Real calcMaxTimestep();
   bool advance(const Real DT);
 
-  const std::vector<Shape*>& getShapes() { return sim.shapes; }
+  const std::vector<std::shared_ptr<Shape>>& getShapes() { return sim.shapes; }
 };

@@ -32,8 +32,9 @@ struct KernelComputeForces
 
     const int big   = ScalarBlock::sizeX + 4;
     const int small = -4;
-    for(const Shape * const shape : sim.shapes)
+    for(const auto& _shape : sim.shapes)
     {
+      const Shape * const shape = _shape.get();
       const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
       const Real vel_norm = std::sqrt(shape->u*shape->u + shape->v*shape->v);
@@ -385,7 +386,8 @@ void ComputeForces::operator()(const Real dt)
   compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
 
   // finalize partial sums
-  for(Shape * const shape : sim.shapes) shape->computeForces();
+  for (const auto& shape : sim.shapes)
+    shape->computeForces();
   sim.stopProfiler();
 }
 

@@ -189,7 +189,6 @@ void Simulation::createShapes()
   const std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors( shapeArg );
   std::string lines;
-  unsigned k = 0;
 
   while (std::getline(descriptors, lines))
   {
@@ -240,9 +239,9 @@ void Simulation::createShapes()
         shape = new Waterturbine(     sim, ffparser, center);
       else if (objectName=="experimentFish")
         shape = new ExperimentFish(   sim, ffparser, center);
-      assert(shape not_eq nullptr);
-      shape->obstacleID = k++;
-      sim.shapes.push_back(shape);
+      else
+        throw std::invalid_argument("unrecognized shape: " + objectName);
+      sim.addShape(std::shared_ptr<Shape>{shape});
     }
   }
 

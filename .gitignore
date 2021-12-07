@@ -52,12 +52,15 @@ Temporary Items
 test.dSYM
 *.dSYM
 
+__pycache__
 build/
 engine_cmaes
 launch/settings/
 policies/*
 runs/
 test_*
+tests/python/output/
+!tests/python/test_*
 
 *.swp
 

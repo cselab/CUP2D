@@ -124,6 +124,7 @@ endif()
 
 if (CUP2D_BUILD_PY)
     set(PYTHON_SOURCES
+        ${SRC_DIR}/Bindings/Shapes.cpp
         ${SRC_DIR}/Bindings/Simulation.cpp
     )
 

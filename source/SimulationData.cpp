@@ -13,6 +13,11 @@
 #include <iomanip>
 using namespace cubism;
 
+void SimulationData::addShape(std::shared_ptr<Shape> shape) {
+  shape->obstacleID = (unsigned)shapes.size();
+  shapes.push_back(std::move(shape));
+}
+
 void SimulationData::resetAll()
 {
   for(const auto& shape : shapes) shape->resetAll();
@@ -97,6 +102,8 @@ void SimulationData::registerDump()
   nextDumpTime += dumpTime;
 }
 
+SimulationData::SimulationData() = default;
+
 SimulationData::~SimulationData()
 {
   #ifndef SMARTIES_APP
@@ -110,11 +117,6 @@ SimulationData::~SimulationData()
   if(vOld not_eq nullptr) delete vOld;
   if(tmpV not_eq nullptr) delete tmpV;
   if(tmp not_eq nullptr) delete tmp;
-  while( not shapes.empty() ) {
-    Shape * s = shapes.back();
-    if(s not_eq nullptr) delete s;
-    shapes.pop_back();
-  }
 }
 
 bool SimulationData::bOver() const

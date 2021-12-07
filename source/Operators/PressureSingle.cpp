@@ -276,7 +276,7 @@ void PressureSingle::penalize(const Real dt) const
 
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
-  for (Shape * const shape : sim.shapes)
+  for (const auto& shape : sim.shapes)
   {
     const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
     const ObstacleBlock*const o = OBLOCK[velInfo[i].blockID];
@@ -460,7 +460,7 @@ bool PressureSingle::detectCollidingObstacles() const
   bool bCollision = false;
 
   // get shapes present in simulation
-  const std::vector<Shape*>& shapes = sim.shapes;
+  const auto& shapes = sim.shapes;
   const size_t N = shapes.size();
 
   // collisions are symmetric, so only iterate over each pair once
@@ -511,7 +511,7 @@ bool PressureSingle::detectCollidingObstacles() const
 
 void PressureSingle::preventCollidingObstacles() const
 {
-    const std::vector<Shape*>& shapes = sim.shapes;
+    const auto& shapes = sim.shapes;
     const auto & infos  = sim.chi->getBlocksInfo();
     const size_t N = shapes.size();
 
@@ -869,8 +869,8 @@ void PressureSingle::operator()(const Real dt)
   }
 
   // update velocity of obstacle
-  for(Shape * const shape : sim.shapes) {
-    integrateMomenta(shape);
+  for(const auto& shape : sim.shapes) {
+    integrateMomenta(shape.get());
     shape->updateVelocity(dt);
   }
   // take care if two obstacles collide

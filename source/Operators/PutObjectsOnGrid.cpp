@@ -150,12 +150,12 @@ void PutObjectsOnGrid::operator()(const Real dt)
   // 2. Update object position
   // Update laboratory frame of reference
   int nSum[2] = {0, 0}; Real uSum[2] = {0, 0};
-  for(Shape * const shape : sim.shapes) 
+  for (const auto& shape : sim.shapes)
     shape->updateLabVelocity(nSum, uSum);
   if(nSum[0]>0) {sim.uinfx_old = sim.uinfx; sim.uinfx = uSum[0]/nSum[0];}
   if(nSum[1]>0) {sim.uinfy_old = sim.uinfy; sim.uinfy = uSum[1]/nSum[1];}
   // Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
-  for(Shape * const shape : sim.shapes)
+  for (const auto& shape : sim.shapes)
   {
     shape->updatePosition(dt);
 
@@ -172,7 +172,7 @@ void PutObjectsOnGrid::operator()(const Real dt)
   }
 
   // 3) Compute signed dist function and udef
-  for(const auto& shape : sim.shapes) 
+  for(const auto& shape : sim.shapes)
     shape->create(tmpInfo);
 
   // 4) Compute chi and shape center of mass
@@ -202,7 +202,7 @@ void PutObjectsOnGrid::operator()(const Real dt)
   for(const auto& shape : sim.shapes)
   {
     shape->removeMoments(chiInfo);
-    putObjectVelOnGrid(shape);
+    putObjectVelOnGrid(shape.get());
   }
   sim.stopProfiler();
 }

@@ -1,10 +1,14 @@
 #include "Common.h"
+#include "../Shape.h"
 #include "../Simulation.h"
 
 #include <mpi.h>
 
 using namespace pybind11::literals;
 namespace py = pybind11;
+
+// Bindings/Shapes.cpp
+void bindShapes(py::module &m);
 
 namespace {
 
@@ -79,6 +83,9 @@ static void bindSimulation(py::module &m)
       .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
       .def_readonly("sim", &Simulation::sim,
                     py::return_value_policy::reference_internal)
+      .def("add_shape", [](Simulation *sim, std::shared_ptr<Shape> shape) {
+        sim->sim.addShape(std::move(shape));
+      }, "shape"_a)
       .def("init", &Simulation::init)
       .def("simulate", &Simulation::simulate);
 }
@@ -92,4 +99,5 @@ PYBIND11_MODULE(libcubismup2d, m)
 
   bindSimulationData(m);
   bindSimulation(m);
+  bindShapes(m);
 }

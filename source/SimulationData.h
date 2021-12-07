@@ -8,6 +8,7 @@
 
 #include "Definitions.h"
 #include "Cubism/Profiler.h"
+#include <memory>
 
 class Shape;
 
@@ -93,7 +94,7 @@ struct SimulationData
   ScalarGrid * pold  = nullptr;
 
   // vector containing obstacles
-  std::vector<Shape*> shapes;
+  std::vector<std::shared_ptr<Shape>> shapes;
 
   // simulation time
   Real time = 0;
@@ -122,6 +123,8 @@ struct SimulationData
   // bool for detecting collisions
   bool bCollision = false;
 
+  void addShape(std::shared_ptr<Shape> shape);
+
   void allocateGrid();
   void resetAll();
   bool bDump();
@@ -131,6 +134,13 @@ struct SimulationData
   // minimal and maximal gridspacing possible
   Real minH;
   Real maxH;
+
+  SimulationData();
+  SimulationData(const SimulationData &) = delete;
+  SimulationData(SimulationData &&) = delete;
+  SimulationData& operator=(const SimulationData &) = delete;
+  SimulationData& operator=(SimulationData &&) = delete;
+  ~SimulationData();
 
   // minimal gridspacing present on grid
   Real getH()
@@ -148,7 +158,6 @@ struct SimulationData
   void startProfiler(std::string name);
   void stopProfiler();
   void printResetProfiler();
-  ~SimulationData();
 
   void dumpChi   (std::string name);
   void dumpPres  (std::string name);

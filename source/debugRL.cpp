@@ -34,7 +34,7 @@ int main(int argc, char **argv)
   auto actions = readActions(actionsPath);
 
   // Obtaining agent
-  StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[1]);
+  StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[1].get());
 
   // Resetting environment and setting initial conditions
   setInitialConditions(agent, initialConditions);
