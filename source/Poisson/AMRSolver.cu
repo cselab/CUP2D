@@ -244,12 +244,13 @@ class WestEdgeCell : public CellIndexer{
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
 
-static long long getZchild(const BlockInfo& rhsNei, const std::array<int,3> &Zchild_idx)
+static long long getZchild(const BlockInfo& info, const std::array<int,3> &Zchild_idx)
 {
-  return rhsNei.Zchild[Zchild_idx[0]][Zchild_idx[1]][Zchild_idx[2]];
+  return info.Zchild[Zchild_idx[0]][Zchild_idx[1]][Zchild_idx[2]];
 }
 
-class InnerUpperTaylor {
+// Central Difference "Upper" Taylor approximation (positive 1st order term)
+class CDUpperTaylor {
   public:
     void operator()(
         const double &sign,
@@ -269,7 +270,8 @@ class InnerUpperTaylor {
     static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
 };
 
-class InnerLowerTaylor {
+// Central Difference "Lower" Taylor approximation (negative 1st order term)
+class CDLowerTaylor {
   public:
     void operator()(
         const double& sign,
@@ -288,7 +290,7 @@ class InnerLowerTaylor {
     static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
 };
 
-class CornerUpperTaylor {
+class BiasedUpperTaylor {
   public:
     void operator()(
         const double& sign,
@@ -307,7 +309,7 @@ class CornerUpperTaylor {
     static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
 };
 
-class CornerLowerTaylor {
+class BiasedLowerTaylor {
   public:
     void operator()(
         const double& sign,
@@ -325,6 +327,12 @@ class CornerLowerTaylor {
     static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
     static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
 };
+
+// Typedefs to map offset based biased functionals to forward/backward differences in corners
+typedef BiasedUpperTaylor BDUpperTaylor;
+typedef BiasedLowerTaylor BDLowerTaylor;
+typedef BiasedLowerTaylor FDUpperTaylor;
+typedef BiasedUpperTaylor FDLowerTaylor;
 
 class PolyInterpolation {
   public:
@@ -408,9 +416,9 @@ void AMRSolver::makeFlux(
       const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c+2,iy_c+2);
 
       if ( (ix == 0 && NorthSouthEdge) || (iy == 0 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, FDLowerTaylor());
       else if ( (ix == 1 && NorthSouthEdge) || (iy == 1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, FDUpperTaylor());
     }
     else if ( (ix_c == (BSX_-1) && NorthSouthEdge) || (iy_c == (BSY_-1) && EastWestEdge) )
     {
@@ -418,9 +426,9 @@ void AMRSolver::makeFlux(
       const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c-2,iy_c-2);
 
       if ( (ix == BSX_-2 && NorthSouthEdge) || (iy == BSY_-2 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerLowerTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, BDLowerTaylor());
       else if ( (ix == BSX_-1 && NorthSouthEdge) || (iy == BSY_-1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CornerUpperTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, BDUpperTaylor());
     }
     else
     {
@@ -428,9 +436,9 @@ void AMRSolver::makeFlux(
       const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c+1,iy_c+1); // top
 
       if ( (ix % 2 == 0 && NorthSouthEdge) || (iy % 2 == 0 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerLowerTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CDLowerTaylor());
       else if ( (ix % 2 == 1 && NorthSouthEdge) || (iy % 2 == 1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, InnerUpperTaylor());
+        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CDUpperTaylor());
     }
 
     // Map negative diagonal contribution to flux
@@ -465,38 +473,54 @@ void AMRSolver::makeFlux(
 
     if ( (ix == 0 && iy == 0) || (ix == 0 && iy == BSY_-1) || (ix == BSX_-1 && iy == 0) || (ix == BSX_-1 && iy == BSY_-1) )
     {
-      if ( (ix == 0) && NorthSouthEdge)
+      if ( (ix == 0) && NorthSouthEdge || (iy == 0) && EastWestEdge )
       {
-        coarse_offset1_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 1);
-        coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 2);
-      }
-      else if ( (iy == 0) && EastWestEdge)
-      {
-        coarse_offset1_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 1);
-        coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 2);
-      }
-      else if ( (ix == BSX_-1) && NorthSouthEdge)
-      {
-        coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 1);
-        coarse_offset2_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 2);
-      }
-      else if ( (iy == BSY_-1) && EastWestEdge)
-      {
-        coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 1);
-        coarse_offset2_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 2);
-      }
+        if ( (ix == 0) && NorthSouthEdge )
+        {
+          coarse_offset1_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 1);
+          coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 2);
+        }
+        else if ( (iy == 0) && EastWestEdge )
+        {
+          coarse_offset1_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 1);
+          coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 2);
+        }
+        // Add flux at left/lower corner interface
+        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
+        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
+        row_map[fine_close_idx] += 1.;
+        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, FDLowerTaylor());
 
-      // Add flux at left/lower corner interface
-      fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
-      fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
-      row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerLowerTaylor());
+        // Add flux at right/higher corner interface
+        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
+        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
+        row_map[fine_close_idx] += 1.;
+        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, FDUpperTaylor());
+      }
+      else if ( (ix == BSX_-1) && NorthSouthEdge || (iy == BSY_-1) && EastWestEdge )
+      {
+        if ( (ix == BSX_-1) && NorthSouthEdge )
+        {
+          coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 1);
+          coarse_offset2_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 2);
+        }
+        else if ( (iy == BSY_-1) && EastWestEdge )
+        {
+          coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 1);
+          coarse_offset2_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 2);
+        }
+        // Add flux at left/lower corner interface
+        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
+        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
+        row_map[fine_close_idx] += 1.;
+        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, BDLowerTaylor());
 
-      // Add flux at right/higher corner interface
-      fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
-      fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
-      row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CornerUpperTaylor());
+        // Add flux at right/higher corner interface
+        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
+        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
+        row_map[fine_close_idx] += 1.;
+        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, BDUpperTaylor());
+      }
     }
     else
     {
@@ -510,18 +534,17 @@ void AMRSolver::makeFlux(
         coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy); // bottom
         coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy); // top 
       } 
-
       // Add flux at left/lower corner interface
       fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
       fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
       row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerLowerTaylor());
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CDLowerTaylor());
 
       // Add flux at right/higher corner interface
       fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
       fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
       row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, InnerUpperTaylor());
+      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CDUpperTaylor());
     }
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
