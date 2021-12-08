@@ -68,13 +68,22 @@ Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv
   }
 }
 
-Simulation::~Simulation()
+Simulation::~Simulation() = default;
+
+void Simulation::insertOperator(std::shared_ptr<Operator> op)
 {
-  while( not pipeline.empty() ) {
-    Operator * g = pipeline.back();
-    pipeline.pop_back();
-    if(g not_eq nullptr) delete g;
+  pipeline.push_back(std::move(op));
+}
+void Simulation::insertOperatorAfter(
+    std::shared_ptr<Operator> op, const std::string &name)
+{
+  for (size_t i = 0; i < pipeline.size(); ++i) {
+    if (pipeline[i]->getName() == name) {
+      pipeline.insert(pipeline.begin() + i + 1, std::move(op));
+      return;
+    }
   }
+  throw std::runtime_error("operator not found: " + name);
 }
 
 void Simulation::init()
@@ -100,11 +109,11 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  pipeline.push_back( new advDiff(sim) );
-  pipeline.push_back( new PressureSingle(sim) );
-  pipeline.push_back( new ComputeForces(sim) );
-  pipeline.push_back( new AdaptTheMesh(sim) );
-  pipeline.push_back( new PutObjectsOnGrid(sim) );
+  pipeline.push_back(std::make_shared<advDiff>(sim));
+  pipeline.push_back(std::make_shared<PressureSingle>(sim));
+  pipeline.push_back(std::make_shared<ComputeForces>(sim));
+  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
 
   if( sim.rank == 0 && sim.verbose )
   {
@@ -286,21 +295,22 @@ void Simulation::startObstacles()
   // put obstacles to grid and compress
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
+  PutObjectsOnGrid * const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
+  AdaptTheMesh * const adaptTheMesh = findOperator<AdaptTheMesh>();
+  assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
   for( int i = 0; i<sim.levelMax; i++ )
   {
-    // PutObjectsOnGrid
-    (*pipeline[pipeline.size()-1])(0);
-
-    // AdaptTheMesh
-    (*pipeline[pipeline.size()-2])(0);
+    (*putObjectsOnGrid)(0.0);
+    (*adaptTheMesh)(0.0);
   }
-  // PutObjectsOnGrid
-   (*pipeline[pipeline.size()-1])(0);
+  (*putObjectsOnGrid)(0.0);
+
   // impose velocity of obstacles
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
-  initVel(0); }
+  initVel(0);
+}
 
 void Simulation::simulate() { if(sim.rank == 0) { std::cout
 	<<"=======================================================================\n";

@@ -9,6 +9,9 @@ namespace cubismup2d {
 
 using namespace py::literals;
 
+// Bindings/Operators.cpp
+void bindOperators(py::module &m);
+
 // Bindings/Shapes.cpp
 void bindShapes(py::module &m);
 
@@ -78,7 +81,7 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   for (size_t i = 0; i < argv.size(); ++i)
     ptrs[i] = const_cast<char *>(argv[i].data());
   auto sim = std::make_shared<Simulation>((int)ptrs.size(), ptrs.data(), comm);
-  sim->pipeline.push_back(new SIGINTHandlerOperator{sim->sim});
+  sim->pipeline.push_back(std::make_shared<SIGINTHandlerOperator>(sim->sim));
   return sim;
 }
 
@@ -94,6 +97,9 @@ static void bindSimulation(py::module &m)
       .def_property_readonly("fields", [](Simulation *sim) {
         return FieldsView{&sim->sim};
       })
+      .def("insert_operator", &Simulation::insertOperator, "op"_a)
+      .def("insert_operator", &Simulation::insertOperatorAfter,
+           "op"_a, "after"_a)
       .def("init", &Simulation::init)
       .def("simulate", &Simulation::simulate);
 }
@@ -107,6 +113,7 @@ PYBIND11_MODULE(libcubismup2d, m)
 
   m.attr("BLOCK_SIZE") = CUP2D_BLOCK_SIZE;
 
+  bindOperators(m);
   bindSimulationData(m);
   bindSimulation(m);
   bindFields(m);

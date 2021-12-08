@@ -3,7 +3,7 @@ import libcubismup2d as libcup2d
 from typing import Optional, Tuple
 import os
 
-__all__ = ['Simulation']
+__all__ = ['Operator', 'Simulation']
 
 class Simulation(libcup2d.Simulation):
     def __init__(
@@ -67,6 +67,14 @@ class Simulation(libcup2d.Simulation):
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(serialization_dir, exist_ok=True)
         libcup2d.Simulation.__init__(self, ['DUMMY'] + argv, comm)
+        self._ops = []
+
+    def insert_operator(self, op, *args, **kwargs):
+        # We have to store an in-Python reference permanently.
+        # https://github.com/pybind/pybind11/issues/1546
+        # https://github.com/pybind/pybind11/pull/2839
+        self._ops.append(op)
+        super().insert_operator(op, *args, **kwargs)
 
     def simulate(self,
                  *,
@@ -76,3 +84,10 @@ class Simulation(libcup2d.Simulation):
         sim._nsteps = sim.step + nsteps if nsteps is not None else 0
         sim._tend = sim.time + tend if tend is not None else 0.0
         libcup2d.Simulation.simulate(self)
+
+
+class Operator(libcup2d._Operator):
+    def __init__(self, sim: Simulation, name: Optional[str] = None):
+        if name is None:
+            name = self.__class__.__name__
+        libcup2d._Operator.__init__(self, sim.sim, name)
