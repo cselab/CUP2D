@@ -13,8 +13,8 @@
 namespace fs = std::filesystem;
 
 #define DIMENSION 2
-#define BS 16
-#define Cfactor 2
+#define BS 8
+#define Cfactor 1
 
 
 
