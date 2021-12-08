@@ -17,8 +17,8 @@ double AMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a
 {
    int j1 = I1 / BSX_;
    int i1 = I1 % BSX_;
-   int j2 = I2 / BSY_;
-   int i2 = I2 % BSY_;
+   int j2 = I2 / BSX_;
+   int i2 = I2 % BSX_;
    if (i1==i2 && j1==j2)
      return 4.0;
    else if (abs(i1-i2) + abs(j1-j2) == 1)
