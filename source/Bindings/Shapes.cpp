@@ -8,6 +8,8 @@
 using namespace pybind11::literals;
 namespace py = pybind11;
 
+namespace cubismup2d {
+
 template <typename S>
 static std::shared_ptr<S> makeShape(
     SimulationData& s,
@@ -28,3 +30,5 @@ void bindShapes(py::module &m)
   py::class_<Disk, Shape, std::shared_ptr<Disk>>(m, "_Disk")
     .def(py::init(&makeShape<Disk>), "sim"_a, "argv"_a, "center"_a);
 }
+
+}  // namespace cubismup2d

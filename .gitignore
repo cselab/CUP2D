@@ -62,6 +62,7 @@ test_*
 tests/python/output/
 !tests/python/test_*
 
+*.swo
 *.swp
 
 *.idea

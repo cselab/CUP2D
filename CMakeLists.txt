@@ -111,6 +111,7 @@ add_library(
 )
 
 add_library(cubismup2d::core ALIAS ${CORE})
+target_compile_definitions(${CORE} PUBLIC CUP2D_BLOCK_SIZE=${CUP2D_BLOCK_SIZE})
 target_link_libraries(${CORE} PRIVATE ${PRIVATEDEP})
 target_link_libraries(${CORE} PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(${CORE} PUBLIC MPI::MPI_CXX)
@@ -142,39 +143,29 @@ if (CUP2D_BUILD_EXE)
 endif()
 
 if (CUP2D_BUILD_PY)
-    set(PYTHON_SOURCES
-        ${SRC_DIR}/Bindings/Shapes.cpp
-        ${SRC_DIR}/Bindings/Simulation.cpp
-    )
-
-    # Check if pybind11 was imported by a potential parent cmake file.
-    if (TARGET pybind11::pybind11)
-        # If so, directly use pybind11_add_module.
-        pybind11_add_module(
-            ${PYLIB}
-            ${PYTHON_SOURCES})
-    else()
-        # Otherwise, find Python & pybind11 package, and use Python_add_library.
-        find_package(Python COMPONENTS Interpreter Development)
-        if (NOT ${Python_Interpreter_FOUND})
-            message(FATAL_ERROR "Python not found.")
-        endif()
-        Python_add_library(
-            ${PYLIB}
-            MODULE
-            WITH_SOABI
-            ${PYTHON_SOURCES})
+    if (NOT TARGET pybind11::pybind11)
+        find_package(Python COMPONENTS REQUIRED Interpreter Development)
         execute_process(
-            COMMAND ${Python_EXECUTABLE} -m pybind11 --includes
-            OUTPUT_VARIABLE _PYBIND11_INCLUDES
+            COMMAND ${Python_EXECUTABLE} -m pybind11 --cmakedir
+            OUTPUT_VARIABLE _PYBIND11_CMAKEDIR
             OUTPUT_STRIP_TRAILING_WHITESPACE
             RESULT_VARIABLE _RETCODE)
         if (NOT "${_RETCODE}" STREQUAL "0")
             message(FATAL_ERROR "pybind11 not installed, cannot compile Python bindings!")
         endif()
-        separate_arguments(_PYBIND11_INCLUDES UNIX_COMMAND ${_PYBIND11_INCLUDES})
-        target_include_directories(${PYLIB} PRIVATE ${_PYBIND11_INCLUDES})
+        find_package(pybind11 REQUIRED HINTS "${_PYBIND11_CMAKEDIR}")
     endif()
+
+    pybind11_add_module(
+        ${PYLIB}
+        MODULE
+        ${SRC_DIR}/Bindings/Fields.cpp
+        ${SRC_DIR}/Bindings/Operators.cpp
+        ${SRC_DIR}/Bindings/Shapes.cpp
+        ${SRC_DIR}/Bindings/Simulation.cpp
+    )
+    # Manually add pybind11 include dirs before those from Python.
+    target_include_directories(${PYLIB} PUBLIC BEFORE ${pybind11_INCLUDE_DIRS})
     target_link_libraries(${PYLIB} PUBLIC ${CORE})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 endif()

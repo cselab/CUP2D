@@ -1,11 +1,16 @@
 #include "Common.h"
+#include "Fields.h"
 #include "../Shape.h"
 #include "../Simulation.h"
 
 #include <mpi.h>
 
-using namespace pybind11::literals;
-namespace py = pybind11;
+namespace cubismup2d {
+
+using namespace py::literals;
+
+// Bindings/Operators.cpp
+void bindOperators(py::module &m);
 
 // Bindings/Shapes.cpp
 void bindShapes(py::module &m);
@@ -59,7 +64,10 @@ static void bindSimulationData(py::module &m)
       .def_readonly("extents", &SimulationData::extents)
       .def_readonly("uinfx", &SimulationData::uinfx)
       .def_readonly("uinfy", &SimulationData::uinfy)
-      .def_readonly("nsteps", &SimulationData::nsteps);
+      .def_readonly("time", &SimulationData::time)
+      .def_readonly("step", &SimulationData::step)
+      .def_readwrite("_nsteps", &SimulationData::nsteps)
+      .def_readwrite("_tend", &SimulationData::endTime);
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
@@ -73,7 +81,7 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   for (size_t i = 0; i < argv.size(); ++i)
     ptrs[i] = const_cast<char *>(argv[i].data());
   auto sim = std::make_shared<Simulation>((int)ptrs.size(), ptrs.data(), comm);
-  sim->pipeline.push_back(new SIGINTHandlerOperator{sim->sim});
+  sim->pipeline.push_back(std::make_shared<SIGINTHandlerOperator>(sim->sim));
   return sim;
 }
 
@@ -86,18 +94,28 @@ static void bindSimulation(py::module &m)
       .def("add_shape", [](Simulation *sim, std::shared_ptr<Shape> shape) {
         sim->sim.addShape(std::move(shape));
       }, "shape"_a)
+      .def_property_readonly("fields", [](Simulation *sim) {
+        return FieldsView{&sim->sim};
+      })
+      .def("insert_operator", &Simulation::insertOperator, "op"_a)
+      .def("insert_operator", &Simulation::insertOperatorAfter,
+           "op"_a, "after"_a)
       .def("init", &Simulation::init)
       .def("simulate", &Simulation::simulate);
 }
 
+}  // namespace cubismup2d
+
 PYBIND11_MODULE(libcubismup2d, m)
 {
-  using namespace py::literals;
+  using namespace cubismup2d;
   m.doc() = "CubismUP2D solver for incompressible Navier-Stokes";
 
-  m.attr("BLOCK_SIZE") = _BS_;
+  m.attr("BLOCK_SIZE") = CUP2D_BLOCK_SIZE;
 
+  bindOperators(m);
   bindSimulationData(m);
   bindSimulation(m);
+  bindFields(m);
   bindShapes(m);
 }
