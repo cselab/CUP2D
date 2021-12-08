@@ -149,7 +149,7 @@ void AMRSolver::Get_LHS ()
       }
     }
 
-    Corrector.FillBlockCases(); //this does the flux corrections
+    sim.tmp->CorrectorGrid.FillBlockCases(); //this does the flux corrections
     //ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
     //LHS(0,0).s = mean;
    sim.stopProfiler();
@@ -246,7 +246,7 @@ void AMRSolver::solve()
   // x vector (current solution estimate)
   // z vector (used for preconditioning)
 
-  Corrector.prepare(*sim.tmp);
+  sim.tmp->CorrectorGrid.prepare(*sim.tmp);
 
   std::vector<cubism::BlockInfo>& AxInfo = sim.tmp ->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();

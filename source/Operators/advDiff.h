@@ -19,6 +19,8 @@ class advDiff : public Operator
 
   void operator()(const double dt);
 
+  void step(const int coef);
+
   std::string getName()
   {
     return "advDiff";

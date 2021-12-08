@@ -30,8 +30,8 @@ class PressureSingle : public Operator
 
   bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;
-  void pressureCorrection(const double dt) const;
-  void updatePressureRHS(const double dt) const;
+  void pressureCorrection(const double dt);
+  void updatePressureRHS(const double dt);
   void integrateMomenta(Shape * const shape) const;
   void penalize(const double dt) const;
 

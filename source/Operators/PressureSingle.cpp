@@ -118,7 +118,7 @@ void PressureSingle::penalize(const double dt) const
   }
 }
 
-void PressureSingle::updatePressureRHS(const double dt) const
+void PressureSingle::updatePressureRHS(const double dt)
 {
   // RHS of Poisson equation is div(u) - chi * div(u_def)
   // It is computed here and stored in TMP
@@ -128,8 +128,7 @@ void PressureSingle::updatePressureRHS(const double dt) const
   static constexpr int stenEnd[3] = { 2, 2, 1};
 
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
-  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
-  Corrector.prepare(*(sim.tmp));
+  sim.tmp->CorrectorGrid.prepare(*(sim.tmp));
   #pragma omp parallel
   {
     ScalarLab poldLab;
@@ -242,15 +241,14 @@ void PressureSingle::updatePressureRHS(const double dt) const
       }
     }
   }
-  Corrector.FillBlockCases();
+  sim.tmp->CorrectorGrid.FillBlockCases();
 }
 
-void PressureSingle::pressureCorrection(const double dt) const
+void PressureSingle::pressureCorrection(const double dt)
 {
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-  FluxCorrection<VectorGrid,VectorBlock> Corrector;
-  Corrector.prepare(*(sim.tmpV));
+  sim.tmpV->CorrectorGrid.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-1,-1, 0}, stenEnd[3] = { 2, 2, 1};
@@ -321,7 +319,7 @@ void PressureSingle::pressureCorrection(const double dt) const
       }
     }
   }
-  Corrector.FillBlockCases();
+  sim.tmpV->CorrectorGrid.FillBlockCases();
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
