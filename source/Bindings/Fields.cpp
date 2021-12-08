@@ -64,6 +64,7 @@ struct BlockView
   /// Used by numpy.asarray & co.
   py::dict arrayInterface() const
   {
+    // We assume the block has no member variables other than the 2D array.
     return py::dict(
         "shape"_a = isVector ? py::make_tuple(BS, BS, 2)
                              : py::make_tuple(BS, BS),
@@ -89,6 +90,9 @@ template <typename Grid>
 struct FieldView
 {
   static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
+  using T = typename Grid::BlockType::ElementType;
+  static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
+
   Grid *grid;
 
   size_t size() const
@@ -103,8 +107,6 @@ struct FieldView
 
   py::array_t<Real> toUniform() const
   {
-    using T = typename Grid::BlockType::ElementType;
-    static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
     const auto numCells = grid->getMaxMostRefinedCells();
     std::vector<ssize_t> shape(2 + kIsVector);  // (y, x, [channels])
     shape[0] = numCells[1];
@@ -113,8 +115,27 @@ struct FieldView
       shape[2] = 2;
 
     py::array_t<Real> out(std::move(shape));
-    grid->copyToUniformNoInterpolation((T *)out.mutable_data());
+    grid->copyToUniformNoInterpolation(
+        reinterpret_cast<T *>(out.mutable_data()));
     return out;
+  }
+
+  void loadUniform(py::array_t<Real> array)
+  {
+    const auto cells = grid->getMaxMostRefinedCells();
+    const bool ok = array.ndim() == (kIsVector ? 3 : 2)
+        && array.shape(0) == cells[1]
+        && array.shape(1) == cells[0]
+        && (!kIsVector || array.shape(2) == 2);
+    if (!ok) {
+      py::tuple shape(array.ndim());
+      for (int i = 0; i < (int)array.ndim(); ++i)
+        shape[i] = array.shape(i);
+      py::tuple expected = kIsVector ? py::make_tuple(cells[1], cells[0], 2)
+                                     : py::make_tuple(cells[1], cells[0]);
+      throw py::type_error("expected shape {}, got {}"_s.format(expected, shape));
+    }
+    grid->copyFromMatrix(reinterpret_cast<const T *>(array.data()));
   }
 };
 
@@ -127,7 +148,8 @@ static void bindFieldView(py::module &m, const char *name)
   py::class_<FV>(m, name)
     .def("__len__", &FV::size)
     .def("__getitem__", &FV::at)
-    .def("to_uniform", &FV::toUniform);
+    .def("to_uniform", &FV::toUniform)
+    .def("load_uniform", &FV::loadUniform);
 }
 
 void bindFields(py::module &m)

@@ -10,8 +10,8 @@ class Simulation(libcup2d.Simulation):
             self,
             cells: Tuple[int, int],
             *,
-            max_level: int = 6,
-            start_level: int = 3,
+            nlevels: int = 6,
+            start_level: Optional[int] = None,
             rtol: float = 0.5,
             ctol: float = 0.1,
             extent: float = 1.0,
@@ -24,12 +24,23 @@ class Simulation(libcup2d.Simulation):
             serialization_dir: str = 'output/h5/',
             verbose: bool = True,
             comm: Optional['mpi4py.MPI.Intracomm'] = None):
+        """
+        Arguments:
+            ...
+            nlevels: number of levels, set to 1 for a uniform grid
+            start_level: level at which the grid is initialized,
+                         defaults to min(nlevels - 1, 3)
+            ...
+        """
+        assert nlevels >= 1, nlevels
+        if start_level is None:
+            start_level = min(nlevels - 1, 3)
         assert cells[0] % libcup2d.BLOCK_SIZE == 0, cells[0]
         assert cells[1] % libcup2d.BLOCK_SIZE == 0, cells[1]
         argv = [
             '-bpdx', cells[0] // libcup2d.BLOCK_SIZE,
             '-bpdy', cells[1] // libcup2d.BLOCK_SIZE,
-            '-levelMax', max_level,
+            '-levelMax', nlevels,
             '-levelStart', start_level,
             '-Rtol', rtol,
             '-Ctol', ctol,
