@@ -39,6 +39,9 @@
 
 using namespace cubism;
 
+static const char kHorLine[] = 
+    "=======================================================================\n";
+
 static inline std::vector<std::string> split(const std::string&s,const char dlm)
 {
   std::stringstream ss(s); std::string item; std::vector<std::string> tokens;
@@ -312,14 +315,38 @@ void Simulation::startObstacles()
   initVel(0);
 }
 
-void Simulation::simulate() { if(sim.rank == 0) { std::cout
-	<<"=======================================================================\n";
-	std::cout << "[CUP2D] Starting Simulation..." << std::endl; } while (1)
+void Simulation::simulate() {
+  if (sim.rank == 0)
+    std::cout << kHorLine << "[CUP2D] Starting Simulation...\n" << std::flush;
+
+  while (1)
 	{
     // sim.startProfiler("DT");
-    const Real dt = calcMaxTimestep();
+    Real dt = calcMaxTimestep();
     // sim.stopProfiler();
-    if (advance(dt)) break; } }
+
+    bool done = false;
+    // Truncate the time step such that the total simulation time is `endTime`.
+    if (sim.time + dt > sim.endTime) {
+      sim.dt = dt = sim.endTime - sim.time;
+      done = true;
+    }
+
+    // Ignore the final time step if `dt` is way too small.
+    if (!done || dt > 2e-16)
+      advance(dt);
+
+    if (!done)
+      done = sim.bOver();
+
+    if (done && sim.rank == 0) {
+      std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
+      sim.printResetProfiler();
+      std::cout << kHorLine;
+      break;
+    }
+  }
+}
 
 Real Simulation::calcMaxTimestep()
 {
@@ -362,20 +389,18 @@ Real Simulation::calcMaxTimestep()
   return sim.dt;
 }
 
-bool Simulation::advance(const Real dt)
+void Simulation::advance(const Real dt)
 {
   MPI_Barrier(sim.comm);
 
   const Real CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   if (sim.rank == 0)
   {
-    std::cout
-  <<"=======================================================================\n";
+    std::cout << kHorLine;
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
       sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
   }
 
-  assert(dt>2.2e-16);
   if( sim.step == 0 ){
     if ( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] dumping IC...\n";
@@ -433,7 +458,6 @@ bool Simulation::advance(const Real dt)
   sim.time += dt;
   sim.step++;
 
-
   // dump field
   if( bDump ) {
     if( sim.rank == 0 && sim.verbose )
@@ -442,17 +466,5 @@ bool Simulation::advance(const Real dt)
     sim.dumpAll("avemaria_"); 
   }
 
-  const bool bOver = sim.bOver();
-
-  if (bOver && sim.rank == 0 ){
-    std::cout
-  <<"=======================================================================\n";
-    std::cout << "[CUP2D] Simulation Over... Profiling information:\n";
-    sim.printResetProfiler();
-    std::cout
-  <<"=======================================================================\n";
-  }
-
   MPI_Barrier(sim.comm);
-  return bOver;
 }

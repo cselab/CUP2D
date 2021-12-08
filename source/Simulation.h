@@ -54,7 +54,7 @@ public:
   void startObstacles();
   void simulate();
   Real calcMaxTimestep();
-  bool advance(const Real DT);
+  void advance(const Real dt);
 
   const std::vector<std::shared_ptr<Shape>>& getShapes() { return sim.shapes; }
 };

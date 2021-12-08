@@ -122,7 +122,7 @@ SimulationData::~SimulationData()
 bool SimulationData::bOver() const
 {
   const bool timeEnd = endTime>0 && time >= endTime;
-  const bool stepEnd =  nsteps>0 && step > nsteps;
+  const bool stepEnd =  nsteps>0 && step >= nsteps;
   return timeEnd || stepEnd;
 }
 
