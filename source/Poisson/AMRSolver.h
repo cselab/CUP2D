@@ -22,10 +22,6 @@ class AMRSolver
     return "AMRSolver";
   }
   AMRSolver(SimulationData& s);
-  //this object is used to compute the "flux corrections" at the interface between a coarse and fine grid point
-  //these corrections are used for the coarse cell
-  //for the fine cell, we just interpolate ghost cell values and pretend we're on a uniform grid
-  cubism::FluxCorrection<ScalarGrid,ScalarBlock> Corrector; 
 
   //main function used to solve Poisson's equation
   void solve();

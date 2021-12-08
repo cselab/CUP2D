@@ -136,8 +136,7 @@ void advDiff::step(const int coef)
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
 
-  FluxCorrection<VectorGrid,VectorBlock> Corrector;
-  Corrector.prepare(*(sim.tmpV));
+  sim.tmpV->CorrectorGrid.prepare(*(sim.tmpV));
   #pragma omp parallel
   {
     static constexpr int stenBeg[3] = {-3,-3, 0}, stenEnd[3] = { 4, 4, 1};
@@ -209,7 +208,7 @@ void advDiff::step(const int coef)
       }
     }
   }
-  Corrector.FillBlockCases();
+  sim.tmpV->CorrectorGrid.FillBlockCases();
 
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)

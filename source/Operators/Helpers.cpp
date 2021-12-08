@@ -36,10 +36,9 @@ void computeVorticity::run() const
   }
 }
 
-void computeDivergence::run() const
+void computeDivergence::run()
 {
-  FluxCorrection<ScalarGrid,ScalarBlock> Corrector;
-  Corrector.prepare(*(sim.tmp));
+  sim.tmp->CorrectorGrid.prepare(*(sim.tmp));
   static constexpr int BSX = VectorBlock::sizeX;
   static constexpr int BSY = VectorBlock::sizeY;
 
@@ -106,7 +105,7 @@ void computeDivergence::run() const
     }
   }
 
-  Corrector.FillBlockCases();
+  sim.tmp->CorrectorGrid.FillBlockCases();
 
 
   double sDtot = 0.0;

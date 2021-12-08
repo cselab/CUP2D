@@ -83,7 +83,7 @@ class computeDivergence
  public:
   computeDivergence(SimulationData& s) : sim(s) { }
 
-  void run() const;
+  void run();
 
   std::string getName() const {
     return "computeDivergence";
