@@ -32,7 +32,7 @@ struct GradChiOnTmp
       lab(x,y).s = std::max(lab(x,y).s,(Real)0.0);
       if (lab(x,y).s > 0.0 && lab(x,y).s < threshold)
       {
-        TMP(0,0).s = 2*sim.Rtol;
+        TMP(4,4).s = 2*sim.Rtol;
         break;
       }
     }
