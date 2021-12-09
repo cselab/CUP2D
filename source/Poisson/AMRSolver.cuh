@@ -88,7 +88,7 @@ protected:
       const cubism::BlockInfo &rhsNei_2,
       const EdgeIndexer2 &helper2);
   // Method to compute A and b for the current mesh
-  void getLS();
+  void get_LS();
   // Host-side variables for linear system
   std::vector<double> cooValA_;
   std::vector<int> cooRowA_;
@@ -101,10 +101,9 @@ protected:
   std::vector<double> P_inv_; 
 
 
-  void allocSolver();
-  void deallocSolver();
+  void alloc();
   void BiCGSTAB();
-  void zeroMean();
+  void zero_mean();
   cudaStream_t solver_stream_;
   cublasHandle_t cublas_handle_;
   cusparseHandle_t cusparse_handle_;
