@@ -86,100 +86,74 @@ struct BlockView
   }
 };
 
+}  // anonymous namespace
+
 template <typename Grid>
-struct FieldView
+static py::array_t<Real> gridToUniform(const Grid &grid)
 {
   static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
   using T = typename Grid::BlockType::ElementType;
   static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
 
-  Grid *grid;
+  const auto numCells = grid.getMaxMostRefinedCells();
+  std::vector<ssize_t> shape(2 + kIsVector);  // (y, x, [channels])
+  shape[0] = numCells[1];
+  shape[1] = numCells[0];
+  if (kIsVector)
+    shape[2] = 2;
 
-  size_t size() const
-  {
-    return grid->getBlocksInfo().size();
-  }
-
-  BlockView at(size_t k) const
-  {
-    return BlockView{&grid->getBlocksInfo().at(k), kIsVector};
-  }
-
-  py::array_t<Real> toUniform() const
-  {
-    const auto numCells = grid->getMaxMostRefinedCells();
-    std::vector<ssize_t> shape(2 + kIsVector);  // (y, x, [channels])
-    shape[0] = numCells[1];
-    shape[1] = numCells[0];
-    if (kIsVector)
-      shape[2] = 2;
-
-    py::array_t<Real> out(std::move(shape));
-    grid->copyToUniformNoInterpolation(
-        reinterpret_cast<T *>(out.mutable_data()));
-    return out;
-  }
-
-  void loadUniform(py::array_t<Real> array)
-  {
-    const auto cells = grid->getMaxMostRefinedCells();
-    const bool ok = array.ndim() == (kIsVector ? 3 : 2)
-        && array.shape(0) == cells[1]
-        && array.shape(1) == cells[0]
-        && (!kIsVector || array.shape(2) == 2);
-    if (!ok) {
-      py::tuple shape(array.ndim());
-      for (int i = 0; i < (int)array.ndim(); ++i)
-        shape[i] = array.shape(i);
-      py::tuple expected = kIsVector ? py::make_tuple(cells[1], cells[0], 2)
-                                     : py::make_tuple(cells[1], cells[0]);
-      throw py::type_error("expected shape {}, got {}"_s.format(expected, shape));
-    }
-    grid->copyFromMatrix(reinterpret_cast<const T *>(array.data()));
-  }
-};
-
-}  // anonymous namespace
+  py::array_t<Real> out(std::move(shape));
+  grid.copyToUniformNoInterpolation(reinterpret_cast<T *>(out.mutable_data()));
+  return out;
+}
 
 template <typename Grid>
-static void bindFieldView(py::module &m, const char *name)
+static void gridLoadUniform(Grid *grid, py::array_t<Real> array)
 {
-  using FV = FieldView<Grid>;
-  py::class_<FV>(m, name)
-    .def("__len__", &FV::size)
-    .def("__getitem__", &FV::at)
-    .def("to_uniform", &FV::toUniform)
-    .def("load_uniform", &FV::loadUniform);
+  static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
+  using T = typename Grid::BlockType::ElementType;
+  static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
+
+  const auto cells = grid->getMaxMostRefinedCells();
+  const bool ok = array.ndim() == (kIsVector ? 3 : 2)
+      && array.shape(0) == cells[1]
+      && array.shape(1) == cells[0]
+      && (!kIsVector || array.shape(2) == 2);
+  if (!ok) {
+    py::tuple shape(array.ndim());
+    for (int i = 0; i < (int)array.ndim(); ++i)
+      shape[i] = array.shape(i);
+    py::tuple expected = kIsVector ? py::make_tuple(cells[1], cells[0], 2)
+                                   : py::make_tuple(cells[1], cells[0]);
+    throw py::type_error("expected shape {}, got {}"_s.format(expected, shape));
+  }
+  grid->copyFromMatrix(reinterpret_cast<const T *>(array.data()));
+}
+
+template <typename Grid>
+static void bindGrid(py::module &m, const char *name)
+{
+  py::class_<Grid>(m, name)
+    .def("__len__", [](const Grid &grid) { return grid.getBlocksInfo().size(); })
+    .def("__getitem__", [](Grid *grid, size_t k) {
+      static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
+      return BlockView{&grid->getBlocksInfo().at(k), kIsVector};
+    })
+    .def("to_uniform", &gridToUniform<Grid>)
+    .def("load_uniform", &gridLoadUniform<Grid>);
 }
 
 void bindFields(py::module &m)
 {
-  auto pyField = py::class_<FieldsView>(m, "FieldsView");
-  auto addField = [&pyField](const char *name, auto fieldPtr) {
-    pyField.def_property_readonly(name, [fieldPtr](FieldsView view) {
-      auto *grid = view.s->*fieldPtr;
-      using Grid = std::remove_cv_t<std::remove_reference_t<decltype(*grid)>>;
-      return FieldView<Grid>{grid};
-    });
-  };
-  addField("chi", &SimulationData::chi);
-  addField("vel", &SimulationData::vel);
-  addField("vOld", &SimulationData::vOld);
-  addField("pres", &SimulationData::pres);
-  addField("tmpV", &SimulationData::tmpV);
-  addField("tmp", &SimulationData::tmp);
-  addField("uDef", &SimulationData::uDef);
-  addField("pold", &SimulationData::pold);
-
-  bindFieldView<ScalarGrid>(m, "ScalarFieldView");
-  bindFieldView<VectorGrid>(m, "VectorFieldView");
-
   py::class_<BlockView>(m, "BlockView")
     .def("__repr__", &BlockView::str)
     .def("__str__", &BlockView::str)
     .def_property_readonly("__array_interface__", &BlockView::arrayInterface)
     .def_property_readonly("ij", &BlockView::ij)
     .def_property_readonly("level", &BlockView::level);
+
+  bindGrid<ScalarGrid>(m, "ScalarGrid");
+  bindGrid<VectorGrid>(m, "VectorGrid");
 }
 
 }  // namespace cubismup2d
