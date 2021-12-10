@@ -327,7 +327,7 @@ void Simulation::simulate() {
 
     bool done = false;
     // Truncate the time step such that the total simulation time is `endTime`.
-    if (sim.time + dt > sim.endTime) {
+    if (sim.endTime > 0 && sim.time + dt > sim.endTime) {
       sim.dt = dt = sim.endTime - sim.time;
       done = true;
     }
