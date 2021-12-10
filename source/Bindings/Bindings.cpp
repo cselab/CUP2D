@@ -10,6 +10,9 @@ using namespace py::literals;
 // Bindings/Operators.cpp
 void bindOperators(py::module &m);
 
+// Bindings/Poisson.cpp
+void bindPoissonSolvers(py::module &m);
+
 // Bindings/Shapes.cpp
 void bindShapes(py::module &m);
 
@@ -62,4 +65,7 @@ PYBIND11_MODULE(libcubismup2d, m)
   bindSimulation(m);
   bindFields(m);
   bindShapes(m);
+
+  auto poisson = m.def_submodule("poisson");
+  bindPoissonSolvers(poisson);
 }
