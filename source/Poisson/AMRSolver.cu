@@ -488,7 +488,7 @@ void AMRSolver::get_LS()
   const int Nblocks = RhsInfo.size();
   const int N = BSX_*BSY_*Nblocks;
 
-  if (sim.pres->UpdateFluxCorrection)
+  if (updateA_)
   {
     // Allocate memory for solution 'x' and RHS vector 'b' on host
     this->x_.resize(N);
@@ -503,27 +503,7 @@ void AMRSolver::get_LS()
     this->cooRowA_.reserve(6 * N);
     this->csrRowA_.reserve(N+1);
     this->cooColA_.reserve(6 * N);
-  }
 
-  #pragma omp parallel for
-  for(int i=0; i< Nblocks; i++)
-  {    
-    const BlockInfo &rhs_info = RhsInfo[i];
-    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
-    const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
-
-    // Construct RHS and x_0 vectors for linear system
-    for(int iy=0; iy<BSY_; iy++)
-    for(int ix=0; ix<BSX_; ix++)
-    {
-      const int sfc_idx = CellIndexer::This(rhs_info, ix, iy);
-      b_[sfc_idx] = rhs(ix,iy).s;
-      x_[sfc_idx] = p(ix,iy).s;
-    }
-  }
-
-  if (sim.pres->UpdateFluxCorrection)
-  {
     // No parallel for to ensure COO and CSR are ordered at construction
     for(int i=0; i< Nblocks; i++)
     {    
@@ -625,9 +605,27 @@ void AMRSolver::get_LS()
               isNorthBoundary, rhsNei_north, NorthEdgeCell(), 
               isEastBoundary, rhsNei_east, EastEdgeCell());
         }
-      }
+      } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
+    } // for(int i=0; i< Nblocks; i++)
+  } // if (updateA_)
+
+  #pragma omp parallel for
+  for(int i=0; i< Nblocks; i++)
+  {    
+    const BlockInfo &rhs_info = RhsInfo[i];
+    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
+
+    // Construct RHS and x_0 vectors for linear system
+    for(int iy=0; iy<BSY_; iy++)
+    for(int ix=0; ix<BSX_; ix++)
+    {
+      const int sfc_idx = CellIndexer::This(rhs_info, ix, iy);
+      b_[sfc_idx] = rhs(ix,iy).s;
+      x_[sfc_idx] = p(ix,iy).s;
     }
   }
+
   // Save params of current linear system
   m_ = N; // rows
   n_ = N; // cols
@@ -727,6 +725,8 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
   checkCudaErrors(cublasSetStream(cublas_handle_, solver_stream_));
   checkCudaErrors(cusparseSetStream(cusparse_handle_, solver_stream_));
 
+  virginA_ = true;
+  updateA_ = true;
   // NULL if device memory not allocated
   d_cooValA_ = NULL;
   d_csrRowA_ = NULL;
@@ -825,30 +825,35 @@ void AMRSolver::alloc()
   startProfiler(start_memcpy_, solver_stream_);
 #endif 
 
-  if (sim.pres->UpdateFluxCorrection)
+  if (updateA_)
   {
-    // Free device memory allocated for linear system from previous time-step
-    checkCudaErrors(cudaFree(d_cooValA_));
-    checkCudaErrors(cudaFree(d_csrRowA_));
-    checkCudaErrors(cudaFree(d_cooColA_));
-    checkCudaErrors(cudaFree(d_x_));
-    checkCudaErrors(cudaFree(d_r_));
-    // Cleanup memory allocated for BiCGSTAB arrays
-    checkCudaErrors(cusparseDestroySpMat(spDescrA_));
-    checkCudaErrors(cusparseDestroyDnVec(spDescrX0_));
-    checkCudaErrors(cusparseDestroyDnVec(spDescrZ_));
-    checkCudaErrors(cusparseDestroyDnVec(spDescrNu_));
-    checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
-    checkCudaErrors(cudaFree(d_rhat_));
-    checkCudaErrors(cudaFree(d_p_));
-    checkCudaErrors(cudaFree(d_nu_));
-    checkCudaErrors(cudaFree(d_t_));
-    checkCudaErrors(cudaFree(d_z_));
-    checkCudaErrors(cudaFree(SpMVBuff_));
+    // Previous time-step does not exist
+    if (!virginA_)
+    {
+      // Free device memory allocated for linear system from previous time-step
+      checkCudaErrors(cudaFree(d_cooValA_));
+      checkCudaErrors(cudaFree(d_csrRowA_));
+      checkCudaErrors(cudaFree(d_cooColA_));
+      checkCudaErrors(cudaFree(d_x_));
+      checkCudaErrors(cudaFree(d_r_));
+      // Cleanup memory allocated for BiCGSTAB arrays
+      checkCudaErrors(cusparseDestroySpMat(spDescrA_));
+      checkCudaErrors(cusparseDestroyDnVec(spDescrX0_));
+      checkCudaErrors(cusparseDestroyDnVec(spDescrZ_));
+      checkCudaErrors(cusparseDestroyDnVec(spDescrNu_));
+      checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
+      checkCudaErrors(cudaFree(d_rhat_));
+      checkCudaErrors(cudaFree(d_p_));
+      checkCudaErrors(cudaFree(d_nu_));
+      checkCudaErrors(cudaFree(d_t_));
+      checkCudaErrors(cudaFree(d_z_));
+      checkCudaErrors(cudaFree(SpMVBuff_));
+    }
+    virginA_ = false;
 
     // Allocate device memory for linear system
     checkCudaErrors(cudaMalloc(&d_cooValA_, nnz_ * sizeof(double)));
-    checkCudaErrors(cudaMalloc(&d_csrRowA_, nnz_ * sizeof(int)));
+    checkCudaErrors(cudaMalloc(&d_csrRowA_, (m_+1) * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_cooColA_, nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
@@ -1106,6 +1111,16 @@ void AMRSolver::solve()
 {
 
   std::cout << "--------------------- Calling on AMRSolver.solve() ------------------------ \n";
+
+  if (sim.pres->UpdateFluxCorrection)
+  {
+    sim.pres->UpdateFluxCorrection = false;
+    updateA_ = true;
+  }
+  else
+  {
+    updateA_ = false;
+  }
 
   this->get_LS();
   this->BiCGSTAB();

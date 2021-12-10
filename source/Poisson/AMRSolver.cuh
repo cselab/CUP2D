@@ -100,7 +100,8 @@ protected:
   // Row major linearly indexed matrix containing inverse preconditioner K_2^{-1}
   std::vector<double> P_inv_; 
 
-
+  bool virginA_;
+  bool updateA_;
   void alloc();
   void BiCGSTAB();
   void zero_mean();
