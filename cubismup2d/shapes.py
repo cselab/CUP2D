@@ -56,11 +56,6 @@ def _init_shape(
 
 
 class Disk(_Disk):
-    def __init__(
-            self,
-            sim: Simulation,
-            *,
-            r: float,
-            tAccel: float = 0.0,
-            **kwargs):
+    def __init__(self, sim: Simulation, *,
+                 r: float, tAccel: float = 0.0, **kwargs):
         _init_shape(_Disk, self, sim, dict(radius=r, tAccel=tAccel), **kwargs)

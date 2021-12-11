@@ -5,7 +5,7 @@
 //
 
 #include "PressureSingle.h"
-#include "../Poisson/AMRSolver.h"
+#include "../Poisson/Base.h"
 #include "../Shape.h"
 
 using namespace cubism;
@@ -912,7 +912,7 @@ void PressureSingle::operator()(const Real dt)
     }
   }
 
-  pressureSolver->solve();
+  pressureSolver->solve(sim.tmp, sim.pres);
 
   if (sim.step>10)
   {
@@ -936,11 +936,9 @@ void PressureSingle::operator()(const Real dt)
   sim.stopProfiler();
 }
 
-PressureSingle::PressureSingle(SimulationData& s) : Operator(s)
-{
-  pressureSolver = new AMRSolver(s);
-}
+PressureSingle::PressureSingle(SimulationData& s) :
+  Operator{s},
+  pressureSolver{makePoissonSolver(s)}
+{ }
 
-PressureSingle::~PressureSingle() {
-  delete pressureSolver;
-}
+PressureSingle::~PressureSingle() = default;

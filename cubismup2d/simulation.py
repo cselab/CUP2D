@@ -1,11 +1,38 @@
 import libcubismup2d as libcup2d
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import os
 
 __all__ = ['Operator', 'Simulation']
 
-class Simulation(libcup2d.Simulation):
+class _FieldProperty:
+    """Lazy attribute accessor."""
+    __slots__ = ('_name',)
+
+    def __set_name__(self, owner, name: str):
+        self._name = name
+
+    def __get__(self, obj, objtype=None) -> \
+            Union[libcup2d.ScalarGrid, libcup2d.VectorGrid]:
+        return getattr(obj.sim, self._name)
+
+
+class _FieldsProxy:
+    __slots__ = ('sim',)
+    def __init__(self, sim: libcup2d._SimulationData):
+        self.sim = sim
+
+    chi = _FieldProperty()
+    vel = _FieldProperty()
+    vOld = _FieldProperty()
+    pres = _FieldProperty()
+    tmpV = _FieldProperty()
+    tmp = _FieldProperty()
+    uDef = _FieldProperty()
+    pold = _FieldProperty()
+
+
+class Simulation(libcup2d._Simulation):
     def __init__(
             self,
             cells: Tuple[int, int],
@@ -21,7 +48,7 @@ class Simulation(libcup2d.Simulation):
             fdump: int = 0,
             tdump: float = 0.0,
             output_dir: str = 'output/',
-            serialization_dir: str = 'output/h5/',
+            serialization_dir: Optional[str] = None,
             verbose: bool = True,
             comm: Optional['mpi4py.MPI.Intracomm'] = None):
         """
@@ -31,10 +58,14 @@ class Simulation(libcup2d.Simulation):
             start_level: level at which the grid is initialized,
                          defaults to min(nlevels - 1, 3)
             ...
+            serialization_dir: folder containing HDF5 files,
+                               defaults to `os.path.join(output_dir, 'h5')`
         """
         assert nlevels >= 1, nlevels
         if start_level is None:
             start_level = min(nlevels - 1, 3)
+        if serialization_dir is None:
+            serialization_dir = os.path.join(output_dir, 'h5')
         assert cells[0] % libcup2d.BLOCK_SIZE == 0, cells[0]
         assert cells[1] % libcup2d.BLOCK_SIZE == 0, cells[1]
         argv = [
@@ -66,8 +97,9 @@ class Simulation(libcup2d.Simulation):
         # Ideally this should be in Cubism's dump function.
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(serialization_dir, exist_ok=True)
-        libcup2d.Simulation.__init__(self, ['DUMMY'] + argv, comm)
+        libcup2d._Simulation.__init__(self, ['DUMMY'] + argv, comm)
         self._ops = []
+        self.fields = _FieldsProxy(self.sim)
 
     def insert_operator(self, op, *args, **kwargs):
         # We have to store an in-Python reference permanently.
@@ -83,7 +115,7 @@ class Simulation(libcup2d.Simulation):
         sim: libcup2d.SimulationData = self.sim
         sim._nsteps = sim.step + nsteps if nsteps is not None else 0
         sim._tend = sim.time + tend if tend is not None else 0.0
-        libcup2d.Simulation.simulate(self)
+        super().simulate()
 
 
 class Operator(libcup2d._Operator):

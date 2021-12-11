@@ -64,6 +64,8 @@ struct SimulationData
   Real nu;
   
   // poisson solver parameters
+  std::string poissonSolver;  // iterative or fftw_dirichlet
+  Real fftwPoissonTol;  // see Poisson/Base.cpp
   Real PoissonTol;    // absolute error tolerance
   Real PoissonTolRel; // relative error tolerance
   int maxPoissonRestarts; // maximal number of restarts of Poisson solver

@@ -181,6 +181,8 @@ void Simulation::parseRuntime()
   sim.nu = parser("-nu").asDouble(1e-2);
 
   // poisson solver parameters
+  sim.poissonSolver = parser("-poissonSolver").asString("iterative");
+  sim.fftwPoissonTol = parser("-fftwPoissonTol").asDouble(0.1);
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
@@ -327,7 +329,7 @@ void Simulation::simulate() {
 
     bool done = false;
     // Truncate the time step such that the total simulation time is `endTime`.
-    if (sim.time + dt > sim.endTime) {
+    if (sim.endTime > 0 && sim.time + dt > sim.endTime) {
       sim.dt = dt = sim.endTime - sim.time;
       done = true;
     }

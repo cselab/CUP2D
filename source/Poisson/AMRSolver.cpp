@@ -225,8 +225,11 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
    }
 }
 
-void AMRSolver::solve()
+void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 {
+  if (input != sim.tmp || output != sim.pres)
+    throw std::invalid_argument("AMRSolver hardcoded to sim.tmp and sim.pres for now");
+
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
   const MPI_Comm m_comm = sim.chi->getCartComm();

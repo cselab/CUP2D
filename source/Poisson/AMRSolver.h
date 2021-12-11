@@ -7,7 +7,9 @@
 #pragma once
 
 #include "../Operator.h"
-#include "Cubism/FluxCorrection.h"
+#include "Base.h"
+
+#include <Cubism/FluxCorrection.h>
 
 class ComputeLHS : public Operator
 {
@@ -105,7 +107,7 @@ class ComputeLHS : public Operator
   std::string getName() { return "ComputeLHS"; }
 };
 
-class AMRSolver 
+class AMRSolver : public PoissonSolver
 {
  protected:
   SimulationData& sim;
@@ -114,7 +116,7 @@ class AMRSolver
     return "AMRSolver";
   }
   AMRSolver(SimulationData& s);
-  void solve();
+  void solve(const ScalarGrid *input, ScalarGrid *output) override;
   ComputeLHS Get_LHS;
   std::vector<std::vector<Real>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,Real> > > >L_row;

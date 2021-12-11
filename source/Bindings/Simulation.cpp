@@ -1,43 +1,12 @@
 #include "Common.h"
-#include "Fields.h"
 #include "../Shape.h"
 #include "../Simulation.h"
-
-#include <mpi.h>
 
 namespace cubismup2d {
 
 using namespace py::literals;
 
-// Bindings/Operators.cpp
-void bindOperators(py::module &m);
-
-// Bindings/Shapes.cpp
-void bindShapes(py::module &m);
-
 namespace {
-
-/* Ensure that we load highest thread level we need. */
-struct CUPMPILoader
-{
-  CUPMPILoader()
-  {
-    int flag, provided;
-    MPI_Initialized(&flag);
-    if (!flag)
-      MPI_Init_thread(0, nullptr, MPI_THREAD_MULTIPLE, &provided);
-    else
-      MPI_Query_thread(&provided);
-    if (provided >= MPI_THREAD_MULTIPLE)
-      return;
-    if (!flag)
-      fprintf(stderr, "Error: MPI does not have the required thread support!\n");
-    else
-      fprintf(stderr, "Error: MPI does not have or not initialized with the required thread support!\n");
-    fflush(stderr);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-} cup_mpi_loader;
 
 /// Operator that stops the simulation when Ctrl-C is pressed in Python.
 class SIGINTHandlerOperator : public Operator {
@@ -57,9 +26,9 @@ public:
 
 }  // anonymous namespace
 
-static void bindSimulationData(py::module &m)
+void bindSimulationData(py::module &m)
 {
-  py::class_<SimulationData>(m, "SimulationData")
+  auto pySim = py::class_<SimulationData>(m, "_SimulationData")
       .def_readonly("CFL", &SimulationData::CFL)
       .def_readonly("extents", &SimulationData::extents)
       .def_readonly("uinfx", &SimulationData::uinfx)
@@ -68,6 +37,18 @@ static void bindSimulationData(py::module &m)
       .def_readonly("step", &SimulationData::step)
       .def_readwrite("_nsteps", &SimulationData::nsteps)
       .def_readwrite("_tend", &SimulationData::endTime);
+
+  // Bind all grids. If updating this, update _FieldsProxy in
+  // cubismup2d/simulation.py as well.
+  const auto byRef = py::return_value_policy::reference_internal;
+  pySim.def_readonly("chi", &SimulationData::chi, byRef);
+  pySim.def_readonly("vel", &SimulationData::vel, byRef);
+  pySim.def_readonly("vOld", &SimulationData::vOld, byRef);
+  pySim.def_readonly("pres", &SimulationData::pres, byRef);
+  pySim.def_readonly("tmpV", &SimulationData::tmpV, byRef);
+  pySim.def_readonly("tmp", &SimulationData::tmp, byRef);
+  pySim.def_readonly("uDef", &SimulationData::uDef, byRef);
+  pySim.def_readonly("pold", &SimulationData::pold, byRef);
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
@@ -85,18 +66,15 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   return sim;
 }
 
-static void bindSimulation(py::module &m)
+void bindSimulation(py::module &m)
 {
-  py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
+  class_shared<Simulation>(m, "_Simulation")
       .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
       .def_readonly("sim", &Simulation::sim,
                     py::return_value_policy::reference_internal)
       .def("add_shape", [](Simulation *sim, std::shared_ptr<Shape> shape) {
         sim->sim.addShape(std::move(shape));
       }, "shape"_a)
-      .def_property_readonly("fields", [](Simulation *sim) {
-        return FieldsView{&sim->sim};
-      })
       .def("insert_operator", &Simulation::insertOperator, "op"_a)
       .def("insert_operator", &Simulation::insertOperatorAfter,
            "op"_a, "after"_a)
@@ -105,17 +83,3 @@ static void bindSimulation(py::module &m)
 }
 
 }  // namespace cubismup2d
-
-PYBIND11_MODULE(libcubismup2d, m)
-{
-  using namespace cubismup2d;
-  m.doc() = "CubismUP2D solver for incompressible Navier-Stokes";
-
-  m.attr("BLOCK_SIZE") = CUP2D_BLOCK_SIZE;
-
-  bindOperators(m);
-  bindSimulationData(m);
-  bindSimulation(m);
-  bindFields(m);
-  bindShapes(m);
-}

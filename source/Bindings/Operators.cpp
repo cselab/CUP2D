@@ -29,7 +29,7 @@ private:
 void bindOperators(py::module &m)
 {
   using namespace py::literals;
-  py::class_<Operator, PyOperator, std::shared_ptr<Operator>>(m, "_Operator")
+  class_shared<Operator, PyOperator>(m, "_Operator")
     .def(py::init<SimulationData&, std::string>(), "sim"_a, "name"_a)
     .def("__str__", &Operator::getName)
     .def("__repr__", &Operator::getName)
