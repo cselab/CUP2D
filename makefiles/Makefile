@@ -2,6 +2,7 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 bs ?= 8
+use_fft ?= 0
 
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
@@ -29,7 +30,7 @@ include make.icc.flags
 endif
 
 # SET FLAGS FOR CUBISM
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2 -DCUP2D_FFTW=$(use_fft)
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
@@ -42,7 +43,7 @@ OBJECTS = \
 		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
-		Waterturbine.o Teardrop.o ExperimentFish.o
+		Waterturbine.o Teardrop.o ExperimentFish.o Base.o FFTW.o
 
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
