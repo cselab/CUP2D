@@ -38,7 +38,7 @@ cp ../makefiles/cudasimulation ${FOLDERNAME}
 # did we allocate a node?
 srun hostname &> /dev/null
 if [[ "$?" -gt "0" ]] ; then
-source launchSbatch.sh
+source cuda_launchSbatch.sh
 else
 cd ${FOLDERNAME}
 srun -n 1 cudasimulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
