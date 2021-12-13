@@ -84,8 +84,8 @@ struct FFTWCommon
   FFTWCommon(SimulationData& _s);
 
   SimulationData& s;
-  FFTWPlan<Real> fwd{};
-  FFTWPlan<Real> bwd{};
+  FFTWPlan<Real>::type fwd{};
+  FFTWPlan<Real>::type bwd{};
 };
 
 }  // anonymous namespace
