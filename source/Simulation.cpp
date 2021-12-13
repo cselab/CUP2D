@@ -341,10 +341,14 @@ void Simulation::simulate() {
     if (!done)
       done = sim.bOver();
 
-    if (done && sim.rank == 0) {
-      std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
-      sim.printResetProfiler();
-      std::cout << kHorLine;
+    if (done)
+    {
+      if (sim.rank == 0)
+      {
+        std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
+        sim.printResetProfiler();
+        std::cout << kHorLine;
+      }
       break;
     }
   }
