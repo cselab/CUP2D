@@ -488,7 +488,7 @@ void AMRSolver::get_LS()
   const int Nblocks = RhsInfo.size();
   const int N = BSX_*BSY_*Nblocks;
 
-  if (updateA_)
+  if (updateA_ || virginA_)
   {
     // Allocate memory for solution 'x' and RHS vector 'b' on host
     this->x_.resize(N);
@@ -827,8 +827,7 @@ void AMRSolver::alloc()
 
   if (updateA_)
   {
-    // Previous time-step does not exist
-    if (!virginA_)
+    if (!virginA_) // Previous time-step does not exist
     {
       // Free device memory allocated for linear system from previous time-step
       checkCudaErrors(cudaFree(d_cooValA_));

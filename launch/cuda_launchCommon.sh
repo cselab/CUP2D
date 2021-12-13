@@ -19,10 +19,10 @@ BASEPATH="../runs/"
 export OMP_NUM_THREADS=`sysctl -n hw.physicalcpu_max`
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
-cp ../makefiles/simulation ${FOLDERNAME}
+cp ../makefiles/cudasimulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 
-./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+./cudasimulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 
 ###################################################################################################
 elif [ ${HOST:0:5} == 'daint' ] ; then
@@ -33,7 +33,7 @@ export OMP_PROC_BIND=close
 export OMP_NUM_THREADS=36
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
-cp ../makefiles/simulation ${FOLDERNAME}
+cp ../makefiles/cudasimulation ${FOLDERNAME}
 
 # did we allocate a node?
 srun hostname &> /dev/null
@@ -41,7 +41,7 @@ if [[ "$?" -gt "0" ]] ; then
 source launchSbatch.sh
 else
 cd ${FOLDERNAME}
-srun -n 1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+srun -n 1 cudasimulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 fi
 
 ###################################################################################################
@@ -53,12 +53,12 @@ export OMP_PLACES=cores
 export OMP_PROC_BIND=close
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
-cp ../makefiles/simulation ${FOLDERNAME}
+cp ../makefiles/cudasimulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 if [ "${RUNLOCAL}" == "true" ] ; then
-./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+./cudasimulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 else
-bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 120:00 -R "select[model==XeonGold_6150]" ./simulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
+bsub -n ${OMP_NUM_THREADS} -J ${RUNNAME} -W 120:00 -R "select[model==XeonGold_6150]" ./cudasimulation ${OPTIONS} -shapes "${OBJECTS}" # select[model==EPYC_7H12/EPYC_7742] for other Euler nodes
 # select[model==EPYC_7H12] for other Euler nodes
 # select[model==EPYC_7742] for other Euler nodes
 fi
