@@ -319,6 +319,8 @@ void Shape::computeForces()
   }
   #endif
 
+  int nb = (int)sim.chi->getBlocksInfo().size();
+  MPI_Reduce(MPI_IN_PLACE, &nb, 1, MPI_INT, MPI_SUM, 0, sim.chi->getCartComm());
   if(not sim.muteAll && sim.rank == 0)
   {
     std::stringstream ssF, ssP;
@@ -327,12 +329,12 @@ void Shape::computeForces()
 
     std::stringstream &fileForce = logger.get_stream(ssF.str());
     if(sim.step==0)
-      fileForce<<"time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc drag thrust lift perimeter circulation\n";
+      fileForce<<"time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc drag thrust lift perimeter circulation blocks\n";
 
     fileForce<<sim.time<<" "<<forcex<<" "<<forcey<<" "<<forcex_P<<" "<<forcey_P
              <<" "<<forcex_V <<" "<<forcey_V<<" "<<torque <<" "<<torque_P<<" "
              <<torque_V<<" "<<drag<<" "<<thrust<<" "<<lift<<" "<<perimeter<<" "
-             <<circulation<<"\n";
+             <<circulation<<" "<<nb<<"\n";
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(sim.step==0)
