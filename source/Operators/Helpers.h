@@ -111,3 +111,44 @@ class computeVorticity : public Operator
     return "computeVorticity";
   }
 };
+
+struct KernelQ
+{
+  KernelQ(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  void operator()(VectorLab & lab, const cubism::BlockInfo& info) const
+  {
+    const Real i2h = 0.5/info.h;
+    auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    for(int y=0; y<VectorBlock::sizeY; ++y)
+    for(int x=0; x<VectorBlock::sizeX; ++x)
+    {
+      const Real WZ  = i2h * ((lab(x,y-1).u[0]-lab(x,y+1).u[0]) + (lab(x+1,y).u[1]-lab(x-1,y).u[1]));
+      const Real D11 = i2h * (lab(x+1,y).u[0]-lab(x-1,y).u[0]); // shear stresses
+      const Real D22 = i2h * (lab(x,y+1).u[1]-lab(x,y-1).u[1]); // shear stresses
+      const Real D12 = i2h * ( (lab(x,y+1).u[0]-lab(x,y-1).u[0]) + (lab(x+1,y).u[1]-lab(x-1,y).u[1]) ); // shear stresses
+      const Real SS = D11*D11 + D22*D22 + 0.5*(D12*D12);
+      TMP(x,y).s = 0.5*( 0.5*(WZ*WZ) - SS );
+    }
+  }
+};
+
+class computeQ : public Operator
+{
+ public:
+  computeQ(SimulationData& s) : Operator(s){ }
+
+  void operator()(const Real dt)
+  {
+    const KernelQ mykernel(sim);
+    compute<KernelQ,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
+  }
+
+  std::string getName()
+  {
+    return "computeQ";
+  }
+};
+
