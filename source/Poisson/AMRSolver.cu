@@ -13,6 +13,35 @@
 
 using namespace cubism;
 
+#ifdef BICGSTAB_PROFILER
+deviceProfiler::deviceProfiler() : elapsed_(0.)
+{
+  checkCudaErrors(cudaEventCreate(&start_));
+  checkCudaErrors(cudaEventCreate(&stop_));
+}
+
+deviceProfiler::~deviceProfiler() 
+{
+  checkCudaErrors(cudaEventDestroy(start_));
+  checkCudaErrors(cudaEventDestroy(stop_));
+}
+
+void deviceProfiler::startProfiler(cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(start_, stream));
+}
+
+void deviceProfiler::stopProfiler(cudaStream_t stream)
+{
+  checkCudaErrors(cudaEventRecord(stop_, stream));
+  checkCudaErrors(cudaEventSynchronize(stop_));
+
+  float event_time = 0.;
+  checkCudaErrors(cudaEventElapsedTime(&event_time, start_, stop_));
+  elapsed_ += event_time;
+}
+#endif
+
 // -------------------------------- Host-side construction of linear system -----------------------------------
 
 enum Compass {North, East, South, West};
@@ -744,19 +773,6 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
   // Copy preconditionner
   checkCudaErrors(cudaMalloc(&d_P_inv_, BSZ_ * BSZ_ * sizeof(double)));
   checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv_.data(), BSZ_ * BSZ_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-
-#ifdef BICGSTAB_PROFILER
-  // Setup profiler
-  elapsed_memcpy_ = 0.;
-  elapsed_precondition_ = 0.;
-  elapsed_bicgstab_ = 0.;
-  checkCudaErrors(cudaEventCreate(&start_memcpy_));
-  checkCudaErrors(cudaEventCreate(&stop_memcpy_));
-  checkCudaErrors(cudaEventCreate(&start_precondition_));
-  checkCudaErrors(cudaEventCreate(&stop_precondition_));
-  checkCudaErrors(cudaEventCreate(&start_bicgstab_));
-  checkCudaErrors(cudaEventCreate(&stop_bicgstab_));
-#endif // BICGSTAB_PROFILER
 }
 
 AMRSolver::~AMRSolver()
@@ -784,15 +800,10 @@ AMRSolver::~AMRSolver()
   checkCudaErrors(cudaFree(SpMVBuff_));
 
 #ifdef BICGSTAB_PROFILER
-  std::cout << "  [AMRSolver]: total elapsed time: " << elapsed_bicgstab_ << " [ms]." << std::endl;
-  std::cout << "  [AMRSolver]: memory transfers:   " << (elapsed_memcpy_/elapsed_bicgstab_)*100. << "%." << std::endl;
-  std::cout << "  [AMRSolver]: preconditioning:    " << (elapsed_precondition_/elapsed_bicgstab_)*100. << "%." << std::endl;
-  checkCudaErrors(cudaEventDestroy(start_memcpy_));
-  checkCudaErrors(cudaEventDestroy(stop_memcpy_));
-  checkCudaErrors(cudaEventDestroy(start_precondition_));
-  checkCudaErrors(cudaEventDestroy(stop_precondition_));
-  checkCudaErrors(cudaEventDestroy(start_bicgstab_));
-  checkCudaErrors(cudaEventDestroy(stop_bicgstab_));
+  std::cout << "  [AMRSolver]: total elapsed time: " << pGlob_.elapsed() << " [ms]." << std::endl;
+  std::cout << "  [AMRSolver]: memory transfers:   " << (pMemcpy_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
+  std::cout << "  [AMRSolver]: preconditioning:    " << (pPrec_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
+  std::cout << "  [AMRSolver]: SpVM:               " << (pSpMV_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
 #endif
   // Destroy CUDA streams and handles
   checkCudaErrors(cublasDestroy(cublas_handle_)); 
@@ -800,31 +811,8 @@ AMRSolver::~AMRSolver()
   checkCudaErrors(cudaStreamDestroy(solver_stream_));
 }
 
-
-#ifdef BICGSTAB_PROFILER
-static void startProfiler(cudaEvent_t start, cudaStream_t stream)
-{
-  checkCudaErrors(cudaEventRecord(start, stream));
-}
-
-static void stopProfiler(float &total_elapsed_ms, cudaEvent_t start, cudaEvent_t stop, cudaStream_t stream)
-{
-  checkCudaErrors(cudaEventRecord(stop, stream));
-  checkCudaErrors(cudaEventSynchronize(stop));
-
-  float this_ms = 0.;
-  checkCudaErrors(cudaEventElapsedTime(&this_ms, start, stop));
-  total_elapsed_ms += this_ms;
-}
-#endif // BICGSTAB_PROFILER
-
 void AMRSolver::alloc()
 {
-#ifdef BICGSTAB_PROFILER
-  startProfiler(start_bicgstab_, solver_stream_);
-  startProfiler(start_memcpy_, solver_stream_);
-#endif 
-
   if (updateA_)
   {
     if (!virginA_) // Previous time-step does not exist
@@ -856,10 +844,17 @@ void AMRSolver::alloc()
     checkCudaErrors(cudaMalloc(&d_cooColA_, nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
+
+#ifdef BICGSTAB_PROFILER
+    pMemcpy_.startProfiler(solver_stream_);
+#endif
     // H2D transfer of linear system
     checkCudaErrors(cudaMemcpyAsync(d_cooValA_, cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(d_csrRowA_, csrRowA_.data(), (m_+1) * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(d_cooColA_, cooColA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+#ifdef BICGSTAB_PROFILER
+    pMemcpy_.stopProfiler(solver_stream_);
+#endif
 
     // Allocate arrays for BiCGSTAB storage
     checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
@@ -887,19 +882,22 @@ void AMRSolver::alloc()
           &SpMVBuffSz_));
     checkCudaErrors(cudaMalloc(&SpMVBuff_, SpMVBuffSz_ * sizeof(char)));
   }
+
+#ifdef BICGSTAB_PROFILER
+  pMemcpy_.startProfiler(solver_stream_);
+#endif
   // Copy RHS and initial guess in any case
   checkCudaErrors(cudaMemcpyAsync(d_x_, x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_r_, b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-
 #ifdef BICGSTAB_PROFILER
-  stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
+  pMemcpy_.stopProfiler(solver_stream_);
 #endif
 }
 
 void AMRSolver::BiCGSTAB()
 {
 #ifdef BICGSTAB_PROFILER
-  startProfiler(start_bicgstab_, solver_stream_);
+  pGlob_.startProfiler(solver_stream_);
 #endif 
   // Allocate device memory and copy from host
   this->alloc();
@@ -913,6 +911,9 @@ void AMRSolver::BiCGSTAB()
   double error_init = 1e50;
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
+#ifdef BICGSTAB_PROFILER
+  pSpMV_.startProfiler(solver_stream_);
+#endif
   checkCudaErrors(cusparseSpMV( // A*x_0
         cusparse_handle_, 
         CUSPARSE_OPERATION_NON_TRANSPOSE, 
@@ -924,14 +925,15 @@ void AMRSolver::BiCGSTAB()
         CUDA_R_64F, 
         CUSPARSE_MV_ALG_DEFAULT, 
         SpMVBuff_)); 
+#ifdef BICGSTAB_PROFILER
+  pSpMV_.stopProfiler(solver_stream_);
+#endif
   checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
 
-#ifdef BICGSTAB_PROFILER
   // Check norm of A*x_0
   checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &error_init));
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
   std::cout << "  [AMRSolver]: || A*x_0 || = " << error_init << std::endl;
-#endif
   
   // Calculate x_error_init for max_rel_error comparisons
   checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error_init));
@@ -998,14 +1000,17 @@ void AMRSolver::BiCGSTAB()
 
     // 4. z <- K_2^{-1} * p_i
 #ifdef BICGSTAB_PROFILER
-    startProfiler(start_precondition_, solver_stream_);
+    pPrec_.startProfiler(solver_stream_);
 #endif
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_p_, BSZ_, &nil_, d_z_, BSZ_));
 #ifdef BICGSTAB_PROFILER
-    stopProfiler(elapsed_precondition_, start_precondition_, stop_precondition_, solver_stream_);
+    pPrec_.stopProfiler(solver_stream_);
 #endif
 
     // 5. nu_i = A * z
+#ifdef BICGSTAB_PROFILER
+    pSpMV_.startProfiler(solver_stream_);
+#endif
     checkCudaErrors(cusparseSpMV(
           cusparse_handle_,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -1017,6 +1022,9 @@ void AMRSolver::BiCGSTAB()
           CUDA_R_64F,
           CUSPARSE_MV_ALG_DEFAULT,
           SpMVBuff_));
+#ifdef BICGSTAB_PROFILER
+    pSpMV_.stopProfiler(solver_stream_);
+#endif
 
     // 6. alpha = rho_i / (r_hat, nu_i)
     double alpha_den;
@@ -1033,14 +1041,17 @@ void AMRSolver::BiCGSTAB()
 
     // 10. z <- K_2^{-1} * s
 #ifdef BICGSTAB_PROFILER
-    startProfiler(start_precondition_, solver_stream_);
+    pPrec_.startProfiler(solver_stream_);
 #endif
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_r_, BSZ_, &nil_, d_z_, BSZ_));
 #ifdef BICGSTAB_PROFILER
-    stopProfiler(elapsed_precondition_, start_precondition_, stop_precondition_, solver_stream_);
+    pPrec_.stopProfiler(solver_stream_);
 #endif
 
     // 11. t = A * z
+#ifdef BICGSTAB_PROFILER
+    pSpMV_.startProfiler(solver_stream_);
+#endif
     checkCudaErrors(cusparseSpMV(
           cusparse_handle_,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -1052,6 +1063,9 @@ void AMRSolver::BiCGSTAB()
           CUDA_R_64F,
           CUSPARSE_MV_ALG_DEFAULT,
           SpMVBuff_));
+#ifdef BICGSTAB_PROFILER
+    pSpMV_.stopProfiler(solver_stream_);
+#endif
     
     // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
     double omega_num;
@@ -1093,13 +1107,13 @@ void AMRSolver::BiCGSTAB()
               << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
 
 #ifdef BICGSTAB_PROFILER
-  startProfiler(start_memcpy_, solver_stream_);
+  pMemcpy_.startProfiler(solver_stream_);
 #endif
   // Copy result back to host
   checkCudaErrors(cudaMemcpyAsync(x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
 #ifdef BICGSTAB_PROFILER
-  stopProfiler(elapsed_memcpy_, start_memcpy_, stop_memcpy_, solver_stream_);
-  stopProfiler(elapsed_bicgstab_, start_bicgstab_, stop_bicgstab_, solver_stream_);
+  pMemcpy_.stopProfiler(solver_stream_);
+  pGlob_.stopProfiler(solver_stream_);
 #endif
 }
 

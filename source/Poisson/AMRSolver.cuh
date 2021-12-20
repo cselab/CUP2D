@@ -13,6 +13,25 @@
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 
+#ifdef BICGSTAB_PROFILER
+class deviceProfiler
+{
+  public:
+    deviceProfiler();
+    ~deviceProfiler();
+
+    void startProfiler(cudaStream_t);
+    void stopProfiler(cudaStream_t);
+    float elapsed() {return elapsed_; }
+
+  protected:
+    float elapsed_;
+    cudaEvent_t start_;
+    cudaEvent_t stop_;
+
+};
+#endif
+
 class AMRSolver 
 {
   /*
@@ -109,16 +128,6 @@ protected:
   cublasHandle_t cublas_handle_;
   cusparseHandle_t cusparse_handle_;
 
-  float elapsed_memcpy_;
-  float elapsed_precondition_;
-  float elapsed_bicgstab_;
-  cudaEvent_t start_memcpy_;
-  cudaEvent_t stop_memcpy_;
-  cudaEvent_t start_precondition_;
-  cudaEvent_t stop_precondition_;
-  cudaEvent_t start_bicgstab_;
-  cudaEvent_t stop_bicgstab_;
-
   // Device-side varibles for linear system
   double* d_cooValA_;
   int* d_csrRowA_;
@@ -141,4 +150,11 @@ protected:
   // Work buffer for cusparseSpMV
   size_t SpMVBuffSz_;
   void* SpMVBuff_;
+
+#ifdef BICGSTAB_PROFILER
+  deviceProfiler pMemcpy_;
+  deviceProfiler pSpMV_;
+  deviceProfiler pPrec_;
+  deviceProfiler pGlob_;
+#endif
 };
