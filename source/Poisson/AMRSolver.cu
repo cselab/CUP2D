@@ -45,6 +45,16 @@ void deviceProfiler::stopProfiler(cudaStream_t stream)
 // -------------------------------- Host-side construction of linear system -----------------------------------
 
 enum Compass {North, East, South, West};
+enum FDType {FDLower, FDUpper, BDLower, BDUpper, CDLower, CDUpper};
+
+struct CellDataO3I {
+  int coarse_centre_idx;
+  int coarse_offset1_idx; // bottom/left
+  int coarse_offset2_idx; // top/right
+  int fine_close_idx;
+  int fine_far_idx;
+  FDType type;
+};
 
 class CellIndexer{
   public:
@@ -85,6 +95,65 @@ class NorthEdgeCell : public CellIndexer{
     static int neiblock_n(const BlockInfo &info, const int &ix, const int &iy, const int offset = 0)
     { return SouthmostCell(info, ix, iy, offset); }
 
+    static CellDataO3I coarse_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = This(info_c, ix_c, iy_c);
+      if (ix_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = EastNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = EastNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = ix_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (ix_c == BSX - 1)
+      { // BD
+        pts.coarse_offset1_idx = WestNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = WestNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = ix_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = WestNeighbour(info_c, ix_c, iy_c);
+        pts.coarse_offset2_idx = EastNeighbour(info_c, ix_c ,iy_c);
+        pts.type = ix_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = SouthmostCell(info_f, ix_f, iy_f, 0);
+      pts.fine_far_idx = SouthmostCell(info_f, ix_f, iy_f, 1);
+      return pts;
+    }
+
+    static CellDataO3I fine_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = SouthmostCell(info_c, ix_c, iy_c);
+      if (ix_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = SouthmostCell(info_c, ix_c+1, iy_c);
+        pts.coarse_offset2_idx = SouthmostCell(info_c, ix_c+2, iy_c);
+        pts.type = ix_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (ix_c == BSX - 1)
+      { // BD
+        pts.coarse_offset1_idx = SouthmostCell(info_c, ix_c-1, iy_c);
+        pts.coarse_offset2_idx = SouthmostCell(info_c, ix_c-2, iy_c);
+        pts.type = ix_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = SouthmostCell(info_c, ix_c-1, iy_c);
+        pts.coarse_offset2_idx = SouthmostCell(info_c, ix_c+1, iy_c);
+        pts.type = ix_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = This(info_f, ix_f, iy_f);
+      pts.fine_far_idx = SouthNeighbour(info_f, ix_f, iy_f);
+
+      return pts;
+    }
+
     constexpr static Compass EdgeType = {North};
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,0,0};
@@ -100,6 +169,65 @@ class EastEdgeCell : public CellIndexer{
     { return NorthNeighbour(info, ix, iy, dist); }
     static int neiblock_n(const BlockInfo &info, const int &ix, const int &iy, const int offset = 0)
     { return WestmostCell(info, ix, iy, offset); }
+
+    static CellDataO3I coarse_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = This(info_c, ix_c, iy_c);
+      if (iy_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = NorthNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = NorthNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = iy_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (iy_c == BSY - 1)
+      { // BD
+        pts.coarse_offset1_idx = SouthNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = SouthNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = iy_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = SouthNeighbour(info_c, ix_c, iy_c);
+        pts.coarse_offset2_idx = NorthNeighbour(info_c, ix_c ,iy_c);
+        pts.type = iy_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = WestmostCell(info_f, ix_f, iy_f, 0);
+      pts.fine_far_idx = WestmostCell(info_f, ix_f, iy_f, 1);
+      return pts;
+    }
+
+    static CellDataO3I fine_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = WestmostCell(info_c, ix_c, iy_c);
+      if (iy_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = WestmostCell(info_c, ix_c, iy_c+1);
+        pts.coarse_offset2_idx = WestmostCell(info_c, ix_c, iy_c+2);
+        pts.type = iy_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (iy_c == BSY - 1)
+      { // BD
+        pts.coarse_offset1_idx = WestmostCell(info_c, ix_c, iy_c-1);
+        pts.coarse_offset2_idx = WestmostCell(info_c, ix_c, iy_c-2);
+        pts.type = iy_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = WestmostCell(info_c, ix_c, iy_c-1);
+        pts.coarse_offset2_idx = WestmostCell(info_c, ix_c, iy_c+1);
+        pts.type = iy_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = This(info_f, ix_f, iy_f);
+      pts.fine_far_idx = WestNeighbour(info_f, ix_f, iy_f);
+
+      return pts;
+    }
 
     constexpr static Compass EdgeType = {East};
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
@@ -117,6 +245,65 @@ class SouthEdgeCell : public CellIndexer{
     static int neiblock_n(const BlockInfo &info, const int &ix, const int &iy, const int offset = 0)
     { return NorthmostCell(info, ix, iy, offset); }
 
+    static CellDataO3I coarse_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = This(info_c, ix_c, iy_c);
+      if (ix_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = EastNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = EastNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = ix_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (ix_c == BSX - 1)
+      { // BD
+        pts.coarse_offset1_idx = WestNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = WestNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = ix_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = WestNeighbour(info_c, ix_c, iy_c);
+        pts.coarse_offset2_idx = EastNeighbour(info_c, ix_c ,iy_c);
+        pts.type = ix_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = NorthmostCell(info_f, ix_f, iy_f, 0);
+      pts.fine_far_idx = NorthmostCell(info_f, ix_f, iy_f, 1);
+      return pts;
+    }
+
+    static CellDataO3I fine_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = NorthmostCell(info_c, ix_c, iy_c);
+      if (ix_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = NorthmostCell(info_c, ix_c+1, iy_c);
+        pts.coarse_offset2_idx = NorthmostCell(info_c, ix_c+2, iy_c);
+        pts.type = ix_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (ix_c == BSX - 1)
+      { // BD
+        pts.coarse_offset1_idx = NorthmostCell(info_c, ix_c-1, iy_c);
+        pts.coarse_offset2_idx = NorthmostCell(info_c, ix_c-2, iy_c);
+        pts.type = ix_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = NorthmostCell(info_c, ix_c-1, iy_c);
+        pts.coarse_offset2_idx = NorthmostCell(info_c, ix_c+1, iy_c);
+        pts.type = ix_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = This(info_f, ix_f, iy_f);
+      pts.fine_far_idx = NorthNeighbour(info_f, ix_f, iy_f);
+
+      return pts;
+    }
+
     constexpr static Compass EdgeType = {South};
     constexpr static std::array<int,3> Zchild1_idx = {0,1,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
@@ -133,6 +320,65 @@ class WestEdgeCell : public CellIndexer{
     static int neiblock_n(const BlockInfo &info, const int &ix, const int &iy, const int offset = 0)
     { return EastmostCell(info, ix, iy, offset); }
 
+    static CellDataO3I coarse_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = This(info_c, ix_c, iy_c);
+      if (iy_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = NorthNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = NorthNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = iy_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (iy_c == BSY - 1)
+      { // BD
+        pts.coarse_offset1_idx = SouthNeighbour(info_c, ix_c, iy_c, 1);
+        pts.coarse_offset2_idx = SouthNeighbour(info_c, ix_c, iy_c, 2);
+        pts.type = iy_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = SouthNeighbour(info_c, ix_c, iy_c);
+        pts.coarse_offset2_idx = NorthNeighbour(info_c, ix_c ,iy_c);
+        pts.type = iy_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = EastmostCell(info_f, ix_f, iy_f, 0);
+      pts.fine_far_idx = EastmostCell(info_f, ix_f, iy_f, 1);
+      return pts;
+    }
+
+    static CellDataO3I fine_o3i_pts(
+        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
+        const BlockInfo &info_f, const int &ix_f, const int &iy_f){
+
+      CellDataO3I pts;
+      pts.coarse_centre_idx = EastmostCell(info_c, ix_c, iy_c);
+      if (iy_c == 0)
+      { // Forward Differences
+        pts.coarse_offset1_idx = EastmostCell(info_c, ix_c, iy_c+1);
+        pts.coarse_offset2_idx = EastmostCell(info_c, ix_c, iy_c+2);
+        pts.type = iy_f % 2 == 0 ? FDLower : FDUpper;
+      }
+      else if (iy_c == BSY - 1)
+      { // BD
+        pts.coarse_offset1_idx = EastmostCell(info_c, ix_c, iy_c-1);
+        pts.coarse_offset2_idx = EastmostCell(info_c, ix_c, iy_c-2);
+        pts.type = iy_f % 2 == 0 ? BDLower : BDUpper;
+      }
+      else
+      { // CD
+        pts.coarse_offset1_idx = EastmostCell(info_c, ix_c, iy_c-1);
+        pts.coarse_offset2_idx = EastmostCell(info_c, ix_c, iy_c+1);
+        pts.type = iy_f % 2 == 0 ? CDLower : CDUpper;
+      }
+      pts.fine_close_idx = This(info_f, ix_f, iy_f);
+      pts.fine_far_idx = EastNeighbour(info_f, ix_f, iy_f);
+
+      return pts;
+    }
+
     constexpr static Compass EdgeType = {West};
     constexpr static std::array<int,3> Zchild1_idx = {1,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
@@ -144,112 +390,94 @@ static long long getZchild(const BlockInfo& info, const std::array<int,3> &Zchil
 }
 
 // Central Difference "Upper" Taylor approximation (positive 1st order term)
-class CDUpperTaylor {
-  public:
-    void operator()(
-        const double &sign,
-        const int &centre_idx,
-        const int &bottom_idx,
-        const int &top_idx,
-        std::map<int,double> &row_map) const
-    {
-      row_map[centre_idx] += sign*p_centre;
-      row_map[bottom_idx] += sign*p_bottom;
-      row_map[top_idx] += sign*p_top;
-    }
-  private:
-    // 8./15. comes from coeff of polynomial at 2nd step of interpolation
-    static constexpr double p_centre = (8./15.) * (1. - 1./16.);
-    static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
-    static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
-};
+static void CDUpperO3Taylor( 
+    const double &sign,
+    const CellDataO3I &pts,
+    std::map<int,double> &row_map)
+{
+  // 8./15. comes from coeff of polynomial at 2nd step of interpolation
+  static constexpr double p_centre = (8./15.) * (1. - 1./16.);
+  static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
+  static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
+
+  row_map[pts.coarse_centre_idx] += sign*p_centre;
+  row_map[pts.coarse_offset1_idx] += sign*p_bottom;
+  row_map[pts.coarse_offset2_idx] += sign*p_top;
+}
 
 // Central Difference "Lower" Taylor approximation (negative 1st order term)
-class CDLowerTaylor {
-  public:
-    void operator()(
-        const double& sign,
-        const int &centre_idx,
-        const int &bottom_idx,
-        const int &top_idx,
-        std::map<int,double> &row_map) const
-    {
-      row_map[centre_idx] += sign*p_centre;
-      row_map[bottom_idx] += sign*p_bottom;
-      row_map[top_idx] += sign*p_top;
-    }
-  private:
-    static constexpr double p_centre = (8./15.) * (1. - 1./16.);
-    static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
-    static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
-};
+static void CDLowerO3Taylor( 
+    const double& sign,
+    const CellDataO3I &pts,
+    std::map<int,double> &row_map)
+{
+  static constexpr double p_centre = (8./15.) * (1. - 1./16.);
+  static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
+  static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
 
-class BiasedUpperTaylor {
-  public:
-    void operator()(
-        const double& sign,
-        const int &centre_idx,
-        const int &offset1_idx,
-        const int &offset2_idx,
-        std::map<int,double> &row_map) const
-    {
-      row_map[centre_idx] += sign*p_centre;
-      row_map[offset1_idx] += sign*p_offset1;
-      row_map[offset2_idx] += sign*p_offset2;
-    }
-  private:
-    static constexpr double p_centre = (8./15.) * (1 + 3./8. + 1./32.);
-    static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
-    static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
-};
+  row_map[pts.coarse_centre_idx] += sign*p_centre;
+  row_map[pts.coarse_offset1_idx] += sign*p_bottom;
+  row_map[pts.coarse_offset2_idx] += sign*p_top;
+}
 
-class BiasedLowerTaylor {
-  public:
-    void operator()(
-        const double& sign,
-        const int &centre_idx,
-        const int &offset1_idx,
-        const int &offset2_idx,
-        std::map<int,double> &row_map) const
-    {
-      row_map[centre_idx] += sign*p_centre;
-      row_map[offset1_idx] += sign*p_offset1;
-      row_map[offset2_idx] += sign*p_offset2;
-    }
-  private:
-    static constexpr double p_centre = (8./15.) * (1 - 3./8. + 1./32.);
-    static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
-    static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
-};
+static void BiasedUpperO3Taylor(
+    const double& sign,
+    const CellDataO3I &pts,
+    std::map<int,double> &row_map)
+{
+  static constexpr double p_centre = (8./15.) * (1 + 3./8. + 1./32.);
+  static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
+  static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
+
+  row_map[pts.coarse_centre_idx] += sign*p_centre;
+  row_map[pts.coarse_offset1_idx] += sign*p_offset1;
+  row_map[pts.coarse_offset2_idx] += sign*p_offset2;
+}
+
+static void BiasedLowerO3Taylor(
+    const double& sign,
+    const CellDataO3I &pts,
+    std::map<int,double> &row_map)
+{
+  static constexpr double p_centre = (8./15.) * (1 - 3./8. + 1./32.);
+  static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
+  static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
+
+  row_map[pts.coarse_centre_idx] += sign*p_centre;
+  row_map[pts.coarse_offset1_idx] += sign*p_offset1;
+  row_map[pts.coarse_offset2_idx] += sign*p_offset2;
+}
 
 // Typedefs to map offset based biased functionals to forward/backward differences in corners
-typedef BiasedUpperTaylor BDUpperTaylor;
-typedef BiasedLowerTaylor BDLowerTaylor;
-typedef BiasedLowerTaylor FDUpperTaylor;
-typedef BiasedUpperTaylor FDLowerTaylor;
+constexpr auto BDUpperO3Taylor = BiasedUpperO3Taylor;
+constexpr auto BDLowerO3Taylor = BiasedLowerO3Taylor;
+constexpr auto FDUpperO3Taylor = BiasedLowerO3Taylor;
+constexpr auto FDLowerO3Taylor = BiasedUpperO3Taylor;
 
-class PolyInterpolation {
-  public:
-    template<class F>
-    void operator()(
-        const double& sign,
-        const int &coarse_centre_idx,
-        const int &coarse_offset1_idx, // bottom
-        const int &coarse_offset2_idx, // top
-        const int &fine_close_idx,
-        const int &fine_far_idx,
-        std::map<int,double> &row_map,
-        const F &taylor) const
-    {
-      taylor(sign, coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, row_map);
-      row_map[fine_close_idx] += sign * p_fine_close;
-      row_map[fine_far_idx] += sign * p_fine_far;
-    } 
-  private:
-    static constexpr double p_fine_close = 2./3.;
-    static constexpr double p_fine_far = -1./5.;
-};
+static void PolyO3I (
+    const double& sign,
+    const CellDataO3I &pts,
+    std::map<int,double> &row_map)
+{
+  static constexpr double p_fine_close = 2./3.;
+  static constexpr double p_fine_far = -1./5.;
 
+  if (pts.type == FDLower)
+    FDLowerO3Taylor(sign, pts, row_map);
+  else if (pts.type == FDUpper)
+    FDUpperO3Taylor(sign, pts, row_map);
+  else if (pts.type == BDLower)
+    BDLowerO3Taylor(sign, pts, row_map);
+  else if (pts.type == BDUpper)
+    BDUpperO3Taylor(sign, pts, row_map);
+  else if (pts.type == CDLower)
+    CDLowerO3Taylor(sign, pts, row_map);
+  else if (pts.type == CDUpper)
+    CDUpperO3Taylor(sign, pts, row_map);
+
+  row_map[pts.fine_close_idx] += sign * p_fine_close;
+  row_map[pts.fine_far_idx] += sign * p_fine_far;
+} 
 
 void AMRSolver::cooMatPushBackVal(
     const double &val, 
@@ -279,7 +507,6 @@ void AMRSolver::makeFlux(
   const EdgeIndexer &indexer) const 
 {
   const int sfc_idx = CellIndexer::This(rhs_info, ix, iy);
-  const PolyInterpolation interpolator;
 
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { 
@@ -301,42 +528,10 @@ void AMRSolver::makeFlux(
     else if (EastWestEdge && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
       iy_c += BSY_ / 2;
 
-    // Map flux associated to interpolation at interface
-    const int coarse_centre_idx = indexer.neiblock_n(rhsNei_c, ix_c, iy_c);
-    const int fine_far_idx = indexer.inblock_n2(rhs_info, ix, iy); // index of cell on opposite inblock edge
-    if ( (ix_c == 0 && NorthSouthEdge) || (iy_c == 0 && EastWestEdge) )
-    {
-      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, ix_c+1,iy_c+1);
-      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c+2,iy_c+2);
+    CellDataO3I pts = indexer.fine_o3i_pts(rhsNei_c, ix_c, iy_c, rhs_info, ix, iy);
 
-      if ( (ix == 0 && NorthSouthEdge) || (iy == 0 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, FDLowerTaylor());
-      else if ( (ix == 1 && NorthSouthEdge) || (iy == 1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, FDUpperTaylor());
-    }
-    else if ( (ix_c == (BSX_-1) && NorthSouthEdge) || (iy_c == (BSY_-1) && EastWestEdge) )
-    {
-      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, ix_c-1,iy_c-1);
-      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c-2,iy_c-2);
-
-      if ( (ix == BSX_-2 && NorthSouthEdge) || (iy == BSY_-2 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, BDLowerTaylor());
-      else if ( (ix == BSX_-1 && NorthSouthEdge) || (iy == BSY_-1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, BDUpperTaylor());
-    }
-    else
-    {
-      const int coarse_offset1_idx = indexer.neiblock_n(rhsNei_c, ix_c-1,iy_c-1); // bottom
-      const int coarse_offset2_idx = indexer.neiblock_n(rhsNei_c, ix_c+1,iy_c+1); // top
-
-      if ( (ix % 2 == 0 && NorthSouthEdge) || (iy % 2 == 0 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CDLowerTaylor());
-      else if ( (ix % 2 == 1 && NorthSouthEdge) || (iy % 2 == 1 && EastWestEdge) )
-        interpolator(1., coarse_centre_idx, coarse_offset1_idx, coarse_offset2_idx, sfc_idx, fine_far_idx, row_map, CDUpperTaylor());
-    }
-
-    // Map negative diagonal contribution to flux
-    row_map[sfc_idx] += -1.;
+    // Map flux contribution associated to interpolation at interface and diagonal element
+    PolyO3I(1., pts, row_map); row_map[sfc_idx] += -1.;
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
@@ -360,86 +555,13 @@ void AMRSolver::makeFlux(
     const int ix_f = (ix % (BSX_/2)) * 2;
     const int iy_f = (iy % (BSY_/2)) * 2;
 
-    int coarse_offset1_idx;
-    int coarse_offset2_idx;
-    int fine_close_idx;
-    int fine_far_idx;
+    CellDataO3I pts1 = indexer.coarse_o3i_pts(rhs_info, ix, iy, rhsNei_f, ix_f, iy_f);
+    CellDataO3I pts2 = indexer.coarse_o3i_pts(rhs_info, ix, iy, rhsNei_f, ix_f+1, iy_f+1);
 
-    if ( (ix == 0 && iy == 0) || (ix == 0 && iy == BSY_-1) || (ix == BSX_-1 && iy == 0) || (ix == BSX_-1 && iy == BSY_-1) )
-    {
-      if ( (ix == 0) && NorthSouthEdge || (iy == 0) && EastWestEdge )
-      {
-        if ( (ix == 0) && NorthSouthEdge )
-        {
-          coarse_offset1_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy, 2);
-        }
-        else if ( (iy == 0) && EastWestEdge )
-        {
-          coarse_offset1_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy, 2);
-        }
-        // Add flux at left/lower corner interface
-        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
-        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, FDLowerTaylor());
+    // Map flux contribution associated to interpolation at two neighbouring fine interfaces
+    PolyO3I(-1., pts1, row_map); row_map[pts1.fine_close_idx] += 1.;
+    PolyO3I(-1., pts2, row_map); row_map[pts2.fine_close_idx] += 1.;
 
-        // Add flux at right/higher corner interface
-        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
-        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, FDUpperTaylor());
-      }
-      else if ( (ix == BSX_-1) && NorthSouthEdge || (iy == BSY_-1) && EastWestEdge )
-      {
-        if ( (ix == BSX_-1) && NorthSouthEdge )
-        {
-          coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy, 2);
-        }
-        else if ( (iy == BSY_-1) && EastWestEdge )
-        {
-          coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 1);
-          coarse_offset2_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy, 2);
-        }
-        // Add flux at left/lower corner interface
-        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
-        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, BDLowerTaylor());
-
-        // Add flux at right/higher corner interface
-        fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
-        fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
-        row_map[fine_close_idx] += 1.;
-        interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, BDUpperTaylor());
-      }
-    }
-    else
-    {
-      if (NorthSouthEdge)
-      {
-        coarse_offset1_idx = CellIndexer::WestNeighbour(rhs_info, ix, iy);  // bottom
-        coarse_offset2_idx = CellIndexer::EastNeighbour(rhs_info, ix, iy);  // top
-      } 
-      else if (EastWestEdge)
-      {
-        coarse_offset1_idx = CellIndexer::SouthNeighbour(rhs_info, ix, iy); // bottom
-        coarse_offset2_idx = CellIndexer::NorthNeighbour(rhs_info, ix, iy); // top 
-      } 
-      // Add flux at left/lower corner interface
-      fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 0);
-      fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f, iy_f, 1);
-      row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CDLowerTaylor());
-
-      // Add flux at right/higher corner interface
-      fine_close_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 0);
-      fine_far_idx = indexer.neiblock_n(rhsNei_f, ix_f+1, iy_f+1, 1);
-      row_map[fine_close_idx] += 1.;
-      interpolator(-1., sfc_idx, coarse_offset1_idx, coarse_offset2_idx, fine_close_idx, fine_far_idx, row_map, CDUpperTaylor());
-    }
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
