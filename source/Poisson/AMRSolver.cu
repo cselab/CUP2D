@@ -180,90 +180,91 @@ static long long getZchild(const BlockInfo& info, const std::array<int,3> &Zchil
 class PolyO3I {
   public:
     template<class EdgeCellIndexer>
-    PolyO3I(const EdgeCellIndexer &indexer, bool _neiCoarser, 
+    PolyO3I(const EdgeCellIndexer &indexer, bool neiCoarser, 
         const BlockInfo &info_c, const int &ix_c, const int &iy_c,
         const BlockInfo &info_f, const int &ix_f, const int &iy_f)
-      : neiCoarser(_neiCoarser), sign(neiCoarser ? 1. : -1.)
+      : neiCoarser_(neiCoarser), sign_(neiCoarser ? 1. : -1.)
     {
       const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
       const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
 
-      if (neiCoarser)
+      if (neiCoarser_)
       {
-        coarse_centre_idx = indexer.neiblock_n(info_c, ix_c, iy_c);
+        coarse_centre_idx_ = indexer.neiblock_n(info_c, ix_c, iy_c);
         if (NorthSouthEdge && ix_c == 0 || EastWestEdge && iy_c == 0)
         { // Forward Differences
-          coarse_offset1_idx = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
-          coarse_offset2_idx = indexer.neiblock_n(info_c, ix_c+2, iy_c+2); 
-          type = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
+          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
+          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c+2, iy_c+2); 
+          type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
         }
         else if (NorthSouthEdge && ix_c == indexer.BSX - 1 || EastWestEdge && iy_c == indexer.BSY - 1)
         { // BD
-          coarse_offset1_idx = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
-          coarse_offset2_idx = indexer.neiblock_n(info_c, ix_c-2, iy_c-2); 
-          type = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
+          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
+          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c-2, iy_c-2); 
+          type_ = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
         }
         else
         { // CD
-          coarse_offset1_idx = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
-          coarse_offset2_idx = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
-          type = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
+          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
+          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
+          type_ = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
         }
-        fine_close_idx = CellIndexer::This(info_f, ix_f, iy_f);
-        fine_far_idx = indexer.inblock_n2(info_f, ix_f, iy_f);
+        fine_close_idx_ = CellIndexer::This(info_f, ix_f, iy_f);
+        fine_far_idx_ = indexer.inblock_n2(info_f, ix_f, iy_f);
       }
       else // neiFiner
       {
-        coarse_centre_idx = CellIndexer::This(info_c, ix_c, iy_c);
+        coarse_centre_idx_ = CellIndexer::This(info_c, ix_c, iy_c);
 
         if (NorthSouthEdge && ix_c == 0 || EastWestEdge && iy_c == 0)
         { // FD
-          coarse_offset1_idx = indexer.forward(info_c, ix_c, iy_c, 1);
-          coarse_offset2_idx = indexer.forward(info_c, ix_c, iy_c, 2);
-          type = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
+          coarse_offset1_idx_ = indexer.forward(info_c, ix_c, iy_c, 1);
+          coarse_offset2_idx_ = indexer.forward(info_c, ix_c, iy_c, 2);
+          type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
         }
         else if (NorthSouthEdge && ix_c == indexer.BSX - 1 || EastWestEdge && iy_c == indexer.BSY - 1)
         { // BD
-          coarse_offset1_idx = indexer.backward(info_c, ix_c, iy_c, 1);
-          coarse_offset2_idx = indexer.backward(info_c, ix_c, iy_c, 2);
-          type = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
+          coarse_offset1_idx_ = indexer.backward(info_c, ix_c, iy_c, 1);
+          coarse_offset2_idx_ = indexer.backward(info_c, ix_c, iy_c, 2);
+          type_ = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
         }
         else
         { // CD
-          coarse_offset1_idx = indexer.backward(info_c, ix_c, iy_c);
-          coarse_offset2_idx = indexer.forward(info_c, ix_c, iy_c);
-          type = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
+          coarse_offset1_idx_ = indexer.backward(info_c, ix_c, iy_c);
+          coarse_offset2_idx_ = indexer.forward(info_c, ix_c, iy_c);
+          type_ = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
         }
 
-        fine_close_idx = indexer.neiblock_n(info_f, ix_f, iy_f, 0);
-        fine_far_idx = indexer.neiblock_n(info_f, ix_f, iy_f, 1);
+        fine_close_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 0);
+        fine_far_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 1);
       }
     }
 
-    void intrapolate(std::map<int,double> &row_map)
+    // F_i = sign * (p_{interpolation} - p_{fine_cell_idx})
+    void interpolate(std::map<int,double> &row_map)
     {
       static constexpr double p_fine_close = 2./3.;
       static constexpr double p_fine_far = -1./5.;
 
-      // F_i = sign * (p_{interpolation} - p_{sfc_idx})
-      if (type == FDLower)
+      // Interpolated flux sign * p_{interpolation}
+      if (type_ == FDLower)
         FDLowerTaylor(row_map);
-      else if (type == FDUpper)
+      else if (type_ == FDUpper)
         FDUpperTaylor(row_map);
-      else if (type == BDLower)
+      else if (type_ == BDLower)
         BDLowerTaylor(row_map);
-      else if (type == BDUpper)
+      else if (type_ == BDUpper)
         BDUpperTaylor(row_map);
-      else if (type == CDLower)
+      else if (type_ == CDLower)
         CDLowerTaylor(row_map);
-      else if (type == CDUpper)
+      else if (type_ == CDUpper)
         CDUpperTaylor(row_map);
 
-      row_map[fine_close_idx] += sign * p_fine_close;
-      row_map[fine_far_idx] += sign * p_fine_far;
+      row_map[fine_close_idx_] += sign_ * p_fine_close;
+      row_map[fine_far_idx_] += sign_ * p_fine_far;
 
-      // Non-interpolated flux contribution
-      row_map[fine_close_idx] -= sign;
+      // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
+      row_map[fine_close_idx_] -= sign_;
     } 
 
 
@@ -276,9 +277,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
 
-      row_map[coarse_centre_idx] += sign*p_centre;
-      row_map[coarse_offset1_idx] += sign*p_bottom;
-      row_map[coarse_offset2_idx] += sign*p_top;
+      row_map[coarse_centre_idx_] += sign_*p_centre;
+      row_map[coarse_offset1_idx_] += sign_*p_bottom;
+      row_map[coarse_offset2_idx_] += sign_*p_top;
     }
 
     // Central Difference "Lower" Taylor approximation (negative 1st order term)
@@ -288,9 +289,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
 
-      row_map[coarse_centre_idx] += sign*p_centre;
-      row_map[coarse_offset1_idx] += sign*p_bottom;
-      row_map[coarse_offset2_idx] += sign*p_top;
+      row_map[coarse_centre_idx_] += sign_*p_centre;
+      row_map[coarse_offset1_idx_] += sign_*p_bottom;
+      row_map[coarse_offset2_idx_] += sign_*p_top;
     }
 
     void BiasedUpperTaylor(std::map<int,double> &row_map)
@@ -299,9 +300,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
 
-      row_map[coarse_centre_idx] += sign*p_centre;
-      row_map[coarse_offset1_idx] += sign*p_offset1;
-      row_map[coarse_offset2_idx] += sign*p_offset2;
+      row_map[coarse_centre_idx_] += sign_*p_centre;
+      row_map[coarse_offset1_idx_] += sign_*p_offset1;
+      row_map[coarse_offset2_idx_] += sign_*p_offset2;
     }
 
     void BiasedLowerTaylor(std::map<int,double> &row_map)
@@ -310,9 +311,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
 
-      row_map[coarse_centre_idx] += sign*p_centre;
-      row_map[coarse_offset1_idx] += sign*p_offset1;
-      row_map[coarse_offset2_idx] += sign*p_offset2;
+      row_map[coarse_centre_idx_] += sign_*p_centre;
+      row_map[coarse_offset1_idx_] += sign_*p_offset1;
+      row_map[coarse_offset2_idx_] += sign_*p_offset2;
     }
 
     // Aliases for offset based biased functionals to forward/backward differences in corners
@@ -321,14 +322,14 @@ class PolyO3I {
     void FDUpperTaylor(std::map<int,double> &row_map) { return BiasedLowerTaylor(row_map); }
     void FDLowerTaylor(std::map<int,double> &row_map) { return BiasedUpperTaylor(row_map); }
 
-    const bool neiCoarser;
-    const double sign;
-    int coarse_centre_idx;
-    int coarse_offset1_idx; // bottom/left
-    int coarse_offset2_idx; // top/right
-    int fine_close_idx;
-    int fine_far_idx;
-    FDType type;
+    const bool neiCoarser_;
+    const double sign_;
+    int coarse_centre_idx_;
+    int coarse_offset1_idx_; // bottom/left
+    int coarse_offset2_idx_; // top/right
+    int fine_close_idx_;
+    int fine_far_idx_;
+    FDType type_;
 };
 
 void AMRSolver::cooMatPushBackVal(
@@ -380,9 +381,9 @@ void AMRSolver::makeFlux(
     else if (EastWestEdge && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
       iy_c += BSY_ / 2;
 
+    // Perform intepolation to calculate flux at interface with coarse cell
     PolyO3I pts(indexer, true, rhsNei_c, ix_c, iy_c, rhs_info, ix, iy);
-    // Map flux contribution associated to interpolation at interface and diagonal element
-    pts.intrapolate(row_map); 
+    pts.interpolate(row_map); 
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
@@ -406,10 +407,11 @@ void AMRSolver::makeFlux(
     const int ix_f = (ix % (BSX_/2)) * 2;
     const int iy_f = (iy % (BSY_/2)) * 2;
 
+    // Interpolate flux at interfaces with both fine neighbour cells
     PolyO3I pts1(indexer, false, rhs_info, ix, iy, rhsNei_f, ix_f, iy_f);
+    pts1.interpolate(row_map);
     PolyO3I pts2(indexer, false, rhs_info, ix, iy, rhsNei_f, ix_f+1, iy_f+1);
-    pts1.intrapolate(row_map);
-    pts2.intrapolate(row_map);
+    pts2.interpolate(row_map);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
