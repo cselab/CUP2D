@@ -460,6 +460,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
        P(ix,iy).s -= avg;
   }
 
+  #if 0
   if (rank == 0)
   {
     ofstream myfile;
@@ -467,4 +468,5 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     myfile << sim.step << " " << k << " " << norm << std::endl;
     myfile.close();
   }
+  #endif
 }
