@@ -356,6 +356,7 @@ void Simulation::simulate() {
 
 Real Simulation::calcMaxTimestep()
 {
+  sim.dt_old2 = sim.dt_old;
   sim.dt_old = sim.dt;
   Real CFL = sim.CFL;
   const Real h = sim.getH();

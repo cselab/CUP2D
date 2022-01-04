@@ -111,6 +111,7 @@ struct SimulationData
   Real uinfx_old = 0;
   Real uinfy_old = 0;
   Real dt_old;
+  Real dt_old2;
 
   // largest velocity measured
   Real uMax_measured = 0;
