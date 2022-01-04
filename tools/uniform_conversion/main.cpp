@@ -13,9 +13,8 @@
 namespace fs = std::filesystem;
 
 #define DIMENSION 2
-#define BS 8
-#define Cfactor 1
-
+#define BS 16
+#define Cfactor 2
 
 
 struct BlockGroup
@@ -108,7 +107,6 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt)
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Collection\">\n";
-    s << "  <Time Value=\"" << std::scientific << 0.025*tttt << "\"/>\n\n";
     //s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
     for (size_t i = 0 ; i < groups.size() ; i++)
     {
@@ -205,7 +203,6 @@ void convert_to_uniform(std::string filename,int tttt)
   std::vector<double> amr = get_amr_dataset(filename);
 
   std::vector<BlockGroup> allGroups = get_amr_groups(filename,tttt);
-  //return;
 
   std::vector<long long> base(allGroups.size());
   base[0] = 0;
@@ -244,8 +241,6 @@ void convert_to_uniform(std::string filename,int tttt)
   }
   MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_LONG_LONG , MPI_MAX, MPI_COMM_WORLD);
 
-  if (rank == 0)
-    std::cout << "uniform domain size=" << points[0] << " x " << points[1] << " x " << points[2] << std::endl;
 
   //the uniform domain is decomposed in the x-direction only!
   decompose_1D(points[0],my_start,my_end);
@@ -306,7 +301,7 @@ void convert_to_uniform(std::string filename,int tttt)
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
-    s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
+    //s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
     s << "  <Grid GridType=\"Uniform\">\n";
     #if DIMENSION == 3
       s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << points[2]/Cfactor + 1 << " " << points[1]/Cfactor + 1<< " " << points[0]/Cfactor + 1 << "\"/>\n";
@@ -343,22 +338,21 @@ void convert_to_uniform(std::string filename,int tttt)
   //dump uniform grid
   {
     #if Cfactor > 1
-      //std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor/Cfactor,0);
-      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor,0);
-      //for (int z = 0 ; z < points[2]       ; z += Cfactor)
-      int z = 0;
-      #pragma omp parallel for collapse(2)
+      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/pow(Cfactor,DIMENSION),0);
+
+      #pragma omp parallel for collapse(3)
+      for (int z = 0 ; z < points[2]       ; z += Cfactor)
       for (int y = 0 ; y < points[1]       ; y += Cfactor)
       for (int x = 0 ; x < my_end-my_start ; x += Cfactor)
       {
-        int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
+        const int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
         const int base = x + y*(my_end-my_start) + z*(my_end-my_start)*points[1];
         //for (int iz = 0 ; iz < Cfactor ; iz++)
 	int iz = 0;
         for (int iy = 0 ; iy < Cfactor ; iy++)
         for (int ix = 0 ; ix < Cfactor ; ix++)
           uniform_grid_coarse[i] += uniform_grid[base + ix + iy*(my_end-my_start) + iz*(my_end-my_start)*points[1] ];
-        uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
+        uniform_grid_coarse[i] /= pow(Cfactor,DIMENSION);
       }
     #endif
 
@@ -417,7 +411,6 @@ void convert_to_uniform(std::string filename,int tttt)
   #if DIMENSION == 3 
   return;
   #endif
-
   {
     //t is theta!
     const int Nt = 1024;
@@ -475,7 +468,7 @@ void convert_to_uniform(std::string filename,int tttt)
       s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
       s << "<Xdmf Version=\"2.0\">\n";
       s << "<Domain>\n";
-      s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
+      //s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
       s << "  <Grid GridType=\"Uniform\">\n";
       s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1<< " " << Nt + 1<< " " << Nr + 1 << "\"/>\n";
       s << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
