@@ -58,7 +58,7 @@ public:
     if (applyFluxCorrection)
       corrected_grid->Corrector.FillBlockCases();
 
-    MPI_Barrier(grid.getCartComm());
+    //MPI_Barrier(grid.getCartComm());
   }
 
   template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2, typename LabMPI2, typename TGrid_corr = TGrid>
@@ -93,7 +93,7 @@ public:
       labs2[i].prepare(grid2, Synch2);      
     }
 
-    MPI_Barrier(grid.getCartComm());
+    //MPI_Barrier(grid.getCartComm());
 
     std::vector<cubism::BlockInfo*> & avail0  = Synch .avail_inner();
     std::vector<cubism::BlockInfo*> & avail02 = Synch2.avail_inner();
@@ -138,7 +138,7 @@ public:
     if (applyFluxCorrection)
       corrected_grid->Corrector.FillBlockCases();
 
-    MPI_Barrier(grid.getCartComm());
+    //MPI_Barrier(grid.getCartComm());
   }
 
 };
