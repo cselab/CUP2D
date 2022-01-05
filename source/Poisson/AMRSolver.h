@@ -121,7 +121,7 @@ class AMRSolver : public PoissonSolver
   std::vector<std::vector<Real>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,Real> > > >L_row;
   std::vector <  std::vector <std::vector< std::pair<int,Real> > > >L_col;
-  void getZ(std::vector<cubism::BlockInfo> & zInfo);
+  void getZ(cubism::BlockInfo & zInfo);
   Real getA_local(const int I1, const int I2);
 
   bool isCorner(cubism::BlockInfo & info)

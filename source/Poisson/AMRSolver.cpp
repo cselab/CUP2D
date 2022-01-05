@@ -8,21 +8,18 @@
 
 using namespace cubism;
 
-void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
+void AMRSolver::getZ(BlockInfo & zInfo)
 {
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
   const int N   = BSX*BSY;
 
-  #pragma omp parallel
   {
     const int bpdx = sim.chi->getMaxBlocks()[0];
     const int bpdy = sim.chi->getMaxBlocks()[1];
     const int tid = omp_get_thread_num();
-    #pragma omp for
-    for (size_t i=0; i < zInfo.size(); i++)
     {
-      ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo[i].ptrBlock;
+      ScalarBlock & __restrict__ z  = *(ScalarBlock*) zInfo.ptrBlock;
 
       //This is done to preserve symmetries. All it does is change the order with
       //which the elements of z(x,y) are accessed (x=0,...,N-1 or x=N-1,...0, same for y)
@@ -30,8 +27,8 @@ void AMRSolver::getZ(std::vector<BlockInfo> & zInfo)
       const Real c10 = z(BSX - 1,       0).s;
       const Real c01 = z(0      , BSY - 1).s;
       const Real c00 = z(0      ,       0).s;
-      bool plus_x = zInfo[i].index[0] > bpdx * (1 << zInfo[i].level) / 2 - 1;
-      bool plus_y = zInfo[i].index[1] > bpdy * (1 << zInfo[i].level) / 2 - 1;
+      bool plus_x = zInfo.index[0] > bpdx * (1 << zInfo.level) / 2 - 1;
+      bool plus_y = zInfo.index[1] > bpdy * (1 << zInfo.level) / 2 - 1;
       if ( std::fabs(std::fabs(c11 + c10) - std::fabs(c01 + c00)) > 1e-14) plus_x = std::fabs(c11 + c10) > std::fabs(c01 + c00);
       if ( std::fabs(std::fabs(c11 + c01) - std::fabs(c10 + c00)) > 1e-14) plus_y = std::fabs(c11 + c01) > std::fabs(c10 + c00);
       const int base_x = plus_x ? 0 : BSX - 1;
@@ -242,6 +239,8 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   bool bConverged = false;
 
   //3. start iterations
+  Real norm_1 = 0.0;
+  Real norm_2 = 0.0;
   int k;
   if (rank == 0) std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
   const int kmax = sim.maxPoissonIterations;
@@ -249,11 +248,14 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   {
     //1. rho_{k} = rhat_0 * rho_{k-1}
     //2. beta = rho_{k} / rho_{k-1} * alpha/omega 
+
+    if (k==0)
+    {
     rho_m1 = rho;
     rho = 0.0;
-    Real norm_1 = 0.0;
-    Real norm_2 = 0.0;
     norm = 0;
+    norm_1 = 0;
+    norm_2 = 0;
     #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
     for(size_t i=0; i< N; i++)
     {
@@ -262,6 +264,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
       norm_2 += rhat[i] * rhat[i];
       #pragma omp critical
       norm = std::max(norm,std::fabs(r[i]));
+    }      
     }
     MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
     if (norm < min_norm)
@@ -327,8 +330,8 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         p[j] = r[j] + beta * (p[j] - omega * v[j]);
         z(ix,iy).s = p[j];
       }
+      getZ(zInfo[i]);
     }
-    getZ(zInfo);
 
     //5. v = A z
     //6. alpha = rho_i / (rhat_0,v_i)
@@ -370,9 +373,9 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         s[j] = r[j] - alpha * v[j];
         z(ix,iy).s = s[j];
       }
+      getZ(zInfo[i]);
     }
 
-    getZ(zInfo);
     Get_LHS(0); // t <-- Az //t stored in AxVector
     //12. omega = ...
     Real aux1 = 0;
@@ -397,7 +400,12 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     //13. x += omega * z
     //14.
     //15. r = s - omega * t
-    #pragma omp parallel for
+    rho_m1 = rho;
+    rho = 0.0;
+    norm_1 = 0.0;
+    norm_2 = 0.0;
+    norm = 0;
+    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
     for (size_t i=0; i < Nblocks; i++)
     {
       const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
@@ -408,8 +416,15 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         const int j = i*BSX*BSY+iy*BSX+ix;
         x[j] += omega * z(ix,iy).s;
         r[j] = s[j] - omega * Ax(ix,iy).s;
+
+        rho    += r[j] * rhat[j];
+        norm_1 += r[j] * r[j];
+        norm_2 += rhat[j] * rhat[j];
+        #pragma omp critical
+        norm = std::max(norm,std::fabs(r[j]));
       }
     }
+
     if (norm / (init_norm + 1e-21) > 1e10)
     {
 	    if (rank == 0) std::cout << "   [Poisson solver]: early termination. " << std::endl;
