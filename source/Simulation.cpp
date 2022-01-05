@@ -398,7 +398,6 @@ Real Simulation::calcMaxTimestep()
 
 void Simulation::advance(const Real dt)
 {
-  MPI_Barrier(sim.comm);
 
   const Real CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
   if (sim.rank == 0)
@@ -473,5 +472,4 @@ void Simulation::advance(const Real dt)
     sim.dumpAll("avemaria_"); 
   }
 
-  MPI_Barrier(sim.comm);
 }
