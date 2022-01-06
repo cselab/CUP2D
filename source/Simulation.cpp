@@ -235,6 +235,8 @@ void Simulation::createShapes()
         shape = new HalfDisk(         sim, ffparser, center);
       else if (objectName=="ellipse")
         shape = new Ellipse(          sim, ffparser, center);
+      else if (objectName=="rectangle")
+        shape = new Rectangle(        sim, ffparser, center);
       else if (objectName=="stefanfish")
         shape = new StefanFish(       sim, ffparser, center);
       else if (objectName=="cstartfish")
