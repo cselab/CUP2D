@@ -1,4 +1,7 @@
-"""Flow behind a rectangle. Output files are stored in output/."""
+#!/usr/bin/env python3
+
+"""Flow behind a rectangle, with a custom operator.
+Output files are stored in output/."""
 
 import cubismup2d as cup2d
 import numpy as np
@@ -13,10 +16,13 @@ class CustomOperator(cup2d.Operator):
             print(f"chi block: {block}    "
                   f"numpy array: (shape={b.shape}, dtype={b.dtype}, sum={b.sum()})")
 
-        # Copying whole field into a large uniform matrix.
-        # Note that the order of axes is chi[y, x], not chi[x, y]!
+        # Get the whole field as a large uniform matrix (this copies the whole
+        # grid). Note that the order of axes is chi[y, x], not chi[x, y]!
         chi = data.chi.to_uniform()
         print(f"whole chi: shape={chi.shape} sum={chi.sum()})")
+
+        # Updating the field (currently works only for uniform grids).
+        # data.chi.load_uniform(some_matrix)
 
         # Print some metadata.
         print(f"-------------------> dt={dt} uinf=({data.uinfx} {data.uinfy})")

@@ -53,13 +53,14 @@ cmake ..
 make
 ```
 
-Run the tests with (starting from the `build` folder).
+Run an example with the following commands, starting from the `build` folder:
 ```
 cd ..
 export PYTHONPATH=$(pwd):$(pwd)/build/:$PYTHONPATH
-cd tests/python
-./run.sh
+cd cubismup2d/examples/
+./rectangle_and_operator.py
 ```
+Output files will be stored in the `output/` folder.
 
 ## Running
 
