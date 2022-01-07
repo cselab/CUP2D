@@ -44,8 +44,6 @@ void deviceProfiler::stopProfiler(cudaStream_t stream)
 
 // -------------------------------- Host-side construction of linear system -----------------------------------
 
-enum FDType {FDLower, FDUpper, BDLower, BDUpper, CDLower, CDUpper};
-
 class CellIndexer{
   public:
     static int This(const BlockInfo &info, const int &ix, const int &iy)
@@ -177,6 +175,7 @@ static long long getZchild(const BlockInfo& info, const std::array<int,3> &Zchil
   return info.Zchild[Zchild_idx[0]][Zchild_idx[1]][Zchild_idx[2]];
 }
 
+enum FDType {FDLower, FDUpper, BDLower, BDUpper, CDLower, CDUpper};
 
 class PolyO3I {
   public:
@@ -241,34 +240,6 @@ class PolyO3I {
       }
     }
 
-    // F_i = sign * (p_{interpolation} - p_{fine_cell_idx})
-    void interpolate(std::map<int,double> &row_map)
-    {
-      static constexpr double p_fine_close = 2./3.;
-      static constexpr double p_fine_far = -1./5.;
-
-      // Interpolated flux sign * p_{interpolation}
-      if (type_ == FDLower)
-        FDLowerTaylor(row_map);
-      else if (type_ == FDUpper)
-        FDUpperTaylor(row_map);
-      else if (type_ == BDLower)
-        BDLowerTaylor(row_map);
-      else if (type_ == BDUpper)
-        BDUpperTaylor(row_map);
-      else if (type_ == CDLower)
-        CDLowerTaylor(row_map);
-      else if (type_ == CDUpper)
-        CDUpperTaylor(row_map);
-
-      row_map[fine_close_idx_] += sign_ * p_fine_close;
-      row_map[fine_far_idx_] += sign_ * p_fine_far;
-
-      // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
-      row_map[fine_close_idx_] -= sign_;
-    } 
-
-
   private:
     // Central Difference "Upper" Taylor approximation (positive 1st order term)
     void CDUpperTaylor(std::map<int,double> &row_map)
@@ -323,6 +294,44 @@ class PolyO3I {
     void FDUpperTaylor(std::map<int,double> &row_map) { return BiasedLowerTaylor(row_map); }
     void FDLowerTaylor(std::map<int,double> &row_map) { return BiasedUpperTaylor(row_map); }
 
+  public:
+    // F_i = sign * (p_{interpolation} - p_{fine_cell_idx})
+    void interpolate(std::map<int,double> &row_map)
+    {
+      static constexpr double p_fine_close = 2./3.;
+      static constexpr double p_fine_far = -1./5.;
+
+      // Interpolated flux sign * p_{interpolation}
+      switch(type_)
+      {
+        case FDLower:
+          FDLowerTaylor(row_map);
+          break;
+        case FDUpper:
+          FDUpperTaylor(row_map);
+          break;
+        case BDLower:
+          BDLowerTaylor(row_map);
+          break;
+        case BDUpper:
+          BDUpperTaylor(row_map);
+          break;
+        case CDLower:
+          CDLowerTaylor(row_map);
+          break;
+        case CDUpper:
+          CDUpperTaylor(row_map);
+          break;
+      }
+
+      row_map[fine_close_idx_] += sign_ * p_fine_close;
+      row_map[fine_far_idx_] += sign_ * p_fine_far;
+
+      // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
+      row_map[fine_close_idx_] -= sign_;
+    } 
+
+  private:
     const bool neiCoarser_;
     const double sign_;
     int coarse_centre_idx_;
@@ -377,7 +386,7 @@ void AMRSolver::makeFlux(
     int iy_c = iy / 2;
     if ((indexer.isNorthEdge || indexer.isSouthEdge) && (rhs_info.index[0] % 2 == 1)) // North/South edge leftward fine block 
       ix_c += BSX_ / 2;
-    else // if ((indexer.isEastEdge || indexer.isWestEdge) && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
+    else  if ((indexer.isEastEdge || indexer.isWestEdge) && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
       iy_c += BSY_ / 2;
 
     // Perform intepolation to calculate flux at interface with coarse cell
@@ -406,7 +415,7 @@ void AMRSolver::makeFlux(
     // Interpolate flux at interfaces with both fine neighbour cells
     PolyO3I pts1(indexer, false, rhs_info, ix, iy, rhsNei_f, ix_f, iy_f);
     pts1.interpolate(row_map);
-    PolyO3I pts2(indexer, false, rhs_info, ix, iy, rhsNei_f, ix_f+1, iy_f+1);
+    PolyO3I pts2(indexer, false, rhs_info, ix, iy, rhsNei_f, ix_f+1, iy_f+1); // same coarse indices here...
     pts2.interpolate(row_map);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
