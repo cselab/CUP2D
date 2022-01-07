@@ -86,7 +86,18 @@ void Simulation::insertOperatorAfter(
       return;
     }
   }
-  throw std::runtime_error("operator not found: " + name);
+  std::string msg;
+  msg.reserve(300);
+  msg += "operator '";
+  msg += name;
+  msg += "' not found, available: ";
+  for (size_t i = 0; i < pipeline.size(); ++i) {
+    if (i > 0)
+      msg += ", ";
+    msg += pipeline[i]->getName();
+  }
+  msg += " (ensure that init() is called before inserting custom operators)";
+  throw std::runtime_error(std::move(msg));
 }
 
 void Simulation::init()

@@ -60,10 +60,10 @@ PYBIND11_MODULE(libcubismup2d, m)
   m.attr("FFTW_ENABLED") = (int)0;
 #endif
 
-  bindOperators(m);
   bindSimulationData(m);
   bindSimulation(m);
   bindFields(m);
+  bindOperators(m);
   bindShapes(m);
 
   auto poisson = m.def_submodule("poisson");

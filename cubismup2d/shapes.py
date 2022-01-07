@@ -1,11 +1,11 @@
-from libcubismup2d import _Shape, _Disk
+import libcubismup2d as lib
 from .simulation import Simulation, sanitize_arg
 
 from typing import Any, Dict, Optional, Tuple
 
-__all__ = ['Disk']
+__all__ = ['Disk', 'HalfDisk', 'Ellipse', 'Rectangle']
 
-def _init_shape(
+def _init(
         cls: type,
         shape,
         sim: Simulation,
@@ -53,11 +53,30 @@ def _init_shape(
     _kwargv = [f'{k}={sanitize_arg(v)}'
                for k, v in _kwargv.items() if v is not None]
     argv = ' '.join(kwargv) + ' ' + ' '.join(_kwargv)
-    cls.__init__(shape, sim.sim, argv, center)
+    cls.__init__(shape, sim.data, argv, center)
 
 
-class Disk(_Disk):
+class Disk(lib._Disk):
     __slots__ = ()
-    def __init__(self, sim: Simulation, *,
-                 r: float, tAccel: float = 0.0, **kwargs):
-        _init_shape(_Disk, self, sim, dict(radius=r, tAccel=tAccel), **kwargs)
+    def __init__(self, sim: Simulation, r: float, *, tAccel: float = 0.0, **kwargs):
+        _init(lib._Disk, self, sim, dict(radius=r, tAccel=tAccel), **kwargs)
+
+
+class HalfDisk(lib._HalfDisk):
+    __slots__ = ()
+    def __init__(self, sim: Simulation, r: float, *, tAccel: float = 0.0, **kwargs):
+        _init(lib._HalfDisk, self, sim, dict(radius=r, tAccel=tAccel), **kwargs)
+
+
+class Ellipse(lib._Ellipse):
+    __slots__ = ()
+    def __init__(self, sim: Simulation, a: float, b: float, **kwargs):
+        """Construct an Ellipse with semiaxes `a` and `b`."""
+        _init(lib._Ellipse, self, sim, dict(semiAxisX=a, semiAxisY=b), **kwargs)
+
+
+class Rectangle(lib._Rectangle):
+    __slots__ = ()
+    def __init__(self, sim: Simulation, a: float, b: float, **kwargs):
+        """Construct a Rectangle with sides `a` and `b`."""
+        _init(lib._Rectangle, self, sim, dict(extentX=a, extentY=b), **kwargs)

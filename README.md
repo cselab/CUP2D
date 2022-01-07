@@ -56,7 +56,7 @@ make
 Run the tests with (starting from the `build` folder).
 ```
 cd ..
-export PYTHONPATH=$(pwd):$PYTHONPATH
+export PYTHONPATH=$(pwd):$(pwd)/build/:$PYTHONPATH
 cd tests/python
 ./run.sh
 ```

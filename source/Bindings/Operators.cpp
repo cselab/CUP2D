@@ -30,10 +30,10 @@ void bindOperators(py::module &m)
 {
   using namespace py::literals;
   class_shared<Operator, PyOperator>(m, "_Operator")
-    .def(py::init<SimulationData&, std::string>(), "sim"_a, "name"_a)
+    .def(py::init<SimulationData&, std::string>(), "data"_a, "name"_a)
     .def("__str__", &Operator::getName)
     .def("__repr__", &Operator::getName)
-    .def_property_readonly("sim", [](Operator *op) { return &op->sim; },
+    .def_property_readonly("data", [](Operator *op) { return &op->sim; },
                            py::return_value_policy::reference_internal)
     .def("__call__", &Operator::operator(), "dt"_a);
 }

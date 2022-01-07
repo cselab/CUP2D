@@ -28,7 +28,7 @@ public:
 
 void bindSimulationData(py::module &m)
 {
-  auto pySim = py::class_<SimulationData>(m, "_SimulationData")
+  auto pySim = py::class_<SimulationData>(m, "SimulationData")
       .def_readonly("CFL", &SimulationData::CFL)
       .def_readonly("extents", &SimulationData::extents)
       .def_readonly("uinfx", &SimulationData::uinfx)
@@ -72,7 +72,7 @@ void bindSimulation(py::module &m)
 {
   class_shared<Simulation>(m, "_Simulation")
       .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
-      .def_readonly("sim", &Simulation::sim,
+      .def_readonly("data", &Simulation::sim,
                     py::return_value_policy::reference_internal)
       .def("add_shape", [](Simulation *sim, std::shared_ptr<Shape> shape) {
         sim->sim.addShape(std::move(shape));
