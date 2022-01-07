@@ -503,14 +503,12 @@ void AMRSolver::get_LS()
     // for sparse LHS matrix 'A' (for uniform grid at most 5 elements per row).
     this->cooValA_.clear();
     this->cooRowA_.clear();
-    this->csrRowA_.clear();
     this->cooColA_.clear();
     this->cooValA_.reserve(6 * N);
     this->cooRowA_.reserve(6 * N);
-    this->csrRowA_.reserve(N+1);
     this->cooColA_.reserve(6 * N);
 
-    // No parallel for to ensure COO and CSR are ordered at construction
+    // No parallel for to ensure COO are ordered at construction
     for(int i=0; i< Nblocks; i++)
     {    
       const BlockInfo &rhs_info = RhsInfo[i];
@@ -550,7 +548,6 @@ void AMRSolver::get_LS()
       for(int iy=0; iy<BSY_; iy++)
       for(int ix=0; ix<BSX_; ix++)
       {
-        this->csrRowA_.push_back(cooValA_.size());
         // Following logic needs to be in for loop to assure cooRows are ordered
         if ((ix > 0 && ix<BSX_-1) && (iy > 0 && iy<BSY_-1))
         { // Inner cells
@@ -636,9 +633,8 @@ void AMRSolver::get_LS()
   m_ = N; // rows
   n_ = N; // cols
   nnz_ = this->cooValA_.size(); // non-zero elements
-  this->csrRowA_.push_back(nnz_);
-  std::cout << "Rows: " << m_  
-            << " cols: " << n_ 
+  std::cout << "  [AMRSolver] linear system " 
+            << "rows: " << m_  << " cols: " << n_ 
             << " non-zero elements: " << nnz_ << std::endl;
 
   sim.stopProfiler();
@@ -735,7 +731,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
   updateA_ = true;
   // NULL if device memory not allocated
   d_cooValA_ = NULL;
-  d_csrRowA_ = NULL;
+  d_cooRowA_ = NULL;
   d_cooColA_ = NULL;
   d_x_ = NULL;
   d_r_ = NULL;
@@ -760,7 +756,7 @@ AMRSolver::~AMRSolver()
   checkCudaErrors(cudaFree(d_P_inv_));
   // Cleanup after last timestep
   checkCudaErrors(cudaFree(d_cooValA_));
-  checkCudaErrors(cudaFree(d_csrRowA_));
+  checkCudaErrors(cudaFree(d_cooRowA_));
   checkCudaErrors(cudaFree(d_cooColA_));
   checkCudaErrors(cudaFree(d_x_));
   checkCudaErrors(cudaFree(d_r_));
@@ -796,7 +792,7 @@ void AMRSolver::alloc()
     {
       // Free device memory allocated for linear system from previous time-step
       checkCudaErrors(cudaFree(d_cooValA_));
-      checkCudaErrors(cudaFree(d_csrRowA_));
+      checkCudaErrors(cudaFree(d_cooRowA_));
       checkCudaErrors(cudaFree(d_cooColA_));
       checkCudaErrors(cudaFree(d_x_));
       checkCudaErrors(cudaFree(d_r_));
@@ -817,7 +813,7 @@ void AMRSolver::alloc()
 
     // Allocate device memory for linear system
     checkCudaErrors(cudaMalloc(&d_cooValA_, nnz_ * sizeof(double)));
-    checkCudaErrors(cudaMalloc(&d_csrRowA_, (m_+1) * sizeof(int)));
+    checkCudaErrors(cudaMalloc(&d_cooRowA_, nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_cooColA_, nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
@@ -827,7 +823,7 @@ void AMRSolver::alloc()
 #endif
     // H2D transfer of linear system
     checkCudaErrors(cudaMemcpyAsync(d_cooValA_, cooValA_.data(), nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-    checkCudaErrors(cudaMemcpyAsync(d_csrRowA_, csrRowA_.data(), (m_+1) * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(d_cooRowA_, cooRowA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(d_cooColA_, cooColA_.data(), nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
 #ifdef BICGSTAB_PROFILER
     pMemcpy_.stopProfiler(solver_stream_);
@@ -840,7 +836,7 @@ void AMRSolver::alloc()
     checkCudaErrors(cudaMalloc(&d_t_, m_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&d_z_, m_ * sizeof(double)));
     // Create descriptors for variables that will pass through cuSPARSE
-    checkCudaErrors(cusparseCreateCsr(&spDescrA_, m_, n_, nnz_, d_csrRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
+    checkCudaErrors(cusparseCreateCoo(&spDescrA_, m_, n_, nnz_, d_cooRowA_, d_cooColA_, d_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
     checkCudaErrors(cusparseCreateDnVec(&spDescrX0_, m_, d_x_, CUDA_R_64F));
     checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, m_, d_z_, CUDA_R_64F));
     checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, m_, d_nu_, CUDA_R_64F));

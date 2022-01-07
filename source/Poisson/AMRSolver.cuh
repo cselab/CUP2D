@@ -111,7 +111,6 @@ protected:
   // Host-side variables for linear system
   std::vector<double> cooValA_;
   std::vector<int> cooRowA_;
-  std::vector<int> csrRowA_;
   std::vector<int> cooColA_;
   std::vector<double> x_;
   std::vector<double> b_;
@@ -130,7 +129,7 @@ protected:
 
   // Device-side varibles for linear system
   double* d_cooValA_;
-  int* d_csrRowA_;
+  int* d_cooRowA_;
   int* d_cooColA_;
   double* d_x_;
   double* d_r_;
