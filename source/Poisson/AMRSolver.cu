@@ -44,17 +44,7 @@ void deviceProfiler::stopProfiler(cudaStream_t stream)
 
 // -------------------------------- Host-side construction of linear system -----------------------------------
 
-enum Compass {North, East, South, West};
 enum FDType {FDLower, FDUpper, BDLower, BDUpper, CDLower, CDUpper};
-
-struct CellDataO3I {
-  int coarse_centre_idx;
-  int coarse_offset1_idx; // bottom/left
-  int coarse_offset2_idx; // top/right
-  int fine_close_idx;
-  int fine_far_idx;
-  FDType type;
-};
 
 class CellIndexer{
   public:
@@ -82,7 +72,6 @@ class CellIndexer{
     static constexpr int BSY = VectorBlock::sizeY;
 };
 
-
 class NorthEdgeCell : public CellIndexer{
   public:
     static int inblock_n1(const BlockInfo &info, const int &ix, const int &iy, const int dist = 1)
@@ -100,7 +89,10 @@ class NorthEdgeCell : public CellIndexer{
     static bool mod(const int &ix, const int &iy)
     { return ix % 2 == 0; }
 
-    constexpr static Compass EdgeType = {North};
+    constexpr static bool isNorthEdge = true;
+    constexpr static bool isEastEdge  = false;
+    constexpr static bool isSouthEdge = false;
+    constexpr static bool isWestEdge  = false;
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,0,0};
 };
@@ -122,7 +114,10 @@ class EastEdgeCell : public CellIndexer{
     static bool mod(const int &ix, const int &iy)
     { return iy % 2 == 0; }
 
-    constexpr static Compass EdgeType = {East};
+    constexpr static bool isNorthEdge = false;
+    constexpr static bool isEastEdge  = true;
+    constexpr static bool isSouthEdge = false;
+    constexpr static bool isWestEdge  = false;
     constexpr static std::array<int,3> Zchild1_idx = {0,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {0,1,0};
 };
@@ -144,7 +139,10 @@ class SouthEdgeCell : public CellIndexer{
     static bool mod(const int &ix, const int &iy)
     { return ix % 2 == 0; }
 
-    constexpr static Compass EdgeType = {South};
+    constexpr static bool isNorthEdge = false;
+    constexpr static bool isEastEdge  = false;
+    constexpr static bool isSouthEdge = true;
+    constexpr static bool isWestEdge  = false;
     constexpr static std::array<int,3> Zchild1_idx = {0,1,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
@@ -166,7 +164,10 @@ class WestEdgeCell : public CellIndexer{
     static bool mod(const int &ix, const int &iy)
     { return iy % 2 == 0; }
 
-    constexpr static Compass EdgeType = {West};
+    constexpr static bool isNorthEdge = false;
+    constexpr static bool isEastEdge  = false;
+    constexpr static bool isSouthEdge = false;
+    constexpr static bool isWestEdge  = true;
     constexpr static std::array<int,3> Zchild1_idx = {1,0,0};
     constexpr static std::array<int,3> Zchild2_idx = {1,1,0};
 };
@@ -185,19 +186,19 @@ class PolyO3I {
         const BlockInfo &info_f, const int &ix_f, const int &iy_f)
       : neiCoarser_(neiCoarser), sign_(neiCoarser ? 1. : -1.)
     {
-      const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
-      const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
+      const bool isNorthSouthEdge = indexer.isNorthEdge || indexer.isSouthEdge;
+      const bool isEastWestEdge = indexer.isEastEdge || indexer.isWestEdge;
 
       if (neiCoarser_)
       {
         coarse_centre_idx_ = indexer.neiblock_n(info_c, ix_c, iy_c);
-        if (NorthSouthEdge && ix_c == 0 || EastWestEdge && iy_c == 0)
+        if (isNorthSouthEdge && ix_c == 0 || isEastWestEdge && iy_c == 0)
         { // Forward Differences
           coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
           coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c+2, iy_c+2); 
           type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
         }
-        else if (NorthSouthEdge && ix_c == indexer.BSX - 1 || EastWestEdge && iy_c == indexer.BSY - 1)
+        else if (isNorthSouthEdge && ix_c == indexer.BSX - 1 || isEastWestEdge && iy_c == indexer.BSY - 1)
         { // BD
           coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
           coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c-2, iy_c-2); 
@@ -216,13 +217,13 @@ class PolyO3I {
       {
         coarse_centre_idx_ = CellIndexer::This(info_c, ix_c, iy_c);
 
-        if (NorthSouthEdge && ix_c == 0 || EastWestEdge && iy_c == 0)
+        if (isNorthSouthEdge && ix_c == 0 || isEastWestEdge && iy_c == 0)
         { // FD
           coarse_offset1_idx_ = indexer.forward(info_c, ix_c, iy_c, 1);
           coarse_offset2_idx_ = indexer.forward(info_c, ix_c, iy_c, 2);
           type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
         }
-        else if (NorthSouthEdge && ix_c == indexer.BSX - 1 || EastWestEdge && iy_c == indexer.BSY - 1)
+        else if (isNorthSouthEdge && ix_c == indexer.BSX - 1 || isEastWestEdge && iy_c == indexer.BSY - 1)
         { // BD
           coarse_offset1_idx_ = indexer.backward(info_c, ix_c, iy_c, 1);
           coarse_offset2_idx_ = indexer.backward(info_c, ix_c, iy_c, 2);
@@ -372,13 +373,11 @@ void AMRSolver::makeFlux(
   {
     const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
 
-    const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
-    const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
     int ix_c = ix / 2;
     int iy_c = iy / 2;
-    if (NorthSouthEdge && (rhs_info.index[0] % 2 == 1)) // North/South edge leftward fine block 
+    if ((indexer.isNorthEdge || indexer.isSouthEdge) && (rhs_info.index[0] % 2 == 1)) // North/South edge leftward fine block 
       ix_c += BSX_ / 2;
-    else if (EastWestEdge && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
+    else // if ((indexer.isEastEdge || indexer.isWestEdge) && (rhs_info.index[1] % 2 == 1)) // East/West edge top fine block
       iy_c += BSY_ / 2;
 
     // Perform intepolation to calculate flux at interface with coarse cell
@@ -387,9 +386,6 @@ void AMRSolver::makeFlux(
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
-    const bool NorthSouthEdge = indexer.EdgeType == North || indexer.EdgeType == South;
-    const bool EastWestEdge = indexer.EdgeType == East || indexer.EdgeType == West;
-
     /* Determine which fine block the current coarse edge neighbours.
        It is assumed that members 'Zchild_1' and 'Zchild_2' respect this order:
        Zchild[0][0][0] is (2i  ,2j  ,2k  )
@@ -398,9 +394,9 @@ void AMRSolver::makeFlux(
        Zchild[1][1][0] is (2i+1,2j+1,2k  ) */
 
     long long rhsNei_Zchild;
-    if (NorthSouthEdge)
+    if (indexer.isNorthEdge || indexer.isSouthEdge)
       rhsNei_Zchild = ix < BSX_ / 2 ? getZchild(rhsNei, indexer.Zchild1_idx) : getZchild(rhsNei, indexer.Zchild2_idx);
-    else if (EastWestEdge)
+    else // if (indexer.isEastEdge || indexer.isWestEdge)
       rhsNei_Zchild = iy < BSY_ / 2 ? getZchild(rhsNei, indexer.Zchild1_idx) : getZchild(rhsNei, indexer.Zchild2_idx);
     const BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, rhsNei_Zchild);
 
