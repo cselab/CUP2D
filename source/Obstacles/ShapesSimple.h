@@ -101,7 +101,7 @@ class Rectangle : public Shape
   Rectangle(SimulationData&s, cubism::ArgumentParser&p, Real C[2]) :
     Shape(s,p,C), extentX( (Real) p("-extentX").asDouble(.2) ), extentY( (Real) p("-extentY").asDouble(.2) ) {}
 
-  Real getCharLength() const  override
+  Real getCharLength() const override
   {
     return extentX;
   }

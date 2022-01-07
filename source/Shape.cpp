@@ -61,6 +61,14 @@ void Shape::updateVelocity(Real dt)
   if(not bForcedx  || sim.time > timeForced)  u     = gsl_vector_get(xgsl, 0);
   if(not bForcedy  || sim.time > timeForced)  v     = gsl_vector_get(xgsl, 1);
   if(not bBlockang || sim.time > timeForced)  omega = gsl_vector_get(xgsl, 2);
+
+  if( bBreakSymmetry )
+  {
+    if( sim.time > 1.0 && sim.time < 2.0 )
+      v = 0.1*getCharLength()*std::sin(M_PI*(sim.time-2.0));
+    else
+      v = forcedv;
+  }
   #endif
 }
 
@@ -359,7 +367,8 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   forcedv(  -p("-yvel").asDouble(0) ),
   forcedomega(-p("-angvel").asDouble(0)),
   bDumpSurface(p("-dumpSurf").asInt(0)),
-  timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max()))
+  timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
+  bBreakSymmetry(p("-bBreakSymmetry").asBool(false))
   {}
 
 Shape::~Shape()

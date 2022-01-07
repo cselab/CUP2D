@@ -109,12 +109,12 @@ void Rectangle::create(const std::vector<BlockInfo>& vInfo)
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)
-      if(kernel.is_touching(vInfo[i]))
-      {
-        assert(obstacleBlocks[vInfo[i].blockID] == nullptr);
-        obstacleBlocks[vInfo[i].blockID] = new ObstacleBlock;
-        ScalarBlock& b = *(ScalarBlock*)vInfo[i].ptrBlock;
-        kernel(vInfo[i], b, *obstacleBlocks[vInfo[i].blockID]);
-      }
+    if(kernel.is_touching(vInfo[i]))
+    {
+      assert(obstacleBlocks[vInfo[i].blockID] == nullptr);
+      obstacleBlocks[vInfo[i].blockID] = new ObstacleBlock;
+      ScalarBlock& b = *(ScalarBlock*)vInfo[i].ptrBlock;
+      kernel(vInfo[i], b, *obstacleBlocks[vInfo[i].blockID]);
+    }
   }
 }
