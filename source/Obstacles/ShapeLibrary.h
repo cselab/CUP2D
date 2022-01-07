@@ -105,7 +105,7 @@ struct FillBlocks_Rectangle
 
   inline Real distance(const Real x, const Real y) const {
     const Real X =  x*cosang + y*sinang, Y = -x*sinang + y*cosang;
-    return std::min(std::min(X, extentX - X), std::min(extentY/2 + Y, extentY/2 - Y));
+    return std::min(extentX / 2 - std::abs(X), extentY / 2 - std::abs(Y));
   }
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {

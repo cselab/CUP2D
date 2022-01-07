@@ -23,6 +23,8 @@ class Disk : public Shape
     }
   }
 
+  Real getRadius() const { return radius; }
+
   Real getCharLength() const override
   {
     return 2 * radius;
