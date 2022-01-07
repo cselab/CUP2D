@@ -26,10 +26,10 @@ set(PYLIB "libcubismup2d")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Options.
-option(CUP2D_BUILD_EXE "Build the CubismUP_2D executable" ON)
+option(CUP2D_BUILD_EXE "Build the CubismUP_2D executable" OFF)
 option(CUP2D_BUILD_PY "Build Python bindings" ON)
 option(CUP2D_BACKWARD_CPP "Use backward-cpp for stack trace" ON)
-option(CUP2D_FFTW "Enable FFTW-based Poisson solver" ON)
+option(CUP2D_FFTW "Enable FFTW-based Poisson solver" OFF)
 set(CUP2D_BLOCK_SIZE "8" CACHE STRING "Number of grid points in a block, per dimension")
 set(CUP2D_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_2D repository root path")
 set(CUP2D_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_2D build path")

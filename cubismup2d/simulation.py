@@ -1,20 +1,17 @@
 import libcubismup2d as libcup2d
 
-from typing import Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 import os
 
 __all__ = ['Operator', 'Simulation']
 
-class _FieldProperty:
-    """Lazy attribute accessor."""
-    __slots__ = ('_name',)
 
-    def __set_name__(self, owner, name: str):
-        self._name = name
-
-    def __get__(self, obj, objtype=None) -> \
-            Union[libcup2d.ScalarGrid, libcup2d.VectorGrid]:
-        return getattr(obj.sim, self._name)
+def sanitize_arg(x: Any):
+    if x is None:
+        raise TypeError(x)
+    elif isinstance(x, bool):
+        x = int(x)
+    return str(x)
 
 
 class _FieldsProxy:
@@ -22,14 +19,37 @@ class _FieldsProxy:
     def __init__(self, sim: libcup2d._SimulationData):
         self.sim = sim
 
-    chi = _FieldProperty()
-    vel = _FieldProperty()
-    vOld = _FieldProperty()
-    pres = _FieldProperty()
-    tmpV = _FieldProperty()
-    tmp = _FieldProperty()
-    uDef = _FieldProperty()
-    pold = _FieldProperty()
+    @property
+    def chi(self):
+        return self.sim.chi
+
+    @property
+    def vel(self):
+        return self.sim.vel
+
+    @property
+    def vOld(self):
+        return self.sim.vOld
+
+    @property
+    def pres(self):
+        return self.sim.pres
+
+    @property
+    def tmpV(self):
+        return self.sim.tmpV
+
+    @property
+    def tmp(self):
+        return self.sim.tmp
+
+    @property
+    def uDef(self):
+        return self.sim.uDef
+
+    @property
+    def pOld(self):
+        return self.sim.pOld
 
 
 class Simulation(libcup2d._Simulation):
@@ -50,7 +70,8 @@ class Simulation(libcup2d._Simulation):
             output_dir: str = 'output/',
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
-            comm: Optional['mpi4py.MPI.Intracomm'] = None):
+            comm: Optional['mpi4py.MPI.Intracomm'] = None,
+            argv: List[str] = []):
         """
         Arguments:
             ...
@@ -60,6 +81,7 @@ class Simulation(libcup2d._Simulation):
             ...
             serialization_dir: folder containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
+            argv: (list of strings) extra argv passed to CubismUP2D
         """
         assert nlevels >= 1, nlevels
         if start_level is None:
@@ -85,8 +107,10 @@ class Simulation(libcup2d._Simulation):
             '-nsteps', 0,
             '-file', output_dir,
             '-serialization', serialization_dir,
+            '-verbose', verbose,
+            *argv,
         ]
-        argv = [str(arg) for arg in argv]
+        argv = [sanitize_arg(arg) for arg in argv]
 
         if comm is not None:
             from mpi4py import MPI

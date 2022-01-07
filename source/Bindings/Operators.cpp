@@ -33,6 +33,8 @@ void bindOperators(py::module &m)
     .def(py::init<SimulationData&, std::string>(), "sim"_a, "name"_a)
     .def("__str__", &Operator::getName)
     .def("__repr__", &Operator::getName)
+    .def_property_readonly("sim", [](Operator *op) { return &op->sim; },
+                           py::return_value_policy::reference_internal)
     .def("__call__", &Operator::operator(), "dt"_a);
 }
 

@@ -36,9 +36,11 @@ void bindSimulationData(py::module &m)
       .def_readonly("time", &SimulationData::time)
       .def_readonly("step", &SimulationData::step)
       .def_readwrite("_nsteps", &SimulationData::nsteps)
-      .def_readwrite("_tend", &SimulationData::endTime);
+      .def_readwrite("_tend", &SimulationData::endTime)
+      .def_readwrite("mute_all", &SimulationData::muteAll)
+      .def_readwrite("nu", &SimulationData::nu);
 
-  // Bind all grids. If updating this, update _FieldsProxy in
+  // Bind all grids. If updating this, update properties in
   // cubismup2d/simulation.py as well.
   const auto byRef = py::return_value_policy::reference_internal;
   pySim.def_readonly("chi", &SimulationData::chi, byRef);

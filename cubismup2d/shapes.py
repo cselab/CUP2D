@@ -1,5 +1,5 @@
-from cubismup2d.simulation import Simulation
 from libcubismup2d import _Shape, _Disk
+from .simulation import Simulation, sanitize_arg
 
 from typing import Any, Dict, Optional, Tuple
 
@@ -49,13 +49,15 @@ def _init_shape(
     assert not conflict, conflict
 
     # Arrange in the format that the C++-side parser expects.
-    kwargv = [f'{k}={v}' for k, v in kwargv.items()]
-    _kwargv = [f'{k}={v}' for k, v in _kwargv.items() if v is not None]
+    kwargv = [f'{k}={sanitize_arg(v)}' for k, v in kwargv.items()]
+    _kwargv = [f'{k}={sanitize_arg(v)}'
+               for k, v in _kwargv.items() if v is not None]
     argv = ' '.join(kwargv) + ' ' + ' '.join(_kwargv)
     cls.__init__(shape, sim.sim, argv, center)
 
 
 class Disk(_Disk):
+    __slots__ = ()
     def __init__(self, sim: Simulation, *,
                  r: float, tAccel: float = 0.0, **kwargs):
         _init_shape(_Disk, self, sim, dict(radius=r, tAccel=tAccel), **kwargs)
