@@ -23,6 +23,8 @@ class Disk : public Shape
     }
   }
 
+  Real getRadius() const { return radius; }
+
   Real getCharLength() const override
   {
     return 2 * radius;
@@ -87,6 +89,24 @@ class Ellipse : public Shape
     return 2 * std::max(semiAxis[1],semiAxis[0]);
   }
   Real getCharMass() const override { return M_PI * semiAxis[1] * semiAxis[0]; }
+
+  void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+};
+
+class Rectangle : public Shape
+{
+ protected:
+  const Real extentX;
+  const Real extentY;
+
+ public:
+  Rectangle(SimulationData&s, cubism::ArgumentParser&p, Real C[2]) :
+    Shape(s,p,C), extentX( (Real) p("-extentX").asDouble(.2) ), extentY( (Real) p("-extentY").asDouble(.2) ) {}
+
+  Real getCharLength() const override
+  {
+    return extentX;
+  }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 };

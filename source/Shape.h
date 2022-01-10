@@ -36,6 +36,7 @@ class Shape
   const Real forcedomega;
   const bool bDumpSurface;
   const Real timeForced;
+  const bool bBreakSymmetry;
 
   Real M = 0;
   Real J = 0;

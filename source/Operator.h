@@ -10,8 +10,9 @@
 
 class Operator
 {
-protected:
+public:
   SimulationData& sim;
+protected:
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
 public:

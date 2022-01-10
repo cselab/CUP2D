@@ -1,35 +1,56 @@
+from libcubismup2d import SimulationData
 import libcubismup2d as libcup2d
 
-from typing import Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 import os
 
-__all__ = ['Operator', 'Simulation']
+__all__ = ['Operator', 'Simulation', 'SimulationData']
 
-class _FieldProperty:
-    """Lazy attribute accessor."""
-    __slots__ = ('_name',)
 
-    def __set_name__(self, owner, name: str):
-        self._name = name
-
-    def __get__(self, obj, objtype=None) -> \
-            Union[libcup2d.ScalarGrid, libcup2d.VectorGrid]:
-        return getattr(obj.sim, self._name)
+def sanitize_arg(x: Any):
+    if x is None:
+        raise TypeError(x)
+    elif isinstance(x, bool):
+        x = int(x)
+    return str(x)
 
 
 class _FieldsProxy:
-    __slots__ = ('sim',)
-    def __init__(self, sim: libcup2d._SimulationData):
-        self.sim = sim
+    __slots__ = ('data',)
+    def __init__(self, data: SimulationData):
+        self.data = data
 
-    chi = _FieldProperty()
-    vel = _FieldProperty()
-    vOld = _FieldProperty()
-    pres = _FieldProperty()
-    tmpV = _FieldProperty()
-    tmp = _FieldProperty()
-    uDef = _FieldProperty()
-    pold = _FieldProperty()
+    @property
+    def chi(self):
+        return self.data.chi
+
+    @property
+    def vel(self):
+        return self.data.vel
+
+    @property
+    def vOld(self):
+        return self.data.vOld
+
+    @property
+    def pres(self):
+        return self.data.pres
+
+    @property
+    def tmpV(self):
+        return self.data.tmpV
+
+    @property
+    def tmp(self):
+        return self.data.tmp
+
+    @property
+    def uDef(self):
+        return self.data.uDef
+
+    @property
+    def pOld(self):
+        return self.data.pOld
 
 
 class Simulation(libcup2d._Simulation):
@@ -50,7 +71,8 @@ class Simulation(libcup2d._Simulation):
             output_dir: str = 'output/',
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
-            comm: Optional['mpi4py.MPI.Intracomm'] = None):
+            comm: Optional['mpi4py.MPI.Intracomm'] = None,
+            argv: List[str] = []):
         """
         Arguments:
             ...
@@ -60,6 +82,7 @@ class Simulation(libcup2d._Simulation):
             ...
             serialization_dir: folder containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
+            argv: (list of strings) extra argv passed to CubismUP2D
         """
         assert nlevels >= 1, nlevels
         if start_level is None:
@@ -85,8 +108,10 @@ class Simulation(libcup2d._Simulation):
             '-nsteps', 0,
             '-file', output_dir,
             '-serialization', serialization_dir,
+            '-verbose', verbose,
+            *argv,
         ]
-        argv = [str(arg) for arg in argv]
+        argv = [sanitize_arg(arg) for arg in argv]
 
         if comm is not None:
             from mpi4py import MPI
@@ -99,7 +124,7 @@ class Simulation(libcup2d._Simulation):
         os.makedirs(serialization_dir, exist_ok=True)
         libcup2d._Simulation.__init__(self, ['DUMMY'] + argv, comm)
         self._ops = []
-        self.fields = _FieldsProxy(self.sim)
+        self.fields = _FieldsProxy(self.data)
 
     def insert_operator(self, op, *args, **kwargs):
         # We have to store an in-Python reference permanently.
@@ -112,14 +137,16 @@ class Simulation(libcup2d._Simulation):
                  *,
                  nsteps: Optional[int] = None,
                  tend: Optional[float] = None):
-        sim: libcup2d.SimulationData = self.sim
-        sim._nsteps = sim.step + nsteps if nsteps is not None else 0
-        sim._tend = sim.time + tend if tend is not None else 0.0
+        data: libcup2d.SimulationData = self.data
+        data._nsteps = data.step + nsteps if nsteps is not None else 0
+        data._tend = data.time + tend if tend is not None else 0.0
         super().simulate()
 
 
 class Operator(libcup2d._Operator):
+    __slots__ = ('sim',)
     def __init__(self, sim: Simulation, name: Optional[str] = None):
         if name is None:
             name = self.__class__.__name__
-        libcup2d._Operator.__init__(self, sim.sim, name)
+        libcup2d._Operator.__init__(self, sim.data, name)
+        self.sim = sim

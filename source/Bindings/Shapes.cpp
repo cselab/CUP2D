@@ -21,14 +21,34 @@ static std::shared_ptr<S> makeShape(
   return std::make_shared<S>(s, ffparser, C.data());
 }
 
+template <typename T>
+static auto bindShape(py::module &m, const char *name)
+{
+  return class_shared<T, Shape>(m, name)
+    .def(py::init(&makeShape<T>), "data"_a, "argv"_a, "center"_a);
+}
+
 void bindShapes(py::module &m)
 {
-  py::class_<Shape, std::shared_ptr<Shape>>(m, "_Shape")
+  class_shared<Shape>(m, "_Shape")
+    .def_property_readonly("data", [](Shape *shape) { return &shape->sim; },
+                           py::return_value_policy::reference_internal)
     .def_readonly("id", &Shape::obstacleID)
-    .def_readonly("center", &Shape::center);
+    .def_readonly("center", &Shape::center)
+    .def_readwrite("u", &Shape::u)
+    .def_readwrite("v", &Shape::v)
+    .def_property_readonly(
+        "com",
+        [](const Shape& shape) {
+          return std::array<Real, 2>{shape.centerOfMass[0], shape.centerOfMass[1]};
+        },
+        "center of mass");
 
-  py::class_<Disk, Shape, std::shared_ptr<Disk>>(m, "_Disk")
-    .def(py::init(&makeShape<Disk>), "sim"_a, "argv"_a, "center"_a);
+  bindShape<Disk>(m, "_Disk")
+    .def_property_readonly("r", &Disk::getRadius);
+  bindShape<HalfDisk>(m, "_HalfDisk");
+  bindShape<Ellipse>(m, "_Ellipse");
+  bindShape<Rectangle>(m, "_Rectangle");
 }
 
 }  // namespace cubismup2d

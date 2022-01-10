@@ -92,71 +92,24 @@ struct FillBlocks_Ellipse
   void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;
 };
 
-struct FillBlocks_Plate
+struct FillBlocks_Rectangle
 {
-  //position is not the center of mass, is is the center of the base
-  const Real LX, LY, safety, pos[2], angle, angvel, rhoS;
+  const Real extentX, extentY, safety, pos[2], angle, rhoS;
   const Real cosang = std::cos(angle), sinang = std::sin(angle);
   const Real bbox[2][2] = {
-    { pos[0] - LX - LY - safety, pos[0] + LX + LY + safety},
-    { pos[1] - LX - LY - safety, pos[1] + LX + LY + safety}
+    { pos[0] - extentX - extentY - safety, pos[0] + extentX + extentY + safety},
+    { pos[1] - extentX - extentY - safety, pos[1] + extentX + extentY + safety}
   };
 
-  FillBlocks_Plate(Real lx, Real ly, Real h, const Real C[2], Real ang,
-    Real avel, Real rho): LX(lx), LY(ly), safety(h*2),
-    pos{ (Real) C[0], (Real) C[1] }, angle(ang), angvel(avel), rhoS(rho) { }
+  FillBlocks_Rectangle(Real _extentX, Real _extentY, Real h, const Real C[2], Real ang, Real rho): extentX(_extentX), extentY(_extentY), safety(h*2), pos{ (Real) C[0], (Real) C[1] }, angle(ang), rhoS(rho) { }
 
   inline Real distance(const Real x, const Real y) const {
     const Real X =  x*cosang + y*sinang, Y = -x*sinang + y*cosang;
-    return std::min(std::min(X, LX - X), std::min(LY/2 + Y, LY/2 - Y));
+    return std::min(extentX / 2 - std::abs(X), extentY / 2 - std::abs(Y));
   }
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {
     return _is_touching(INFO, bbox, safety);
-  }
-
-  void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;
-};
-
-struct FillBlocks_VarRhoCylinder
-{
-  const Real radius, h, rhoTop, rhoBot, angle;
-  const Real cosang = std::cos(angle), sinang = std::sin(angle);
-  const Real pos[2], bbox[2][2] = {
-    { pos[0] - radius - 2*h, pos[0] + radius + 2*h },
-    { pos[1] - radius - 2*h, pos[1] + radius + 2*h }
-  };
-
-  FillBlocks_VarRhoCylinder(Real R, Real _h, const Real C[2], Real rhoT,
-    Real rhoB, Real ang) : radius(R), h(_h), rhoTop(rhoT), rhoBot(rhoB),
-    angle(ang), pos{ (Real) C[0], (Real) C[1] } {}
-
-  inline Real distanceTocylinder(const Real x, const Real y) const {
-      return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
-  }
-
-  inline bool is_touching(const cubism::BlockInfo& INFO) const {
-    return _is_touching(INFO, bbox, 2*h);
-  }
-  void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;
-};
-
-struct FillBlocks_VarRhoEllipse
-{
-  const Real e0, e1, h, pos[2], angle, rhoTop, rhoBot;
-  const Real cosang = std::cos(angle), sinang = std::sin(angle);
-  const Real e[2] = {e0, e1}, sqMinSemiAx = e[0]>e[1] ? e[1]*e[1] : e[0]*e[0];
-  const Real bbox[2][2] = {
-    { pos[0] - std::max(e0,e1) - 2*h, pos[0] + std::max(e0,e1) + 2*h },
-    { pos[1] - std::max(e0,e1) - 2*h, pos[1] + std::max(e0,e1) + 2*h }
-  };
-
-  FillBlocks_VarRhoEllipse(Real _e0, Real _e1, Real _h, const Real C[2],
-    Real ang, Real rhoT, Real rhoB): e0(_e0), e1(_e1), h(_h),
-    pos{(Real)C[0], (Real)C[1]}, angle(ang), rhoTop(rhoT), rhoBot(rhoB) {}
-
-  inline bool is_touching(const cubism::BlockInfo& INFO) const {
-    return _is_touching(INFO, bbox, 2*h);
   }
 
   void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;

@@ -12,10 +12,10 @@ void bindPoissonSolvers(py::module &m)
     .def("solve", &PoissonSolver::solve, "input"_a, "output"_a);
 
   class_shared<AMRSolver, PoissonSolver>(m, "AMRSolver")
-    .def(py::init<SimulationData &>(), "sim"_a);
+    .def(py::init<SimulationData &>(), "data"_a);
 
   class_shared<FFTWDirichlet, PoissonSolver>(m, "FFTWDirichlet")
-    .def(py::init<SimulationData &, Real>(), "sim"_a, "tol"_a);
+    .def(py::init<SimulationData &, Real>(), "data"_a, "tol"_a);
 }
 
 }  // namespace cubismup2d

@@ -86,7 +86,18 @@ void Simulation::insertOperatorAfter(
       return;
     }
   }
-  throw std::runtime_error("operator not found: " + name);
+  std::string msg;
+  msg.reserve(300);
+  msg += "operator '";
+  msg += name;
+  msg += "' not found, available: ";
+  for (size_t i = 0; i < pipeline.size(); ++i) {
+    if (i > 0)
+      msg += ", ";
+    msg += pipeline[i]->getName();
+  }
+  msg += " (ensure that init() is called before inserting custom operators)";
+  throw std::runtime_error(std::move(msg));
 }
 
 void Simulation::init()
@@ -235,6 +246,8 @@ void Simulation::createShapes()
         shape = new HalfDisk(         sim, ffparser, center);
       else if (objectName=="ellipse")
         shape = new Ellipse(          sim, ffparser, center);
+      else if (objectName=="rectangle")
+        shape = new Rectangle(        sim, ffparser, center);
       else if (objectName=="stefanfish")
         shape = new StefanFish(       sim, ffparser, center);
       else if (objectName=="cstartfish")
