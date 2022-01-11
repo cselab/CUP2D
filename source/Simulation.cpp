@@ -311,11 +311,12 @@ void Simulation::startObstacles()
   Checker check (sim);
 
   // put obstacles to grid and compress
-  if( sim.rank == 0 && sim.verbose )
+  if( sim.rank == 0 && sim.verbose && !sim.bRestart)
     std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   PutObjectsOnGrid * const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
   AdaptTheMesh * const adaptTheMesh = findOperator<AdaptTheMesh>();
   assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
+  if( not sim.bRestart )
   for( int i = 0; i<sim.levelMax; i++ )
   {
     (*putObjectsOnGrid)(0.0);
@@ -324,10 +325,13 @@ void Simulation::startObstacles()
   (*putObjectsOnGrid)(0.0);
 
   // impose velocity of obstacles
-  if( sim.rank == 0 && sim.verbose )
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-  ApplyObjVel initVel(sim);
-  initVel(0);
+  if( not sim.bRestart )
+  {
+    if( sim.rank == 0 && sim.verbose )
+      std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+    ApplyObjVel initVel(sim);
+    initVel(0);
+  }
 }
 
 void Simulation::simulate() {
