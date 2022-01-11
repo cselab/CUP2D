@@ -123,11 +123,11 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
 
   if( sim.rank == 0 && sim.verbose )
   {
@@ -322,7 +322,6 @@ void Simulation::startObstacles()
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
   }
-  (*putObjectsOnGrid)(0.0);
 
   // impose velocity of obstacles
   if( not sim.bRestart )
@@ -486,7 +485,7 @@ void Simulation::advance(const Real dt)
     if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
-    sim.dumpAll("avemaria_"); 
+    sim.dumpAll("avemaria_");
   }
 
 }
