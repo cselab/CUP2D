@@ -165,6 +165,11 @@ class Shape
 
   virtual Real getMinRhoS() const;
 
+  //functions needed for restarting the simulation
+  virtual void outputSettings(std::ostream &outStream) const;
+  virtual void saveRestart( FILE * f );
+  virtual void loadRestart( FILE * f );
+
   struct Integrals {
     const Real x, y, m, j, u, v, a;
     Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a) :

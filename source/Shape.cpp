@@ -376,3 +376,44 @@ Shape::~Shape()
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
 }
+
+//functions needed for restarting the simulation
+
+void Shape::outputSettings(std::ostream &outStream) const
+{
+  outStream << "centerX " << center[0] << "\n";
+  outStream << "centerY " << center[1] << "\n";
+  outStream << "centerMassX " << centerOfMass[0] << "\n";
+  outStream << "centerMassY " << centerOfMass[1] << "\n";
+  outStream << "orientation " << orientation << "\n";
+  outStream << "rhoS " << rhoS << "\n";
+}
+
+void Shape::saveRestart( FILE * f ){
+  assert(f != NULL);
+  fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
+  fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );
+  fprintf(f, "xlab:  %20.20e\n", labCenterOfMass[0]);
+  fprintf(f, "ylab:  %20.20e\n", labCenterOfMass[1]);
+  fprintf(f, "u:     %20.20e\n", u                 );
+  fprintf(f, "v:     %20.20e\n", v                 );
+  fprintf(f, "omega: %20.20e\n", omega             );
+}
+
+void Shape::loadRestart( FILE * f ){
+  assert(f != NULL);
+  bool ret = true;
+  ret = ret && 1==fscanf(f, "x:     %le\n", &centerOfMass[0]   );
+  ret = ret && 1==fscanf(f, "y:     %le\n", &centerOfMass[1]   );
+  ret = ret && 1==fscanf(f, "xlab:  %le\n", &labCenterOfMass[0]);
+  ret = ret && 1==fscanf(f, "ylab:  %le\n", &labCenterOfMass[1]);
+  ret = ret && 1==fscanf(f, "u:     %le\n", &u                 );
+  ret = ret && 1==fscanf(f, "v:     %le\n", &v                 );
+  ret = ret && 1==fscanf(f, "omega: %le\n", &omega             );
+  if( (not ret) ) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+  if (sim.rank == 0)
+    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", centerOfMass[0], centerOfMass[1], labCenterOfMass[0], labCenterOfMass[1], u, v, omega);
+}
