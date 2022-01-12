@@ -54,7 +54,7 @@ void FishData::writeMidline2File(const int step_id, std::string filename)
 {
   char buf[500];
   sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
-  FILE * f = fopen(buf, "w");
+  FILE * f = fopen(buf, "a");
   fprintf(f, "s x y vX vY\n");
   for (int i=0; i<Nm; i++) {
     //dummy.changeToComputationalFrame(temp);

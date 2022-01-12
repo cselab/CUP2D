@@ -2,7 +2,7 @@ CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
 LIBS+= -fopenmp
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations #-Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls

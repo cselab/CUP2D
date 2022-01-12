@@ -6,7 +6,7 @@
 
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
-//#include <random>
+#include <random>
 using namespace cubism;
 
 void IC::operator()(const Real dt)
@@ -68,6 +68,92 @@ void IC::operator()(const Real dt)
       ScalarBlock& TMP  = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
+    }
+  }
+}
+
+void gaussianIC::operator()(const Real dt)
+{
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
+
+  const std::array<Real, 2> mean = {{ sim.extents[0]/2.0, sim.extents[1]/2.0 }};
+  const Real standardDeviation = sim.extent/5.0;
+  const Real variance = standardDeviation*standardDeviation;
+  const Real coeff = 1/(std::sqrt(2*M_PI)*standardDeviation);
+
+  #pragma omp parallel for
+  for (size_t i=0; i < velInfo.size(); i++)
+  {
+    VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      const auto pos = velInfo[i].pos<Real>(ix, iy);
+      VEL(ix,iy).u[0] = std::sin(pos[0]/2);//coeff*std::exp(-1/(2*variance)*(pos[0]-mean[0])*(pos[0]-mean[0]));
+      VEL(ix,iy).u[1] = 0.0;//coeff*std::exp(-1/(2*variance)*(pos[1]-mean[1])*(pos[1]-mean[1]));
+    }
+
+    VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
+    ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+    ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
+    ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
+    ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
+    VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+    VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
+  }
+}
+
+void randomIC::operator()(const Real dt)
+{
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
+
+  const Real Re = 1/sim.nu;
+  const Real lambda = 0.1;
+
+  #pragma omp parallel
+  {
+    std::random_device seed;
+    std::mt19937 gen(seed());
+    std::normal_distribution<Real> dist(0.0, 0.01);
+
+    #pragma omp for
+    for (size_t i=0; i < velInfo.size(); i++)
+    {
+      VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        const auto pos = velInfo[i].pos<Real>(ix, iy);
+
+        // VEL(ix,iy).u[0] = -Re/(Re*Re*lambda*lambda+sim.forcingWavenumber)*std::sin(sim.forcingWavenumber*pos[1])+lambda*Re*Re/(sim.forcingWavenumber*(Re*Re*lambda*lambda+sim.forcingWavenumber*sim.forcingWavenumber))*std::cos(sim.forcingWavenumber*pos[1]);//+dist(gen);
+        // VEL(ix,iy).u[1] = -lambda;//+dist(gen)+std::cos(sim.forcingWavenumber*pos[0]);
+
+        VEL(ix,iy).u[0] = 0.5+dist(gen);
+        VEL(ix,iy).u[1] = 0.5+dist(gen);
+
+        // VEL(ix,iy).u[0] = 1/(sim.forcingWavenumber*sim.forcingWavenumber*sim.nu)*std::cos(sim.forcingWavenumber*pos[1]);//+dist(gen);
+        // VEL(ix,iy).u[1] = 0.0;//+dist(gen)+std::cos(sim.forcingWavenumber*pos[0]);
+      }
+
+      VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
+      ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+      ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
+      ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
+      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
+      VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+      VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
     }
   }
 }

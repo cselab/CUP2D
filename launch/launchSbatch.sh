@@ -8,15 +8,15 @@ cd ${FOLDERNAME}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=s929
+#SBATCH --account=eth2
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --time=24:00:00
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
-#SBATCH --nodes=8
-#SBATCH --ntasks-per-node=12
+#SBATCH --nodes=32
+#SBATCH --ntasks-per-node=36
 #SBATCH --cpus-per-task=1
-#SBATCH --constraint=gpu
+#SBATCH --constraint=mc
 export OMP_NUM_THREADS=1
 
 srun ./simulation ${OPTIONS} -shapes "${OBJECTS}"

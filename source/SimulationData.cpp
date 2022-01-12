@@ -177,7 +177,6 @@ void SimulationData::dumpAll(std::string name)
   //dumpUdef(name);
   //dumpTmpV(name);
   //dumpVold(name);
-
   stopProfiler();
 }
 

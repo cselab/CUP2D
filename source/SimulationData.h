@@ -63,6 +63,17 @@ struct SimulationData
   // kinematic viscosity
   Real nu;
   
+  // forcing
+  bool bForcing;
+  Real forcingWavenumber;
+  Real forcingCoefficient;
+
+  // Flag to simulate Burgers equation
+  bool bBurgers;
+
+  // Flag for initial conditions
+  std::string ic;
+
   // poisson solver parameters
   std::string poissonSolver;  // iterative or fftw_dirichlet
   Real fftwPoissonTol;  // see Poisson/Base.cpp

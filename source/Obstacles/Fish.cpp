@@ -28,6 +28,9 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   myFish->computeSurface();
   profile(pop_stop());
 
+  if( sim.rank == 0 && sim.bDump() )
+    myFish->writeMidline2File(0, "appending");
+
   //// 2) Integrate Linear and Angular Momentum and shift Fish accordingly
   profile(push_start("2dmoments"));
   // returns area, CoM_internal, vCoM_internal:

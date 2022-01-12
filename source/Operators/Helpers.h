@@ -49,6 +49,30 @@ class IC : public Operator
   }
 };
 
+class gaussianIC : public Operator
+{
+  public:
+  gaussianIC(SimulationData& s) : Operator(s) { }
+
+  void operator()(const Real dt);
+
+  std::string getName() {
+    return "gaussianIC";
+  }
+};
+
+class randomIC : public Operator
+{
+  public:
+  randomIC(SimulationData& s) : Operator(s) { }
+
+  void operator()(const Real dt);
+
+  std::string getName() {
+    return "randomIC";
+  }
+};
+
 class ApplyObjVel : public Operator
 {
   public:
