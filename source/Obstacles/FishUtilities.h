@@ -168,7 +168,7 @@ struct ParameterScheduler
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    savestream.open(filename+".txt");
+    savestream.open(filename);
 
     savestream << t0 << "\t" << t1 << std::endl;
     for(int i=0;i<Npoints;++i)
@@ -181,7 +181,7 @@ struct ParameterScheduler
   void restart(std::string filename)
   {
     std::ifstream restartstream;
-    restartstream.open(filename+".txt");
+    restartstream.open(filename);
     restartstream >> t0 >> t1;
     for(int i=0;i<Npoints;++i)
     restartstream >> parameters_t0[i] >> parameters_t1[i] >> dparameters_t0[i];

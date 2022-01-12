@@ -6,6 +6,7 @@
 
 #include "StefanFish.h"
 #include <sstream>
+#include <iomanip>
 
 using namespace cubism;
 
@@ -15,6 +16,27 @@ void StefanFish::resetAll() {
   cFish->resetAll();
   Fish::resetAll();
 }
+
+void StefanFish::saveRestart( FILE * f ) {
+  assert(f != NULL);
+  Fish::saveRestart(f);
+  CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step;
+  cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
+}
+
+void StefanFish::loadRestart( FILE * f ) {
+  assert(f != NULL);
+  Fish::loadRestart(f);
+  CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step;
+  cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
+}
+
 
 StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, Real C[2]):
  Fish(s,p,C), bCorrectTrajectory(p("-pid").asInt(0)),
