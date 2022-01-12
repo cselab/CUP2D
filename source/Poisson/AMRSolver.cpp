@@ -251,22 +251,22 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 
     if (k==0)
     {
-    rho_m1 = rho;
-    rho = 0.0;
-    norm = 0;
-    norm_1 = 0;
-    norm_2 = 0;
-    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
-    for(size_t i=0; i< N; i++)
-    {
-      rho    += r[i] * rhat[i];
-      norm_1 += r[i] * r[i];
-      norm_2 += rhat[i] * rhat[i];
-      #pragma omp critical
-      norm = std::max(norm,std::fabs(r[i]));
-    }      
+      rho_m1 = rho;
+      rho = 0.0;
+      norm = 0;
+      norm_1 = 0;
+      norm_2 = 0;
+      #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
+      for(size_t i=0; i< N; i++)
+      {
+        rho    += r[i] * rhat[i];
+        norm_1 += r[i] * r[i];
+        norm_2 += rhat[i] * rhat[i];
+        #pragma omp critical
+        norm = std::max(norm,std::fabs(r[i]));
+      }
+      MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
     }
-    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
     if (norm < min_norm)
     {
       norm_opt = norm;
@@ -424,6 +424,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         norm = std::max(norm,std::fabs(r[j]));
       }
     }
+    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
 
     if (norm / (init_norm + 1e-21) > 1e10)
     {
