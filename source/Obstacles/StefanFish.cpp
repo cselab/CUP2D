@@ -23,7 +23,7 @@ void StefanFish::saveRestart( FILE * f ) {
   Fish::saveRestart(f);
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
-  ss<<std::setfill('0')<<std::setw(7)<<sim.step;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step<<"_"<<obstacleID<<"_";
   cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
   cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
 }
@@ -33,7 +33,7 @@ void StefanFish::loadRestart( FILE * f ) {
   Fish::loadRestart(f);
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
-  ss<<std::setfill('0')<<std::setw(7)<<sim.step;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step<<"_"<<obstacleID<<"_";
   cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
   cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
 }
