@@ -203,3 +203,22 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo>& vInfo)
   }
   #endif
 }
+
+void Fish::saveRestart( FILE * f ) {
+  assert(f != NULL);
+  Shape::saveRestart(f);
+  fprintf(f, "theta_internal: %20.20e\n", theta_internal );
+  fprintf(f, "angvel_internal: %20.20e\n", angvel_internal );
+}
+
+void Fish::loadRestart( FILE * f ) {
+  assert(f != NULL);
+  Shape::loadRestart(f);
+  bool ret = true;
+  ret = ret && 1==fscanf(f, "theta_internal: %le\n", &theta_internal );
+  ret = ret && 1==fscanf(f, "angvel_internal: %le\n", &angvel_internal );
+  if( (not ret) ) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+}
