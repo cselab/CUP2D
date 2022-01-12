@@ -48,6 +48,12 @@ void SimulationData::allocateGrid()
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
+  if (velInfo.size() == 0)
+  {
+    std::cout << "You are using too many MPI ranks for the given initial number of blocks.";
+    std::cout << "Either increase levelStart or reduce the number of ranks." << std::endl;
+    MPI_Abort(chi->getWorldComm(),1);
+  }
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
