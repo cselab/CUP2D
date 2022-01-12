@@ -17,7 +17,6 @@ class PressureSingle : public Operator
 {
   std::shared_ptr<PoissonSolver> pressureSolver;
 
-  bool detectCollidingObstacles() const;
   void preventCollidingObstacles() const;
   void pressureCorrection(const Real dt);
   void integrateMomenta(Shape * const shape) const;

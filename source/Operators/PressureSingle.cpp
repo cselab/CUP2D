@@ -453,62 +453,6 @@ struct updatePressureRHS1
   }
 };
 
-
-bool PressureSingle::detectCollidingObstacles() const
-{
-  // boolean indicating whether there was a collision
-  bool bCollision = false;
-
-  // get shapes present in simulation
-  const auto& shapes = sim.shapes;
-  const size_t N = shapes.size();
-
-  // collisions are symmetric, so only iterate over each pair once
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i<N; ++i)
-  for (size_t j=i+1; j<N; ++j)
-  {
-    // get obstacle blocks for both obstacles
-    const auto& iBlocks = shapes[i]->obstacleBlocks;
-    const auto& jBlocks = shapes[j]->obstacleBlocks;
-    assert(iBlocks.size() == jBlocks.size());
-
-    // iterate over obstacle blocks
-    const size_t nBlocks = iBlocks.size();
-    for (size_t k=0; k<nBlocks; ++k)
-    {
-      // If one of the two shapes does not occupy this block, continue
-      if ( iBlocks[k] == nullptr || jBlocks[k] == nullptr ) continue;
-
-      // Get characteristic function of candidate blocks
-      const CHI_MAT & iChi  = iBlocks[k]->chi,  & jChi  = jBlocks[k]->chi;
-
-      // Iterate over cells in candidate block
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        // If one of the two shapes does not occupy this cell, continue
-        if(iChi[iy][ix] <= 0 || jChi[iy][ix] <= 0 ) continue;
-
-        //// collision!
-        // get location of collision
-        const auto pos = velInfo[k].pos<Real>(ix, iy);
-
-        // Output collision information
-        printf("[CUP2D, rank %u] %lu hit %lu in [%f %f]\n", sim.rank, i, j, (double)pos[0], (double)pos[1]); fflush(0);
-
-        // set boolean to true and tell user
-        bCollision = true;
-      }
-    }
-  }
-  // Reduction to all ranks
-  MPI_Allreduce(MPI_IN_PLACE, &bCollision, 1, MPI_C_BOOL, MPI_LOR, sim.chi->getCartComm());
-
-  // Return collision status
-  return bCollision;
-}
-
 void PressureSingle::preventCollidingObstacles() const
 {
     const auto& shapes = sim.shapes;
@@ -848,8 +792,8 @@ void PressureSingle::operator()(const Real dt)
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      const Real dpdt = 2.0*(PRES(ix,iy).s - POLD(ix,iy).s)/(sim.dt_old+ sim.dt_old2);
-      correction[kkk] = 0.5*dpdt*(sim.dt+sim.dt_old)*.5;
+      const Real dpdt = (2.0*(PRES(ix,iy).s - POLD(ix,iy).s))/(sim.dt_old+ sim.dt_old2);
+      correction[kkk] = ((0.5*dpdt)*(sim.dt+sim.dt_old))*.5;
       kkk ++;
     }
   }
@@ -874,8 +818,6 @@ void PressureSingle::operator()(const Real dt)
     shape->updateVelocity(dt);
   }
   // take care if two obstacles collide
-  // preventCollidingObstacles(); (needs to be fixed)
-  sim.bCollision = detectCollidingObstacles();
   preventCollidingObstacles();
 
   // apply penalisation force
