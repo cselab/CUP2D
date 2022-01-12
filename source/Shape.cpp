@@ -379,7 +379,6 @@ Shape::~Shape()
 
 //functions needed for restarting the simulation
 void Shape::saveRestart( FILE * f ) {
-  if (sim.rank != 0) return;
   assert(f != NULL);
   fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
   fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );

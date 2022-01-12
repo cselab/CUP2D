@@ -18,7 +18,6 @@ void StefanFish::resetAll() {
 }
 
 void StefanFish::saveRestart( FILE * f ) {
-  if (sim.rank != 0) return;
   assert(f != NULL);
   Fish::saveRestart(f);
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );

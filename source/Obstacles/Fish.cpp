@@ -205,7 +205,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo>& vInfo)
 }
 
 void Fish::saveRestart( FILE * f ) {
-  if (sim.rank != 0) return;
   assert(f != NULL);
   Shape::saveRestart(f);
   fprintf(f, "theta_internal: %20.20e\n", theta_internal );
