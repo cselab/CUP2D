@@ -6,8 +6,11 @@
 
 #include "StefanFish.h"
 #include <sstream>
+#include <iomanip>
 
 using namespace cubism;
+
+//bool TperiodPID = false;
 
 void StefanFish::resetAll() {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
@@ -15,6 +18,64 @@ void StefanFish::resetAll() {
   cFish->resetAll();
   Fish::resetAll();
 }
+
+void StefanFish::saveRestart( FILE * f ) {
+  assert(f != NULL);
+  Fish::saveRestart(f);
+  CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step<<"_"<<obstacleID<<"_";
+  cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
+
+  //Save these numbers for PID controller and other stuff. Maybe not all of them are needed
+  //but we don't care, it's only a few numbers.
+  fprintf(f, "curv_PID_fac: %20.20e\n", cFish->curv_PID_fac);
+  fprintf(f, "curv_PID_dif: %20.20e\n", cFish->curv_PID_dif);
+  fprintf(f, "avgDeltaY   : %20.20e\n", cFish->avgDeltaY   );
+  fprintf(f, "avgDangle   : %20.20e\n", cFish->avgDangle   );
+  fprintf(f, "avgAngVel   : %20.20e\n", cFish->avgAngVel   );
+  fprintf(f, "lastTact    : %20.20e\n", cFish->lastTact    );
+  fprintf(f, "lastCurv    : %20.20e\n", cFish->lastCurv    );
+  fprintf(f, "oldrCurv    : %20.20e\n", cFish->oldrCurv    );
+  fprintf(f, "periodPIDval: %20.20e\n", cFish->periodPIDval);
+  fprintf(f, "periodPIDdif: %20.20e\n", cFish->periodPIDdif);
+  fprintf(f, "time0       : %20.20e\n", cFish->time0       );
+  fprintf(f, "timeshift   : %20.20e\n", cFish->timeshift   );
+  fprintf(f, "lastTime    : %20.20e\n", cFish->lastTime    );
+  fprintf(f, "lastAvel    : %20.20e\n", cFish->lastAvel    );
+}
+
+void StefanFish::loadRestart( FILE * f ) {
+  assert(f != NULL);
+  Fish::loadRestart(f);
+  CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<sim.step<<"_"<<obstacleID<<"_";
+  cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
+
+  bool ret = true;
+  ret = ret && 1==fscanf(f, "curv_PID_fac: %le\n", &cFish->curv_PID_fac);
+  ret = ret && 1==fscanf(f, "curv_PID_dif: %le\n", &cFish->curv_PID_dif);
+  ret = ret && 1==fscanf(f, "avgDeltaY   : %le\n", &cFish->avgDeltaY   );
+  ret = ret && 1==fscanf(f, "avgDangle   : %le\n", &cFish->avgDangle   );
+  ret = ret && 1==fscanf(f, "avgAngVel   : %le\n", &cFish->avgAngVel   );
+  ret = ret && 1==fscanf(f, "lastTact    : %le\n", &cFish->lastTact    );
+  ret = ret && 1==fscanf(f, "lastCurv    : %le\n", &cFish->lastCurv    );
+  ret = ret && 1==fscanf(f, "oldrCurv    : %le\n", &cFish->oldrCurv    );
+  ret = ret && 1==fscanf(f, "periodPIDval: %le\n", &cFish->periodPIDval);
+  ret = ret && 1==fscanf(f, "periodPIDdif: %le\n", &cFish->periodPIDdif);
+  ret = ret && 1==fscanf(f, "time0       : %le\n", &cFish->time0       );
+  ret = ret && 1==fscanf(f, "timeshift   : %le\n", &cFish->timeshift   );
+  ret = ret && 1==fscanf(f, "lastTime    : %le\n", &cFish->lastTime    );
+  ret = ret && 1==fscanf(f, "lastAvel    : %le\n", &cFish->lastAvel    );
+  if( (not ret) ) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+}
+
 
 StefanFish::StefanFish(SimulationData&s, ArgumentParser&p, Real C[2]):
  Fish(s,p,C), bCorrectTrajectory(p("-pid").asInt(0)),

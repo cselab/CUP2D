@@ -378,18 +378,7 @@ Shape::~Shape()
 }
 
 //functions needed for restarting the simulation
-
-void Shape::outputSettings(std::ostream &outStream) const
-{
-  outStream << "centerX " << center[0] << "\n";
-  outStream << "centerY " << center[1] << "\n";
-  outStream << "centerMassX " << centerOfMass[0] << "\n";
-  outStream << "centerMassY " << centerOfMass[1] << "\n";
-  outStream << "orientation " << orientation << "\n";
-  outStream << "rhoS " << rhoS << "\n";
-}
-
-void Shape::saveRestart( FILE * f ){
+void Shape::saveRestart( FILE * f ) {
   assert(f != NULL);
   fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
   fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );
@@ -398,9 +387,16 @@ void Shape::saveRestart( FILE * f ){
   fprintf(f, "u:     %20.20e\n", u                 );
   fprintf(f, "v:     %20.20e\n", v                 );
   fprintf(f, "omega: %20.20e\n", omega             );
+  fprintf(f, "orientation: %20.20e\n", orientation );
+  fprintf(f, "d_gm0: %20.20e\n", d_gm[0] );
+  fprintf(f, "d_gm1: %20.20e\n", d_gm[1] );
+  fprintf(f, "center0: %20.20e\n", center[0] );
+  fprintf(f, "center1: %20.20e\n", center[1] );
+  //maybe center0,center1,d_gm0,d_gm1 are not all needed, but it's only four numbers so we might
+  //as well dump them
 }
 
-void Shape::loadRestart( FILE * f ){
+void Shape::loadRestart( FILE * f ) {
   assert(f != NULL);
   bool ret = true;
   ret = ret && 1==fscanf(f, "x:     %le\n", &centerOfMass[0]   );
@@ -410,6 +406,11 @@ void Shape::loadRestart( FILE * f ){
   ret = ret && 1==fscanf(f, "u:     %le\n", &u                 );
   ret = ret && 1==fscanf(f, "v:     %le\n", &v                 );
   ret = ret && 1==fscanf(f, "omega: %le\n", &omega             );
+  ret = ret && 1==fscanf(f, "orientation: %le\n", &orientation );
+  ret = ret && 1==fscanf(f, "d_gm0: %le\n", &d_gm[0] );
+  ret = ret && 1==fscanf(f, "d_gm1: %le\n", &d_gm[1] );
+  ret = ret && 1==fscanf(f, "center0: %le\n", &center[0] );
+  ret = ret && 1==fscanf(f, "center1: %le\n", &center[1] );
   if( (not ret) ) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();

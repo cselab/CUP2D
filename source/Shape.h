@@ -166,7 +166,6 @@ class Shape
   virtual Real getMinRhoS() const;
 
   //functions needed for restarting the simulation
-  virtual void outputSettings(std::ostream &outStream) const;
   virtual void saveRestart( FILE * f );
   virtual void loadRestart( FILE * f );
 

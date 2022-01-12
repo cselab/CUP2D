@@ -182,6 +182,7 @@ void SimulationData::dumpAll(std::string name)
 
 void SimulationData::writeRestartFiles()
 {
+  if (rank != 0) return;
   // write restart file for field
   FILE * fField = fopen("field.restart", "w");
   if (fField == NULL) {

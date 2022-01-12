@@ -33,7 +33,8 @@ class StefanFish: public Fish
   std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
 
   std::array<Real, 2> getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const;
-
+  virtual void saveRestart( FILE * f ) override;
+  virtual void loadRestart( FILE * f ) override;
 };
 
 class CurvatureFish : public FishData
@@ -62,6 +63,11 @@ class CurvatureFish : public FishData
   Real lastTime = 0;
   Real lastAvel = 0;
 
+  // next scheduler is used to ramp-up the curvature from 0 during first period:
+  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
+  // next scheduler is used for midline-bending control points for RL:
+  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+
  protected:
   Real * const rK;
   Real * const vK;
@@ -70,10 +76,6 @@ class CurvatureFish : public FishData
   Real * const rB;
   Real * const vB;
 
-  // next scheduler is used to ramp-up the curvature from 0 during first period:
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  // next scheduler is used for midline-bending control points for RL:
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
  public:
 
   CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
@@ -129,13 +131,13 @@ class CurvatureFish : public FishData
     TperiodPID = true;
   }
 
-// Execute takes as arguments the current simulation time and the time
-// the RL action should have actually started. This is important for the midline
-// bending because it relies on matching the splines with the half period of
-// the sinusoidal describing the swimming motion (in order to exactly amplify
-// or dampen the undulation). Therefore, for Tp=1, t_rlAction might be K * 0.5
-// while t_current would be K * 0.5 plus a fraction of the timestep. This
-// because the new RL discrete step is detected as soon as t_current>=t_rlAction
+  // Execute takes as arguments the current simulation time and the time
+  // the RL action should have actually started. This is important for the midline
+  // bending because it relies on matching the splines with the half period of
+  // the sinusoidal describing the swimming motion (in order to exactly amplify
+  // or dampen the undulation). Therefore, for Tp=1, t_rlAction might be K * 0.5
+  // while t_current would be K * 0.5 plus a fraction of the timestep. This
+  // because the new RL discrete step is detected as soon as t_current>=t_rlAction
   void execute(const Real t_current, const Real t_rlAction,
                               const std::vector<Real>&a)
   {
