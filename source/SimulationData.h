@@ -110,8 +110,8 @@ struct SimulationData
   Real uinfy = 0;
   Real uinfx_old = 0;
   Real uinfy_old = 0;
-  Real dt_old;
-  Real dt_old2;
+  Real dt_old = 1e10;//need to initialize to a big value so that restarting does not
+  Real dt_old2 = 1e10;//break when these are used in PressureSingle.cpp
 
   // largest velocity measured
   Real uMax_measured = 0;
@@ -162,11 +162,16 @@ struct SimulationData
   void stopProfiler();
   void printResetProfiler();
 
+  void writeRestartFiles();
+  void readRestartFiles();
+
   void dumpChi   (std::string name);
   void dumpPres  (std::string name);
   void dumpTmp   (std::string name);
   void dumpVel   (std::string name);
-  void dumpUobj  (std::string name);
+  void dumpUdef  (std::string name);
+  void dumpVold  (std::string name);
+  void dumpPold  (std::string name);
   void dumpTmpV  (std::string name);
   void dumpAll   (std::string name);
 };

@@ -429,7 +429,14 @@ void Simulation::advance(const Real dt)
     sim.dumpAll("IC");
   }
 
+  // dump field
   const bool bDump = sim.bDump();
+  if( bDump ) {
+    if( sim.rank == 0 && sim.verbose )
+      std::cout << "[CUP2D] dumping field...\n";
+    sim.registerDump();
+    sim.dumpAll("avemaria_");
+  }
 
   // For debuging state function LEAD-FOLLOW
   // Shape *object = getShapes()[0];
@@ -469,23 +476,12 @@ void Simulation::advance(const Real dt)
   // std::cout << "Total reward: " << r << std::endl;
   // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
 
-  for (size_t c=0; c<pipeline.size(); c++) {
-    //if (pipeline.size()-2 == c) continue;
+  for (size_t c=0; c<pipeline.size(); c++)
+  {
     if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
     (*pipeline[c])(dt);
-    //sim.dumpAll( pipeline[c]->getName() );
   }
-
   sim.time += dt;
   sim.step++;
-
-  // dump field
-  if( bDump ) {
-    if( sim.rank == 0 && sim.verbose )
-      std::cout << "[CUP2D] dumping field...\n";
-    sim.registerDump();
-    sim.dumpAll("avemaria_");
-  }
-
 }
