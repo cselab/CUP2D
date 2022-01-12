@@ -256,13 +256,12 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
       norm = 0;
       norm_1 = 0;
       norm_2 = 0;
-      #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
+      #pragma omp parallel for reduction(+:rho,norm_1,norm_2)reduction(max:norm)
       for(size_t i=0; i< N; i++)
       {
         rho    += r[i] * rhat[i];
         norm_1 += r[i] * r[i];
         norm_2 += rhat[i] * rhat[i];
-        #pragma omp critical
         norm = std::max(norm,std::fabs(r[i]));
       }
       MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
@@ -405,7 +404,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     norm_1 = 0.0;
     norm_2 = 0.0;
     norm = 0;
-    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
+    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)reduction(max:norm)
     for (size_t i=0; i < Nblocks; i++)
     {
       const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
@@ -420,7 +419,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         rho    += r[j] * rhat[j];
         norm_1 += r[j] * r[j];
         norm_2 += rhat[j] * rhat[j];
-        #pragma omp critical
         norm = std::max(norm,std::fabs(r[j]));
       }
     }
