@@ -1,34 +1,13 @@
-from base import TestCase
-import cubismup2d as cup2d
+from base import TestCase, TestSimulation, cup2d
 
-import numpy as np
-
-class TestSimulation(TestCase):
-    def test_field_load_uniform(self):
-        sim = cup2d.Simulation(cells=(128, 64), nlevels=1)
-        sim.init()
-
-        # Test scalar.
-        tmp = np.random.uniform(0.0, 1.0, (64, 128))  # (y, x)
-        sim.fields.chi.load_uniform(tmp)
-        self.assertArrayEqual(tmp, sim.fields.chi.to_uniform())
-        with self.assertRaises(TypeError):
-            sim.fields.chi.load_uniform(tmp.T)  # Wrong shape.
-
-        # Test vector.
-        tmp = np.random.uniform(0.0, 1.0, (64, 128, 2))  # (y, x, channel)
-        sim.fields.vel.load_uniform(tmp)
-        self.assertArrayEqual(tmp, sim.fields.vel.to_uniform())
-        with self.assertRaises(TypeError):
-            sim.fields.vel.load_uniform(tmp.T)  # Wrong shape.
-
+class TestSimulationCase(TestCase):
     def test_nsteps(self):
         cnt = [0]
         class TestOperator(cup2d.Operator):
             def __call__(self, dt: float):
                 cnt[0] += 1
 
-        sim = cup2d.Simulation(cells=(64, 64), nlevels=1)
+        sim = TestSimulation(cells=(64, 64), nlevels=1)
         sim.insert_operator(TestOperator(sim))
         sim.init()
         sim.simulate(nsteps=3)
@@ -40,7 +19,7 @@ class TestSimulation(TestCase):
             def __call__(self, dt: float):
                 dts.append(dt)
 
-        sim = cup2d.Simulation(cells=(64, 64), nlevels=1, extent=100.0)
+        sim = TestSimulation(cells=(64, 64), nlevels=1, extent=100.0)
         sim.add_shape(cup2d.Disk(sim, r=15.0, center=(40.0, 30.0)))
         sim.insert_operator(TestOperator(sim))
         sim.init()
@@ -51,7 +30,7 @@ class TestSimulation(TestCase):
         # time step does not run unnecessarily.
         first_dt = dts[0]
         dts.clear()
-        sim = cup2d.Simulation(cells=(64, 64), nlevels=1, extent=100.0)
+        sim = TestSimulation(cells=(64, 64), nlevels=1, extent=100.0)
         sim.add_shape(cup2d.Disk(sim, r=15.0, center=(40.0, 30.0)))
         sim.insert_operator(TestOperator(sim))
         sim.init()

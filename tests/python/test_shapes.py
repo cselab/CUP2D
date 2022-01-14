@@ -1,5 +1,4 @@
-from base import TestCase
-import cubismup2d as cup2d
+from base import TestCase, TestSimulation, cup2d
 
 import numpy as np
 
@@ -23,8 +22,7 @@ class TestShapes(TestCase):
         }
 
     def test_disk(self):
-        sim = cup2d.Simulation(cells=(64, 32), nlevels=4, start_level=1,
-                               extent=100.0)
+        sim = TestSimulation(cells=(64, 32), nlevels=4, start_level=1, extent=100.0)
         disk = cup2d.Disk(sim, r=5.0, center=(40.0, 20.0))
         sim.add_shape(disk)
         sim.init()

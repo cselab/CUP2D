@@ -60,6 +60,7 @@ policies/*
 runs/
 test_*
 tests/python/output/
+tests/python/*.restart
 !tests/python/test_*
 
 *.swo
