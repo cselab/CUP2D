@@ -380,19 +380,15 @@ Real Simulation::calcMaxTimestep()
     
     //non-constant timestep introduces a source term = (1-dt_new/dt_old) \nabla^2 P_{old}
     //in the Poisson equation. Thus, we try to modify the timestep less often
-    const Real candidate_dt = std::min({dtDiffusion, CFL * dtAdvection});
-
-    if (sim.step <= 1) sim.dt = candidate_dt;
-    if ( (candidate_dt-sim.dt)/sim.dt > 0.01) sim.dt = candidate_dt; //if timestep changes more than 1%
-
-    const Real CFL_current = sim.dt*sim.uMax_measured/h;
-    if (CFL_current > 1) sim.dt = candidate_dt;
-
     if (sim.step < sim.rampup)
     {
       const Real x = (sim.step + 1.0)/sim.rampup;
       const Real rampupFactor = std::exp(std::log(1e-3)*(1-x));
       sim.dt = rampupFactor*std::min({ dtDiffusion, CFL * dtAdvection});
+    }
+    else
+    {
+      sim.dt = std::min({ dtDiffusion, CFL * dtAdvection});
     }
   }
 
