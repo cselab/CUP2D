@@ -152,3 +152,97 @@ class computeQ : public Operator
   }
 };
 
+struct KernelDivergence
+{
+  KernelDivergence(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  void operator()(VectorLab & lab, const cubism::BlockInfo& info) const
+  {
+    const Real h = info.h;
+    const Real facDiv = 0.5*h;
+    auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      TMP(ix, iy).s  =   facDiv*( (lab(ix+1,iy).u[0] -  lab(ix-1,iy).u[0]) +  (lab(ix,iy+1).u[1] -  lab(ix,iy-1).u[1]));
+    cubism::BlockCase<ScalarBlock> * tempCase = (cubism::BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    ScalarBlock::ElementType * faceXm = nullptr;
+    ScalarBlock::ElementType * faceXp = nullptr;
+    ScalarBlock::ElementType * faceYm = nullptr;
+    ScalarBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        faceXm[iy].s  =  facDiv                *( lab(ix-1,iy).u[0] +  lab(ix,iy).u[0]) ;
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = VectorBlock::sizeX-1;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        faceXp[iy].s  = -facDiv               *( lab(ix+1,iy).u[0] +  lab(ix,iy).u[0]);
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        faceYm[ix].s  =  facDiv               *( lab(ix,iy-1).u[1] +  lab(ix,iy).u[1]);
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = VectorBlock::sizeY-1;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+        faceYp[ix].s  = -facDiv               *( lab(ix,iy+1).u[1] +  lab(ix,iy).u[1]);
+    }
+  }
+};
+
+class computeDivergence : public Operator
+{
+ public:
+  computeDivergence(SimulationData& s) : Operator(s){ }
+
+  void operator()(const Real dt)
+  {
+
+    const KernelDivergence mykernel(sim);
+    compute<KernelDivergence,VectorGrid,VectorLab,ScalarGrid>(mykernel,*sim.vel,true,sim.tmp);
+    #if 0
+    Real total = 0.0;
+    Real abs   = 0.0;
+    for (auto & info: sim.tmp->getBlocksInfo())
+    {
+      auto & TMP = *(ScalarBlock*) info.ptrBlock;
+      for(int y=0; y<VectorBlock::sizeY; ++y)
+      for(int x=0; x<VectorBlock::sizeX; ++x)
+      {
+        abs   += std::fabs(TMP(x,y).s);
+        total += TMP(x,y).s;
+      }
+    }
+    Real sendbuf[2]={total,abs};
+    Real recvbuf[2];
+    MPI_Reduce(sendbuf, recvbuf, 2, MPI_Real, MPI_SUM, 0, sim.chi->getCartComm());
+    if (sim.rank == 0)
+    {
+      ofstream myfile;
+      myfile.open ("div.txt",ios::app);
+      myfile << sim.step << " " << total << " " << abs << std::endl;
+      myfile.close();
+    }
+    #endif
+  }
+
+  std::string getName()
+  {
+    return "computeDivergence";
+  }
+};
