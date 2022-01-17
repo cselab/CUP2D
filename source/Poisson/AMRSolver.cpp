@@ -288,14 +288,12 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     rho = quantities[0]; norm_1 = quantities[1] ; norm_2 = quantities[2];
 
     Real beta = rho / (rho_m1+eps) * alpha / (omega+eps);
-    norm_1 = sqrt(norm_1);
-    norm_2 = sqrt(norm_2);
-
 
     //Check if restart should be made. If so, current solution estimate is used as an initial
     //guess and solver starts again.
-    const Real cosTheta = rho/norm_1/norm_2; 
-    serious_breakdown = std::fabs(cosTheta) < 1e-8;
+    // const Real cosTheta = rho/sqrt(norm_1*norm_2);
+    // serious_breakdown = std::fabs(cosTheta) < 1e-8;
+    serious_breakdown = rho * rho < 1e-16 * norm_1 * norm_2;
     if (serious_breakdown && restarts < max_restarts)
     {
       restarts ++;
