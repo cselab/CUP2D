@@ -69,6 +69,9 @@ void Shape::updateVelocity(Real dt)
     else
       v = forcedv;
   }
+
+  gsl_permutation_free(permgsl);
+  gsl_vector_free(xgsl);
   #endif
 }
 
