@@ -335,7 +335,7 @@ void Simulation::startObstacles()
 }
 
 void Simulation::simulate() {
-  if (sim.rank == 0)
+  if (sim.rank == 0 && !sim.muteAll)
     std::cout << kHorLine << "[CUP2D] Starting Simulation...\n" << std::flush;
 
   while (1)
@@ -353,7 +353,7 @@ void Simulation::simulate() {
 
     if (done)
     {
-      if (sim.rank == 0)
+      if (sim.rank == 0 && !sim.muteAll)
       {
         std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
         sim.printResetProfiler();
@@ -406,17 +406,11 @@ void Simulation::advance(const Real dt)
 {
 
   const Real CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
-  if (sim.rank == 0)
+  if (sim.rank == 0 && !sim.muteAll)
   {
     std::cout << kHorLine;
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
       sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
-  }
-
-  if( sim.step == 0 ){
-    if ( sim.rank == 0 && sim.verbose )
-      std::cout << "[CUP2D] dumping IC...\n";
-    sim.dumpAll("IC");
   }
 
   // dump field
