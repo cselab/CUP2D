@@ -55,6 +55,7 @@ add_subdirectory("${ROOT_DIR}/Cubism")
 # TODO: Add prefix to _BS_ and DIMENSION macros.
 target_compile_definitions(Cubism PUBLIC CUBISM_ALIGNMENT=32)
 target_compile_definitions(Cubism PUBLIC CUBISM_USE_HDF)
+target_compile_definitions(Cubism PUBLIC CUBISM_USE_MAP)
 target_compile_definitions(Cubism PUBLIC DIMENSION=2)
 target_compile_definitions(Cubism PUBLIC _BS_=${CUP2D_BLOCK_SIZE})
 
@@ -96,6 +97,7 @@ set(_PRIVATE_RELEASE_FLAGS
 target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
+                       $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
                        $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
 
 add_library(
@@ -140,6 +142,7 @@ target_link_libraries(${CORE} PUBLIC Cubism::Cubism)
 target_link_libraries(${CORE} PUBLIC GSL::gsl)
 target_link_libraries(${CORE} PUBLIC ${HDF5_LIBRARIES})
 target_include_directories(${CORE} PUBLIC ${HDF5_INCLUDE_DIRS})
+set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 set_property(TARGET ${CORE} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 if ("${CUP2D_PRECISION}" STREQUAL float)

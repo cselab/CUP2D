@@ -71,6 +71,7 @@ class Simulation(libcup2d._Simulation):
             output_dir: str = 'output/',
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
+            mute_all: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
         """
@@ -109,6 +110,7 @@ class Simulation(libcup2d._Simulation):
             '-file', output_dir,
             '-serialization', serialization_dir,
             '-verbose', verbose,
+            '-muteAll', mute_all,
             *argv,
         ]
         argv = [sanitize_arg(arg) for arg in argv]
