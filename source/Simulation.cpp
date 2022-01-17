@@ -177,6 +177,7 @@ void Simulation::parseRuntime()
   // timestep / CFL number
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
+  sim.rampup = parser("-rampup").asInt(0);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
@@ -339,16 +340,9 @@ void Simulation::simulate() {
 
   while (1)
 	{
-    // sim.startProfiler("DT");
     Real dt = calcMaxTimestep();
-    // sim.stopProfiler();
 
     bool done = false;
-    // Truncate the time step such that the total simulation time is `endTime`.
-    if (sim.endTime > 0 && sim.time + dt > sim.endTime) {
-      sim.dt = dt = sim.endTime - sim.time;
-      done = true;
-    }
 
     // Ignore the final time step if `dt` is way too small.
     if (!done || dt > 2e-16)
@@ -392,7 +386,14 @@ Real Simulation::calcMaxTimestep()
     if ( (candidate_dt-sim.dt)/sim.dt > 0.01) sim.dt = candidate_dt; //if timestep changes more than 1%
 
     const Real CFL_current = sim.dt*sim.uMax_measured/h;
-    if (CFL_current > 1) sim.dt = candidate_dt; 
+    if (CFL_current > 1) sim.dt = candidate_dt;
+
+    if (sim.step < sim.rampup)
+    {
+      const Real x = (sim.step + 1.0)/sim.rampup;
+      const Real rampupFactor = std::exp(std::log(1e-3)*(1-x));
+      sim.dt = rampupFactor*std::min({ dtDiffusion, CFL * dtAdvection});
+    }
   }
 
   if( sim.dt <= 0 ){

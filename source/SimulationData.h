@@ -49,6 +49,7 @@ struct SimulationData
   // timestep / cfl condition
   Real dt;
   Real CFL;
+  int rampup{0};
 
   // simulation ending parameters
   int nsteps;
