@@ -201,6 +201,7 @@ void SimulationData::writeRestartFiles()
   fprintf(fField, "stepid: %d\n",     step);
   fprintf(fField, "uinfx: %20.20e\n", uinfx);
   fprintf(fField, "uinfy: %20.20e\n", uinfy);
+  fprintf(fField, "dt: %20.20e\n", dt);
   fclose(fField);
 
   // write restart file for shapes
@@ -232,6 +233,7 @@ void SimulationData::readRestartFiles()
   ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
   ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &uinfx);
   ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &uinfy);
+  ret = ret && 1==fscanf(fField, "dt: %le\n",  &dt);
   fclose(fField);
   if( (not ret) || step<0 || time<0) {
     printf("Error reading restart file. Aborting...\n");
