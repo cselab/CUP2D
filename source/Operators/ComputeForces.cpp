@@ -52,6 +52,11 @@ struct KernelComputeForces
         const int ix = O->surface[k]->ix, iy = O->surface[k]->iy;
         const std::array<Real,2> p = info.pos<Real>(ix, iy);
 
+        const Real normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
+        const Real normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
+        const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
+        const Real dx = normX*norm;
+        const Real dy = normY*norm;
         //shear stresses
         //"lifted" surface: derivatives make no sense when the values used are in the object, 
         // so we take one-sided stencils with values outside of the object
@@ -63,12 +68,6 @@ struct KernelComputeForces
         Real DvDx;
         Real DvDy;
         {
-          const Real normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
-          const Real normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
-          const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
-          const Real dx = normX*norm;
-          const Real dy = normY*norm;
-
           //The integers x and y will be the coordinates of the point on the lifted surface.
           //To find them, we move along the normal vector to the surface, until we find a point
           //outside of the object (where chi = 0).
@@ -326,27 +325,32 @@ struct KernelComputeForces
         // Actually using the volume integral, since (/iint -P /hat{n} dS) =
         // (/iiint - /nabla P dV). Also, P*/nabla /Chi = /nabla P
         // penalty-accel and surf-force match up if resolution is high enough
-        const Real normX = O->surface[k]->dchidx; // *h^2 (alreadt pre-
-        const Real normY = O->surface[k]->dchidy; // -multiplied in dchidx/y)
         //const Real fXV = D11*normX + D12*normY, fXP = - P(ix,iy).s * normX;
         //const Real fYV = D12*normX + D22*normY, fYP = - P(ix,iy).s * normY;
         const Real fXV = NUoH*DuDx*normX + NUoH*DuDy*normY, fXP = - P(ix,iy).s * normX;
         const Real fYV = NUoH*DvDx*normX + NUoH*DvDy*normY, fYP = - P(ix,iy).s * normY;
 
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
+
         //store:
-        O-> P[k] = P(ix,iy).s;
-        O->pX[k] = p[0];
-        O->pY[k] = p[1];
-        O->fX[k] = fXT;
-        O->fY[k] = fYT;
-        O->vx[k] = V(ix,iy).u[0];
-        O->vy[k] = V(ix,iy).u[1];
-        O->vxDef[k] = O->udef[iy][ix][0];
-        O->vyDef[k] = O->udef[iy][ix][1];
+        O->x_s    [k] = p[0];
+        O->y_s    [k] = p[1];
+        O->p_s    [k] = P(ix,iy).s;
+        O->u_s    [k] = V(ix,iy).u[0];
+        O->v_s    [k] = V(ix,iy).u[1];
+        O->nx_s   [k] = dx;
+        O->ny_s   [k] = dy;
+        O->omega_s[k] = DvDx - DuDy;
+        O->uDef_s [k] = O->udef[iy][ix][0];
+        O->vDef_s [k] = O->udef[iy][ix][1];
+        O->fX_s   [k] = fXT;
+        O->fY_s   [k] = fYT;
+        O->fXv_s  [k] = fXV;
+        O->fYv_s  [k] = fYV;
+
         //perimeter:
         O->perimeter += std::sqrt(normX*normX + normY*normY);
-        O->circulation += normX * O->vy[k] - normY * O->vx[k];
+        O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
         //forces (total, visc, pressure):
         O->forcex += fXT;
         O->forcey += fYT;
@@ -366,9 +370,9 @@ struct KernelComputeForces
         O->lift   += forcePerp;
         //power output (and negative definite variant which ensures no elastic energy absorption)
         // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
-        const Real powOut = fXT * O->vx[k]    + fYT * O->vy[k];
+        const Real powOut = fXT * O->u_s[k]    + fYT * O->v_s[k];
         //deformation power output (and negative definite variant which ensures no elastic energy absorption)
-        const Real powDef = fXT * O->vxDef[k] + fYT * O->vyDef[k];
+        const Real powDef = fXT * O->uDef_s[k] + fYT * O->vDef_s[k];
         O->Pout        += powOut;
         O->defPower    += powDef;
         O->PoutBnd     += std::min((Real)0, powOut);

@@ -305,27 +305,25 @@ void Shape::computeForces()
 
   if(sim.dt <= 0) return;
 
-  #if 0
-  if (sim._bDump && not sim.muteAll && bDumpSurface)
+  if (not sim.muteAll && sim._bDump && bDumpSurface)
   {
-    std::stringstream ssF; ssF<<sim.path2file<<"/surface_"<<obstacleID
-      <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".raw";
-    std::ofstream pFile(ssF.str().c_str(), std::ofstream::binary);
+    std::stringstream s;
+    if (sim.rank == 0)
+      s << "x,y,p,u,v,nx,ny,omega,uDef,vDef,fX,fY,fXv,fYv\n"; 
     for(auto & block : obstacleBlocks) if(block not_eq nullptr)
-      block->print(pFile);
-    pFile.close();
+      block->fill_stringstream(s);
+    std::string st    = s.str();
+    MPI_Offset offset = 0;
+    MPI_Offset len    = st.size() * sizeof(char);
+    MPI_File surface_file;
+    std::stringstream ssF;
+    ssF<<sim.path2file<<"/surface_"<<obstacleID <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".csv";
+    MPI_File_delete(ssF.str().c_str(), MPI_INFO_NULL); // delete the file if it exists
+    MPI_File_open(sim.chi->getCartComm(), ssF.str().c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &surface_file);
+    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getCartComm());
+    MPI_File_write_at_all(surface_file, offset, st.data(), st.size(), MPI_CHAR, MPI_STATUS_IGNORE);
+    MPI_File_close(&surface_file);
   }
-  #else
-  if (sim._bDump && not sim.muteAll && bDumpSurface && sim.rank == 0)
-  {
-    std::stringstream ssF; ssF<<sim.path2file<<"/surface_"<<obstacleID
-      <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".csv";
-    std::ofstream pFile(ssF.str().c_str(), std::ofstream::out);
-    for(auto & block : obstacleBlocks) if(block not_eq nullptr)
-      block->printCSV(pFile);
-    pFile.close();
-  }
-  #endif
 
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
