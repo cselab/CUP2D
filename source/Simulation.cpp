@@ -417,12 +417,6 @@ void Simulation::advance(const Real dt)
       sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
   }
 
-  if( sim.step == 0 ){
-    if ( sim.rank == 0 && sim.verbose )
-      std::cout << "[CUP2D] dumping IC...\n";
-    sim.dumpAll("IC");
-  }
-
   // dump field
   const bool bDump = sim.bDump();
   if( bDump ) {
