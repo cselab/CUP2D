@@ -86,6 +86,7 @@ class ComputeLHS : public Operator
       Real mean = 0.0;
       std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
       const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
+      #pragma omp parallel for reduction(+:mean)
       for (size_t i = 0 ; i < lhsInfo.size() ; i++)
       {
        cubism::BlockInfo & info = lhsInfo[i];
