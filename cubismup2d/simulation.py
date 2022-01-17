@@ -64,6 +64,7 @@ class Simulation(libcup2d._Simulation):
             ctol: float = 0.1,
             extent: float = 1.0,
             cfl: float = 0.1,
+            dt: float = 0.0,
             nu: float = 0.001,
             brinkman_lambda: float = 1e6,
             fdump: int = 0,
@@ -80,6 +81,9 @@ class Simulation(libcup2d._Simulation):
             nlevels: number of levels, set to 1 for a uniform grid
             start_level: level at which the grid is initialized,
                          defaults to min(nlevels - 1, 3)
+            ...
+            cfl: (float) target CFL number for automatic dt
+            dt: (float) manual time step (only if `cfl == 0.0`)
             ...
             serialization_dir: folder containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
@@ -101,6 +105,7 @@ class Simulation(libcup2d._Simulation):
             '-Ctol', ctol,
             '-extent', extent,
             '-CFL', cfl,
+            '-dt', dt,
             '-nu', nu,
             '-lambda', brinkman_lambda,
             '-fdump', fdump,
