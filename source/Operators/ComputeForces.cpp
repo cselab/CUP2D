@@ -98,19 +98,22 @@ struct KernelComputeForces
           Real dvdy1 = normY > 0 ? (V(x,y+1).u[1]-V(x,y).u[1]) : (V(x,y).u[1]-V(x,y-1).u[1]);
           Real dudxdy1 = 0.0;
           Real dvdxdy1 = 0.0;
+	  /*
           Real dudy2dx = 0.0;
           Real dvdy2dx = 0.0;
           Real dudx2dy = 0.0;
           Real dvdx2dy = 0.0;
+	  */
           Real dudx2 = 0.0;
           Real dvdx2 = 0.0;
           Real dudy2 = 0.0;
           Real dvdy2 = 0.0;
+	  /*
           Real dudx3 = 0.0;
           Real dvdx3 = 0.0;
           Real dudy3 = 0.0;
           Real dvdy3 = 0.0;
-
+          */
           if (normX > 0 && normY > 0)
           {
             dudxdy1 = (V(x+1,y+1).u[0]+V(x,y).u[0]-V(x+1,y).u[0]-V(x,y+1).u[0]);
@@ -120,6 +123,7 @@ struct KernelComputeForces
                dudxdy1 = -0.5*( -1.5*V(x+2,y).u[0]+2*V(x+2,y+1).u[0]-0.5*V(x+2,y+2).u[0] ) + 2*(-1.5*V(x+1,y).u[0]+2*V(x+1,y+1).u[0]-0.5*V(x+1,y+2).u[0]) -1.5*(-1.5*V(x,y).u[0]+2*V(x,y+1).u[0]-0.5*V(x,y+2).u[0]);
                dvdxdy1 = -0.5*( -1.5*V(x+2,y).u[1]+2*V(x+2,y+1).u[1]-0.5*V(x+2,y+2).u[1] ) + 2*(-1.5*V(x+1,y).u[1]+2*V(x+1,y+1).u[1]-0.5*V(x+1,y+2).u[1]) -1.5*(-1.5*V(x,y).u[1]+2*V(x,y+1).u[1]-0.5*V(x,y+2).u[1]);
             }
+	    /*
             if (x+3 < big && y+2 < big)
             {
               Real dudx2_yplus2= 2.0*V(x,y+2).u[0]-5.0*V(x+1,y+2).u[0]+4*V(x+2,y+2).u[0]-V(x+3,y+2).u[0];
@@ -146,6 +150,7 @@ struct KernelComputeForces
               dudy2dx = -0.5*dudy2_xplus2 +  2.0*dudy2_xplus - 1.5*dudy2_x;
               dvdy2dx = -0.5*dvdy2_xplus2 +  2.0*dvdy2_xplus - 1.5*dvdy2_x;
             }
+	    */
           }
           if (normX < 0 && normY > 0)
           {
@@ -156,7 +161,7 @@ struct KernelComputeForces
                dudxdy1 = 0.5*( -1.5*V(x-2,y).u[0]+2*V(x-2,y+1).u[0]-0.5*V(x-2,y+2).u[0] ) - 2*(-1.5*V(x-1,y).u[0]+2*V(x-1,y+1).u[0]-0.5*V(x-1,y+2).u[0])+1.5*(-1.5*V(x,y).u[0]+2*V(x,y+1).u[0]-0.5*V(x,y+2).u[0]);
                dvdxdy1 = 0.5*( -1.5*V(x-2,y).u[1]+2*V(x-2,y+1).u[1]-0.5*V(x-2,y+2).u[1] ) - 2*(-1.5*V(x-1,y).u[1]+2*V(x-1,y+1).u[1]-0.5*V(x-1,y+2).u[1])+1.5*(-1.5*V(x,y).u[1]+2*V(x,y+1).u[1]-0.5*V(x,y+2).u[1]);
             }
-
+            /*
             if (x-3 >=small && y+2 < big)
             {
               Real dudx2_yplus2= 2.0*V(x,y+2).u[0]-5.0*V(x-1,y+2).u[0]+4*V(x-2,y+2).u[0]-V(x-3,y+2).u[0];
@@ -183,6 +188,7 @@ struct KernelComputeForces
               dudy2dx = 1.5*dudy2_x - 2.0*dudy2_xminus + 0.5*dudy2_xminus2;
               dvdy2dx = 1.5*dvdy2_x - 2.0*dvdy2_xminus + 0.5*dvdy2_xminus2;
             }
+	    */
           }
           if (normX > 0 && normY < 0)
           {
@@ -193,7 +199,7 @@ struct KernelComputeForces
                dudxdy1 = -0.5*( 1.5*V(x+2,y).u[0]-2*V(x+2,y-1).u[0]+0.5*V(x+2,y-2).u[0] ) + 2*(1.5*V(x+1,y).u[0]-2*V(x+1,y-1).u[0]+0.5*V(x+1,y-2).u[0]) -1.5*(1.5*V(x,y).u[0]-2*V(x,y-1).u[0]+0.5*V(x,y-2).u[0]);
                dvdxdy1 = -0.5*( 1.5*V(x+2,y).u[1]-2*V(x+2,y-1).u[1]+0.5*V(x+2,y-2).u[1] ) + 2*(1.5*V(x+1,y).u[1]-2*V(x+1,y-1).u[1]+0.5*V(x+1,y-2).u[1]) -1.5*(1.5*V(x,y).u[1]-2*V(x,y-1).u[1]+0.5*V(x,y-2).u[1]);
             }
-
+            /*
             if (x+3 < big && y-2>=small)
             {
               Real dudx2_yminus2= 2.0*V(x,y-2).u[0]-5.0*V(x+1,y-2).u[0]+4*V(x+2,y-2).u[0]-V(x+3,y-2).u[0];
@@ -220,6 +226,7 @@ struct KernelComputeForces
               dudy2dx = -0.5*dudy2_xplus2 + 2.0*dudy2_xplus - 1.5*dudy2_x;
               dvdy2dx = -0.5*dvdy2_xplus2 + 2.0*dvdy2_xplus - 1.5*dvdy2_x;
             }
+	    */
           }
           if (normX < 0 && normY < 0)
           {
@@ -231,7 +238,7 @@ struct KernelComputeForces
                dvdxdy1 = 0.5*( 1.5*V(x-2,y).u[1]-2*V(x-2,y-1).u[1]+0.5*V(x-2,y-2).u[1] ) - 2*(1.5*V(x-1,y).u[1]-2*V(x-1,y-1).u[1]+0.5*V(x-1,y-2).u[1]) +1.5*(1.5*V(x,y).u[1]-2*V(x,y-1).u[1]+0.5*V(x,y-2).u[1]);
             }
 
-
+            /*
             if (x-3 >= small && y-2>=small)
             {
               Real dudx2_yminus2= 2.0*V(x,y-2).u[0]-5.0*V(x-1,y-2).u[0]+4*V(x-2,y-2).u[0]-V(x-3,y-2).u[0];
@@ -258,6 +265,7 @@ struct KernelComputeForces
               dudy2dx = 1.5*dudy2_x - 2.0*dudy2_xminus + 0.5*dudy2_xminus2;
               dvdy2dx = 1.5*dvdy2_x - 2.0*dvdy2_xminus + 0.5*dvdy2_xminus2;
             }
+	    */
           }
           
           if (normX > 0 && x+2 <    big)
@@ -288,6 +296,7 @@ struct KernelComputeForces
             dudy2 =      V(x,y).u[0]-2.0*V(x,y-1).u[0]+    V(x,y-2).u[0];
             dvdy2 =      V(x,y).u[1]-2.0*V(x,y-1).u[1]+    V(x,y-2).u[1];
           }
+	  /*
           if (normX > 0 && x+3 <    big)
           {
             dudx3 = -V(x,y).u[0] + 3*V(x+1,y).u[0] - 3*V(x+2,y).u[0] + V(x+3,y).u[0]; 
@@ -312,6 +321,11 @@ struct KernelComputeForces
           const Real dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y) + 0.5*dvdx3*(ix-x)*(ix-x) +     dvdx2dy*(ix-x)*(iy-y) + 0.5*dvdy2dx*(iy-y)*(iy-y);
           const Real dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y) + 0.5*dudx2dy*(ix-x)*(ix-x) +     dudy2dx*(ix-x)*(iy-y);
           const Real dvdy = dvdy1 + dvdy2*(iy-y)+ dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y) + 0.5*dvdx2dy*(ix-x)*(ix-x) +     dvdy2dx*(ix-x)*(iy-y);
+	  */
+          const Real dudx = dudx1 + dudx2*(ix-x)+ dudxdy1*(iy-y);
+          const Real dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y);
+          const Real dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x);
+          const Real dvdy = dvdy1 + dvdy2*(iy-y)+ dvdxdy1*(ix-x);
           //D11 = 2.0*NUoH*dudx;
           //D22 = 2.0*NUoH*dvdy;
           //D12 = NUoH*(dudy+dvdx);
