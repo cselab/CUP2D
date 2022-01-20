@@ -103,6 +103,7 @@ add_library(
     "${SRC_DIR}/Operators/PressureSingle.cpp"
     "${SRC_DIR}/Operators/PutObjectsOnGrid.cpp"
     "${SRC_DIR}/Operators/advDiff.cpp"
+    "${SRC_DIR}/Operators/Forcing.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
     "${SRC_DIR}/Poisson/Base.cpp"
     "${SRC_DIR}/Shape.cpp"
