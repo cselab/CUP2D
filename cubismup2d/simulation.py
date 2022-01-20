@@ -89,13 +89,20 @@ class Simulation(libcup2d._Simulation):
                                defaults to `os.path.join(output_dir, 'h5')`
             argv: (list of strings) extra argv passed to CubismUP2D
         """
-        assert nlevels >= 1, nlevels
+        if cfl != 0.0 and dt != 0.0:
+            raise ValueError("Cannot specify both `cfl` and `dt`. To use "
+                             "a fixed time step, set `cfl` to 0.")
+        if not isinstance(nlevels, int) or nlevels < 1:
+            raise ValueError("expected integer larger than 1, got {nlevels!r}")
+        if len(cells) != 2:
+            raise ValueError("expected 2 values, got {cells!r}")
+        if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
+            raise ValueError("number of cells must be a multiple of the block "
+                             "size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
         if start_level is None:
             start_level = min(nlevels - 1, 3)
         if serialization_dir is None:
             serialization_dir = os.path.join(output_dir, 'h5')
-        assert cells[0] % libcup2d.BLOCK_SIZE == 0, cells[0]
-        assert cells[1] % libcup2d.BLOCK_SIZE == 0, cells[1]
         argv = [
             '-bpdx', cells[0] // libcup2d.BLOCK_SIZE,
             '-bpdy', cells[1] // libcup2d.BLOCK_SIZE,
