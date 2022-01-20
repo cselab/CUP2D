@@ -37,8 +37,22 @@ struct ObstacleBlock
   size_t n_surfPoints=0;
   bool filled = false;
   std::vector<surface_data*> surface;
-  Real *pX=nullptr, *pY=nullptr, *P=nullptr, *fX=nullptr, *fY=nullptr;
-  Real *vx=nullptr, *vy=nullptr, *vxDef=nullptr, *vyDef=nullptr;
+
+  //surface quantities of interest (only needed for post-processing computations)
+  Real * x_s     = nullptr; //x-coordinate
+  Real * y_s     = nullptr; //y-coordinate
+  Real * p_s     = nullptr; //pressure
+  Real * u_s     = nullptr; //u velocity
+  Real * v_s     = nullptr; //v velocity
+  Real * nx_s    = nullptr; //x-component of unit normal vector
+  Real * ny_s    = nullptr; //y-component of unit normal vector
+  Real * omega_s = nullptr; //vorticity
+  Real * uDef_s  = nullptr; //x-component of deformation velocity
+  Real * vDef_s  = nullptr; //y-component of deformation velocity
+  Real * fX_s    = nullptr; //x-component of total force
+  Real * fY_s    = nullptr; //y-component of total force
+  Real * fXv_s   = nullptr; //x-component of viscous force
+  Real * fYv_s   = nullptr; //y-component of viscous force
 
   //additive quantities:
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
@@ -77,15 +91,21 @@ struct ObstacleBlock
       trash = nullptr;
     }
     surface.clear();
-    if(pX    not_eq nullptr){delete[] pX;    pX    = nullptr; }
-    if(pY    not_eq nullptr){delete[] pY;    pY    = nullptr; }
-    if(P     not_eq nullptr){delete[] P;     P     = nullptr; }
-    if(fX    not_eq nullptr){delete[] fX;    fX    = nullptr; }
-    if(fY    not_eq nullptr){delete[] fY;    fY    = nullptr; }
-    if(vx    not_eq nullptr){delete[] vx;    vx    = nullptr; }
-    if(vy    not_eq nullptr){delete[] vy;    vy    = nullptr; }
-    if(vxDef not_eq nullptr){delete[] vxDef; vxDef = nullptr; }
-    if(vyDef not_eq nullptr){delete[] vyDef; vyDef = nullptr; }
+
+    if (x_s     not_eq nullptr){delete[] x_s    ; x_s     = nullptr;}
+    if (y_s     not_eq nullptr){delete[] y_s    ; y_s     = nullptr;}
+    if (p_s     not_eq nullptr){delete[] p_s    ; p_s     = nullptr;}
+    if (u_s     not_eq nullptr){delete[] u_s    ; u_s     = nullptr;}
+    if (v_s     not_eq nullptr){delete[] v_s    ; v_s     = nullptr;}
+    if (nx_s    not_eq nullptr){delete[] nx_s   ; nx_s    = nullptr;}
+    if (ny_s    not_eq nullptr){delete[] ny_s   ; ny_s    = nullptr;}
+    if (omega_s not_eq nullptr){delete[] omega_s; omega_s = nullptr;}
+    if (uDef_s  not_eq nullptr){delete[] uDef_s ; uDef_s  = nullptr;}
+    if (vDef_s  not_eq nullptr){delete[] vDef_s ; vDef_s  = nullptr;}
+    if (fX_s    not_eq nullptr){delete[] fX_s   ; fX_s    = nullptr;}
+    if (fY_s    not_eq nullptr){delete[] fY_s   ; fY_s    = nullptr;}
+    if (fXv_s   not_eq nullptr){delete[] fXv_s  ; fXv_s   = nullptr;}
+    if (fYv_s   not_eq nullptr){delete[] fYv_s  ; fYv_s   = nullptr;}
   }
 
   void clear()
@@ -113,30 +133,29 @@ struct ObstacleBlock
   {
     filled = true;
     assert(surface.size() == n_surfPoints);
-    pX    = new Real[n_surfPoints]; pY    = new Real[n_surfPoints];
-    fX    = new Real[n_surfPoints]; fY    = new Real[n_surfPoints];
-    vx    = new Real[n_surfPoints]; vy    = new Real[n_surfPoints];
-    vxDef = new Real[n_surfPoints]; vyDef = new Real[n_surfPoints];
-    P = new Real[n_surfPoints];
+    x_s     = new Real[n_surfPoints];
+    y_s     = new Real[n_surfPoints];
+    p_s     = new Real[n_surfPoints];
+    u_s     = new Real[n_surfPoints];
+    v_s     = new Real[n_surfPoints];
+    nx_s    = new Real[n_surfPoints];
+    ny_s    = new Real[n_surfPoints];
+    omega_s = new Real[n_surfPoints];
+    uDef_s  = new Real[n_surfPoints];
+    vDef_s  = new Real[n_surfPoints];
+    fX_s    = new Real[n_surfPoints];
+    fY_s    = new Real[n_surfPoints];
+    fXv_s   = new Real[n_surfPoints];
+    fYv_s   = new Real[n_surfPoints];
   }
 
-  void print(std::ofstream& pFile)
+  void fill_stringstream(std::stringstream & s)
   {
-    assert(filled);
-    for(size_t i=0; i<n_surfPoints; i++) {
-      float buf[]={(float)pX[i], (float)pY[i], (float)P[i], (float)fX[i],
-        (float)fY[i], (float)vx[i], (float)vy[i], (float)vxDef[i],
-        (float)vyDef[i], (float)surface[i]->dchidx, (float)surface[i]->dchidy};
-      pFile.write((char*)buf, sizeof(float)*11);
-    }
-  }
-
-  void printCSV(std::ofstream& pFile)
-  {
-    assert(filled);
     for(size_t i=0; i<n_surfPoints; i++)
-      pFile<<pX[i]<<", "<<pY[i]<<", "<<P[i]<<", "<<fX[i]<<", "<<fY[i]<<", "
-           <<vx[i]<<", "<<vy[i]<<", "<<vxDef[i]<<", "<<vyDef[i]<<", "
-           <<surface[i]->dchidx<<", "<<surface[i]->dchidy<<"\n";
+      s << x_s   [i] << ", " << y_s   [i] << ", " 
+        << p_s   [i] << ", " << u_s   [i] << ", " << v_s     [i]<< ", " 
+        << nx_s  [i] << ", " << ny_s  [i] << ", " << omega_s [i]<< ", " 
+        << uDef_s[i] << ", " << vDef_s[i] << ", " 
+        << fX_s  [i] << ", " << fY_s  [i] << ", " << fXv_s   [i]<< ", " << fYv_s[i] << "\n";  
   }
 };

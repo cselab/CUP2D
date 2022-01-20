@@ -194,6 +194,7 @@ void Simulation::parseRuntime()
   // timestep / CFL number
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
+  sim.rampup = parser("-rampup").asInt(0);
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
@@ -221,7 +222,6 @@ void Simulation::parseRuntime()
 
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
-  sim.fftwPoissonTol = parser("-fftwPoissonTol").asDouble(0.1);
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
@@ -362,21 +362,14 @@ void Simulation::startObstacles()
 }
 
 void Simulation::simulate() {
-  if (sim.rank == 0)
+  if (sim.rank == 0 && !sim.muteAll)
     std::cout << kHorLine << "[CUP2D] Starting Simulation...\n" << std::flush;
 
   while (1)
 	{
-    // sim.startProfiler("DT");
     Real dt = calcMaxTimestep();
-    // sim.stopProfiler();
 
     bool done = false;
-    // Truncate the time step such that the total simulation time is `endTime`.
-    if (sim.endTime > 0 && sim.time + dt > sim.endTime) {
-      sim.dt = dt = sim.endTime - sim.time;
-      done = true;
-    }
 
     // Ignore the final time step if `dt` is way too small.
     if (!done || dt > 2e-16)
@@ -387,7 +380,7 @@ void Simulation::simulate() {
 
     if (done)
     {
-      if (sim.rank == 0)
+      if (sim.rank == 0 && !sim.muteAll)
       {
         std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
         sim.printResetProfiler();
@@ -411,23 +404,19 @@ Real Simulation::calcMaxTimestep()
   {
     const Real dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
     const Real dtAdvection = h / ( sim.uMax_measured + 1e-8 );
-    // ramp up CFL
-    const int rampup = 100;
-    if (sim.step < rampup)
+    
+    //non-constant timestep introduces a source term = (1-dt_new/dt_old) \nabla^2 P_{old}
+    //in the Poisson equation. Thus, we try to modify the timestep less often
+    if (sim.step < sim.rampup)
     {
-      const Real x = (sim.step + 1.0)/rampup;
+      const Real x = (sim.step + 1.0)/sim.rampup;
       const Real rampupFactor = std::exp(std::log(1e-3)*(1-x));
       sim.dt = rampupFactor*std::min({ dtDiffusion, CFL * dtAdvection});
     }
-    else //if (sim.time < 0.5)
+    else
     {
-      sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
+      sim.dt = std::min({ dtDiffusion, CFL * dtAdvection});
     }
-    //else 
-    //{
-    //  const Real CFL_ramp = (sim.time < 1.5) ? (0.1-sim.CFL)*(sim.time-0.5) + sim.CFL : 0.1;
-    //  sim.dt = std::min({dtDiffusion, CFL_ramp * dtAdvection});
-    //}
   }
 
   if( sim.dt <= 0 ){
@@ -444,17 +433,11 @@ void Simulation::advance(const Real dt)
 {
 
   const Real CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / sim.getH();
-  if (sim.rank == 0)
+  if (sim.rank == 0 && !sim.muteAll)
   {
     std::cout << kHorLine;
     printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
       sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
-  }
-
-  if( sim.step == 0 ){
-    if ( sim.rank == 0 && sim.verbose )
-      std::cout << "[CUP2D] dumping IC...\n";
-    sim.dumpAll("IC");
   }
 
   // dump field

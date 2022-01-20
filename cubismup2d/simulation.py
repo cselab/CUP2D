@@ -64,6 +64,7 @@ class Simulation(libcup2d._Simulation):
             ctol: float = 0.1,
             extent: float = 1.0,
             cfl: float = 0.1,
+            dt: float = 0.0,
             nu: float = 0.001,
             brinkman_lambda: float = 1e6,
             fdump: int = 0,
@@ -71,6 +72,7 @@ class Simulation(libcup2d._Simulation):
             output_dir: str = 'output/',
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
+            mute_all: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
         """
@@ -80,17 +82,27 @@ class Simulation(libcup2d._Simulation):
             start_level: level at which the grid is initialized,
                          defaults to min(nlevels - 1, 3)
             ...
+            cfl: (float) target CFL number for automatic dt
+            dt: (float) manual time step (only if `cfl == 0.0`)
+            ...
             serialization_dir: folder containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
             argv: (list of strings) extra argv passed to CubismUP2D
         """
-        assert nlevels >= 1, nlevels
+        if cfl != 0.0 and dt != 0.0:
+            raise ValueError("Cannot specify both `cfl` and `dt`. To use "
+                             "a fixed time step, set `cfl` to 0.")
+        if not isinstance(nlevels, int) or nlevels < 1:
+            raise ValueError("expected integer larger than 1, got {nlevels!r}")
+        if len(cells) != 2:
+            raise ValueError("expected 2 values, got {cells!r}")
+        if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
+            raise ValueError("number of cells must be a multiple of the block "
+                             "size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
         if start_level is None:
             start_level = min(nlevels - 1, 3)
         if serialization_dir is None:
             serialization_dir = os.path.join(output_dir, 'h5')
-        assert cells[0] % libcup2d.BLOCK_SIZE == 0, cells[0]
-        assert cells[1] % libcup2d.BLOCK_SIZE == 0, cells[1]
         argv = [
             '-bpdx', cells[0] // libcup2d.BLOCK_SIZE,
             '-bpdy', cells[1] // libcup2d.BLOCK_SIZE,
@@ -100,6 +112,7 @@ class Simulation(libcup2d._Simulation):
             '-Ctol', ctol,
             '-extent', extent,
             '-CFL', cfl,
+            '-dt', dt,
             '-nu', nu,
             '-lambda', brinkman_lambda,
             '-fdump', fdump,
@@ -109,6 +122,7 @@ class Simulation(libcup2d._Simulation):
             '-file', output_dir,
             '-serialization', serialization_dir,
             '-verbose', verbose,
+            '-muteAll', mute_all,
             *argv,
         ]
         argv = [sanitize_arg(arg) for arg in argv]

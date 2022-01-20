@@ -31,28 +31,26 @@ public:
     cubism::SynchronizerMPI_AMR<Real,TGrid>& Synch = * grid.sync(kernel);
 
     std::vector<cubism::BlockInfo*> & inner = Synch.avail_inner();
+    std::vector<cubism::BlockInfo*> *halo;
     #pragma omp parallel
     {
       LabMPI lab;
       lab.prepare(grid, Synch);
-      #pragma omp for
-      for(size_t i=0; i<inner.size(); i++) {
-        const cubism::BlockInfo &I = *inner[i];
-        lab.load(I, 0);
-        kernel(lab, I);
+      #pragma omp for nowait
+      for (const cubism::BlockInfo *I : inner) {
+        lab.load(*I, 0);
+        kernel(lab, *I);
       }
-    }
 
-    std::vector<cubism::BlockInfo*> & halo = Synch.avail_halo();
-    #pragma omp parallel
-    {
-      LabMPI lab;
+      #pragma omp master
+      halo = &Synch.avail_halo();
+      #pragma omp barrier
+
       lab.prepare(grid, Synch);
-      #pragma omp for
-      for(size_t i=0; i<halo.size(); i++) {
-        const cubism::BlockInfo &I = *halo[i];
-        lab.load(I, 0);
-        kernel(lab, I);
+      #pragma omp for nowait
+      for (const cubism::BlockInfo *I : *halo) {
+        lab.load(*I, 0);
+        kernel(lab, *I);
       }
     }
 

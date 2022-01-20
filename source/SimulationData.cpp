@@ -48,6 +48,12 @@ void SimulationData::allocateGrid()
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
+  if (velInfo.size() == 0)
+  {
+    std::cout << "You are using too many MPI ranks for the given initial number of blocks.";
+    std::cout << "Either increase levelStart or reduce the number of ranks." << std::endl;
+    MPI_Abort(chi->getWorldComm(),1);
+  }
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
   extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
@@ -194,6 +200,7 @@ void SimulationData::writeRestartFiles()
   fprintf(fField, "stepid: %d\n",     step);
   fprintf(fField, "uinfx: %20.20e\n", uinfx);
   fprintf(fField, "uinfy: %20.20e\n", uinfy);
+  fprintf(fField, "dt: %20.20e\n", dt);
   fclose(fField);
 
   // write restart file for shapes
@@ -225,6 +232,7 @@ void SimulationData::readRestartFiles()
   ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
   ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &uinfx);
   ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &uinfy);
+  ret = ret && 1==fscanf(fField, "dt: %le\n",  &dt);
   fclose(fField);
   if( (not ret) || step<0 || time<0) {
     printf("Error reading restart file. Aborting...\n");

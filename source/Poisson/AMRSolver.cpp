@@ -242,7 +242,8 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   Real norm_1 = 0.0;
   Real norm_2 = 0.0;
   int k;
-  if (rank == 0) std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
+  if (rank == 0 && !sim.muteAll)
+    std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
   const int kmax = sim.maxPoissonIterations;
   for ( k = 0 ; k < kmax; k++)
   {
@@ -256,13 +257,12 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
       norm = 0;
       norm_1 = 0;
       norm_2 = 0;
-      #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
+      #pragma omp parallel for reduction(+:rho,norm_1,norm_2)reduction(max:norm)
       for(size_t i=0; i< N; i++)
       {
         rho    += r[i] * rhat[i];
         norm_1 += r[i] * r[i];
         norm_2 += rhat[i] * rhat[i];
-        #pragma omp critical
         norm = std::max(norm,std::fabs(r[i]));
       }
       MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
@@ -278,7 +278,8 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     }
     if ( (norm < max_error || norm/init_norm < max_rel_error ) )
     {
-      if (rank == 0) std::cout << "  [Poisson solver]: Converged after " << k << " iterations.";
+      if (rank == 0 && !sim.muteAll)
+        std::cout << "  [Poisson solver]: Converged after " << k << " iterations.\n";
       bConverged = true;
       break;
     }
@@ -287,18 +288,16 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     rho = quantities[0]; norm_1 = quantities[1] ; norm_2 = quantities[2];
 
     Real beta = rho / (rho_m1+eps) * alpha / (omega+eps);
-    norm_1 = sqrt(norm_1);
-    norm_2 = sqrt(norm_2);
-
 
     //Check if restart should be made. If so, current solution estimate is used as an initial
     //guess and solver starts again.
-    const Real cosTheta = rho/norm_1/norm_2; 
-    serious_breakdown = std::fabs(cosTheta) < 1e-8;
+    // const Real cosTheta = rho/sqrt(norm_1*norm_2);
+    // serious_breakdown = std::fabs(cosTheta) < 1e-8;
+    serious_breakdown = rho * rho < 1e-16 * norm_1 * norm_2;
     if (serious_breakdown && restarts < max_restarts)
     {
       restarts ++;
-      if (rank == 0)
+      if (rank == 0 && !sim.muteAll)
         std::cout << "  [Poisson solver]: Restart at iteration: " << k << " norm: " << norm <<" Initial norm: " << init_norm << std::endl;
       beta = 0.0;
       rho = 0.0;
@@ -405,7 +404,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     norm_1 = 0.0;
     norm_2 = 0.0;
     norm = 0;
-    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
+    #pragma omp parallel for reduction(+:rho,norm_1,norm_2)reduction(max:norm)
     for (size_t i=0; i < Nblocks; i++)
     {
       const ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
@@ -420,7 +419,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         rho    += r[j] * rhat[j];
         norm_1 += r[j] * r[j];
         norm_2 += rhat[j] * rhat[j];
-        #pragma omp critical
         norm = std::max(norm,std::fabs(r[j]));
       }
     }
@@ -428,12 +426,13 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 
     if (norm / (init_norm + 1e-21) > 1e10)
     {
-	    if (rank == 0) std::cout << "   [Poisson solver]: early termination. " << std::endl;
-	    break;
+      if (rank == 0 && !sim.muteAll)
+        std::cout << "   [Poisson solver]: early termination." << std::endl;
+      break;
     }
 
   } //k-loop
-  if (rank == 0)
+  if (rank == 0 && !sim.muteAll)
   {
     if( bConverged )
       std::cout <<  " Error norm (relative) = " << norm_opt << "/" << max_error << " (" << norm_opt/init_norm  << "/" << max_rel_error << ")" << std::endl;

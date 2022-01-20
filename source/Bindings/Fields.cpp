@@ -62,6 +62,7 @@ struct BlockView
   }
 
   /// Used by numpy.asarray & co.
+  /// https://numpy.org/doc/stable/reference/arrays.interface.html#object.__array_interface__
   py::dict arrayInterface() const
   {
     // We assume the block has no member variables other than the 2D array.
@@ -78,6 +79,21 @@ struct BlockView
   {
     assert(block->index[2] == 0);
     return py::make_tuple(block->index[0], block->index[1]);
+  }
+
+  py::tuple cellRange(int level) const
+  {
+    assert(block->index[2] == 0);
+    // Use ssize_t because that's what py::slice uses anyway.
+    const ssize_t ix0 = ScalarBlock::sizeX * block->index[0];
+    const ssize_t ix1 = ScalarBlock::sizeX * (block->index[0] + 1);
+    const ssize_t iy0 = ScalarBlock::sizeY * block->index[1];
+    const ssize_t iy1 = ScalarBlock::sizeY * (block->index[1] + 1);
+    const ssize_t bx0 = (ix0 << level) >> block->level;
+    const ssize_t bx1 = (ix1 << level) >> block->level;
+    const ssize_t by0 = (iy0 << level) >> block->level;
+    const ssize_t by1 = (iy1 << level) >> block->level;
+    return py::make_tuple(py::slice(by0, by1, 1), py::slice(bx0, bx1, 1));
   }
 
   int level() const
@@ -108,7 +124,7 @@ static py::array_t<Real> gridToUniform(const Grid &grid)
 }
 
 template <typename Grid>
-static void gridLoadUniform(Grid *grid, py::array_t<Real> array)
+static void gridLoadUniform(Grid *grid, py::array_t<Real, py::array::c_style> array)
 {
   static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
   using T = typename Grid::BlockType::ElementType;
@@ -150,7 +166,10 @@ void bindFields(py::module &m)
     .def("__str__", &BlockView::str)
     .def_property_readonly("__array_interface__", &BlockView::arrayInterface)
     .def_property_readonly("ij", &BlockView::ij)
-    .def_property_readonly("level", &BlockView::level);
+    .def_property_readonly("level", &BlockView::level)
+    .def("cell_range", &BlockView::cellRange, "level"_a,
+         "Return a tuple of two slices, the y and x range of cells "
+         "represented by this block in a uniform grid at the given level.");
 
   bindGrid<ScalarGrid>(m, "ScalarGrid");
   bindGrid<VectorGrid>(m, "VectorGrid");

@@ -23,13 +23,10 @@ set(CORE "cubismup2d_core")
 set(PRIVATEDEP "cubismup2d_privatedep")  # Private dependencies and flags.
 set(PYLIB "libcubismup2d")
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 # Options.
 option(CUP2D_BUILD_EXE "Build the CubismUP_2D executable" OFF)
 option(CUP2D_BUILD_PY "Build Python bindings" ON)
 option(CUP2D_BACKWARD_CPP "Use backward-cpp for stack trace" ON)
-option(CUP2D_FFTW "Enable FFTW-based Poisson solver" OFF)
 set(CUP2D_BLOCK_SIZE "8" CACHE STRING "Number of grid points in a block, per dimension")
 set(CUP2D_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_2D repository root path")
 set(CUP2D_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_2D build path")
@@ -55,25 +52,9 @@ add_subdirectory("${ROOT_DIR}/Cubism")
 # TODO: Add prefix to _BS_ and DIMENSION macros.
 target_compile_definitions(Cubism PUBLIC CUBISM_ALIGNMENT=32)
 target_compile_definitions(Cubism PUBLIC CUBISM_USE_HDF)
+target_compile_definitions(Cubism PUBLIC CUBISM_USE_MAP)
 target_compile_definitions(Cubism PUBLIC DIMENSION=2)
 target_compile_definitions(Cubism PUBLIC _BS_=${CUP2D_BLOCK_SIZE})
-
-# FFTW.
-if (CUP2D_FFTW AND NOT TARGET FFTW::FFTW)
-    # # Although this would be ideal, it doesn't work for some reason.
-    # FetchContent_Declare(
-    #         findFFTW
-    #         GIT_REPOSITORY "https://github.com/egpbos/findfftw.git"
-    #         EXCLUDE_FROM_ALL)
-    # FetchContent_MakeAvailable(findFFTW)
-    # set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-    # find_package(FFTW3 REQUIRED)
-    if (NOT CUP2D_PRECISION STREQUAL double)
-        message(FATAL_ERROR "FFTW cmake configuration implemented only for "
-                            "double precision, see cmake/FindFFTW.cmake")
-    endif()
-    find_package(FFTW REQUIRED)
-endif()
 
 find_package(GSL REQUIRED)
 find_package(HDF5 REQUIRED)
@@ -96,6 +77,7 @@ set(_PRIVATE_RELEASE_FLAGS
 target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
+                       $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
                        $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
 
 add_library(
@@ -123,7 +105,6 @@ add_library(
     "${SRC_DIR}/Operators/advDiff.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
     "${SRC_DIR}/Poisson/Base.cpp"
-    "${SRC_DIR}/Poisson/FFTW.cpp"
     "${SRC_DIR}/Shape.cpp"
     "${SRC_DIR}/Simulation.cpp"
     "${SRC_DIR}/SimulationData.cpp"
@@ -140,6 +121,7 @@ target_link_libraries(${CORE} PUBLIC Cubism::Cubism)
 target_link_libraries(${CORE} PUBLIC GSL::gsl)
 target_link_libraries(${CORE} PUBLIC ${HDF5_LIBRARIES})
 target_include_directories(${CORE} PUBLIC ${HDF5_INCLUDE_DIRS})
+set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 set_property(TARGET ${CORE} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 if ("${CUP2D_PRECISION}" STREQUAL float)
@@ -156,11 +138,6 @@ if (CUP2D_BACKWARD_CPP)
     add_backward(${CORE})
     target_compile_definitions(${CORE} PUBLIC CUP2D_BACKWARD_CPP)
     target_link_libraries(${CORE} PUBLIC ${BACKWARD_LIBRARIES})
-endif()
-
-if (CUP2D_FFTW)
-    target_compile_definitions(${CORE} PUBLIC CUP2D_FFTW)
-    target_link_libraries(${CORE} PUBLIC FFTW::FFTW)
 endif()
 
 if (CUP2D_BUILD_EXE)

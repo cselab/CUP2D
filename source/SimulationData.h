@@ -49,6 +49,7 @@ struct SimulationData
   // timestep / cfl condition
   Real dt;
   Real CFL;
+  int rampup{0};
 
   // simulation ending parameters
   int nsteps;
@@ -75,8 +76,7 @@ struct SimulationData
   std::string ic;
 
   // poisson solver parameters
-  std::string poissonSolver;  // iterative or fftw_dirichlet
-  Real fftwPoissonTol;  // see Poisson/Base.cpp
+  std::string poissonSolver;  // for now only "iterative"
   Real PoissonTol;    // absolute error tolerance
   Real PoissonTolRel; // relative error tolerance
   int maxPoissonRestarts; // maximal number of restarts of Poisson solver

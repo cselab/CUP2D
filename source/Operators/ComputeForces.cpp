@@ -52,6 +52,11 @@ struct KernelComputeForces
         const int ix = O->surface[k]->ix, iy = O->surface[k]->iy;
         const std::array<Real,2> p = info.pos<Real>(ix, iy);
 
+        const Real normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
+        const Real normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
+        const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
+        const Real dx = normX*norm;
+        const Real dy = normY*norm;
         //shear stresses
         //"lifted" surface: derivatives make no sense when the values used are in the object, 
         // so we take one-sided stencils with values outside of the object
@@ -63,12 +68,6 @@ struct KernelComputeForces
         Real DvDx;
         Real DvDy;
         {
-          const Real normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
-          const Real normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
-          const Real norm = 1.0/std::sqrt(normX*normX+normY*normY);
-          const Real dx = normX*norm;
-          const Real dy = normY*norm;
-
           //The integers x and y will be the coordinates of the point on the lifted surface.
           //To find them, we move along the normal vector to the surface, until we find a point
           //outside of the object (where chi = 0).
@@ -81,7 +80,7 @@ struct KernelComputeForces
           for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
           {
             if ((int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
-            if (chi(x,y).s <3e-1 && found >= 2) break;
+            if (chi(x,y).s <3e-1 && found >= 1) break;
             x  = ix + kk*dx_a; 
             y  = iy + kk*dy_a;
             if (chi(x,y).s < 1e-3 ) found ++;
@@ -99,19 +98,22 @@ struct KernelComputeForces
           Real dvdy1 = normY > 0 ? (V(x,y+1).u[1]-V(x,y).u[1]) : (V(x,y).u[1]-V(x,y-1).u[1]);
           Real dudxdy1 = 0.0;
           Real dvdxdy1 = 0.0;
+	  /*
           Real dudy2dx = 0.0;
           Real dvdy2dx = 0.0;
           Real dudx2dy = 0.0;
           Real dvdx2dy = 0.0;
+	  */
           Real dudx2 = 0.0;
           Real dvdx2 = 0.0;
           Real dudy2 = 0.0;
           Real dvdy2 = 0.0;
+	  /*
           Real dudx3 = 0.0;
           Real dvdx3 = 0.0;
           Real dudy3 = 0.0;
           Real dvdy3 = 0.0;
-
+          */
           if (normX > 0 && normY > 0)
           {
             dudxdy1 = (V(x+1,y+1).u[0]+V(x,y).u[0]-V(x+1,y).u[0]-V(x,y+1).u[0]);
@@ -121,6 +123,7 @@ struct KernelComputeForces
                dudxdy1 = -0.5*( -1.5*V(x+2,y).u[0]+2*V(x+2,y+1).u[0]-0.5*V(x+2,y+2).u[0] ) + 2*(-1.5*V(x+1,y).u[0]+2*V(x+1,y+1).u[0]-0.5*V(x+1,y+2).u[0]) -1.5*(-1.5*V(x,y).u[0]+2*V(x,y+1).u[0]-0.5*V(x,y+2).u[0]);
                dvdxdy1 = -0.5*( -1.5*V(x+2,y).u[1]+2*V(x+2,y+1).u[1]-0.5*V(x+2,y+2).u[1] ) + 2*(-1.5*V(x+1,y).u[1]+2*V(x+1,y+1).u[1]-0.5*V(x+1,y+2).u[1]) -1.5*(-1.5*V(x,y).u[1]+2*V(x,y+1).u[1]-0.5*V(x,y+2).u[1]);
             }
+	    /*
             if (x+3 < big && y+2 < big)
             {
               Real dudx2_yplus2= 2.0*V(x,y+2).u[0]-5.0*V(x+1,y+2).u[0]+4*V(x+2,y+2).u[0]-V(x+3,y+2).u[0];
@@ -147,6 +150,7 @@ struct KernelComputeForces
               dudy2dx = -0.5*dudy2_xplus2 +  2.0*dudy2_xplus - 1.5*dudy2_x;
               dvdy2dx = -0.5*dvdy2_xplus2 +  2.0*dvdy2_xplus - 1.5*dvdy2_x;
             }
+	    */
           }
           if (normX < 0 && normY > 0)
           {
@@ -157,7 +161,7 @@ struct KernelComputeForces
                dudxdy1 = 0.5*( -1.5*V(x-2,y).u[0]+2*V(x-2,y+1).u[0]-0.5*V(x-2,y+2).u[0] ) - 2*(-1.5*V(x-1,y).u[0]+2*V(x-1,y+1).u[0]-0.5*V(x-1,y+2).u[0])+1.5*(-1.5*V(x,y).u[0]+2*V(x,y+1).u[0]-0.5*V(x,y+2).u[0]);
                dvdxdy1 = 0.5*( -1.5*V(x-2,y).u[1]+2*V(x-2,y+1).u[1]-0.5*V(x-2,y+2).u[1] ) - 2*(-1.5*V(x-1,y).u[1]+2*V(x-1,y+1).u[1]-0.5*V(x-1,y+2).u[1])+1.5*(-1.5*V(x,y).u[1]+2*V(x,y+1).u[1]-0.5*V(x,y+2).u[1]);
             }
-
+            /*
             if (x-3 >=small && y+2 < big)
             {
               Real dudx2_yplus2= 2.0*V(x,y+2).u[0]-5.0*V(x-1,y+2).u[0]+4*V(x-2,y+2).u[0]-V(x-3,y+2).u[0];
@@ -184,6 +188,7 @@ struct KernelComputeForces
               dudy2dx = 1.5*dudy2_x - 2.0*dudy2_xminus + 0.5*dudy2_xminus2;
               dvdy2dx = 1.5*dvdy2_x - 2.0*dvdy2_xminus + 0.5*dvdy2_xminus2;
             }
+	    */
           }
           if (normX > 0 && normY < 0)
           {
@@ -194,7 +199,7 @@ struct KernelComputeForces
                dudxdy1 = -0.5*( 1.5*V(x+2,y).u[0]-2*V(x+2,y-1).u[0]+0.5*V(x+2,y-2).u[0] ) + 2*(1.5*V(x+1,y).u[0]-2*V(x+1,y-1).u[0]+0.5*V(x+1,y-2).u[0]) -1.5*(1.5*V(x,y).u[0]-2*V(x,y-1).u[0]+0.5*V(x,y-2).u[0]);
                dvdxdy1 = -0.5*( 1.5*V(x+2,y).u[1]-2*V(x+2,y-1).u[1]+0.5*V(x+2,y-2).u[1] ) + 2*(1.5*V(x+1,y).u[1]-2*V(x+1,y-1).u[1]+0.5*V(x+1,y-2).u[1]) -1.5*(1.5*V(x,y).u[1]-2*V(x,y-1).u[1]+0.5*V(x,y-2).u[1]);
             }
-
+            /*
             if (x+3 < big && y-2>=small)
             {
               Real dudx2_yminus2= 2.0*V(x,y-2).u[0]-5.0*V(x+1,y-2).u[0]+4*V(x+2,y-2).u[0]-V(x+3,y-2).u[0];
@@ -221,6 +226,7 @@ struct KernelComputeForces
               dudy2dx = -0.5*dudy2_xplus2 + 2.0*dudy2_xplus - 1.5*dudy2_x;
               dvdy2dx = -0.5*dvdy2_xplus2 + 2.0*dvdy2_xplus - 1.5*dvdy2_x;
             }
+	    */
           }
           if (normX < 0 && normY < 0)
           {
@@ -232,7 +238,7 @@ struct KernelComputeForces
                dvdxdy1 = 0.5*( 1.5*V(x-2,y).u[1]-2*V(x-2,y-1).u[1]+0.5*V(x-2,y-2).u[1] ) - 2*(1.5*V(x-1,y).u[1]-2*V(x-1,y-1).u[1]+0.5*V(x-1,y-2).u[1]) +1.5*(1.5*V(x,y).u[1]-2*V(x,y-1).u[1]+0.5*V(x,y-2).u[1]);
             }
 
-
+            /*
             if (x-3 >= small && y-2>=small)
             {
               Real dudx2_yminus2= 2.0*V(x,y-2).u[0]-5.0*V(x-1,y-2).u[0]+4*V(x-2,y-2).u[0]-V(x-3,y-2).u[0];
@@ -259,6 +265,7 @@ struct KernelComputeForces
               dudy2dx = 1.5*dudy2_x - 2.0*dudy2_xminus + 0.5*dudy2_xminus2;
               dvdy2dx = 1.5*dvdy2_x - 2.0*dvdy2_xminus + 0.5*dvdy2_xminus2;
             }
+	    */
           }
           
           if (normX > 0 && x+2 <    big)
@@ -289,6 +296,7 @@ struct KernelComputeForces
             dudy2 =      V(x,y).u[0]-2.0*V(x,y-1).u[0]+    V(x,y-2).u[0];
             dvdy2 =      V(x,y).u[1]-2.0*V(x,y-1).u[1]+    V(x,y-2).u[1];
           }
+	  /*
           if (normX > 0 && x+3 <    big)
           {
             dudx3 = -V(x,y).u[0] + 3*V(x+1,y).u[0] - 3*V(x+2,y).u[0] + V(x+3,y).u[0]; 
@@ -313,6 +321,11 @@ struct KernelComputeForces
           const Real dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y) + 0.5*dvdx3*(ix-x)*(ix-x) +     dvdx2dy*(ix-x)*(iy-y) + 0.5*dvdy2dx*(iy-y)*(iy-y);
           const Real dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y) + 0.5*dudx2dy*(ix-x)*(ix-x) +     dudy2dx*(ix-x)*(iy-y);
           const Real dvdy = dvdy1 + dvdy2*(iy-y)+ dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y) + 0.5*dvdx2dy*(ix-x)*(ix-x) +     dvdy2dx*(ix-x)*(iy-y);
+	  */
+          const Real dudx = dudx1 + dudx2*(ix-x)+ dudxdy1*(iy-y);
+          const Real dvdx = dvdx1 + dvdx2*(ix-x)+ dvdxdy1*(iy-y);
+          const Real dudy = dudy1 + dudy2*(iy-y)+ dudxdy1*(ix-x);
+          const Real dvdy = dvdy1 + dvdy2*(iy-y)+ dvdxdy1*(ix-x);
           //D11 = 2.0*NUoH*dudx;
           //D22 = 2.0*NUoH*dvdy;
           //D12 = NUoH*(dudy+dvdx);
@@ -326,27 +339,32 @@ struct KernelComputeForces
         // Actually using the volume integral, since (/iint -P /hat{n} dS) =
         // (/iiint - /nabla P dV). Also, P*/nabla /Chi = /nabla P
         // penalty-accel and surf-force match up if resolution is high enough
-        const Real normX = O->surface[k]->dchidx; // *h^2 (alreadt pre-
-        const Real normY = O->surface[k]->dchidy; // -multiplied in dchidx/y)
         //const Real fXV = D11*normX + D12*normY, fXP = - P(ix,iy).s * normX;
         //const Real fYV = D12*normX + D22*normY, fYP = - P(ix,iy).s * normY;
         const Real fXV = NUoH*DuDx*normX + NUoH*DuDy*normY, fXP = - P(ix,iy).s * normX;
         const Real fYV = NUoH*DvDx*normX + NUoH*DvDy*normY, fYP = - P(ix,iy).s * normY;
 
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
+
         //store:
-        O-> P[k] = P(ix,iy).s;
-        O->pX[k] = p[0];
-        O->pY[k] = p[1];
-        O->fX[k] = fXT;
-        O->fY[k] = fYT;
-        O->vx[k] = V(ix,iy).u[0];
-        O->vy[k] = V(ix,iy).u[1];
-        O->vxDef[k] = O->udef[iy][ix][0];
-        O->vyDef[k] = O->udef[iy][ix][1];
+        O->x_s    [k] = p[0];
+        O->y_s    [k] = p[1];
+        O->p_s    [k] = P(ix,iy).s;
+        O->u_s    [k] = V(ix,iy).u[0];
+        O->v_s    [k] = V(ix,iy).u[1];
+        O->nx_s   [k] = dx;
+        O->ny_s   [k] = dy;
+        O->omega_s[k] = DvDx - DuDy;
+        O->uDef_s [k] = O->udef[iy][ix][0];
+        O->vDef_s [k] = O->udef[iy][ix][1];
+        O->fX_s   [k] = fXT;
+        O->fY_s   [k] = fYT;
+        O->fXv_s  [k] = fXV;
+        O->fYv_s  [k] = fYV;
+
         //perimeter:
         O->perimeter += std::sqrt(normX*normX + normY*normY);
-        O->circulation += normX * O->vy[k] - normY * O->vx[k];
+        O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
         //forces (total, visc, pressure):
         O->forcex += fXT;
         O->forcey += fYT;
@@ -366,9 +384,9 @@ struct KernelComputeForces
         O->lift   += forcePerp;
         //power output (and negative definite variant which ensures no elastic energy absorption)
         // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
-        const Real powOut = fXT * O->vx[k]    + fYT * O->vy[k];
+        const Real powOut = fXT * O->u_s[k]    + fYT * O->v_s[k];
         //deformation power output (and negative definite variant which ensures no elastic energy absorption)
-        const Real powDef = fXT * O->vxDef[k] + fYT * O->vyDef[k];
+        const Real powDef = fXT * O->uDef_s[k] + fYT * O->vDef_s[k];
         O->Pout        += powOut;
         O->defPower    += powDef;
         O->PoutBnd     += std::min((Real)0, powOut);

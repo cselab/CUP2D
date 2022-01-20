@@ -54,11 +54,6 @@ PYBIND11_MODULE(libcubismup2d, m)
   m.doc() = "CubismUP2D solver for incompressible Navier-Stokes";
 
   m.attr("BLOCK_SIZE") = CUP2D_BLOCK_SIZE;
-#if CUP2D_FFTW
-  m.attr("FFTW_ENABLED") = (int)1;
-#else
-  m.attr("FFTW_ENABLED") = (int)0;
-#endif
 
   bindSimulationData(m);
   bindSimulation(m);

@@ -30,7 +30,7 @@ export MPICXX=mpic++
 
 On Panda/Falcon:
 ```
-module load gnu mpich python fftw hdf5
+module load gnu mpich python hdf5
 export GSL_ROOT=/usr
 ```
 
