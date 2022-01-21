@@ -37,6 +37,20 @@ struct SimulationData
   Real Rtol;
   Real Ctol;
 
+  // boolean to switch between vorticity magnitude and Q-criterion refinement
+  // the Q-criterion measures the difference between rotation rate and shear rate
+  // Q > 0 indicates that there's a vortex
+  // Q < 0 indicates a region where viscous forces are stronger
+  // if Qcriterion=true, refinement will be done where Q>Rtol (Rtol>0)
+  // Generally this results in less refinement, compared to refining according
+  // to vorticity magnitude. For the cases this has been tested with there
+  // was no loss of accuracy, despite the fact that the mesh that was refined
+  // according to Q had about 1/4 of the points the other mesh had.
+  bool Qcriterion{false};
+
+  //check for mesh refinement every this many steps
+  int AdaptSteps{20};
+
   // boolean to switch between refinement according to chi or grad(chi)
   bool bAdaptChiGradient;
 

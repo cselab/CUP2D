@@ -156,9 +156,15 @@ void Simulation::parseRuntime()
   // maximal number of refinement levels
   sim.levelMax = parser("-levelMax").asInt();
 
-  // refinement/compression tolerance for voriticy magnitude
+  // refinement/compression tolerance for vorticity magnitude
   sim.Rtol = parser("-Rtol").asDouble(); 
   sim.Ctol = parser("-Ctol").asDouble();
+
+  // refiment according to Qcriterion instead of |omega|
+  sim.Qcriterion = parser("-Qcriterion").asBool(false);
+
+  // check for refinement every this many timesteps
+  sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
 
   parser.unset_strict_mode();
   /************************************/
