@@ -354,7 +354,7 @@ struct KernelComputeForces
         O->v_s    [k] = V(ix,iy).u[1];
         O->nx_s   [k] = dx;
         O->ny_s   [k] = dy;
-        O->omega_s[k] = DvDx - DuDy;
+        O->omega_s[k] = (DvDx - DuDy)/info.h;
         O->uDef_s [k] = O->udef[iy][ix][0];
         O->vDef_s [k] = O->udef[iy][ix][1];
         O->fX_s   [k] = fXT;
