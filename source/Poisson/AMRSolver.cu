@@ -730,6 +730,18 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s)
   // Set handles to stream
   checkCudaErrors(cublasSetStream(cublas_handle_, solver_stream_));
   checkCudaErrors(cusparseSetStream(cusparse_handle_, solver_stream_));
+  // Set pointer modes to device
+  checkCudaErrors(cublasSetPointerMode(cublas_handle_, CUBLAS_POINTER_MODE_DEVICE));
+  checkCudaErrors(cusparseSetPointerMode(cusparse_handle_, CUSPARSE_POINTER_MODE_DEVICE));
+
+  // Set constants and allocate memory for scalars
+  double h_const_[3] = {1., -1., 0.};
+  checkCudaErrors(cudaMalloc(&d_const_, 3 * sizeof(double)));
+  checkCudaErrors(cudaMemcpyAsync(d_const_, h_const_, 3 * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  d_eye_ = d_const_;
+  d_nye_ = d_const_ + 1;
+  d_nil_ = d_const_ + 2;
+  checkCudaErrors(cudaMalloc(&d_coeffs_, sizeof(KrylovScalars)));
 
   virginA_ = true;
   updateA_ = true;
@@ -782,6 +794,10 @@ AMRSolver::~AMRSolver()
   std::cout << "  [AMRSolver]: preconditioning:    " << (pPrec_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
   std::cout << "  [AMRSolver]: SpVM:               " << (pSpMV_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
 #endif
+  // Free device consants
+  checkCudaErrors(cudaFree(d_const_));
+  checkCudaErrors(cudaFree(d_coeffs_));
+
   // Destroy CUDA streams and handles
   checkCudaErrors(cublasDestroy(cublas_handle_)); 
   checkCudaErrors(cusparseDestroy(cusparse_handle_)); 
@@ -849,10 +865,10 @@ void AMRSolver::alloc()
     checkCudaErrors(cusparseSpMV_bufferSize(
           cusparse_handle_, 
           CUSPARSE_OPERATION_NON_TRANSPOSE, 
-          &eye_, 
+          d_eye_, 
           spDescrA_, 
           spDescrX0_, 
-          &nil_, 
+          d_nil_, 
           spDescrNu_, 
           CUDA_R_64F, 
           CUSPARSE_MV_ALG_DEFAULT, 
@@ -871,6 +887,40 @@ void AMRSolver::alloc()
 #endif
 }
 
+__global__ void set_negative(double* const dest, double* const source)
+{
+  dest[0] = -source[0];
+}
+
+__global__ void breakdown_update(KrylovScalars* coeffs)
+{
+  coeffs->rho_curr *= coeffs->rho_curr;
+  coeffs->rho_prev = 1.;
+  coeffs->alpha = 1.;
+  coeffs->omega = 1.;
+  coeffs->beta = (coeffs->rho_curr / (coeffs->rho_prev + coeffs->eps)) * (coeffs->alpha / (coeffs->omega + coeffs->eps));
+}
+
+__global__ void set_beta(KrylovScalars* coeffs)
+{
+  coeffs->beta = (coeffs->rho_curr / (coeffs->rho_prev + coeffs->eps)) * (coeffs->alpha / (coeffs->omega + coeffs->eps));
+}
+
+__global__ void set_alpha(KrylovScalars* coeffs)
+{
+  coeffs->alpha = coeffs->rho_curr / (coeffs->buff_1 + coeffs->eps);
+}
+
+__global__ void set_omega(KrylovScalars* coeffs)
+{
+  coeffs->omega = coeffs->buff_1 / (coeffs->buff_2 * coeffs->buff_2 + coeffs->eps);
+}
+
+__global__ void set_rho(KrylovScalars* coeffs)
+{
+  coeffs->rho_prev = coeffs->rho_curr;
+}
+
 void AMRSolver::BiCGSTAB()
 {
 #ifdef BICGSTAB_PROFILER
@@ -887,6 +937,12 @@ void AMRSolver::BiCGSTAB()
   double error = 1e50;
   double error_init = 1e50;
 
+  // 3. Set initial values to scalars
+  KrylovScalars h_coeffs = {1., 1., 1., 1., 0., 0., 0., 1e-21};
+  checkCudaErrors(cudaMemcpyAsync(d_coeffs_, &h_coeffs, sizeof(KrylovScalars), cudaMemcpyHostToDevice, solver_stream_));
+  bool bConverged = false;
+  int restarts = 0;
+
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
 #ifdef BICGSTAB_PROFILER
   pSpMV_.startProfiler(solver_stream_);
@@ -894,10 +950,10 @@ void AMRSolver::BiCGSTAB()
   checkCudaErrors(cusparseSpMV( // A*x_0
         cusparse_handle_, 
         CUSPARSE_OPERATION_NON_TRANSPOSE, 
-        &eye_, 
+        d_eye_, 
         spDescrA_, 
         spDescrX0_, 
-        &nil_, 
+        d_nil_, 
         spDescrNu_, // Use d_nu_ as temporary storage for result A*x_0 
         CUDA_R_64F, 
         CUSPARSE_MV_ALG_DEFAULT, 
@@ -905,30 +961,22 @@ void AMRSolver::BiCGSTAB()
 #ifdef BICGSTAB_PROFILER
   pSpMV_.stopProfiler(solver_stream_);
 #endif
-  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
+  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
 
-  // Check norm of A*x_0
-  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &error_init));
+  // Check norm of A*x_0 and get error_init
+  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &(d_coeffs_->buff_1)));
+  checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_2)));
+  checkCudaErrors(cudaMemcpyAsync(&error_init, &(d_coeffs_->buff_2), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-  std::cout << "  [AMRSolver]: || A*x_0 || = " << error_init << std::endl;
-  
-  // Calculate x_error_init for max_rel_error comparisons
-  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error_init));
-  checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+  std::cout << "  [AMRSolver]: || A*x_0 || = " << error << std::endl;
   std::cout << "  [AMRSolver]: Initial norm: " << error_init << std::endl;
+  error = error_init;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
 
-  // 3. Set initial values to scalars
-  bool bConverged = false;
-  int restarts = 0;
-  double rho_curr = 1.;
-  double rho_prev = 1.;
-  double alpha = 1.;
-  double omega = 1.;
-  double beta = 0.;
-  const double eps = 1e-21;
 
   // 4. Set initial values of vectors to zero
   checkCudaErrors(cudaMemsetAsync(d_nu_, 0, m_ * sizeof(double), solver_stream_));
@@ -939,18 +987,19 @@ void AMRSolver::BiCGSTAB()
   for(size_t k(0); k<max_iter; k++)
   {
     // 1. rho_i = (r_hat, r)
-    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_r_, 1, &rho_curr));
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_r_, 1, &(d_coeffs_->rho_curr)));
     
-    double norm_1 = 0.;
-    double norm_2 = 0.;
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &norm_1));
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &norm_2));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for 2. which happens on host
     // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
-    beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+    set_beta<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+    checkCudaErrors(cudaGetLastError());
 
     // Numerical convergence trick
-    const double cosTheta = rho_curr / norm_1 / norm_2;
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->buff_2)));
+    checkCudaErrors(cudaMemcpyAsync(&h_coeffs, d_coeffs_, sizeof(KrylovScalars), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
+
+    const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
     bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
     if(serious_breakdown && max_restarts > 0)
     {
@@ -960,26 +1009,23 @@ void AMRSolver::BiCGSTAB()
       }
       std::cout << "  [AMRSolver]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
       checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
-      checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &rho_curr));
-      checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
-      rho_curr *= rho_curr;
-      rho_prev = 1.;
-      alpha = 1.;
-      omega = 1.;
-      beta = (rho_curr / (rho_prev+eps)) * (alpha / (omega+eps));
+      checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->rho_curr)));
+      breakdown_update<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+      checkCudaErrors(cudaGetLastError());
     }
 
     // 3. p_i = r_{i-1} + beta(p_{i-1} - omega_{i-1}*nu_i)
-    double nomega = -omega;
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_nu_, 1, d_p_, 1)); // p <- -omega_{i-1}*nu_i + p
-    checkCudaErrors(cublasDscal(cublas_handle_, m_, &beta, d_p_, 1));            // p <- beta * p
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &eye_, d_r_, 1, d_p_, 1));    // p <- r_{i-1} + p
+    set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1), &(d_coeffs_->omega));
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_, 1, d_p_, 1)); // p <- -omega_{i-1}*nu_i + p
+    checkCudaErrors(cublasDscal(cublas_handle_, m_, &(d_coeffs_->beta), d_p_, 1));            // p <- beta * p
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_eye_, d_r_, 1, d_p_, 1));    // p <- r_{i-1} + p
 
     // 4. z <- K_2^{-1} * p_i
 #ifdef BICGSTAB_PROFILER
     pPrec_.startProfiler(solver_stream_);
 #endif
-    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_p_, BSZ_, &nil_, d_z_, BSZ_));
+    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, d_eye_, d_P_inv_, BSZ_, d_p_, BSZ_, d_nil_, d_z_, BSZ_));
 #ifdef BICGSTAB_PROFILER
     pPrec_.stopProfiler(solver_stream_);
 #endif
@@ -991,10 +1037,10 @@ void AMRSolver::BiCGSTAB()
     checkCudaErrors(cusparseSpMV(
           cusparse_handle_,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
-          &eye_,
+          d_eye_,
           spDescrA_,
           spDescrZ_,
-          &nil_,
+          d_nil_,
           spDescrNu_,
           CUDA_R_64F,
           CUSPARSE_MV_ALG_DEFAULT,
@@ -1004,23 +1050,23 @@ void AMRSolver::BiCGSTAB()
 #endif
 
     // 6. alpha = rho_i / (r_hat, nu_i)
-    double alpha_den;
-    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &alpha_den)); // alpha <- (r_hat, nu_i)
-    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host division
-    alpha = rho_curr / (alpha_den+eps); // alpha <- rho_i / alpha
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &(d_coeffs_->buff_1)));
+    set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+    checkCudaErrors(cudaGetLastError());
 
     // 7. h = alpha*z + x_{i-1}
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &alpha, d_z_, 1, d_x_, 1));
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->alpha), d_z_, 1, d_x_, 1));
 
     // 9. s = -alpha * nu_i + r_{i-1}
-    const double nalpha = -alpha;
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nalpha, d_nu_, 1, d_r_, 1));
+    set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1), &(d_coeffs_->alpha));
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_, 1, d_r_, 1));
 
     // 10. z <- K_2^{-1} * s
 #ifdef BICGSTAB_PROFILER
     pPrec_.startProfiler(solver_stream_);
 #endif
-    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, &eye_, d_P_inv_, BSZ_, d_r_, BSZ_, &nil_, d_z_, BSZ_));
+    checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BSZ_, m_ / BSZ_, BSZ_, d_eye_, d_P_inv_, BSZ_, d_r_, BSZ_, d_nil_, d_z_, BSZ_));
 #ifdef BICGSTAB_PROFILER
     pPrec_.stopProfiler(solver_stream_);
 #endif
@@ -1032,10 +1078,10 @@ void AMRSolver::BiCGSTAB()
     checkCudaErrors(cusparseSpMV(
           cusparse_handle_,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
-          &eye_,
+          d_eye_,
           spDescrA_,
           spDescrZ_,
-          &nil_,
+          d_nil_,
           spDescrT_,
           CUDA_R_64F,
           CUSPARSE_MV_ALG_DEFAULT,
@@ -1045,22 +1091,22 @@ void AMRSolver::BiCGSTAB()
 #endif
     
     // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
-    double omega_num;
-    double omega_den;
-    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &omega_num)); // alpha <- (t,s)
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t_, 1, &omega_den));          // beta <- sqrt(t,t)
-    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // sync for host arithmetic
-    omega = omega_num / (omega_den * omega_den + eps);
+    checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t_, 1, &(d_coeffs_->buff_2)));
+    set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+    checkCudaErrors(cudaGetLastError());
 
     // 13. x_i = omega_i * z + h
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &omega, d_z_, 1, d_x_, 1));
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->omega), d_z_, 1, d_x_, 1));
 
     // 15. r_i = -omega_i * t + s
-    nomega = -omega;
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &nomega, d_t_, 1, d_r_, 1));
+    set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1), &(d_coeffs_->omega));
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_t_, 1, d_r_, 1));
 
     // If x_i accurate enough then quit
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &error));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
 
     if((error <= max_error) || (error / error_init <= max_rel_error))
@@ -1072,7 +1118,8 @@ void AMRSolver::BiCGSTAB()
     }
 
     // Update *_prev values for next iteration
-    rho_prev = rho_curr;
+    set_rho<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+    checkCudaErrors(cudaGetLastError());
   }
 
   if( bConverged )

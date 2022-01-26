@@ -32,6 +32,17 @@ class deviceProfiler
 };
 #endif
 
+struct KrylovScalars {
+  double rho_curr;
+  double rho_prev;
+  double alpha;
+  double beta;
+  double omega;
+  double buff_1;
+  double buff_2;
+  double eps;
+};
+
 class AMRSolver 
 {
   /*
@@ -58,9 +69,11 @@ protected:
   static constexpr int BSY_ = VectorBlock::sizeY;
   static constexpr int BSZ_ = BSX_*BSY_;
 
-  static constexpr double eye_ = 1.;
-  static constexpr double nye_ = -1.;
-  static constexpr double nil_ = 0.;
+  double* d_const_;
+  const double* d_eye_;
+  const double* d_nye_;
+  const double* d_nil_;
+  KrylovScalars* d_coeffs_;
 
   //This returns element K_{I1,I2}. It is used when we invert K
   double getA_local(int I1,int I2);
