@@ -63,7 +63,7 @@ class Simulation(libcup2d._Simulation):
             rtol: float = 0.5,
             ctol: float = 0.1,
             extent: float = 1.0,
-            cfl: float = 0.1,
+            cfl: float = 0.4,
             dt: float = 0.0,
             nu: float = 0.001,
             brinkman_lambda: float = 1e6,
@@ -73,6 +73,8 @@ class Simulation(libcup2d._Simulation):
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
             mute_all: bool = False,
+            ic: str = "",
+            bForcing: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
         """
@@ -96,6 +98,7 @@ class Simulation(libcup2d._Simulation):
             raise ValueError("expected integer larger than 1, got {nlevels!r}")
         if len(cells) != 2:
             raise ValueError("expected 2 values, got {cells!r}")
+        self.cells = cells
         if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
             raise ValueError("number of cells must be a multiple of the block "
                              "size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
@@ -123,6 +126,8 @@ class Simulation(libcup2d._Simulation):
             '-serialization', serialization_dir,
             '-verbose', verbose,
             '-muteAll', mute_all,
+            '-ic', ic,
+            '-bForcing', bForcing,
             *argv,
         ]
         argv = [sanitize_arg(arg) for arg in argv]
