@@ -777,40 +777,7 @@ void PressureSingle::preventCollidingObstacles() const
 void PressureSingle::operator()(const Real dt)
 {
   sim.startProfiler("Pressure");
-  const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const size_t Nblocks = velInfo.size();
-
-  //TODO: replace this kkk with a proper index!
-  std::vector<Real> correction (Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
-  size_t kkk = 0;
-  if (sim.step > 10 && sim.GuessDpDt)
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-    {
-      const Real dpdt = (2.0*(PRES(ix,iy).s - POLD(ix,iy).s))/(sim.dt_old+ sim.dt_old2);
-      correction[kkk] = ((0.5*dpdt)*(sim.dt+sim.dt_old))*.5;
-      kkk ++;
-    }
-  }
-
-  //initial guess etc.
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-    {
-      POLD  (ix,iy).s = PRES (ix,iy).s;
-      PRES  (ix,iy).s = 0;
-    }
-  }
 
   // update velocity of obstacle
   for(const auto& shape : sim.shapes) {
@@ -820,47 +787,77 @@ void PressureSingle::operator()(const Real dt)
   // take care if two obstacles collide
   preventCollidingObstacles();
 
-  // apply penalisation force
+  // apply penalization force
   penalize(dt);
 
   // compute pressure RHS
   updatePressureRHS K(sim);
   compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.uDef,true,sim.tmp);
-  if (sim.step > 10)
+
+
+  //Add p_old (+dp/dt) to RHS
+  const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  
+  const size_t size_of_correction = sim.GuessDpDt ? Nblocks*VectorBlock::sizeY*VectorBlock::sizeX : 1;
+  std::vector<Real> correction (size_of_correction,0.0);
+
+  //initial guess etc.
+  if (sim.GuessDpDt && sim.step > 10)
   {
-    kkk = 0;
-    if (sim.GuessDpDt)
+    #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
+      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        POLD(ix,iy).s += correction[kkk];
-        kkk ++;
+        const Real dpdt = (2.0*(PRES(ix,iy).s - POLD(ix,iy).s))/(sim.dt_old+ sim.dt_old2);
+        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
+        correction[index] = ((0.5*dpdt)*(sim.dt+sim.dt_old))*.5;
+        POLD  (ix,iy).s = PRES (ix,iy).s + correction[index];
+        PRES  (ix,iy).s = 0;
       }
     }
-    updatePressureRHS1 K1(sim);
-    compute<updatePressureRHS1,ScalarGrid,ScalarLab>(K1,*sim.pold,true,sim.tmp);
-    kkk = 0;
-    if (sim.GuessDpDt)
+  }
+  else
+  {
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        POLD  (ix,iy).s = PRES (ix,iy).s;
+        PRES  (ix,iy).s = 0;
+      }
+    }
+  }
+  updatePressureRHS1 K1(sim);
+  compute<updatePressureRHS1,ScalarGrid,ScalarLab>(K1,*sim.pold,true,sim.tmp);
+  if (sim.GuessDpDt && sim.step > 10)
+  {
+    #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        POLD(ix,iy).s -= correction[kkk];
-        kkk ++;
+        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
+        POLD(ix,iy).s -= correction[index];
       }
     }
   }
 
   pressureSolver->solve(sim.tmp, sim.pres);
 
-  if (sim.step>10)
+  if (sim.GuessDpDt && sim.step > 10)
   {
-    kkk = 0;
+    #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
@@ -868,8 +865,22 @@ void PressureSingle::operator()(const Real dt)
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        PRES(ix,iy).s += POLD(ix,iy).s + correction[kkk];
-        kkk++;          
+        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
+        PRES(ix,iy).s += POLD(ix,iy).s + correction[index];
+      }
+    }
+  }
+  else
+  {
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        PRES(ix,iy).s += POLD(ix,iy).s;
       }
     }
   }
