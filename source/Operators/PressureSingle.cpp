@@ -784,7 +784,7 @@ void PressureSingle::operator()(const Real dt)
   //TODO: replace this kkk with a proper index!
   std::vector<Real> correction (Nblocks *  VectorBlock::sizeY * VectorBlock::sizeX,0.0);
   size_t kkk = 0;
-  if (sim.step > 10)
+  if (sim.step > 10 && sim.GuessDpDt)
   for (size_t i=0; i < Nblocks; i++)
   {
     ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
@@ -829,6 +829,7 @@ void PressureSingle::operator()(const Real dt)
   if (sim.step > 10)
   {
     kkk = 0;
+    if (sim.GuessDpDt)
     for (size_t i=0; i < Nblocks; i++)
     {
       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
@@ -842,6 +843,7 @@ void PressureSingle::operator()(const Real dt)
     updatePressureRHS1 K1(sim);
     compute<updatePressureRHS1,ScalarGrid,ScalarLab>(K1,*sim.pold,true,sim.tmp);
     kkk = 0;
+    if (sim.GuessDpDt)
     for (size_t i=0; i < Nblocks; i++)
     {
       ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
