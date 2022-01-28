@@ -115,7 +115,6 @@ struct SimulationData
 
   // simulation time
   Real time = 0;
-  bool Euler = false;
 
   // simulation step
   int step = 0;
