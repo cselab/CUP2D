@@ -13,8 +13,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --time=24:00:00
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
-#SBATCH --nodes=8
-#SBATCH --ntasks-per-node=12
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --constraint=gpu
 export OMP_NUM_THREADS=1
