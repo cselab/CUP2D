@@ -39,7 +39,8 @@ OBJECTS = \
 		Simulation.o SimulationData.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o BufferedLogger.o Helpers.o Fish.o SmartCylinder.o \
 		FishData.o ArgumentParser.o StefanFish.o CarlingFish.o ComputeForces.o \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o AMRSolver.o Windmill.o
+		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o AdaptTheMesh.o Windmill.o
+OBJECTS += AMRSolver.o
 
 
 ifeq "$(precision)" "single"
@@ -109,7 +110,7 @@ NVOBJECTS = \
 		cudaFishData.o cudaArgumentParser.o cudaStefanFish.o cudaCarlingFish.o \
 		cudaComputeForces.o cudaNaca.o cudaCStartFish.o cudaZebraFish.o \
 		cudaNeuroKinematicFish.o cudaAdaptTheMesh.o cudaWindmill.o
-NVOBJECTS += cuAMRSolver.o # give a different prefix to differentiate %.cpp generated .o
+NVOBJECTS += cudaExpAMRSolver.o
 
 # Set $(CXX) to do host-side compilation and pass its flags
 NVFLAGS += -ccbin=$(CXX) -Xcompiler "$(CPPFLAGS)"
@@ -118,26 +119,26 @@ NVLIBS += -lcudart -lcublas -lcusparse
 # Program specific definitions 
 NVFLAGS += -DGPU_POISSON -DBICGSTAB_PROFILER
 # Arch flags for maximum compatibility
-#NVFLAGS += -arch=sm_52 \
-#					 -gencode=arch=compute_52,code=sm_52 \
-#					 -gencode=arch=compute_60,code=sm_60 \
-#					 -gencode=arch=compute_61,code=sm_61 \
-#					 -gencode=arch=compute_70,code=sm_70 \
-#					 -gencode=arch=compute_75,code=sm_75 \
-#					 -gencode=arch=compute_80,code=sm_80 \
-#					 -gencode=arch=compute_86,code=sm_86 \
-#					 -gencode=arch=compute_86,code=compute_86
+NVFLAGS += -arch=sm_52 \
+					 -gencode=arch=compute_52,code=sm_52 \
+					 -gencode=arch=compute_60,code=sm_60 \
+					 -gencode=arch=compute_61,code=sm_61 \
+					 -gencode=arch=compute_70,code=sm_70 \
+					 -gencode=arch=compute_75,code=sm_75 \
+					 -gencode=arch=compute_80,code=sm_80 \
+					 -gencode=arch=compute_86,code=sm_86 \
+					 -gencode=arch=compute_86,code=compute_86
 # Arch flags for maximum performance on a particular system
-NVFLAGS+= -code=sm_60 -arch=compute_60
+#NVFLAGS+= -code=sm_60 -arch=compute_60
 
-cuAMRSolver.o: AMRSolver.cu 
+bicgstab.o: bicgstab.cu 
 	$(NVCC) $(NVFLAGS) $(NVLIBS) -c $< -o $@
 
 cuda%.o : %.cpp
 	$(NVCC) $(NVFLAGS) $(NVLIBS) -c $< -o $@
 
-cudasimulation: cudamain.o $(NVOBJECTS)
-	$(NVCC) cudamain.o $(NVOBJECTS) $(NVFLAGS) $(NVLIBS) -o $@
+cudasimulation: cudamain.o bicgstab.o $(NVOBJECTS) 
+	$(NVCC) cudamain.o bicgstab.o $(NVOBJECTS) $(NVFLAGS) $(NVLIBS) -o $@
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:

@@ -14,7 +14,7 @@ class Shape;
 #ifndef GPU_POISSON
 #include "../Poisson/AMRSolver.h"
 #else
-#include "../Poisson/AMRSolver.cuh"
+#include "../Poisson/ExpAMRSolver.h"
 #endif
 #include "Cubism/FluxCorrection.h"
 
