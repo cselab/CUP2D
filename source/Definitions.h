@@ -542,10 +542,10 @@ using ScalarBlock = GridBlock<ScalarElement>;
 using VectorBlock = GridBlock<VectorElement>;
 using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
-// using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
-// using ScalarLab = cubism::BlockLabMPI<BlockLabOpen     <ScalarBlock, std::allocator>,ScalarGrid>;
+using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
+using ScalarLab = cubism::BlockLabMPI<BlockLabOpen     <ScalarBlock, std::allocator>,ScalarGrid>;
 // For periodic BC
-using VectorLab = cubism::BlockLabMPI<cubism::BlockLab<VectorBlock, std::allocator>,VectorGrid>;
-using ScalarLab = cubism::BlockLabMPI<cubism::BlockLab<ScalarBlock, std::allocator>,ScalarGrid>;
+// using VectorLab = cubism::BlockLabMPI<cubism::BlockLab<VectorBlock, std::allocator>,VectorGrid>;
+// using ScalarLab = cubism::BlockLabMPI<cubism::BlockLab<ScalarBlock, std::allocator>,ScalarGrid>;
 using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
 using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
