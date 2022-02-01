@@ -1,19 +1,26 @@
-BPDX=${BPDX:-8}
-BPDY=${BPDY:-4}
-LEVELS=${LEVELS:-7}
-RTOL=${RTOL-0.50}
-CTOL=${CTOL-0.01}
-EXTENT=${EXTENT:-4.0}
-CFL=${CFL:-0.2}
-XPOS=${XPOS:-2.0}
-ANGLE=${ANGLE:-0}
-XVEL=${XVEL:-0.2}
-RADIUS=${RADIUS:-0.1}
-#NU=${NU:-0.00000421052} #Re9500
-#NU=${NU:-0.00001333333} #Re=3000
-#NU=${NU:-0.00007272727} #Re=550
-NU=${NU:-0.001} #Re=40
+#!/bin/bash
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 3 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 1.0 -nu $NU -tend 15. -verbose 1 -lambda 1e6 "
-OBJECTS="disk radius=$RADIUS angle=$ANGLE xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0"
+# Defaults for Options
+BPDX=${BPDX:-4}
+BPDY=${BPDY:-2}
+LEVELS=${LEVELS:-7}
+RTOL=${RTOL-2}
+CTOL=${CTOL-1}
+EXTENT=${EXTENT:-2}
+CFL=${CFL:-0.2}
+PT=${PT:-1e-5}
+PTR=${PTR:-0}
+
+# Defaults for Objects
+XPOS=${XPOS:-0.6}
+ANGLE=${ANGLE:-10}
+XVEL=${XVEL:-0.15}
+RADIUS=${RADIUS:-0.06}
+
+# With swimmer of length 0.2 and period 1, this is Re=1'000
+NU=${NU:-0.00004}
+
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 20 -muteAll 0 -verbose 1"
+
+OBJECTS="halfDisk radius=$RADIUS angle=$ANGLE xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=5"
 source launchCommon.sh

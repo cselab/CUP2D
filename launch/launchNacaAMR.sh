@@ -1,26 +1,30 @@
+#!/bin/bash
+
 # Defaults for Options
-BPDX=${BPDX:-16}
-BPDY=${BPDY:-8}
-LEVELS=${LEVELS:-5}
-RTOL=${RTOL-0.1}
-CTOL=${CTOL-0.01}
-EXTENT=${EXTENT:-4}
+BPDX=${BPDX:-4}
+BPDY=${BPDY:-2}
+LEVELS=${LEVELS:-7}
+RTOL=${RTOL-2}
+CTOL=${CTOL-1}
+EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.2}
-PT=${PT:-1e-6}
-PTR=${PTR:-1e-4}
+PT=${PT:-1e-5}
+PTR=${PTR:-0}
+
 # Defaults for Objects
-XPOS=${XPOS:-1.2}
+XPOS=${XPOS:-0.6}
 ANGLE=${ANGLE:-0}
-FPITCH=${FPITCH:-0}
-LENGTH=${LENGTH:-0.2}
-VELX=${VELX:-0.2}
-# Re=1'000 <-> NU=0.00004; Re=10'000 <-> 0.000004
+# Fpitch for St = 0.1 0.2 0.3 0.4 0.5 gives 0.2723183437 0.5446366874 0.8169550311 1.0892733748 1.3615917185
+FPITCH=${FPITCH:-0.715}
+LENGTH=${LENGTH:-0.12}
+VELX=${VELX:-0.15}
+
+# With swimmer of length 0.2 and period 1, this is Re=1'000
 NU=${NU:-0.00004}
 
-# Re=1'000 <-> 0.00001125; Re=10'000 <-> 0.000001125 # 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 1 -nu $NU -tend 100 -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 50 -muteAll 0 -verbose 1"
+
 # COM IS 0.399421, COR 0.1, thus fixedCenterDist=0.299412
-# xvel is needed here!
 OBJECTS="NACA L=$LENGTH xpos=$XPOS angle=$ANGLE fixedCenterDist=0.299412 bFixed=1 xvel=$VELX Apitch=13.15 Fpitch=$FPITCH tAccel=0
 "
 

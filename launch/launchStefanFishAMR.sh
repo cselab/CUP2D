@@ -1,15 +1,18 @@
+#!/bin/bash
+
 # Defaults for Options
-BPDX=${BPDX:-16}
-BPDY=${BPDY:-8}
-LEVELS=${LEVELS:-5}
-RTOL=${RTOL-0.1}
-CTOL=${CTOL-0.01}
-EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.2}
-PT=${PT:-1e-6}
-PTR=${PTR:-1e-4}
-# Defaults for Objects
-XPOS=${XPOS:-1.2}
+BPDX=${BPDX:-4}
+BPDY=${BPDY:-2}
+LEVELS=${LEVELS:-7}
+RTOL=${RTOL-2}
+CTOL=${CTOL-1}
+EXTENT=${EXTENT:-2}
+CFL=${CFL:-0.4}
+PT=${PT:-1e-5}
+PTR=${PTR:-0}
+
+# Defaults for Swimmer
+XPOS=${XPOS:-0.9}
 LENGTH=${LENGTH:-0.2}
 PERIOD=${PERIOD:-1}
 
@@ -20,9 +23,9 @@ PERIOD=${PERIOD:-1}
 # NU=0.00014 for L=1 and T=1 (! adjust extent !)
 # NU=0.0000056 for L=0.2 and T=1
 ####################################
-NU=${NU:-0.0000056}
+NU=${NU:-0.00004}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 50 -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0"
 OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 
