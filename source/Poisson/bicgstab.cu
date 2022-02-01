@@ -327,22 +327,16 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cudaGetLastError());
 
     // Numerical convergence trick
-    checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
-    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.buff_1, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-
-    checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->amax_idx)));
-    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_rhat_);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.buff_2, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-
-    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.rho_curr, &(d_coeffs_->rho_curr), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->buff_2)));
+    checkCudaErrors(cudaMemcpyAsync(&h_coeffs, d_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
 
-    const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
-    bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
-    //const bool serious_breakdown = h_coeffs.rho_curr * h_coeffs.rho_curr < 1e-16 * h_coeffs.buff_1 * h_coeffs.buff_2;
+    h_coeffs.buff_1 *= h_coeffs.buff_1;
+    h_coeffs.buff_2 *= h_coeffs.buff_2;
+    //const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
+    //bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
+    const bool serious_breakdown = h_coeffs.rho_curr * h_coeffs.rho_curr < 1e-16 * h_coeffs.buff_1 * h_coeffs.buff_2;
     if(serious_breakdown && max_restarts > 0)
     {
       restarts++;
