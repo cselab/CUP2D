@@ -212,6 +212,12 @@ void BiCGSTABSolver::updateVec(
 #endif
 }
 
+__global__ void set_amax(BiCGSTABScalars* coeffs, const double* const source)
+{
+  // 1-based indexing in cublas API
+  coeffs->buff_1 = fabs(source[coeffs->amax_idx-1]);
+}
+
 __global__ void set_negative(double* const dest, double* const source)
 {
   dest[0] = -source[0];
@@ -263,7 +269,7 @@ void BiCGSTABSolver::main(
   int restarts = 0;
 
   // 3. Set initial values to scalars
-  BiCGSTABScalars h_coeffs = {1., 1., 1., 1., 0., 0., 0., 1e-21};
+  BiCGSTABScalars h_coeffs = {1., 1., 1., 1., 0., 1e-21, 0., 0., 0};
   checkCudaErrors(cudaMemcpyAsync(d_coeffs_, &h_coeffs, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
@@ -287,10 +293,15 @@ void BiCGSTABSolver::main(
   checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
 
   // Check norm of A*x_0 and get error_init
-  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_nu_, 1, &(d_coeffs_->buff_1)));
+  checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_nu_, 1, &(d_coeffs_->amax_idx)));
+  set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_nu_);
+  checkCudaErrors(cudaGetLastError());
   checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-  checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_2)));
-  checkCudaErrors(cudaMemcpyAsync(&error_init, &(d_coeffs_->buff_2), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+
+  checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
+  set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
+  checkCudaErrors(cudaGetLastError());
+  checkCudaErrors(cudaMemcpyAsync(&error_init, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
 
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
   std::cout << "  [BiCGSTAB]: || A*x_0 || = " << error << std::endl;
@@ -316,13 +327,22 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cudaGetLastError());
 
     // Numerical convergence trick
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->buff_2)));
-    checkCudaErrors(cudaMemcpyAsync(&h_coeffs, d_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
+    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.buff_1, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+
+    checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->amax_idx)));
+    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_rhat_);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.buff_2, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+
+    checkCudaErrors(cudaMemcpyAsync(&h_coeffs.rho_curr, &(d_coeffs_->rho_curr), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
 
     const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
     bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
+    //const bool serious_breakdown = h_coeffs.rho_curr * h_coeffs.rho_curr < 1e-16 * h_coeffs.buff_1 * h_coeffs.buff_2;
     if(serious_breakdown && max_restarts > 0)
     {
       restarts++;
@@ -429,7 +449,9 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_t_, 1, d_r_, 1));
 
     // If x_i accurate enough then quit
-    checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
+    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
+    checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
 

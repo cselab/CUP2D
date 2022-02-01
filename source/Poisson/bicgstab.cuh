@@ -14,9 +14,10 @@ struct BiCGSTABScalars {
   double alpha;
   double beta;
   double omega;
+  double eps;
   double buff_1;
   double buff_2;
-  double eps;
+  int amax_idx;
 };
 
 class BiCGSTABSolver {
