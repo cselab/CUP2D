@@ -359,6 +359,13 @@ void Simulation::simulate() {
 
     if (done)
     {
+      const bool bDump = sim.bDump();
+      if( bDump ) {
+        if( sim.rank == 0 && sim.verbose )
+          std::cout << "[CUP2D] dumping field...\n";
+        sim.registerDump();
+        sim.dumpAll("avemaria_");
+      }
       if (sim.rank == 0 && !sim.muteAll)
       {
         std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
