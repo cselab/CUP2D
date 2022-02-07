@@ -35,12 +35,12 @@ class SpRowInfo
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(const int rank, MPI_Comm m_comm, const int comm_size); 
+    LocalSpMatDnVec(const int &rank, const MPI_Comm &m_comm, const int &comm_size); 
     ~LocalSpMatDnVec() = default;
 
     int rank_;
-    int comm_size_; 
     MPI_Comm m_comm_;
+    int comm_size_; 
 
     int m_;
     int loc_nnz_;
@@ -60,18 +60,24 @@ class LocalSpMatDnVec
     std::vector<long long> bd_cooRowA_;
     std::vector<long long> bd_cooColA_;
 
-    // bd_recv_set_[r] contains columns that need to be received from rank 'r'
-    std::vector<std::set<long long>> bd_recv_set_;
-    // bd_recv_vec_[r] same as bd_recv_vec_[r] but in contigious memory
-    std::vector<std::vector<long long>> bd_recv_vec_;
-    std::vector<std::vector<long long>> bd_send_vec_;
-
     // Identical to above, but with integers
     std::vector<int> loc_cooRowA_int_;
     std::vector<int> loc_cooColA_int_;
     std::vector<int> bd_cooRowA_int_;
     std::vector<int> bd_cooColA_int_;
-    std::vector<std::vector<int>> bd_send_vec_int_;
+
+    // bd_recv_set_[r] contains columns that need to be received from rank 'r'
+    std::vector<std::set<long long>> bd_recv_set_;
+
+    // Vectors that contain rules for sending and receiving
+    std::vector<int> recv_ranks_;
+    std::vector<int> recv_offset_;
+    std::vector<int> recv_sz_;
+
+    std::vector<int> send_ranks_;
+    std::vector<int> send_offset_;
+    std::vector<int> send_sz_;
+    std::vector<int> send_buff_pack_idx_;
 
     void reserve(const int &N);
     void cooPushBackVal(const double &val, const long long &row, const long long &col);
