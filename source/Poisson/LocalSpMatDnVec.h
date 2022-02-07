@@ -5,9 +5,6 @@
 #include <set>
 #include <mpi.h>
 
-#define SZ_MSG_TAG  100
-#define VEC_MSG_TAG 101
-
 class SpRowInfo
 {
   public:

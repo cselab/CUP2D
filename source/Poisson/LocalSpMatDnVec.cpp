@@ -5,6 +5,8 @@
 
 #include "LocalSpMatDnVec.h"
 
+#define SZ_MSG_TAG  100
+#define VEC_MSG_TAG 101
 
 LocalSpMatDnVec::LocalSpMatDnVec(const int &rank, const MPI_Comm &m_comm, const int &comm_size) 
   : rank_(rank), m_comm_(m_comm), comm_size_(comm_size), bd_recv_set_(comm_size)
