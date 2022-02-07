@@ -21,15 +21,18 @@ MIAXIS=${MIAXIS:-0.0135}
 #NU=${NU:-0.0001215}
 NU=${NU:-0.000243}
 
-OVEL=${OVEL:-12.56} # 4hz
+#OVEL=${OVEL:-12.56} # 4hz
 #OVEL=${OVEL:-6.28} # 2hz
 #OVEL=${OVEL:-3.14} # 1hz
 
+## ovel is now actually the torque applied
+OVEL=${OVEL:-0.0001}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol 0.001 -poissonTolRel 0 -tdump 0.1 -nu $NU -tend 30 -muteAll 0 -verbose 1"
+
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 30 -muteAll 0 -verbose 1"
 ## two WINDMILLS, constant angular velocity of 4.0hz
-OBJECTS="windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS1 bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBlockAng=1 angvel=$OVEL
-windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xvel=$XVEL tAccel=0 bBlockAng=1 angvel=-$OVEL
+OBJECTS="windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS1 bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBlockAng=0 angvel=$OVEL
+windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xvel=$XVEL tAccel=0 bBlockAng=0 angvel=-$OVEL
 "
 
 ## TWO WINDMILLS

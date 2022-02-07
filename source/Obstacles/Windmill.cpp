@@ -109,14 +109,15 @@ void Windmill::updateVelocity(double dt)
   Shape::updateVelocity(dt);
 
   // update omega according to a velocity function of time
-  omega = velocity_over_time(sim.time);
+  // appliedTorque = velocity_over_time(sim.time);
 }
 
 void Windmill::updatePosition(double dt)
 {
   Shape::updatePosition(dt);
 
-  if (std::floor(10*(sim.time + sim.dt)) - std::floor(10*(sim.time)) != 0) // every .1 seconds print velocity profile
+  //if (std::floor(10*(sim.time + sim.dt)) - std::floor(10*(sim.time)) != 0) // every .1 seconds print velocity profile
+  if (std::floor(100*(sim.time + sim.dt)) - std::floor(100*(sim.time)) != 0) // every .01 seconds print velocity profile
   {
     vel_profile();
   }
@@ -188,8 +189,8 @@ void Windmill::act( double action )
   // windscale is around 0.15, lengthscale is around 0.0375, so action is multiplied by around 16
   //appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
 
-  //appliedTorque = action;
-  omega = action;
+  appliedTorque = action;
+  //omega = action;
   printValues();
 }
 
@@ -688,8 +689,8 @@ std::vector<std::vector<double>> Windmill::getUniformGrid()
 
 double Windmill::velocity_over_time(double time)
 {
-  double w_max = forcedomega;
+  double tau_max = forcedomega;
   double frequency = 0.5;
   double sinus = sin(2*M_PI*frequency * time);
-  return w_max * sinus * sinus;
+  return tau_max * sinus;
 }

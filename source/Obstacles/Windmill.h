@@ -13,8 +13,14 @@ class Windmill : public Shape
   std::array<Real, 2> dimensions = {0.1, 0.1};
   Real energy = 0;
 
-  double x_start = 0.7;
-  double x_end = 0.7 + 0.0875;
+  // keeps track of the of the average veloctiy profile between two rl time steps
+  // weighted by the time step of the sim
+  std::vector<double> temp_profile(32, 0.0);
+
+
+  // domain for velocity profile
+  double x_start = 0.35;
+  double x_end = x_start + 0.0875;
   double y_start = 0.35;
   double y_end = 1.05;
 
