@@ -4,7 +4,7 @@
 #include "cublas_v2.h"
 #include "cusparse.h"
 
-#include "bicgstab.cuh"
+#include "BiCGSTAB.cuh"
 
 BiCGSTABSolver::BiCGSTABSolver(
     const int BSX, 
