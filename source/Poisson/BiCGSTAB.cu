@@ -278,10 +278,10 @@ __global__ void set_squared(double* const val)
   val[0] *= val[0];
 }
 
-__global__ void set_amax(BiCGSTABScalars* coeffs, const double* const source)
+__global__ void set_amax(double* const dest, const int* const idx, const double* const source)
 {
   // 1-based indexing in cublas API
-  coeffs->buff_1 = fabs(source[coeffs->amax_idx-1]);
+  dest[0] = fabs(source[idx[0]-1]);
 }
 
 __global__ void set_negative(double* const dest, double* const source)
@@ -309,7 +309,7 @@ __global__ void set_alpha(BiCGSTABScalars* coeffs)
 
 __global__ void set_omega(BiCGSTABScalars* coeffs)
 {
-  coeffs->omega = coeffs->buff_1 / (coeffs->buff_2 * coeffs->buff_2 + coeffs->eps);
+  coeffs->omega = coeffs->buff_1 / (coeffs->buff_2 + coeffs->eps);
 }
 
 __global__ void set_rho(BiCGSTABScalars* coeffs)
@@ -414,28 +414,32 @@ void BiCGSTABSolver::main(
   int restarts = 0;
 
   // 3. Set initial values to scalars
-  *h_coeffs_ = {1., 1., 1., 1., 0., 1e-21, 0., 0., 0., 0};
+  *h_coeffs_ = {1., 1., 0., 1e-21, 1., 1., 0., 0., 0};
   checkCudaErrors(cudaMemcpyAsync(d_coeffs_, h_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
 	hd_cusparseSpMV(d_z_hd_, spDescrZ_, d_nu_hd_, spDescrNu_);
   checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
 
-  // Check norm of A*x_0 and get error_init
+  // ||A*x_0||_max
   checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_nu_, 1, &(d_coeffs_->amax_idx)));
-  set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_nu_);
+  set_amax<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1), &(d_coeffs_->amax_idx), d_nu_);
   checkCudaErrors(cudaGetLastError());
-  checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-
+  // ||b - A*x_0||_max 
   checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
-  set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
+  set_amax<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_2), &(d_coeffs_->amax_idx), d_r_);
   checkCudaErrors(cudaGetLastError());
-  checkCudaErrors(cudaMemcpyAsync(&error_init, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-
+  // buff_1 and buff_2 in contigious memory in BiCGSTABScalars
+  checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1), 2*sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-  std::cout << "  [BiCGSTAB]: || A*x_0 || = " << error << std::endl;
-  std::cout << "  [BiCGSTAB]: Initial norm: " << error_init << std::endl;
-  error = error_init;
+
+  MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_MAX, m_comm_);
+
+  std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << std::endl;
+  std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << std::endl;
+  // Set initial error
+  error = h_coeffs_->buff_2;
+  error_init = h_coeffs_->buff_2;
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
@@ -451,21 +455,20 @@ void BiCGSTABSolver::main(
     // 1. rho_i = (r_hat, r)
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_r_, 1, &(d_coeffs_->rho_curr)));
     
-    // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
-    set_beta<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
-    checkCudaErrors(cudaGetLastError());
-
     // Numerical convergence trick
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->buff_2)));
-    checkCudaErrors(cudaMemcpyAsync(h_coeffs_, d_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->rho_curr), &(d_coeffs_->rho_curr), 3 * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
-
-    h_coeffs_->buff_1 *= h_coeffs_->buff_1;
+    h_coeffs_->buff_1 *= h_coeffs_->buff_1; // get square norm
     h_coeffs_->buff_2 *= h_coeffs_->buff_2;
-    //const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
-    //bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
+    MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->rho_curr), 3, MPI_DOUBLE, MPI_SUM, m_comm_);
+    checkCudaErrors(cudaMemcpyAsync(&(d_coeffs_->rho_curr), &(h_coeffs_->rho_curr), sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     const bool serious_breakdown = h_coeffs_->rho_curr * h_coeffs_->rho_curr < 1e-16 * h_coeffs_->buff_1 * h_coeffs_->buff_2;
+
+    // 2. beta = (rho_i / rho_{i-1}) * (alpha / omega_{i-1})
+    set_beta<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
+    checkCudaErrors(cudaGetLastError());
     if(serious_breakdown && max_restarts > 0)
     {
       restarts++;
@@ -502,6 +505,8 @@ void BiCGSTABSolver::main(
 
     // 6. alpha = rho_i / (r_hat, nu_i)
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &(d_coeffs_->buff_1)));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 1, MPI_DOUBLE, MPI_SUM, m_comm_);
     set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 
@@ -528,6 +533,10 @@ void BiCGSTABSolver::main(
     // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t_, 1, &(d_coeffs_->buff_2)));
+    set_squared<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_2));
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_SUM, m_comm_);
     set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 
@@ -541,15 +550,19 @@ void BiCGSTABSolver::main(
 
     // If x_i accurate enough then quit
     checkCudaErrors(cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
-    set_amax<<<1, 1, 0, solver_stream_>>>(d_coeffs_, d_r_);
+    set_amax<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1), &(d_coeffs_->amax_idx), d_r_);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaMemcpyAsync(&error, &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_MAX, m_comm_);
 
     if((error <= max_error) || (error / error_init <= max_rel_error))
     // if(x_error <= max_error)
     {
-      std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      if (rank_ == 0)
+      {
+        std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+      }
       bConverged = true;
       break;
     }
@@ -559,13 +572,16 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cudaGetLastError());
   }
 
-  if( bConverged )
-    std::cout <<  "  [BiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
-              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
-  else
-    std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
-              << ". Error norm (relative) = " << error << "/" << max_error 
-              << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+  if (rank_ == 0)
+  {
+    if( bConverged )
+      std::cout <<  "  [BiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
+                << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+    else
+      std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
+                << ". Error norm (relative) = " << error << "/" << max_error 
+                << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+  }
 
 #ifdef BICGSTAB_PROFILER
   pMemcpy_.startProfiler(solver_stream_);

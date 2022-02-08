@@ -13,15 +13,14 @@
 #endif
 
 struct BiCGSTABScalars {
-  double rho_curr;
-  double rho_prev;
   double alpha;
   double beta;
   double omega;
   double eps;
+  double rho_prev;
+  double rho_curr; // reductions happen along these three, make contigious
   double buff_1;
   double buff_2;
-  double buff_3;
   int amax_idx;
 };
 
