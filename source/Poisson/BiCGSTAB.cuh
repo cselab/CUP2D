@@ -21,6 +21,7 @@ struct BiCGSTABScalars {
   double eps;
   double buff_1;
   double buff_2;
+  double buff_3;
   int amax_idx;
 };
 
@@ -107,6 +108,7 @@ private:
   const double* d_nil_;
 
   // Device-side varibles for linear system
+  BiCGSTABScalars* h_coeffs_;
   BiCGSTABScalars* d_coeffs_;
   double* dloc_cooValA_;
   int* dloc_cooRowA_;

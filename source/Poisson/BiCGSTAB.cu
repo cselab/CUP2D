@@ -37,6 +37,7 @@ BiCGSTABSolver::BiCGSTABSolver(
   d_nye_ = d_consts_ + 1;
   d_nil_ = d_consts_ + 2;
   checkCudaErrors(cudaMalloc(&d_coeffs_, sizeof(BiCGSTABScalars)));
+  checkCudaErrors(cudaMallocHost(&h_coeffs_, sizeof(BiCGSTABScalars)));
 
   // Copy preconditionner
   checkCudaErrors(cudaMalloc(&d_P_inv_, BLEN_ * BLEN_ * sizeof(double)));
@@ -81,6 +82,7 @@ BiCGSTABSolver::~BiCGSTABSolver()
   // Free device consants
   checkCudaErrors(cudaFree(d_consts_));
   checkCudaErrors(cudaFree(d_coeffs_));
+  checkCudaErrors(cudaFreeHost(h_coeffs_));
 
   // Destroy CUDA streams and handles
   checkCudaErrors(cublasDestroy(cublas_handle_)); 
@@ -393,6 +395,8 @@ void BiCGSTABSolver::hd_cusparseSpMV(
   }
 }
 
+// export MPICH_RDMA_ENABLED_CUDA=1
+// 
 void BiCGSTABSolver::main(
     double* const h_x,
     const double max_error, 
@@ -410,8 +414,8 @@ void BiCGSTABSolver::main(
   int restarts = 0;
 
   // 3. Set initial values to scalars
-  BiCGSTABScalars h_coeffs = {1., 1., 1., 1., 0., 1e-21, 0., 0., 0};
-  checkCudaErrors(cudaMemcpyAsync(d_coeffs_, &h_coeffs, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
+  *h_coeffs_ = {1., 1., 1., 1., 0., 1e-21, 0., 0., 0., 0};
+  checkCudaErrors(cudaMemcpyAsync(d_coeffs_, h_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
 	hd_cusparseSpMV(d_z_hd_, spDescrZ_, d_nu_hd_, spDescrNu_);
@@ -454,14 +458,14 @@ void BiCGSTABSolver::main(
     // Numerical convergence trick
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->buff_2)));
-    checkCudaErrors(cudaMemcpyAsync(&h_coeffs, d_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(h_coeffs_, d_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
 
-    h_coeffs.buff_1 *= h_coeffs.buff_1;
-    h_coeffs.buff_2 *= h_coeffs.buff_2;
+    h_coeffs_->buff_1 *= h_coeffs_->buff_1;
+    h_coeffs_->buff_2 *= h_coeffs_->buff_2;
     //const double cosTheta = h_coeffs.rho_curr / h_coeffs.buff_1 / h_coeffs.buff_2;
     //bool serious_breakdown = std::fabs(cosTheta) < 1e-8; 
-    const bool serious_breakdown = h_coeffs.rho_curr * h_coeffs.rho_curr < 1e-16 * h_coeffs.buff_1 * h_coeffs.buff_2;
+    const bool serious_breakdown = h_coeffs_->rho_curr * h_coeffs_->rho_curr < 1e-16 * h_coeffs_->buff_1 * h_coeffs_->buff_2;
     if(serious_breakdown && max_restarts > 0)
     {
       restarts++;
