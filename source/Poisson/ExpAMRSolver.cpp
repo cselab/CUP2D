@@ -292,7 +292,7 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
     P_inv[i*BLEN+j] = aux;
   }
 
-  backend_ =  std::make_shared<BiCGSTABSolver>(BSX_, BSY_, P_inv.data());
+  backend_ =  std::make_shared<BiCGSTABSolver>(rank_, m_comm_, comm_size_, BSX_, BSY_, P_inv.data());
   std::cerr << "END CONSTRUCTOR \n";
 }
 
@@ -612,15 +612,13 @@ void ExpAMRSolver::solve(
     std::cerr << "GOTTA CALL GETMAT\n";
     this->getMat();
     this->getVec();
-    backend_->solve(LocalLS->m_, LocalLS->m_, LocalLS->loc_nnz_, 
-        LocalLS->loc_cooValA_.data(), LocalLS->loc_cooRowA_int_.data(), LocalLS->loc_cooColA_int_.data(), 
-        LocalLS->x_.data(), LocalLS->b_.data(), max_error, max_rel_error, max_restarts);
+    backend_->solveWithUpdate(LocalLS, max_error, max_rel_error, max_restarts);
   }
   else
   {
     std::cerr << "NAAAH, GETVEC GOOD ENOUGH\n";
     this->getVec();
-    backend_->solve(LocalLS->x_.data(), LocalLS->b_.data(), max_error, max_rel_error, max_restarts);
+    backend_->solveNoUpdate(LocalLS, max_error, max_rel_error, max_restarts);
   }
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
