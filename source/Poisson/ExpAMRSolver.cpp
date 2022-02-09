@@ -217,19 +217,15 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
     NorthCell(s, Nblocks_xcumsum_), EastCell(s, Nblocks_xcumsum_), 
     SouthCell(s, Nblocks_xcumsum_), WestCell(s, Nblocks_xcumsum_)
 {
-  std::cerr << "BEGIN EXPAMR 1\n";
   // MPI
   rank_ = sim.rank;
   m_comm_ = sim.comm;
   MPI_Comm_size(m_comm_, &comm_size_);
-  std::cerr << "BEGIN EXPAMR 2\n";
 
   LocalLS = std::make_shared<LocalSpMatDnVec>(rank_, m_comm_, comm_size_);
-  std::cerr << "BEGIN EXPAMR 3\n";
 
   Nblocks_xcumsum_.resize(comm_size_ + 1);
   Nrows_xcumsum_.resize(comm_size_ + 1);
-  std::cerr << "BEGIN EXPAMR 4\n";
 
   std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
   std::vector<std::vector<double>> L_inv; // inverse of L
@@ -293,7 +289,6 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   }
 
   backend_ =  std::make_shared<BiCGSTABSolver>(rank_, m_comm_, comm_size_, BSX_, BSY_, P_inv.data());
-  std::cerr << "END CONSTRUCTOR \n";
 }
 
 ExpAMRSolver::~ExpAMRSolver()
@@ -420,28 +415,22 @@ void ExpAMRSolver::getMat()
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
 
   //Get a vector of all BlockInfos of the grid we're interested in
+  sim.tmp->UpdateBlockInfoAll_States(true); // update blockID's for blocks from other ranks
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
   const int N = BSX_*BSY_*Nblocks;
 
-  std::cerr << "PRE-RESERVE of LS\n";
   // Reserve sufficient memory for LS proper to the rank
   LocalLS->reserve(N);
 
-  std::cerr << "HERE NOGATHER\n";
   // Calculate cumulative sums for blocks and rows for correct global indexing
   const long long Nblocks_long = Nblocks;
   MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1, MPI_LONG_LONG, m_comm_);
-  std::cerr << "FIN GATHER 1\n";
-  std::cerr << "MPI SIZE: " << comm_size_ << std::endl;
-  std::cerr << "CUMSUM SIZE: " << Nblocks_xcumsum_.size() << std::endl;
   for (int i(Nblocks_xcumsum_.size()-1); i > 0; i--)
   {
     Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i-1]; // shift to right for rank 'i+1' to have cumsum of rank 'i'
   }
   
-  std::cerr << "HERE GATHER 1\n";
   // Set cumsum for rank 0 to zero
   Nblocks_xcumsum_[0] = 0;
   Nrows_xcumsum_[0] = 0;
@@ -453,7 +442,6 @@ void ExpAMRSolver::getMat()
     Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
     Nrows_xcumsum_[i] = BLEN*Nblocks_xcumsum_[i];
   }
-  std::cerr << "HERE GATHER 2\n";
 
   // No parallel for to ensure COO are ordered at construction
   for(int i=0; i<Nblocks; i++)

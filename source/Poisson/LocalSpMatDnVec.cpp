@@ -24,6 +24,9 @@ void LocalSpMatDnVec::reserve(const int &N)
   m_ = N;
 
   // Clear previous contents and reserve excess memory
+  for (size_t i(0); i < bd_recv_set_.size(); i++)
+    bd_recv_set_[i].clear();
+
   loc_cooValA_.clear(); loc_cooValA_.reserve(6*N);
   loc_cooRowA_.clear(); loc_cooRowA_.reserve(6*N);
   loc_cooColA_.clear(); loc_cooColA_.reserve(6*N);
@@ -104,7 +107,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
       }
     }
   }
-  std::cerr << "HERE 1\n";
 
   // Make receiving rules into halos of vectors
   recv_ranks_.clear();
@@ -148,7 +150,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
         MPI_Irecv(bd_send_vec[r].data(), bd_send_sz, MPI_LONG_LONG, r, VEC_MSG_TAG, m_comm_, &recv_req[r]);
     }
   }
-  std::cerr << "HERE 2\n";
 
   // Make sending rules from a 'send' buffer
   send_ranks_.clear();
@@ -175,12 +176,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   std::transform(loc_cooColA_.begin(), loc_cooColA_.end(), loc_cooColA_int_.begin(), shift_func);
   std::transform(bd_cooRowA_.begin(), bd_cooRowA_.end(), bd_cooRowA_int_.begin(), shift_func);
   std::transform(bd_cooColA_.begin(), bd_cooColA_.end(), bd_cooColA_int_.begin(), shift_func);
-  //std::transform(std::execution::par_unseq, loc_cooRowA_.begin(), loc_cooRowA_.end(), loc_cooRowA_int_.begin(), shift_func);
-  //std::transform(std::execution::par_unseq, loc_cooColA_.begin(), loc_cooColA_.end(), loc_cooColA_int_.begin(), shift_func);
-  //std::transform(std::execution::par_unseq, bd_cooRowA_.begin(), bd_cooRowA_.end(), bd_cooRowA_int_.begin(), shift_func);
-  //std::transform(std::execution::par_unseq, bd_cooColA_.begin(), bd_cooColA_.end(), bd_cooColA_int_.begin(), shift_func);
 
-  std::cerr << "HERE 3\n";
   // Map indices of columns from other ranks to the lower and upper halos (while accounting for the shift)
   std::unordered_map<long long, int> bd_glob_loc; 
   bd_glob_loc.reserve(lower_halo_ + upper_halo_);
@@ -198,7 +194,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     bd_glob_loc[bd_recv_vec[r][i]+shift] = m_ + lower_halo_ + loc_idx;
     loc_idx++;
   }
-  std::cerr << "HERE 4\n";
 
   // Reindex shifted halos to local indexing
   auto halo_reindex_func = [this, &bd_glob_loc](int &s) {
@@ -206,7 +201,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
       s = bd_glob_loc[s];
   };
   std::for_each(bd_cooColA_int_.begin(), bd_cooColA_int_.end(), halo_reindex_func);
-  //std::for_each(std::execution::par_unseq, bd_cooColA_int_.begin(), bd_cooColA_int_.end(), halo_reindex_func);
 
   // Block until bd_send_vec received indices other ranks require
   for (int r(0); r < comm_size_; r++)
@@ -214,13 +208,10 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     if (r != rank_ && !bd_send_vec[r].empty())
       MPI_Wait(&recv_req[r], MPI_STATUS_IGNORE);
   }
-  std::cerr << "HERE 5\n";
 
   // Local indexing for vector information to send to other ranks
   for (size_t i(0); i < send_ranks_.size(); i++)
-  {
     std::transform(bd_send_vec[send_ranks_[i]].begin(), bd_send_vec[send_ranks_[i]].end(), &send_buff_pack_idx_[send_offset_[i]], shift_func);
-  }
-  std::cerr << "HERE 6\n";
+
 }
 
