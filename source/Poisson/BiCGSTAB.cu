@@ -125,11 +125,9 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
   upper_halo_ = LocalLS->upper_halo_ ;
   hd_m_ = lower_halo_ + m_ + upper_halo_;
 
-  std::cerr << "BEGIN ALLOC\n";
 
   if (dirty_) // Previous time-step exists so cleanup first
   {
-    std::cerr << "BEGIN FREE\n";
     // Free device memory allocated for linear system from previous time-step
     checkCudaErrors(cudaFree(dloc_cooValA_));
     checkCudaErrors(cudaFree(dloc_cooRowA_));
@@ -158,7 +156,6 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
       checkCudaErrors(cusparseDestroySpMat(spDescrBdA_));
       checkCudaErrors(cudaFree(bdSpMVBuff_));
     }
-    std::cerr << "END FREE\n";
   }
   dirty_ = true;
   
@@ -178,8 +175,6 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
   checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
 
-  std::cerr << "ALLOCS SUCCESFUL\n";
-
 #ifdef BICGSTAB_PROFILER
   pMemcpy_.startProfiler(solver_stream_);
 #endif
@@ -197,7 +192,6 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
 #ifdef BICGSTAB_PROFILER
   pMemcpy_.stopProfiler(solver_stream_);
 #endif
-  std::cerr << "MEMCPY SUCCESFUL\n";
 
   // Copy host-side vectors during H2D transfer
   recv_ranks_ = LocalLS->recv_ranks_;
@@ -213,12 +207,11 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
   checkCudaErrors(cudaMalloc(&d_nu_hd_, hd_m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_t_hd_,  hd_m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_z_hd_,  hd_m_ * sizeof(double)));
-  std::cerr << "IS SEGFAULT HERE?\n";
   // Ignore halo for local operations
   d_nu_ = &d_nu_hd_[lower_halo_];
   d_t_ = &d_t_hd_[lower_halo_];
   d_z_ = &d_z_hd_[lower_halo_];
-  std::cerr << "NAAH\n";
+
   // Create descriptors for variables that will pass through cuSPARSE
   checkCudaErrors(cusparseCreateCoo(&spDescrLocA_, hd_m_, hd_m_, loc_nnz_, dloc_cooRowA_, dloc_cooColA_, dloc_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
   checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, hd_m_, d_z_hd_, CUDA_R_64F));
@@ -254,9 +247,7 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
     checkCudaErrors(cudaMalloc(&bdSpMVBuff_, bdSpMVBuffSz_ * sizeof(char)));
   }
 
-  std::cerr << "BEGIN VECALLOC\n";
   this->updateVec(LocalLS);
-  std::cerr << "END ALLOC\n";
 }
 
 void BiCGSTABSolver::updateVec(std::shared_ptr<LocalSpMatDnVec> LocalLS)
@@ -334,17 +325,17 @@ void BiCGSTABSolver::hd_cusparseSpMV(
   cusparseDnVecDescr_t spDescrRes)
 {
 
-  if (comm_size_ > 1)
-  {
-    send_buff_pack<<<send_buff_sz_/32+1,32, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
-    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // try with events later
-
-    for (size_t i(0); i < send_ranks_.size(); i++)
-    {
-      MPI_Request request;
-      MPI_Isend(&d_send_buff_[send_offset_[i]], send_sz_[i], MPI_INT, send_ranks_[i], _HALO_MSG_, m_comm_, &request);
-    }
-  }
+//  if (comm_size_ > 1)
+//  {
+//    send_buff_pack<<<send_buff_sz_/32+1,32, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
+//    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // try with events later
+//
+//    for (size_t i(0); i < send_ranks_.size(); i++)
+//    {
+//      MPI_Request request;
+//      MPI_Isend(&d_send_buff_[send_offset_[i]], send_sz_[i], MPI_INT, send_ranks_[i], _HALO_MSG_, m_comm_, &request);
+//    }
+//  }
 
 #ifdef BICGSTAB_PROFILER
   pSpMV_.startProfiler(solver_stream_);
@@ -367,12 +358,12 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   if (comm_size_ > 1)
   {
-    // Schedule receives and wait for them to arrive
-    std::vector<MPI_Request> recv_requests;
-    for (size_t i(0); i < recv_ranks_.size(); i++)
-      MPI_Irecv(&d_op_hd[recv_offset_[i]], recv_sz_[i], MPI_INT, recv_ranks_[i], _HALO_MSG_, m_comm_, &recv_requests[i]);
-    for (size_t i(0); i < recv_ranks_.size(); i++)
-      MPI_Wait(&recv_requests[i], MPI_STATUS_IGNORE);
+//    // Schedule receives and wait for them to arrive
+//    std::vector<MPI_Request> recv_requests;
+//    for (size_t i(0); i < recv_ranks_.size(); i++)
+//      MPI_Irecv(&d_op_hd[recv_offset_[i]], recv_sz_[i], MPI_INT, recv_ranks_[i], _HALO_MSG_, m_comm_, &recv_requests[i]);
+//    for (size_t i(0); i < recv_ranks_.size(); i++)
+//      MPI_Wait(&recv_requests[i], MPI_STATUS_IGNORE);
 
 #ifdef BICGSTAB_PROFILER
     pSpMV_.startProfiler(solver_stream_);
@@ -433,7 +424,7 @@ void BiCGSTABSolver::main(
   checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1), 2*sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
   checkCudaErrors(cudaStreamSynchronize(solver_stream_));
 
-  MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_MAX, m_comm_);
+//  MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_MAX, m_comm_);
 
   std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << std::endl;
   std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << std::endl;
@@ -462,7 +453,7 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); 
     h_coeffs_->buff_1 *= h_coeffs_->buff_1; // get square norm
     h_coeffs_->buff_2 *= h_coeffs_->buff_2;
-    MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->rho_curr), 3, MPI_DOUBLE, MPI_SUM, m_comm_);
+ //   MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->rho_curr), 3, MPI_DOUBLE, MPI_SUM, m_comm_);
     checkCudaErrors(cudaMemcpyAsync(&(d_coeffs_->rho_curr), &(h_coeffs_->rho_curr), sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     const bool serious_breakdown = h_coeffs_->rho_curr * h_coeffs_->rho_curr < 1e-16 * h_coeffs_->buff_1 * h_coeffs_->buff_2;
 
@@ -506,7 +497,7 @@ void BiCGSTABSolver::main(
     // 6. alpha = rho_i / (r_hat, nu_i)
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 1, MPI_DOUBLE, MPI_SUM, m_comm_);
+//    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 1, MPI_DOUBLE, MPI_SUM, m_comm_);
     set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 
@@ -536,7 +527,7 @@ void BiCGSTABSolver::main(
     set_squared<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_2));
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_SUM, m_comm_);
+//    MPI_Allreduce(MPI_IN_PLACE, &(d_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_SUM, m_comm_);
     set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 

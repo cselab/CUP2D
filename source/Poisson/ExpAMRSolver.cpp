@@ -597,14 +597,12 @@ void ExpAMRSolver::solve(
   if (sim.pres->UpdateFluxCorrection)
   {
     sim.pres->UpdateFluxCorrection = false;
-    std::cerr << "GOTTA CALL GETMAT\n";
     this->getMat();
     this->getVec();
     backend_->solveWithUpdate(LocalLS, max_error, max_rel_error, max_restarts);
   }
   else
   {
-    std::cerr << "NAAAH, GETVEC GOOD ENOUGH\n";
     this->getVec();
     backend_->solveNoUpdate(LocalLS, max_error, max_rel_error, max_restarts);
   }

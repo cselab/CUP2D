@@ -28,11 +28,11 @@ void LocalSpMatDnVec::reserve(const int &N)
     bd_recv_set_[i].clear();
 
   loc_cooValA_.clear(); loc_cooValA_.reserve(6*N);
-  loc_cooRowA_.clear(); loc_cooRowA_.reserve(6*N);
-  loc_cooColA_.clear(); loc_cooColA_.reserve(6*N);
+  loc_cooRowA_long_.clear(); loc_cooRowA_long_.reserve(6*N);
+  loc_cooColA_long_.clear(); loc_cooColA_long_.reserve(6*N);
   bd_cooValA_.clear(); bd_cooValA_.reserve(N);
-  bd_cooRowA_.clear(); bd_cooRowA_.reserve(N);
-  bd_cooColA_.clear(); bd_cooColA_.reserve(N);
+  bd_cooRowA_long_.clear(); bd_cooRowA_long_.reserve(N);
+  bd_cooColA_long_.clear(); bd_cooColA_long_.reserve(N);
 
   x_.resize(N);
   b_.resize(N);
@@ -46,8 +46,8 @@ void LocalSpMatDnVec::reserve(const int &N)
 void LocalSpMatDnVec::cooPushBackVal(const double &val, const long long &row, const long long &col)
 {
   loc_cooValA_.push_back(val);  
-  loc_cooRowA_.push_back(row);
-  loc_cooColA_.push_back(col);
+  loc_cooRowA_long_.push_back(row);
+  loc_cooColA_long_.push_back(col);
 }
 
 void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row)
@@ -57,8 +57,8 @@ void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row)
     for (const auto &[col_idx, val] : row.colval_)
     {
       loc_cooValA_.push_back(val);  
-      loc_cooRowA_.push_back(row.idx_);
-      loc_cooColA_.push_back(col_idx);
+      loc_cooRowA_long_.push_back(row.idx_);
+      loc_cooColA_long_.push_back(col_idx);
     }
   } 
   else 
@@ -66,8 +66,8 @@ void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row)
     for (const auto &[col_idx, val] : row.colval_)
     {
       bd_cooValA_.push_back(val);  
-      bd_cooRowA_.push_back(row.idx_);
-      bd_cooColA_.push_back(col_idx);
+      bd_cooRowA_long_.push_back(row.idx_);
+      bd_cooColA_long_.push_back(col_idx);
     }
     // Update recv set
     for (const auto &[rank, col_idx] : row.neirank_cols_)
@@ -169,13 +169,17 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   send_buff_pack_idx_.resize(offset);
 
   // Now re-index the linear system from global to local indexing
+  loc_cooRowA_int_.resize(loc_nnz_);
+  loc_cooColA_int_.resize(loc_nnz_);
+  bd_cooRowA_int_.resize(bd_nnz_);
+  bd_cooColA_int_.resize(bd_nnz_);
   // First shift the entire linear system such that the first global index of purely local row starts after lower halo
   const long long shift = -Nrows_xcumsum[rank_] + (long long)lower_halo_;
   auto shift_func = [&shift](const long long &s) -> int { return int(s + shift); };
-  std::transform(loc_cooRowA_.begin(), loc_cooRowA_.end(), loc_cooRowA_int_.begin(), shift_func);
-  std::transform(loc_cooColA_.begin(), loc_cooColA_.end(), loc_cooColA_int_.begin(), shift_func);
-  std::transform(bd_cooRowA_.begin(), bd_cooRowA_.end(), bd_cooRowA_int_.begin(), shift_func);
-  std::transform(bd_cooColA_.begin(), bd_cooColA_.end(), bd_cooColA_int_.begin(), shift_func);
+  std::transform(loc_cooRowA_long_.begin(), loc_cooRowA_long_.end(), loc_cooRowA_int_.begin(), shift_func);
+  std::transform(loc_cooColA_long_.begin(), loc_cooColA_long_.end(), loc_cooColA_int_.begin(), shift_func);
+  std::transform(bd_cooRowA_long_.begin(), bd_cooRowA_long_.end(), bd_cooRowA_int_.begin(), shift_func);
+  std::transform(bd_cooColA_long_.begin(), bd_cooColA_long_.end(), bd_cooColA_int_.begin(), shift_func);
 
   // Map indices of columns from other ranks to the lower and upper halos (while accounting for the shift)
   std::unordered_map<long long, int> bd_glob_loc; 

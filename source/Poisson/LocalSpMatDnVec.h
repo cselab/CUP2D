@@ -47,15 +47,15 @@ class LocalSpMatDnVec
 
     // Local rows of linear system + dense vecs
     std::vector<double> loc_cooValA_;
-    std::vector<long long> loc_cooRowA_;
-    std::vector<long long> loc_cooColA_;
+    std::vector<long long> loc_cooRowA_long_;
+    std::vector<long long> loc_cooColA_long_;
     std::vector<double> x_;
     std::vector<double> b_;
 
     // Non-local rows with columns belonging to halo using rank-local indexing
     std::vector<double> bd_cooValA_;
-    std::vector<long long> bd_cooRowA_;
-    std::vector<long long> bd_cooColA_;
+    std::vector<long long> bd_cooRowA_long_;
+    std::vector<long long> bd_cooColA_long_;
 
     // Identical to above, but with integers
     std::vector<int> loc_cooRowA_int_;
