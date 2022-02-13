@@ -557,6 +557,7 @@ void ExpAMRSolver::getVec()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
+  const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
   #pragma omp parallel for
@@ -570,9 +571,9 @@ void ExpAMRSolver::getVec()
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
     {
-      const long long sfc_idx = NorthCell.This(rhs_info, ix, iy);
-      LocalLS->b_[sfc_idx] = rhs(ix,iy).s;
-      LocalLS->x_[sfc_idx] = p(ix,iy).s;
+      const long long sfc_loc = NorthCell.This(rhs_info, ix, iy) + shift;
+      LocalLS->b_[sfc_loc] = rhs(ix,iy).s;
+      LocalLS->x_[sfc_loc] = p(ix,iy).s;
     }
   }
 
@@ -614,32 +615,29 @@ void ExpAMRSolver::solve(
 
   double avg = 0;
   double avg1 = 0;
-  #pragma omp parallel
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(int i=0; i< Nblocks; i++)
   {
-     #pragma omp for reduction (+:avg,avg1)
-     for(int i=0; i< Nblocks; i++)
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     const double vv = zInfo[i].h*zInfo[i].h;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
      {
-        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-        const double vv = zInfo[i].h*zInfo[i].h;
-        for(int iy=0; iy<BSY_; iy++)
-        for(int ix=0; ix<BSX_; ix++)
-        {
-            P(ix,iy).s = LocalLS->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
-            avg += P(ix,iy).s * vv;
-            avg1 += vv;
-        }
+         P(ix,iy).s = LocalLS->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
+         avg += P(ix,iy).s * vv;
+         avg1 += vv;
      }
-     #pragma omp single
-     {
-        avg = avg/avg1;
-     }
-     #pragma omp for
-     for(int i=0; i< Nblocks; i++)
-     {
-        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-        for(int iy=0; iy<BSY_; iy++)
-        for(int ix=0; ix<BSX_; ix++)
-           P(ix,iy).s += -avg;
-     }
+  }
+  double quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, m_comm_);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for 
+  for(int i=0; i< Nblocks; i++)
+  {
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
+        P(ix,iy).s += -avg;
   }
 }

@@ -100,6 +100,9 @@ private:
   double* d_send_buff_;
   int send_buff_sz_;
 
+  double* h_send_buff_;
+  double* h_recv_buff_;
+
   // Device-side constants
   double* d_consts_;
   const double* d_eye_;

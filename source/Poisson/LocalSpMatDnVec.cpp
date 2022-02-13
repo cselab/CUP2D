@@ -113,9 +113,9 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   recv_offset_.clear();
   recv_sz_.clear();
   int offset = 0;
-  for (int r(0); r < rank_; r++)
+  for (int r(0); r < comm_size_; r++)
   {
-    if (!bd_recv_vec[r].empty())
+    if (r != rank_ && !bd_recv_vec[r].empty())
     {
       recv_ranks_.push_back(r); 
       recv_offset_.push_back(offset);
@@ -123,18 +123,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
       offset += bd_recv_sz[r];
     }
   }
-  offset = 0;
-  for (int r(rank_+1); r <comm_size_; r++)
-  {
-    if (!bd_recv_vec[r].empty())
-    {
-      recv_ranks_.push_back(r); 
-      recv_offset_.push_back(offset + lower_halo_ + m_);
-      recv_sz_.push_back(bd_recv_sz[r]);
-      offset += bd_recv_sz[r];
-    }
-  }
-
 
   // Receive from other ranks the indices they will require for SpMV
   std::vector<std::vector<long long>> bd_send_vec(comm_size_);
