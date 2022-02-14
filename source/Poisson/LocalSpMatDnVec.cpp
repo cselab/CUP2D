@@ -8,15 +8,20 @@
 #define SZ_MSG_TAG  100
 #define VEC_MSG_TAG 101
 
-LocalSpMatDnVec::LocalSpMatDnVec(const int &rank, const MPI_Comm &m_comm, const int &comm_size) 
-  : rank_(rank), m_comm_(m_comm), comm_size_(comm_size), bd_recv_set_(comm_size)
+LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm) 
+  : m_comm_(m_comm)
 {
-  recv_ranks_.reserve(comm_size); 
-  recv_offset_.reserve(comm_size); 
-  recv_sz_.reserve(comm_size); 
-  send_ranks_.reserve(comm_size); 
-  send_offset_.reserve(comm_size); 
-  send_sz_.reserve(comm_size); 
+  // MPI
+  MPI_Comm_rank(m_comm_, &rank_);
+  MPI_Comm_size(m_comm_, &comm_size_);
+
+  bd_recv_set_.resize(comm_size_);
+  recv_ranks_.reserve(comm_size_); 
+  recv_offset_.reserve(comm_size_); 
+  recv_sz_.reserve(comm_size_);
+  send_ranks_.reserve(comm_size_); 
+  send_offset_.reserve(comm_size_); 
+  send_sz_.reserve(comm_size_); 
 }
 
 void LocalSpMatDnVec::reserve(const int &N)
@@ -181,6 +186,5 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   // Local indexing for vector information to send to other ranks
   for (size_t i(0); i < send_ranks_.size(); i++)
     std::transform(bd_send_vec[send_ranks_[i]].begin(), bd_send_vec[send_ranks_[i]].end(), &send_buff_pack_idx_[send_offset_[i]], shift_func);
-
 }
 

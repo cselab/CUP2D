@@ -19,9 +19,9 @@ class PolyO3I {
         const BlockInfo &info_f, const int &ix_f, const int &iy_f,
         const bool &neiCoarser, const EdgeCellIndexer &indexer,
         SpRowInfo &row)
-      : sign_(neiCoarser ? 1. : -1.), row_(row),
-        rank_c_(s.tmp->Tree(info_c).rank()),
-        rank_f_(s.tmp->Tree(info_f).rank())
+      : rank_c_(s.tmp->Tree(info_c).rank()),
+        rank_f_(s.tmp->Tree(info_f).rank()),
+        sign_(neiCoarser ? 1. : -1.), row_(row)
     {
       if (neiCoarser) // thisFiner
       {
@@ -198,16 +198,13 @@ double ExpAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation o
 }
 
 ExpAMRSolver::ExpAMRSolver(SimulationData& s)
-  : sim(s), Nblocks_xcumsum_(1), Nrows_xcumsum_(1), 
+  : sim(s), m_comm_(sim.comm), 
     NorthCell(s, Nblocks_xcumsum_), EastCell(s, Nblocks_xcumsum_), 
     SouthCell(s, Nblocks_xcumsum_), WestCell(s, Nblocks_xcumsum_)
 {
   // MPI
-  rank_ = sim.rank;
-  m_comm_ = sim.comm;
+  MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
-
-  LocalLS = std::make_shared<LocalSpMatDnVec>(rank_, m_comm_, comm_size_);
 
   Nblocks_xcumsum_.resize(comm_size_ + 1);
   Nrows_xcumsum_.resize(comm_size_ + 1);
@@ -273,7 +270,9 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
     P_inv[i*BLEN+j] = aux;
   }
 
-  backend_ =  std::make_shared<BiCGSTABSolver>(rank_, m_comm_, comm_size_, BSX_, BSY_, P_inv.data());
+  // Create Linear system and backend solver objects
+  LocalLS_ = std::make_shared<LocalSpMatDnVec>(m_comm_);
+  backend_ =  std::make_shared<BiCGSTABSolver>(m_comm_, LocalLS_, BSX_*BSY_, P_inv.data());
 }
 
 ExpAMRSolver::~ExpAMRSolver()
@@ -353,7 +352,7 @@ void ExpAMRSolver::makeEdgeCellRow( // excluding corners
     if (!isBoundary)
       this->makeFlux(rhs_info, ix, iy, rhsNei, indexer, row);
 
-    LocalLS->cooPushBackRow(row);
+    LocalLS_->cooPushBackRow(row);
 }
 
 template<class EdgeIndexer1, class EdgeIndexer2>
@@ -384,7 +383,7 @@ void ExpAMRSolver::makeCornerCellRow(
     if (!isBoundary2)
       this->makeFlux(rhs_info, ix, iy, rhsNei_2, indexer2, row);
 
-    LocalLS->cooPushBackRow(row);
+    LocalLS_->cooPushBackRow(row);
 }
 
 void ExpAMRSolver::getMat()
@@ -402,7 +401,7 @@ void ExpAMRSolver::getMat()
   const int N = BSX_*BSY_*Nblocks;
 
   // Reserve sufficient memory for LS proper to the rank
-  LocalLS->reserve(N);
+  LocalLS_->reserve(N);
 
   // Calculate cumulative sums for blocks and rows for correct global indexing
   const long long Nblocks_long = Nblocks;
@@ -472,11 +471,11 @@ void ExpAMRSolver::getMat()
         const long long nn_idx = NorthCell.NorthNeighbour(rhs_info, ix, iy);
         
         // Push back in ascending order for 'col_idx'
-        LocalLS->cooPushBackVal(1., sfc_idx, sn_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, wn_idx);
-        LocalLS->cooPushBackVal(-4, sfc_idx, sfc_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, en_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, nn_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, sn_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, wn_idx);
+        LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, en_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, nn_idx);
       }
       else if (ix == 0 && (iy > 0 && iy < BSY_-1))
       { // west cells excluding corners
@@ -525,7 +524,7 @@ void ExpAMRSolver::getMat()
     } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
   } // for(int i=0; i< Nblocks; i++)
 
-  LocalLS->make(Nrows_xcumsum_);
+  LocalLS_->make(Nrows_xcumsum_);
 
   sim.stopProfiler();
 }
@@ -553,8 +552,8 @@ void ExpAMRSolver::getVec()
     for(int ix=0; ix<BSX_; ix++)
     {
       const long long sfc_loc = NorthCell.This(rhs_info, ix, iy) + shift;
-      LocalLS->b_[sfc_loc] = rhs(ix,iy).s;
-      LocalLS->x_[sfc_loc] = p(ix,iy).s;
+      LocalLS_->b_[sfc_loc] = rhs(ix,iy).s;
+      LocalLS_->x_[sfc_loc] = p(ix,iy).s;
     }
   }
 
@@ -578,15 +577,17 @@ void ExpAMRSolver::solve(
 
   if (sim.pres->UpdateFluxCorrection)
   {
+    std::cerr << "Rank: " << rank_ << " calling solveWithUpdate" << std::endl;
     sim.pres->UpdateFluxCorrection = false;
     this->getMat();
     this->getVec();
-    backend_->solveWithUpdate(LocalLS, max_error, max_rel_error, max_restarts);
+    backend_->solveWithUpdate(max_error, max_rel_error, max_restarts);
   }
   else
   {
+    std::cerr << "Rank: " << rank_ << " calling solveNoUpdate" << std::endl;
     this->getVec();
-    backend_->solveNoUpdate(LocalLS, max_error, max_rel_error, max_restarts);
+    backend_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
@@ -604,7 +605,7 @@ void ExpAMRSolver::solve(
      for(int iy=0; iy<BSY_; iy++)
      for(int ix=0; ix<BSX_; ix++)
      {
-         P(ix,iy).s = LocalLS->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
+         P(ix,iy).s = LocalLS_->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
          avg += P(ix,iy).s * vv;
          avg1 += vv;
      }

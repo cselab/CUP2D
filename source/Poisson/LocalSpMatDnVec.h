@@ -40,7 +40,7 @@ class SpRowInfo
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(const int &rank, const MPI_Comm &m_comm, const int &comm_size); 
+    LocalSpMatDnVec(MPI_Comm m_comm); 
     ~LocalSpMatDnVec() = default;
 
     int rank_;

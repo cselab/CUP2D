@@ -27,38 +27,36 @@ struct BiCGSTABScalars {
 class BiCGSTABSolver {
 public:
   BiCGSTABSolver(
-      const int &rank,
-      const MPI_Comm &m_comm,
-      const int &comm_size,
-      const int &BSX, 
-      const int &BSY, 
+      MPI_Comm m_comm,
+      std::shared_ptr<LocalSpMatDnVec> LocalLS,
+      const int &BLEN, 
       const double* const P_inv);  
   ~BiCGSTABSolver();  
 
   // Solve method with update to LHS matrix
   void solveWithUpdate(
-    std::shared_ptr<LocalSpMatDnVec> LocalLS,
     const double max_error,
     const double max_rel_error,
     const int max_restarts); 
 
   // Solve method without update to LHS matrix
   void solveNoUpdate(
-    std::shared_ptr<LocalSpMatDnVec> LocalLS,
     const double max_error,
     const double max_rel_error,
     const int max_restarts); 
 
 private:
+  // Method to free memory allocated by updateAll
+  void freeLast();
+
   // Method to update LS
-  void updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS);
+  void updateAll();
 
   // Method to set RHS and LHS vec initial guess
-  void updateVec(std::shared_ptr<LocalSpMatDnVec> LocalLS);
+  void updateVec();
 
   // Main BiCGSTAB call
   void main(
-    double* const h_x,
     const double max_error, 
     const double max_rel_error, 
     const int restarts);
@@ -87,18 +85,13 @@ private:
   int hd_m_; // haloed number of row
   const int BLEN_; // block length (i.e no. of rows in preconditioner)
 
-  // Vectors that contain rules for sending and receiving
-  std::vector<int> recv_ranks_;
-  std::vector<int> recv_offset_;
-  std::vector<int> recv_sz_;
+  // LocalLS to be solved
+  std::shared_ptr<LocalSpMatDnVec> LocalLS_;
 
-  std::vector<int> send_ranks_;
-  std::vector<int> send_offset_;
-  std::vector<int> send_sz_;
+  // Send/receive rules and buffers
+  int send_buff_sz_;
   int* d_send_buff_pack_idx_;
   double* d_send_buff_;
-  int send_buff_sz_;
-
   double* h_send_buff_;
   double* h_recv_buff_;
 

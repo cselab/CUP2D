@@ -32,12 +32,12 @@ public:
       ScalarGrid * const output);
 
 protected:
+  //this struct contains information such as the currect timestep size, fluid properties and many others
+  SimulationData& sim; 
+
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
-
-  //this struct contains information such as the currect timestep size, fluid properties and many others
-  SimulationData& sim; 
 
   // Pointer to solving backend of SpMat DnVec linear system
   std::shared_ptr<BiCGSTABSolver> backend_;
@@ -86,7 +86,7 @@ protected:
   void getVec(); // update initial guess and RHS vecs only
 
   // Class containing local linear system
-  std::shared_ptr<LocalSpMatDnVec> LocalLS;
+  std::shared_ptr<LocalSpMatDnVec> LocalLS_;
 
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
