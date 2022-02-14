@@ -19,9 +19,11 @@ class PolyO3I {
         const BlockInfo &info_f, const int &ix_f, const int &iy_f,
         const bool &neiCoarser, const EdgeCellIndexer &indexer,
         SpRowInfo &row)
-      : sign_(neiCoarser ? 1. : -1.), row_(row)
+      : sign_(neiCoarser ? 1. : -1.), row_(row),
+        rank_c_(s.tmp->Tree(info_c).rank()),
+        rank_f_(s.tmp->Tree(info_f).rank())
     {
-      if (neiCoarser)
+      if (neiCoarser) // thisFiner
       {
         coarse_centre_idx_ = indexer.neiblock_n(info_c, ix_c, iy_c);
         if (indexer.back_corner(ix_c, iy_c))
@@ -45,18 +47,8 @@ class PolyO3I {
 
         fine_close_idx_ = indexer.This(info_f, ix_f, iy_f);
         fine_far_idx_ = indexer.inblock_n2(info_f, ix_f, iy_f);
-        
-        // Log the neighbour cell index and rank for future comunication
-        const int this_rank = s.tmp->Tree(info_f).rank();
-        const int nei_rank  = s.tmp->Tree(info_c).rank();
-        if (this_rank != nei_rank)
-        {
-          row_.logNeiRankCol(nei_rank, coarse_centre_idx_);
-          row_.logNeiRankCol(nei_rank, coarse_offset1_idx_);
-          row_.logNeiRankCol(nei_rank, coarse_offset2_idx_);
-        }
       }
-      else // neiFiner
+      else // neiFiner, thisCoarser
       {
         coarse_centre_idx_ = indexer.This(info_c, ix_c, iy_c);
 
@@ -81,15 +73,6 @@ class PolyO3I {
 
         fine_close_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 0);
         fine_far_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 1);
-
-        // Log the neighbour cell index and rank for future comunication
-        const int this_rank = s.tmp->Tree(info_c).rank();
-        const int nei_rank  = s.tmp->Tree(info_f).rank();
-        if (this_rank != nei_rank)
-        {
-          row_.logNeiRankCol(nei_rank, fine_close_idx_);
-          row_.logNeiRankCol(nei_rank, fine_far_idx_);
-        }
       }
 
       this->interpolate();
@@ -104,9 +87,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_top);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
     }
 
     // Central Difference "Lower" Taylor approximation (negative 1st order term)
@@ -116,9 +99,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_top);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
     }
 
     void BiasedUpperTaylor()
@@ -127,9 +110,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_offset2);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
     }
 
     void BiasedLowerTaylor()
@@ -138,9 +121,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_offset2);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
     }
 
     // Aliases for offset based biased functionals to forward/backward differences in corners
@@ -178,14 +161,16 @@ class PolyO3I {
           break;
       }
 
-      row_.mapColVal(fine_close_idx_, sign_*p_fine_close);
-      row_.mapColVal(fine_far_idx_, sign_*p_fine_far);
+      row_.mapColVal(rank_f_, fine_close_idx_, sign_*p_fine_close);
+      row_.mapColVal(rank_f_, fine_far_idx_, sign_*p_fine_far);
 
       // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
-      row_.mapColVal(fine_close_idx_, -sign_);
+      row_.mapColVal(rank_f_, fine_close_idx_, -sign_);
     } 
 
   private:
+    const int rank_c_;
+    const int rank_f_;
     const double sign_;
     SpRowInfo &row_;
     long long coarse_centre_idx_;
@@ -312,16 +297,12 @@ void ExpAMRSolver::makeFlux(
 
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { 
+    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
     const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy);
 
     // Map flux associated to out-of-block edges at the same level of refinement
-    row.mapColVal(nei_idx, 1.);
+    row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
-
-    // Log the neighbour cell index and rank for future comunication
-    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
-    if (rank_ != nei_rank)
-      row.logNeiRankCol(nei_rank, nei_idx);
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
@@ -361,7 +342,7 @@ void ExpAMRSolver::makeEdgeCellRow( // excluding corners
     const long long n2_idx = indexer.inblock_n2(rhs_info, ix, iy); // in-block neighbour 2
     const long long n3_idx = indexer.inblock_n3(rhs_info, ix, iy); // in-block neighbour 3
 
-    SpRowInfo row(sfc_idx, 4); // worst case: this coarse with four fine out-of-rank nei
+    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 4); // worst case: this coarse with four fine out-of-rank nei
 
     // Map fluxes associated to in-block edges
     row.mapColVal(n1_idx, 1.);
@@ -391,7 +372,7 @@ void ExpAMRSolver::makeCornerCellRow(
     const long long n1_idx = indexer1.inblock_n2(rhs_info, ix, iy); // indexer.inblock_n2 is the opposite edge
     const long long n2_idx = indexer2.inblock_n2(rhs_info, ix, iy); // makes corner input order invariant
 
-    SpRowInfo row(sfc_idx, 8); // worst case: this coarse with four fine out-of-rank nei at both corner edges
+    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8); // worst case: this coarse with four fine out-of-rank nei at both corner edges
 
     // Map fluxes associated to in-block edges
     row.mapColVal(n1_idx, 1.);

@@ -65,9 +65,9 @@ private:
 
   // Haloed SpMV
   void hd_cusparseSpMV(
-    double* d_op_hd,  // operand vec
+    double* d_op,  // operand vec
     cusparseDnVecDescr_t spDescrOp,
-    double* d_res_hd, // result vec
+    double* d_res, // result vec
     cusparseDnVecDescr_t Res);
 
   cudaStream_t solver_stream_;
@@ -81,10 +81,9 @@ private:
   MPI_Comm m_comm_;
   int comm_size_;
   int m_;
+  int halo_;
   int loc_nnz_;
   int bd_nnz_;
-  int lower_halo_;
-  int upper_halo_;
   int hd_m_; // haloed number of row
   const int BLEN_; // block length (i.e no. of rows in preconditioner)
 
@@ -124,11 +123,7 @@ private:
   // Device-side intermediate variables for BiCGSTAB
   double* d_rhat_;
   double* d_p_;
-  double* d_nu_hd_; // vecs with halos
-  double* d_t_hd_;
-  double* d_z_hd_;
-  // Pointers to haloed vec with offset
-  double* d_nu_; 
+  double* d_nu_; // vecs with halos
   double* d_t_;
   double* d_z_;
   // Descriptors for variables that will pass through cuSPARSE

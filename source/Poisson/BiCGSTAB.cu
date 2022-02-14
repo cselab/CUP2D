@@ -63,9 +63,9 @@ BiCGSTABSolver::~BiCGSTABSolver()
   checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
   checkCudaErrors(cudaFree(d_rhat_));
   checkCudaErrors(cudaFree(d_p_));
-  checkCudaErrors(cudaFree(d_nu_hd_));
-  checkCudaErrors(cudaFree(d_t_hd_));
-  checkCudaErrors(cudaFree(d_z_hd_));
+  checkCudaErrors(cudaFree(d_nu_));
+  checkCudaErrors(cudaFree(d_t_));
+  checkCudaErrors(cudaFree(d_z_));
   checkCudaErrors(cudaFree(locSpMVBuff_));
   checkCudaErrors(cudaFree(bdSpMVBuff_));
 
@@ -119,11 +119,10 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
 {
   // Update LS metadata
   m_ = LocalLS->m_;
+  halo_ = LocalLS->halo_ ;
+  hd_m_ = m_ + halo_;
   loc_nnz_ = LocalLS->loc_nnz_ ;
   bd_nnz_ = LocalLS->bd_nnz_ ;
-  lower_halo_ = LocalLS->lower_halo_ ;
-  upper_halo_ = LocalLS->upper_halo_ ;
-  hd_m_ = lower_halo_ + m_ + upper_halo_;
 
 
   if (dirty_) // Previous time-step exists so cleanup first
@@ -142,9 +141,9 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
     checkCudaErrors(cusparseDestroyDnVec(spDescrT_));
     checkCudaErrors(cudaFree(d_rhat_));
     checkCudaErrors(cudaFree(d_p_));
-    checkCudaErrors(cudaFree(d_nu_hd_));
-    checkCudaErrors(cudaFree(d_t_hd_));
-    checkCudaErrors(cudaFree(d_z_hd_));
+    checkCudaErrors(cudaFree(d_nu_));
+    checkCudaErrors(cudaFree(d_t_));
+    checkCudaErrors(cudaFree(d_z_));
     checkCudaErrors(cudaFree(locSpMVBuff_));
     if (comm_size_ > 1)
     {
@@ -168,7 +167,7 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
     checkCudaErrors(cudaMalloc(&d_send_buff_pack_idx_, send_buff_sz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_send_buff_, send_buff_sz_ * sizeof(double)));
     checkCudaErrors(cudaMallocHost(&h_send_buff_, send_buff_sz_ * sizeof(double)));
-    checkCudaErrors(cudaMallocHost(&h_recv_buff_, (lower_halo_+upper_halo_) * sizeof(double)));
+    checkCudaErrors(cudaMallocHost(&h_recv_buff_, halo_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&dbd_cooValA_, bd_nnz_ * sizeof(double)));
     checkCudaErrors(cudaMalloc(&dbd_cooRowA_, bd_nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&dbd_cooColA_, bd_nnz_ * sizeof(int)));
@@ -208,19 +207,15 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_p_, m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_nu_hd_, hd_m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_t_hd_,  hd_m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_z_hd_,  hd_m_ * sizeof(double)));
-  // Ignore halo for local operations
-  d_nu_ = &d_nu_hd_[lower_halo_];
-  d_t_ = &d_t_hd_[lower_halo_];
-  d_z_ = &d_z_hd_[lower_halo_];
+  checkCudaErrors(cudaMalloc(&d_nu_, hd_m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_t_,  hd_m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_z_,  hd_m_ * sizeof(double)));
 
   // Create descriptors for variables that will pass through cuSPARSE
   checkCudaErrors(cusparseCreateCoo(&spDescrLocA_, hd_m_, hd_m_, loc_nnz_, dloc_cooRowA_, dloc_cooColA_, dloc_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
-  checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, hd_m_, d_z_hd_, CUDA_R_64F));
-  checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, hd_m_, d_nu_hd_, CUDA_R_64F));
-  checkCudaErrors(cusparseCreateDnVec(&spDescrT_, hd_m_, d_t_hd_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrZ_, hd_m_, d_z_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrNu_, hd_m_, d_nu_, CUDA_R_64F));
+  checkCudaErrors(cusparseCreateDnVec(&spDescrT_, hd_m_, d_t_, CUDA_R_64F));
   // Allocate work buffer for cusparseSpMV
   checkCudaErrors(cusparseSpMV_bufferSize(
         cusparse_handle_, 
@@ -243,7 +238,7 @@ void BiCGSTABSolver::updateAll(std::shared_ptr<LocalSpMatDnVec> LocalLS)
           d_eye_, 
           spDescrBdA_, 
           spDescrZ_, 
-          d_nil_, 
+          d_eye_, 
           spDescrNu_, 
           CUDA_R_64F, 
           CUSPARSE_MV_ALG_DEFAULT, 
@@ -260,8 +255,7 @@ void BiCGSTABSolver::updateVec(std::shared_ptr<LocalSpMatDnVec> LocalLS)
   pMemcpy_.startProfiler(solver_stream_);
 #endif
   // Copy RHS LHS vec initial guess, if LS was updated, updateAll reallocates sufficient memory
-  // d_z_hd_ with offset to store x0 for A*x0
-  checkCudaErrors(cudaMemcpyAsync(&d_z_hd_[lower_halo_], LocalLS->x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_z_, LocalLS->x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_r_, LocalLS->b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 #ifdef BICGSTAB_PROFILER
   pMemcpy_.stopProfiler(solver_stream_);
@@ -371,8 +365,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     for (size_t i(0); i < recv_ranks_.size(); i++)
       MPI_Wait(&recv_requests[i], MPI_STATUS_IGNORE);
 
-    checkCudaErrors(cudaMemcpyAsync(d_op_hd, h_recv_buff_, lower_halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-    checkCudaErrors(cudaMemcpyAsync(&d_op_hd[lower_halo_+m_], &h_recv_buff_[lower_halo_], upper_halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_, halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 #ifdef BICGSTAB_PROFILER
     pSpMV_.startProfiler(solver_stream_);
 #endif
@@ -417,7 +410,7 @@ void BiCGSTABSolver::main(
   checkCudaErrors(cudaMemcpyAsync(d_coeffs_, h_coeffs_, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"
-	hd_cusparseSpMV(d_z_hd_, spDescrZ_, d_nu_hd_, spDescrNu_);
+	hd_cusparseSpMV(d_z_, spDescrZ_, d_nu_, spDescrNu_);
   checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_, 1)); // r <- -A*x_0 + b
 
   // ||A*x_0||_max
@@ -511,7 +504,7 @@ void BiCGSTABSolver::main(
 #endif
 
     // 5. nu_i = A * z
-	  hd_cusparseSpMV(d_z_hd_, spDescrZ_, d_nu_hd_, spDescrNu_);
+	  hd_cusparseSpMV(d_z_, spDescrZ_, d_nu_, spDescrNu_);
 
     // 6. alpha = rho_i / (r_hat, nu_i)
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &(d_coeffs_->buff_1)));
@@ -540,7 +533,7 @@ void BiCGSTABSolver::main(
 #endif
 
     // 11. t = A * z
-	  hd_cusparseSpMV(d_z_hd_, spDescrZ_, d_t_hd_, spDescrT_);
+	  hd_cusparseSpMV(d_z_, spDescrZ_, d_t_, spDescrT_);
     
     // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &(d_coeffs_->buff_1)));
