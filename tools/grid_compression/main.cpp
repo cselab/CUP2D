@@ -17,7 +17,7 @@ void convert_to_float(std::string filename)
   const int ptsPerElement = 4;
   const int nx = 8;
   const int ny = 8;
-  const int C = 4;
+  const int C = 2;
   size_t blocks = 0;
 
   H5open();
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
   std::sort(filenames.begin(),filenames.end());
   for (size_t i = 0 ; i < filenames.size(); i+= size)
   {
-    if (i >= filenames.size()) continue;
+    if (i+rank >= filenames.size()) continue;
     std::cout << "converting " << filenames[i+rank] << std::endl;
     convert_to_float(filenames[i+rank]);
   }
