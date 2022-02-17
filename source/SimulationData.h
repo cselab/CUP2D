@@ -166,7 +166,7 @@ struct SimulationData
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
-      minHGrid = std::min((Real)infos[i].h_gridpoint, minHGrid);
+      minHGrid = std::min((Real)infos[i].h, minHGrid);
     }
     MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
     return minHGrid;
