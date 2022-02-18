@@ -64,6 +64,13 @@ void Shape::updateVelocity(Real dt)
 
   if( bBreakSymmetry )
   {
+    //if( sim.time > 1.0 && sim.time < 1.1 )
+    //  omega =  u/getCharLength();
+    //else if( sim.time > 1.1 && sim.time < 1.2 )
+    //  omega = -u/getCharLength();
+    //else
+    //  omega = 0;
+
     if( sim.time > 1.0 && sim.time < 2.0 )
       v = 0.1*getCharLength()*std::sin(M_PI*(sim.time-2.0));
     else
