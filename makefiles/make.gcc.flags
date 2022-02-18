@@ -1,5 +1,5 @@
 CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
-LIBS+= -fopenmp
+LIBS+= -fopenmp -lgsl
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow

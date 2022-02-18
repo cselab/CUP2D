@@ -70,14 +70,6 @@ ifeq "$(usemap)" "true"
 CPPFLAGS += -DCUBISM_USE_MAP
 endif
 
-# SET FLAGS FOR GSL
-ifneq ($(GSL_ROOT),)
-CPPFLAGS += -I$(GSL_ROOT)/include
-LIBS += -L$(GSL_ROOT)/lib -lgsl -lgslcblas
-else
-ERROR += "GSL_ROOT not set"
-endif
-
 # SET FLAGS FOR HDF5
 ifneq "$(hdf)" "false"
 ifneq ($(HDF5_ROOT),)
