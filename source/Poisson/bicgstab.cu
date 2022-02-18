@@ -263,7 +263,7 @@ void BiCGSTABSolver::main(
   int restarts = 0;
 
   // 3. Set initial values to scalars
-  BiCGSTABScalars h_coeffs = {1., 1., 1., 1., 0., 0., 0., 1e-21};
+  BiCGSTABScalars h_coeffs = {1., 1., 1., 1., 1., 0., 0., 1e-21};
   checkCudaErrors(cudaMemcpyAsync(d_coeffs_, &h_coeffs, sizeof(BiCGSTABScalars), cudaMemcpyHostToDevice, solver_stream_));
 
   // 1. r <- b - A*x_0.  Add bias with cuBLAS like in "NVIDIA_CUDA-11.4_Samples/7_CUDALibraries/conjugateGradient"

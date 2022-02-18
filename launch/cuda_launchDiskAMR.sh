@@ -26,7 +26,7 @@ XVEL=${XVEL:-0.2} #cylinder velocity
 RADIUS=${RADIUS:-0.1} #cylinder radius
 NU=${NU:-0.0004} #fluid viscosity
 
-TEND=${TEND:-5} #final time
+TEND=${TEND:-0.25} #final time
 
 OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend $TEND -muteAll 0 -verbose 1 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1"
 OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0"
