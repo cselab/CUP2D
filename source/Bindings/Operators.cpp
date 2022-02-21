@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "../Operator.h"
+#include "../Operators/AdaptTheMesh.h"
 
 namespace cubismup2d {
 
@@ -36,6 +37,9 @@ void bindOperators(py::module &m)
     .def_property_readonly("data", [](Operator *op) { return &op->sim; },
                            py::return_value_policy::reference_internal)
     .def("__call__", &Operator::operator(), "dt"_a);
+
+  class_shared<AdaptTheMesh, Operator>(m, "AdaptTheMesh")
+    .def("adapt", &AdaptTheMesh::adapt);
 }
 
 }  // namespace cubismup2d

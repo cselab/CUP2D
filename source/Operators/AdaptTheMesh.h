@@ -7,8 +7,6 @@
 #pragma once
 
 #include "../Operator.h"
-#include "Cubism/AMR_MeshAdaptation.h"
-#include "Helpers.h"
 
 class AdaptTheMesh : public Operator
 {
@@ -47,6 +45,7 @@ class AdaptTheMesh : public Operator
   }
 
   void operator()(const Real dt);
+  void adapt();
 
   std::string getName()
   {

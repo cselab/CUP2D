@@ -105,7 +105,7 @@ struct BlockView
 }  // anonymous namespace
 
 template <typename Grid>
-static py::array_t<Real> gridToUniform(const Grid &grid)
+static py::array_t<Real> gridToUniform(const Grid &grid, Real fillValue)
 {
   static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
   using T = typename Grid::BlockType::ElementType;
@@ -119,7 +119,15 @@ static py::array_t<Real> gridToUniform(const Grid &grid)
     shape[2] = 2;
 
   py::array_t<Real> out(std::move(shape));
-  grid.copyToUniformNoInterpolation(reinterpret_cast<T *>(out.mutable_data()));
+  T * const ptr = reinterpret_cast<T *>(out.mutable_data());
+
+   // On one rank, local grid covers the whole domain, so no need to fill.
+  if (grid.world_size > 1) {
+    Real * const p = reinterpret_cast<Real *>(ptr);
+    for (ssize_t i = 0; i < out.size(); ++i)
+      p[i] = fillValue;
+  }
+  grid.copyToUniformNoInterpolation(ptr);
   return out;
 }
 
@@ -155,7 +163,7 @@ static void bindGrid(py::module &m, const char *name)
       static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
       return BlockView{&grid->getBlocksInfo().at(k), kIsVector};
     })
-    .def("to_uniform", &gridToUniform<Grid>)
+    .def("to_uniform", &gridToUniform<Grid>, "fill"_a = (Real)0.0)
     .def("load_uniform", &gridLoadUniform<Grid>);
 }
 
