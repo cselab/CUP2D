@@ -15,7 +15,10 @@ class Windmill : public Shape
 
   // keeps track of the of the average veloctiy profile between two rl time steps
   // weighted by the time step of the sim
-  std::vector<double> temp_profile(32, 0.0);
+  std::vector<double> avg_profile = vector<double>(32, 0.0);
+  double time_step = 0.05;
+  double torque_max;
+  double temp_torque = 0;
 
 
   // domain for velocity profile
@@ -29,7 +32,10 @@ class Windmill : public Shape
   Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
-    
+    torque_max = forcedomega;
+    omega = 0;
+    // set a random orientation
+    setInitialConditions(0);
   }
 
   void resetAll() override
@@ -40,10 +46,9 @@ class Windmill : public Shape
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(double dt) override;
+  double torque_over_time(double time);
   void updatePosition(double dt) override;
 
-  void setTarget(std::array<Real, 2> target_pos);
-  void printVelAtTarget();
   void printRewards(Real r_flow);
 
   void printNanRewards(bool energy, Real r);
@@ -53,6 +58,8 @@ class Windmill : public Shape
   void act( double action );
   double reward(Real factor, std::vector<double> true_profile);
 
+  void update_avg_vel_profile(double dt);
+  void print_vel_profile(std::vector<double> vel_profile);
   std::vector<double> vel_profile();
   int numRegion(const std::array<Real, 2> point, double height) const;
 
@@ -72,7 +79,9 @@ class Windmill : public Shape
 
   std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
 
-  double velocity_over_time(double time);
+  void setInitialConditions(double init_angle);
+
+ 
 
   Real getCharLength() const override
   {

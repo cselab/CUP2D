@@ -106,44 +106,46 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
 
 void Windmill::updateVelocity(double dt)
 {
-  Shape::updateVelocity(dt);
+  if (std::floor((1/time_step) * (sim.time + sim.dt)) - std::floor((1/time_step) * (sim.time)) != 0)
+  {
+    // appliedTorque = torque_over_time(sim.time);
+    temp_torque = torque_over_time(sim.time); // change torque value every 0.01s
+    
+    printValues();
+  }
+
+  omega = omega + dt * temp_torque / penalJ;
+  
+  //Shape::updateVelocity(dt);
+
+  // omega = omega + torque_over_time(sim.time) * dt / penalJ;
 
   // update omega according to a velocity function of time
-  // appliedTorque = velocity_over_time(sim.time);
+  // appliedTorque = torque_over_time(sim.time);
+
+}
+
+double Windmill::torque_over_time(double time)
+{
+  double frequency = 0.5; // means period is 1/f = 2s
+  double sinus = sin(2*M_PI*frequency * time);
+  return torque_max * sinus;
 }
 
 void Windmill::updatePosition(double dt)
 {
+  if (std::floor((1/time_step) * (sim.time + sim.dt)) - std::floor((1/time_step) * (sim.time)) != 0) // every .01 seconds print velocity profile
+  {
+    print_vel_profile(avg_profile);
+    // reset avg_profile to zero for next time step
+    avg_profile = std::vector<double> (32, 0.0);
+    // temp_torque = torque_over_time(sim.time);
+    // omega = omega + temp_torque * time_step / penalJ;
+  }
+
   Shape::updatePosition(dt);
 
-  //if (std::floor(10*(sim.time + sim.dt)) - std::floor(10*(sim.time)) != 0) // every .1 seconds print velocity profile
-  if (std::floor(100*(sim.time + sim.dt)) - std::floor(100*(sim.time)) != 0) // every .01 seconds print velocity profile
-  {
-    vel_profile();
-  }
-
-}
-
-void Windmill::setTarget(std::array<Real, 2> target_pos)
-{
-  target = target_pos;
-}
-
-void Windmill::printVelAtTarget()
-{
-  if(not sim.muteAll)
-  {
-    std::stringstream ssF;
-    ssF<<sim.path2file<<"/targetvelocity_"<<obstacleID<<".dat";
-    std::stringstream & fout = logger.get_stream(ssF.str());
-
-    // compute average
-    std::vector<double>  avg = easyAverage();
-    double norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
-
-    fout<<sim.time<<" "<<norm<<std::endl;
-    fout.flush();
-  }
+  update_avg_vel_profile(dt);
 }
 
 void Windmill::printRewards(Real r_flow)
@@ -176,12 +178,9 @@ void Windmill::printValues()
   ssF<<sim.path2file<<"/values_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<omega<<std::endl;
+  fout<<sim.time<<" "<<appliedTorque<<std::endl;
   fout.flush();
 }
-
-
-
 
 void Windmill::act( double action )
 {
@@ -211,6 +210,36 @@ double Windmill::reward(Real factor, std::vector<double> true_profile)
   r_flow *= -factor;
   printRewards(r_flow);
   return r_flow;
+}
+
+void Windmill::update_avg_vel_profile(double dt)
+{
+  std::vector<double> vel = vel_profile();
+  for (int k(0); k < vel.size(); ++k)
+  {
+    avg_profile[k] += vel[k] * dt / time_step;
+  }
+}
+
+void Windmill::print_vel_profile(std::vector<double> vel_profile)
+{
+
+  if(not sim.muteAll)
+  {
+    std::stringstream ssF;
+    ssF<<sim.path2file<<"/velocity_profile_"<<obstacleID<<".dat";
+    std::stringstream & fout = logger.get_stream(ssF.str());
+    fout<<sim.time;
+
+    for (int k = 0; k < vel_profile.size(); ++k)
+    {
+      // need to normalize profile by the time step
+      fout<<" "<<vel_profile[k];
+    }
+    fout<<std::endl;
+    
+    fout.flush();
+  }
 }
 
 std::vector<double> Windmill::vel_profile()
@@ -253,27 +282,12 @@ std::vector<double> Windmill::vel_profile()
   }
 
   // divide each vel_avg by the corresponding area
-
-  if(not sim.muteAll)
+  for (int k = 0; k < 32; ++k)
   {
-    std::stringstream ssF;
-    ssF<<sim.path2file<<"/velocity_profile_"<<obstacleID<<".dat";
-    std::stringstream & fout = logger.get_stream(ssF.str());
-    fout<<sim.time;
-
-    for (int k = 0; k < 32; ++k)
-    {
-      vel_profile[k] = vel_avg[k]/region_area[k];
-      fout<<" "<<vel_profile[k];
-    }
-    fout<<std::endl;
-    
-    fout.flush();
+    vel_profile[k] = vel_avg[k]/region_area[k];
   }
 
-
   return vel_profile;
-
 }
 
 int Windmill::numRegion(const std::array<Real, 2> point, double height) const
@@ -300,6 +314,9 @@ int Windmill::numRegion(const std::array<Real, 2> point, double height) const
   return 0;
 }
 
+
+
+///////////////////////////////////////////////////////unneeded
 
 std::vector<double>  Windmill::state()
 {
@@ -687,10 +704,14 @@ std::vector<std::vector<double>> Windmill::getUniformGrid()
 
 }
 
-double Windmill::velocity_over_time(double time)
+// set initial conditions of the agent
+void Windmill::setInitialConditions(double init_angle)
 {
-  double tau_max = forcedomega;
-  double frequency = 0.5;
-  double sinus = sin(2*M_PI*frequency * time);
-  return tau_max * sinus;
+  // Intial fixed condition of angle and angular velocity
+  
+  printf("[Korali] Initial Conditions:\n");
+  printf("[Korali] orientation: %f\n", init_angle);
+
+  setOrientation(init_angle);
 }
+
