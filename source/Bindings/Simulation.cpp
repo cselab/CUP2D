@@ -29,7 +29,7 @@ public:
 
 void bindSimulationData(py::module &m)
 {
-  auto pySim = py::class_<SimulationData>(m, "SimulationData")
+  auto pyData = py::class_<SimulationData>(m, "SimulationData")
       .def_readonly("CFL", &SimulationData::CFL)
       .def_readonly("extents", &SimulationData::extents)
       .def_readonly("uinfx", &SimulationData::uinfx)
@@ -44,14 +44,28 @@ void bindSimulationData(py::module &m)
   // Bind all grids. If updating this, update properties in
   // cubismup2d/simulation.py as well.
   const auto byRef = py::return_value_policy::reference_internal;
-  pySim.def_readonly("chi", &SimulationData::chi, byRef);
-  pySim.def_readonly("vel", &SimulationData::vel, byRef);
-  pySim.def_readonly("vOld", &SimulationData::vOld, byRef);
-  pySim.def_readonly("pres", &SimulationData::pres, byRef);
-  pySim.def_readonly("tmpV", &SimulationData::tmpV, byRef);
-  pySim.def_readonly("tmp", &SimulationData::tmp, byRef);
-  pySim.def_readonly("uDef", &SimulationData::uDef, byRef);
-  pySim.def_readonly("pold", &SimulationData::pold, byRef);
+  pyData.def_readonly("chi", &SimulationData::chi, byRef);
+  pyData.def_readonly("vel", &SimulationData::vel, byRef);
+  pyData.def_readonly("vOld", &SimulationData::vOld, byRef);
+  pyData.def_readonly("pres", &SimulationData::pres, byRef);
+  pyData.def_readonly("tmpV", &SimulationData::tmpV, byRef);
+  pyData.def_readonly("tmp", &SimulationData::tmp, byRef);
+  pyData.def_readonly("uDef", &SimulationData::uDef, byRef);
+  pyData.def_readonly("pold", &SimulationData::pold, byRef);
+
+  // TODO: Create a `fields.dump()` function. To do it properly, instead of
+  // recompiling large HDF5 dump functions, compile them in a separate file and
+  // use them from here and from SimulationData.cpp.
+  pyData.def("dump_chi", &SimulationData::dumpChi, "prefix"_a);
+  pyData.def("dump_vel", &SimulationData::dumpVel, "prefix"_a);
+  pyData.def("dump_vOld", &SimulationData::dumpVold, "prefix"_a);
+  pyData.def("dump_pres", &SimulationData::dumpPres, "prefix"_a);
+  pyData.def("dump_tmpV", &SimulationData::dumpTmpV, "prefix"_a);
+  pyData.def("dump_tmp", &SimulationData::dumpTmp, "prefix"_a);
+  pyData.def("dump_uDef", &SimulationData::dumpUdef, "prefix"_a);
+  pyData.def("dump_pold", &SimulationData::dumpPold, "prefix"_a);
+  pyData.def("dump_all", &SimulationData::dumpAll, "prefix"_a,
+             "Compute vorticity (stored in tmp) and dump relevant fields.");
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
