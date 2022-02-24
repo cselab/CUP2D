@@ -1,9 +1,3 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 #include "Windmill.h"
 #include "ShapeLibrary.h"
 #include "../Utils/BufferedLogger.h"
@@ -11,46 +5,72 @@
 
 using namespace cubism;
 
-
-//WARNING: NO MPI IMPLEMENTED HERE!!!!
-
-
 void Windmill::create(const std::vector<BlockInfo>& vInfo)
 {
-  #if 0
   // windmill stuff
-  const Real h = sim.getH();
+  const Real h =  vInfo[0].h_gridpoint;
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
 
   #pragma omp parallel
   {
-    //// in the case of the windmill we have 3 ellipses that are not centered at 0
-
+    //// original ellipse
+    /*
     // center of ellipse 1 wrt to center of windmill,at T=0
-    Real center_orig1[2] = {smajax/2, -(smajax/2)*std::tan(M_PI/6)};
+    double center_orig1[2] = {smajax/2, -(smajax/2)*std::tan(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    Real center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
+    double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
     FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
 
     // center of ellipse 2 wrt to center of windmill,at T=0
-    Real center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
+    double center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
     // center of ellipse 1 wrt to origin
-    Real center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
+    double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
     FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
 
     // center of ellipse 3 wrt to center of windmill,at T=0
-    Real center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
+    double center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    Real center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
+    double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
     FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    */
+
+    //// symmetrical ellipse
+
+    double frac = 0.55;
+    double d = smajax * (1.0 - 2.0*frac/3.0);
+
+    // center of ellipse 1 wrt to center of windmill,at T=0, bottom one
+    double center_orig1[2] = {d * std::sin(M_PI/6), -d * std::cos(M_PI/6)};
+    // center of ellipse 1 wrt to origin
+    double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
+                         center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
+
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+
+    // center of ellipse 2 wrt to center of windmill,at T=0, top one
+    double center_orig2[2] = {d * std::sin(M_PI/6), +d * std::cos(M_PI/6)};
+    // center of ellipse 1 wrt to origin
+    double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
+                         center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
+
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+
+    // center of ellipse 3 wrt to center of windmill,at T=0, horizontal one
+    double center_orig3[2] = {-d, 0};
+    // center of ellipse 1 wrt to origin
+    double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
+                         center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
+
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+
 
     // fill blocks for the three ellipses
     #pragma omp for schedule(dynamic, 1)
@@ -82,52 +102,59 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
       kernel3(vInfo[i], B, * obstacleBlocks[vInfo[i].blockID]);
     }
   }
-  #endif
 }
 
-void Windmill::updateVelocity(Real dt)
+void Windmill::updateVelocity(double dt)
 {
-  Shape::updateVelocity(dt);
+  if (std::floor((1/time_step) * (sim.time + sim.dt)) - std::floor((1/time_step) * (sim.time)) != 0)
+  {
+    // appliedTorque = torque_over_time(sim.time);
+    temp_torque = torque_over_time(sim.time); // change torque value every 0.01s
+    
+    printValues();
+  }
+
+  omega = omega + dt * temp_torque / penalJ;
+  
+  //Shape::updateVelocity(dt);
+
+  // omega = omega + torque_over_time(sim.time) * dt / penalJ;
+
+  // update omega according to a velocity function of time
+  // appliedTorque = torque_over_time(sim.time);
+
 }
 
-void Windmill::updatePosition(Real dt)
+double Windmill::torque_over_time(double time)
 {
+  double frequency = 0.5; // means period is 1/f = 2s
+  double sinus = sin(2*M_PI*frequency * time);
+  return torque_max * sinus;
+}
+
+void Windmill::updatePosition(double dt)
+{
+  if (std::floor((1/time_step) * (sim.time + sim.dt)) - std::floor((1/time_step) * (sim.time)) != 0) // every .01 seconds print velocity profile
+  {
+    print_vel_profile(avg_profile);
+    // reset avg_profile to zero for next time step
+    avg_profile = std::vector<double> (32, 0.0);
+    // temp_torque = torque_over_time(sim.time);
+    // omega = omega + temp_torque * time_step / penalJ;
+  }
+
   Shape::updatePosition(dt);
 
-  // compute the energies as well
-  Real r_energy = -std::abs(appliedTorque*omega)*sim.dt;
-  energy += r_energy;
+  update_avg_vel_profile(dt);
 }
 
-void Windmill::setTarget(std::array<Real, 2> target_pos)
-{
-  target = target_pos;
-}
-
-void Windmill::printVelAtTarget()
-{
-  if(not sim.muteAll)
-  {
-    std::stringstream ssF;
-    ssF<<sim.path2file<<"/targetvelocity_"<<obstacleID<<".dat";
-    std::stringstream & fout = logger.get_stream(ssF.str());
-
-    // compute average
-    std::vector<Real>  avg = average(target);
-    Real norm = std::sqrt(avg[0]*avg[0] + avg[1]*avg[1]);
-
-    fout<<sim.time<<" "<<norm<<std::endl;
-    fout.flush();
-  }
-}
-
-void Windmill::printRewards(Real r_energy, Real r_flow)
+void Windmill::printRewards(Real r_flow)
 {
   std::stringstream ssF;
   ssF<<sim.path2file<<"/rewards_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<r_energy<<" "<<r_flow<<std::endl;
+  fout<<sim.time<<" "<<r_flow<<std::endl;
   fout.flush();
 }
 
@@ -151,81 +178,156 @@ void Windmill::printValues()
   ssF<<sim.path2file<<"/values_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<appliedTorque<<" "<<orientation<<" "<<omega<<std::endl;
+  fout<<sim.time<<" "<<appliedTorque<<std::endl;
   fout.flush();
 }
 
-
-
-
-void Windmill::act( Real action )
+void Windmill::act( double action )
 {
   // dimensionful applied torque from dimensionless action, divide by second squared
   // windscale is around 0.15, lengthscale is around 0.0375, so action is multiplied by around 16
   //appliedTorque = action / ( (lengthscale/windscale) * (lengthscale/windscale) );
 
   appliedTorque = action;
+  //omega = action;
   printValues();
 }
 
-Real Windmill::reward(std::array<Real, 2> target_vel, Real C, Real D)
+double Windmill::reward(Real factor, std::vector<double> true_profile)
 {
-  // first reward is opposite of energy given into the system : r_1 = -torque*angVel*dt
-  // Real r_energy = -C * std::abs(appliedTorque*omega)*sim.dt;
-  // Real r_energy = -C * appliedTorque*appliedTorque*omega*omega*sim.dt;
-  // need characteristic energy
-  //r_energy /= (lengthscale*windscale);
-  Real r_energy = C*energy;
-  
-  if (std::isfinite(r_energy) == false)
+  // first element of true profile is actually the time
+
+  std::vector<double> curr_profile = vel_profile();
+
+  Real r_flow = 0.0;
+
+  for(int i=0; i < 32; ++i)
   {
-    printNanRewards(true, r_energy);
-  }
-  // reset for next time steps
-  energy = 0;
-
-
-  // other reward is diff between target and average of area : r_2^t = C/t\sum_0^t (u(x,y,t)-u^*(x,y,t))^2
-  // const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-  // compute average
-  
-  std::vector<Real> avg = average(target);
-  // compute norm of difference beween target and average velocity
-  //printf("Average, X: %g \nAverage, Y: %g \n", avg[0], avg[1]);
-  std::vector<Real> diff = {target_vel[0] - avg[0], target_vel[1] - avg[1]};
-
-  Real r_flow = - D * std::sqrt( diff[0]*diff[0] + diff[1]*diff[1] );
-
-  if (std::isfinite(r_flow) == false)
-  {
-    printNanRewards(false, r_flow);
+    // used to be r_flow += std::sqrt( (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]) );
+    r_flow += (true_profile[i+1]-curr_profile[i])*(true_profile[i+1]-curr_profile[i]);
   }
 
-  //Real r_flow = - D * std::sqrt( (target_vel[0] - avg[0]) * (target_vel[0] - avg[0]) + (target_vel[1] - avg[1]) * (target_vel[1] - avg[1]) );
-  //need characteristic speed
-  //r_flow /= windscale;
+  r_flow *= -factor;
+  printRewards(r_flow);
+  return r_flow;
+}
 
-  // Real r_flow = 0;
+void Windmill::update_avg_vel_profile(double dt)
+{
+  std::vector<double> vel = vel_profile();
+  for (int k(0); k < vel.size(); ++k)
+  {
+    avg_profile[k] += vel[k] * dt / time_step;
+  }
+}
 
-  printf("Energy_reward: %f \n Flow_reward: %f \n", (double)r_energy, (double)r_flow);
+void Windmill::print_vel_profile(std::vector<double> vel_profile)
+{
 
-  printRewards(r_energy, r_flow);
-  printVelAtTarget();
+  if(not sim.muteAll)
+  {
+    std::stringstream ssF;
+    ssF<<sim.path2file<<"/velocity_profile_"<<obstacleID<<".dat";
+    std::stringstream & fout = logger.get_stream(ssF.str());
+    fout<<sim.time;
 
-  return r_energy + r_flow;
-  // return r_flow;
+    for (int k = 0; k < vel_profile.size(); ++k)
+    {
+      // need to normalize profile by the time step
+      fout<<" "<<vel_profile[k];
+    }
+    fout<<std::endl;
+    
+    fout.flush();
+  }
+}
+
+std::vector<double> Windmill::vel_profile()
+{
+  // We take a region of size 0.7 * 0.0875, which cuts 4 vertical blocks in half along a vertical line
+  // we choose to split these 4 blocks in the vertical dimension into 32 intervals
+  // each one of the 32 intervals has a height of 0.7/32 = 0.021875
+  // we average the velocity in each of the 32 intervals
+
+  std::vector<double> vel_profile(32, 0.0);
+  std::vector<double> vel_avg(32, 0.0);
+  std::vector<double> region_area(32, 0.0);
+
+  double height = 0.021875;
+
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   
-  // return C*r_energy;
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          int num = numRegion(oSens, height);
+          if (num)
+          {
+            region_area[num-1] += da;
+            vel_avg[num-1] += std::sqrt(b(i, j).u[0]*b(i, j).u[0] + b(i, j).u[1]*b(i, j).u[1]) * da; // norm velocity profile
+            //vel_avg[num-1] += b(i, j).u[0] * da; // velocity profile in x direction
+          }
+        }
+      }
+  }
+
+  // divide each vel_avg by the corresponding area
+  for (int k = 0; k < 32; ++k)
+  {
+    vel_profile[k] = vel_avg[k]/region_area[k];
+  }
+
+  return vel_profile;
+}
+
+int Windmill::numRegion(const std::array<Real, 2> point, double height) const
+{
+  // returns 0 if outside of the box
+  std::array<Real, 2> lower_left = {x_start, y_start};
+  std::array<Real, 2> upper_right = {x_end, y_end};
+  double rel_pos_height = point[1] - lower_left[1];
+  //std::array<Real, 2> rel_pos = {point[0] - lower_left[0], point[1] - lower_left[1]};
+  int num = 0;
+
+  if(point[0] >= lower_left[0] && point[0] <= upper_right[0])
+  {
+    if(point[1] >= lower_left[1] && point[1] <= upper_right[1])
+    {
+      // point is inside the rectangle to compute velocity profile
+      // now find out in what region of the rectangle we are in
+      num = static_cast<int>(std::ceil(rel_pos_height/height));
+      
+      return num;
+    }
+  }
+
+  return 0;
 }
 
 
-std::vector<Real>  Windmill::state()
+
+///////////////////////////////////////////////////////unneeded
+
+std::vector<double>  Windmill::state()
 {
   // intitialize state vector
-  std::vector<Real> state(2);
+  std::vector<double> state(2);
 
   // angle
-  state[0] = orientation;
+  // there exist a rotational symmetry, at every 120 degrees, so basically 
+  double mill_orientation = std::fmod(orientation, M_PI/3);
+  
+  state[0] = mill_orientation;
 
   state[1] = omega;
   // angular velocity, dimensionless so multiply by seconds
@@ -235,13 +337,12 @@ std::vector<Real>  Windmill::state()
   return state;
 }
 
+
 /* helpers to compute reward */
 
 // average function
-//std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
-std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
+std::vector<double> Windmill::average(std::array<Real, 2> pSens) const
 {
-  #if 0
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
   // get blockId
@@ -254,10 +355,13 @@ std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
   const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
 
   // get inverse gridspacing in block
-  const Real invh = 1/(sensBinfo.h);
+  const Real invh = 1/(sensBinfo.h_gridpoint);
 
   // get index for sensor
   const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
+
+  // // get velocity field at point
+  // const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
 
   // stencil for averaging
   static constexpr int stenBeg[3] = {-5,-5, 0}, stenEnd[3] = { 6, 6, 1};
@@ -265,8 +369,8 @@ std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
   VectorLab vellab; vellab.prepare(*(sim.vel), stenBeg, stenEnd, 1);
   vellab.load(sensBinfo, 0); VectorLab & __restrict__ V = vellab;
 
-  Real avgX=0.0;
-  Real avgY=0.0;
+  double avgX=0.0;
+  double avgY=0.0;
 
   // average velocity in a cube of 11 points per direction around the point of interest (5 on each side)
   for (ssize_t i = -5; i < 6; ++i)
@@ -280,11 +384,177 @@ std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
 
   avgX/=121.0;
   avgY/=121.0;
-  #endif
-  Real avgX = 0;
-  Real avgY = 0;
-  //return std::vector<Real> {avgX, avgY};
-  return std::vector<Real> {avgX, avgY};
+  
+  return std::vector<double> {avgX, avgY};
+}
+
+std::vector<double> Windmill::easyAverage() const
+{
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+  // dummy average
+  std::vector<double> sum = {0.0, 0.0};
+  double total_area = 0.0;
+  
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            total_area += da;
+            sum[0] += b(i, j).u[0] * da;
+            sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      }
+  }
+
+  // dummy average
+  sum[0]/= total_area;
+  sum[1]/= total_area;
+
+  // intelligent average
+  // smart_sum[0]/= smart_total_area;
+  // smart_sum[1]/= smart_total_area;
+
+  std::cout<<" Dummy Average: ["<< sum[0] <<", "<< sum[1] <<"] => NUM_PTS = "<<total_area<<std::endl;
+  // std::cout<<" Smart Average: ["<< smart_sum[0] <<", "<< smart_sum[1] <<"]=> NUM_PTS = "<<smart_total_area<<std::endl;
+  return sum;
+}
+
+std::vector<double> Windmill::sophAverage() const
+{
+  // Dummy way, looping over all the points in the grid and checking whether they are in the region of interest.
+
+  // get info on the blocks
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+  // // dummy average
+  // std::vector<double> sum = {0.0, 0.0};
+  // double total_area = 0.0;
+
+  // intelligent average
+  std::vector<double> smart_sum = {0.0, 0.0};
+  double smart_total_area = 0.0;
+  
+  // loop over all the blocks
+  for(size_t t=0; t < velInfo.size(); ++t)
+  {
+    
+    // get pointer on block
+    const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+    // loop over all the points
+    double da = velInfo[t].h_gridpoint * velInfo[t].h_gridpoint;
+
+    // // dummy average
+    // for(size_t i=0; i < b.sizeX; ++i)
+    // {
+    //   for(size_t j=0; j < b.sizeY; ++j)
+    //   {
+    //     const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+    //     if (isInArea(oSens))
+    //     {
+    //       total_area += da;
+    //       sum[0] += b(i, j).u[0] * da;
+    //       sum[1] += b(i, j).u[1] * da;
+    //     }
+    //   }
+    // }
+
+    // intelligent average
+    // get the lower left and upper right terms of the block
+    std::array<Real,2> ll = velInfo[t].pos<Real>(0, 0);
+    std::array<Real,2> ul = velInfo[t].pos<Real>(0, b.sizeY-1);
+    std::array<Real,2> ur = velInfo[t].pos<Real>(b.sizeX-1, b.sizeY-1);
+    std::array<Real,2> lr = velInfo[t].pos<Real>(b.sizeX-1, 0);
+
+    // block is entirely inside the region
+    if (isInArea(ll) && isInArea(ul) && isInArea(ur) && isInArea(lr))
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          smart_total_area += da;
+          smart_sum[0] += b(i, j).u[0] * da;
+          smart_sum[1] += b(i, j).u[1] * da;
+        }
+      }
+
+    } // block is partly inside the region
+    else if (isInArea(ll) || isInArea(ul) || isInArea(ur) || isInArea(lr))
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            smart_total_area += da;
+            smart_sum[0] += b(i, j).u[0] * da;
+            smart_sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      } // region is contained within one block
+    } else if (target[0] >= ul[0] && target[0] <= ur[0] && target[1] <= ur[1] && target[1] >= lr[1])
+    {
+      for(size_t i=0; i < b.sizeX; ++i)
+      {
+        for(size_t j=0; j < b.sizeY; ++j)
+        {
+          const std::array<Real,2> oSens = velInfo[t].pos<Real>(i, j);
+          if (isInArea(oSens))
+          {
+            smart_total_area += da;
+            smart_sum[0] += b(i, j).u[0] * da;
+            smart_sum[1] += b(i, j).u[1] * da;
+          }
+        }
+      }
+    }
+
+  }
+
+  // dummy average
+  // sum[0]/= total_area;
+  // sum[1]/= total_area;
+
+  // intelligent average
+  smart_sum[0]/= smart_total_area;
+  smart_sum[1]/= smart_total_area;
+
+  // std::cout<<" Dummy Average: ["<< sum[0] <<", "<< sum[1] <<"] => NUM_PTS = "<<total_area<<std::endl;
+  std::cout<<" Smart Average: ["<< smart_sum[0] <<", "<< smart_sum[1] <<"]=> NUM_PTS = "<<smart_total_area<<std::endl;
+
+  return smart_sum;
+
+}
+
+bool Windmill::isInArea(const std::array<Real, 2> point) const
+{
+  std::array<Real, 2> lower_left = {target[0]-dimensions[0]/2.0, target[1]-dimensions[1]/2.0};
+  std::array<Real, 2> upper_right = {target[0]+dimensions[0]/2.0, target[1]+dimensions[1]/2.0};
+
+  if(point[0] >= lower_left[0] && point[0] <= upper_right[0])
+  {
+    if(point[1] >= lower_left[1] && point[1] <= upper_right[1])
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // function that finds block id of block containing pos (x,y)
@@ -293,7 +563,7 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
   for(size_t i=0; i<velInfo.size(); ++i)
   {
     // get gridspacing in block
-    const Real h = velInfo[i].h;
+    const Real h = velInfo[i].h_gridpoint;
 
     // compute lower left corner of block
     std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
@@ -312,7 +582,7 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
       return i;
     }
   }
-  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", (double)pos[0], (double)pos[1]);
+  printf("ABORT: coordinate (%g,%g) could not be associated to block\n", pos[0], pos[1]);
   fflush(0); abort();
   return 0;
 };
@@ -326,3 +596,122 @@ std::array<int, 2> Windmill::safeIdInBlock(const std::array<Real,2> pos, const s
   const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
   return std::array<int, 2>{{ix, iy}};
 };
+
+
+std::vector<std::vector<double>> Windmill::getUniformGrid()
+{
+  /*
+  // // get pointer on block
+  // // const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
+  const unsigned int nX = VectorBlock::sizeX;
+  const unsigned int nY = VectorBlock::sizeY;
+  
+
+  std::vector<VectorBlock *> velblocks = sim.vel->GetBlocks();
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  std::array<int, 3> bpd = sim.vel->getMaxBlocks();
+  const unsigned int unx = bpd[0]*(1<<(levelMax-1))*nX;
+  const unsigned int uny = bpd[1]*(1<<(levelMax-1))*nY;
+  const unsigned int NCHANNELS = 2;
+
+
+  std::vector <float> uniform_mesh(uny*unx*NCHANNELS);
+
+  for (size_t i = 0 ; i < velInfo.size() ; i++)
+  {
+    const int level = velInfo[i].level;
+    const BlockInfo & info = velInfo[i];
+    const VectorBlock& block = * (const VectorBlock*) info.ptrBlock;
+
+    for (unsigned int y = 0; y < nY; y++)
+    for (unsigned int x = 0; x < nX; x++)
+    {
+      //////// need to clarify this stuff
+      float output[NCHANNELS]={0.0};
+      float dudx  [NCHANNELS]={0.0};
+      float dudy  [NCHANNELS]={0.0};
+      TStreamer::operate(block, x, y, 0, (float *)output); //StreamerVector in Definitions.h
+
+      if (x!= 0 && x!= nX-1)
+      {
+        float output_p [NCHANNELS]={0.0};
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+        TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = 0.5*(output_p[j]-output_m[j]);
+      }
+      else if (x==0)
+      {
+        float output_p [NCHANNELS]={0.0};
+        TStreamer::operate(block, x+1, y, 0, (float *)output_p);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = output_p[j]-output[j];        
+      }
+      else
+      {
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x-1, y, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudx[j] = output[j]-output_m[j];        
+      }
+
+      if (y!= 0 && y!= nY-1)
+      {
+        float output_p [NCHANNELS]={0.0};
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+        TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = 0.5*(output_p[j]-output_m[j]);
+      }
+      else if (y==0)
+      {
+        float output_p [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y+1, 0, (float *)output_p);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = output_p[j]-output[j];        
+      }
+      else
+      {
+        float output_m [NCHANNELS]={0.0};
+        TStreamer::operate(block, x, y-1, 0, (float *)output_m);
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          dudy[j] = output[j]-output_m[j];        
+      }
+
+      int iy_start = (info.index[1]*nY + y)*(1<< ( (levelMax-1)-level ) );
+      int ix_start = (info.index[0]*nX + x)*(1<< ( (levelMax-1)-level ) );
+
+      const int points = 1<< ( (levelMax-1)-level ); 
+      const double dh = 1.0/points;
+
+      for (int iy = iy_start; iy< iy_start + (1<< ( (levelMax-1)-level ) ); iy++)
+      for (int ix = ix_start; ix< ix_start + (1<< ( (levelMax-1)-level ) ); ix++)
+      {
+        double cx = (ix - ix_start - points/2 + 1 - 0.5)*dh;
+        double cy = (iy - iy_start - points/2 + 1 - 0.5)*dh;
+        for (unsigned int j = 0; j < NCHANNELS; ++j)
+          uniform_mesh[iy*NCHANNELS*unx+ix*NCHANNELS+j] = output[j]+ cx*dudx[j]+ cy*dudy[j];
+      }
+    }
+
+    }
+
+  }
+  
+  */
+
+}
+
+// set initial conditions of the agent
+void Windmill::setInitialConditions(double init_angle)
+{
+  // Intial fixed condition of angle and angular velocity
+  
+  printf("[Korali] Initial Conditions:\n");
+  printf("[Korali] orientation: %f\n", init_angle);
+
+  setOrientation(init_angle);
+}
+
