@@ -97,7 +97,7 @@ class Simulation(libcup2d._Simulation):
         if not isinstance(nlevels, int) or nlevels < 1:
             raise ValueError(f"expected integer larger than 1, got {nlevels!r}")
         if len(cells) != 2:
-            raise ValueError("expected 2 values, got {cells!r}")
+            raise ValueError(f"expected 2 values, got {cells!r}")
         self.cells = cells
         if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
             raise ValueError(f"number of cells must be a multiple of the block "
