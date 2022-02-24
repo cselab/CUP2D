@@ -444,7 +444,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
   #ifndef NDEBUG
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   #endif
-  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
+  const Real h = info.h, invh = 1.0/info.h;
   const Real * const rX = cfish.rX, * const norX = cfish.norX;
   const Real * const rY = cfish.rY, * const norY = cfish.norY;
   const Real * const vX = cfish.vX, * const vNorX = cfish.vNorX;
@@ -577,7 +577,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, ScalarBlock& b,
 {
   Real org[2];
   info.pos(org, 0, 0);
-  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
+  const Real h = info.h, invh = 1.0/info.h;
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
   // construct the deformation velocities (P2M with hat function as kernel)
   for(int i=0; i<(int)vSegments.size(); ++i)

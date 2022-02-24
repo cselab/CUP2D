@@ -25,3 +25,11 @@ class TestSimulationCase(TestCase):
         sim.init()
         sim.simulate(tend=1.2)
         self.assertGreaterEqual(sum(dts), 1.2 - 1e-8)
+
+    def test_manually_adapt(self):
+        # Test that nothing crashes here.
+        sim = TestSimulation(cells=(64, 64), start_level=1, nlevels=3)
+        sim.init()
+        sim.simulate(nsteps=10)
+        sim.adapt_mesh()
+        sim.simulate(nsteps=10)

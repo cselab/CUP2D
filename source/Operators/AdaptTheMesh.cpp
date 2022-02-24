@@ -5,6 +5,8 @@
 //
 
 #include "AdaptTheMesh.h"
+#include "Helpers.h"
+#include <Cubism/AMR_MeshAdaptation.h>
 
 using namespace cubism;
 
@@ -52,6 +54,11 @@ struct GradChiOnTmp
 void AdaptTheMesh::operator()(const Real dt)
 {  
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0) return;
+  adapt();
+}
+
+void AdaptTheMesh::adapt()
+{
   sim.startProfiler("AdaptTheMesh");
 
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();

@@ -64,6 +64,13 @@ void Shape::updateVelocity(Real dt)
 
   if( bBreakSymmetry )
   {
+    //if( sim.time > 1.0 && sim.time < 1.1 )
+    //  omega =  u/getCharLength();
+    //else if( sim.time > 1.1 && sim.time < 1.2 )
+    //  omega = -u/getCharLength();
+    //else
+    //  omega = 0;
+
     if( sim.time > 1.0 && sim.time < 2.0 )
       v = 0.1*getCharLength()*std::sin(M_PI*(sim.time-2.0));
     else
@@ -127,7 +134,7 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
   #pragma omp parallel for schedule(dynamic,1) reduction(+:_x,_y,_m,_j,_u,_v,_a)
   for(size_t i=0; i<vInfo.size(); i++)
   {
-    const Real hsq = std::pow(vInfo[i].h_gridpoint, 2);
+    const Real hsq = std::pow(vInfo[i].h, 2);
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if(pos == nullptr) continue;
     const CHI_MAT & __restrict__ CHI = pos->chi;
@@ -201,7 +208,7 @@ void Shape::diagnostics()
 {
   /*
   const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const Real hsq = std::pow(vInfo[0].h_gridpoint, 2);
+  const Real hsq = std::pow(vInfo[0].h, 2);
   Real _a=0, _m=0, _x=0, _y=0, _t=0;
   #pragma omp parallel for schedule(dynamic) reduction(+:_a,_m,_x,_y,_t)
   for(size_t i=0; i<vInfo.size(); i++) {

@@ -355,7 +355,7 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vect
   for(size_t i=0; i<velInfo.size(); ++i)
   {
     // get gridspacing in block
-    const Real h = velInfo[i].h_gridpoint;
+    const Real h = velInfo[i].h;
 
     // compute lower left corner of block
     std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
@@ -425,7 +425,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
       const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
 
       // get gridspacing on this block
-      velocityH[2] = skinBinfo.h_gridpoint;
+      velocityH[2] = velInfo[blockIdSurf].h;
 
       // get index of point in block
       const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
@@ -487,7 +487,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
     const std::array<Real,2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
 
     // get inverse gridspacing in block
-    const Real invhLifted = 1/liftedBinfo.h_gridpoint;
+    const Real invhLifted = 1/velInfo[blockIdLifted].h;
 
     // get index for sensor
     const std::array<int,2> iSens = safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);

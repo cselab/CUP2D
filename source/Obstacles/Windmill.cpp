@@ -254,7 +254,7 @@ std::vector<Real> Windmill::average(std::array<Real, 2> pSens) const
   const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
 
   // get inverse gridspacing in block
-  const Real invh = 1/(sensBinfo.h_gridpoint);
+  const Real invh = 1/(sensBinfo.h);
 
   // get index for sensor
   const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
@@ -293,7 +293,7 @@ size_t Windmill::holdingBlockID(const std::array<Real,2> pos, const std::vector<
   for(size_t i=0; i<velInfo.size(); ++i)
   {
     // get gridspacing in block
-    const Real h = velInfo[i].h_gridpoint;
+    const Real h = velInfo[i].h;
 
     // compute lower left corner of block
     std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);

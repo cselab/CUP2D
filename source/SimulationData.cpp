@@ -56,8 +56,8 @@ void SimulationData::allocateGrid()
   }
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
-  extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
-  extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
+  extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
+  extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 
   // compute min and max gridspacing for set AMR parameter

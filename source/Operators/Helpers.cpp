@@ -123,7 +123,7 @@ Real findMaxU::run() const
   Real momX = 0, momY = 0, totM = 0; 
   #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
   for (size_t i=0; i < Nblocks; i++) {
-    const Real h = velInfo[i].h_gridpoint;
+    const Real h = velInfo[i].h;
     const VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {

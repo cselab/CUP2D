@@ -80,7 +80,7 @@ class Simulation(libcup2d._Simulation):
         """
         Arguments:
             ...
-            nlevels: number of levels, set to 1 for a uniform grid
+            nlevels: number of levels, use 1 for a uniform grid
             start_level: level at which the grid is initialized,
                          defaults to min(nlevels - 1, 3)
             ...
@@ -95,13 +95,13 @@ class Simulation(libcup2d._Simulation):
             raise ValueError("Cannot specify both `cfl` and `dt`. To use "
                              "a fixed time step, set `cfl` to 0.")
         if not isinstance(nlevels, int) or nlevels < 1:
-            raise ValueError("expected integer larger than 1, got {nlevels!r}")
+            raise ValueError(f"expected integer larger than 1, got {nlevels!r}")
         if len(cells) != 2:
             raise ValueError("expected 2 values, got {cells!r}")
         self.cells = cells
         if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
-            raise ValueError("number of cells must be a multiple of the block "
-                             "size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
+            raise ValueError(f"number of cells must be a multiple of the block "
+                             f"size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
         if start_level is None:
             start_level = min(nlevels - 1, 3)
         if serialization_dir is None:
