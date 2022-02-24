@@ -123,11 +123,6 @@ void Simulation::init()
     randomIC ic(sim);
     ic(0);
   }
-  else if( sim.ic == "gaussian" )
-  {
-    gaussianIC ic(sim);
-    ic(0);
-  }
   else
   {
     IC ic(sim);
@@ -141,8 +136,6 @@ void Simulation::init()
   pipeline.push_back(std::make_shared<advDiff>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
-  if( not sim.bBurgers)
-    pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
@@ -220,9 +213,6 @@ void Simulation::parseRuntime()
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
-
-  // Flag to simulate Burgers equation
-  sim.bBurgers = parser("-bBurgers").asInt(0);
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");

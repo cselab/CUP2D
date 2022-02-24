@@ -83,9 +83,6 @@ struct SimulationData
   Real forcingWavenumber;
   Real forcingCoefficient;
 
-  // Flag to simulate Burgers equation
-  bool bBurgers;
-
   // Flag for initial conditions
   std::string ic;
 
