@@ -258,12 +258,12 @@ Real StefanFish::getPhase(const Real t) const
   return (phase<0) ? 2*M_PI + phase : phase;
 }
 
-std::vector<Real> StefanFish::state() const
+std::vector<Real> StefanFish::state( std::vector<double> origin ) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::vector<Real> S(10,0);
-  S[0] = ( center[0] - origC[0] )/ length;
-  S[1] = ( center[1] - origC[1] )/ length;
+  S[0] = ( center[0] - origin[0] )/ length;
+  S[1] = ( center[1] - origin[1] )/ length;
   S[2] = getOrientation();
   S[3] = getPhase( sim.time );
   S[4] = getU() * Tperiod / length;
@@ -399,32 +399,45 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
 
   // get surface velocity if block containing point found
+  char error = false;
   if( blockIdSurf >= 0 ) {
     // get block
     const auto& skinBinfo = velInfo[blockIdSurf];
 
     // check whether obstacle block exists
-    if(obstacleBlocks[skinBinfo.blockID] == nullptr ){
-      printf("[CUP2D, rank %u] obstacleBlocks[%llu] is a nullptr! obstacleBlocks.size()=%lu", sim.rank, skinBinfo.blockID, obstacleBlocks.size());
+    if(obstacleBlocks[blockIdSurf] == nullptr ){
+      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n", sim.rank, blockIdSurf, pSurf[0], pSurf[1], blockIdSurf, obstacleBlocks.size());
+      const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+      const auto& chiBlock = chiInfo[blockIdSurf];
+      ScalarBlock & __restrict__ CHI = *(ScalarBlock*) chiBlock.ptrBlock;
+      for( size_t i = 0; i<ScalarBlock::sizeX; i++) 
+      for( size_t j = 0; j<ScalarBlock::sizeY; j++)
+      {
+        const auto pos = chiBlock.pos<Real>(i, j);
+        printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, pos[0], pos[1], CHI(i,j).s);
+      }
       fflush(0);
-      abort();
+      error = true;
+      // abort();
     }
+    else{
+      // get origin of block
+      const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
 
-    // get origin of block
-    const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
+      // get gridspacing on this block
+      velocityH[2] = skinBinfo.h_gridpoint;
 
-    // get gridspacing on this block
-    velocityH[2] = velInfo[blockIdSurf].h_gridpoint;
+      // get index of point in block
+      const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
 
-    // get index of point in block
-    const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
+      // get deformation velocity
+      const Real udefX = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
+      const Real udefY = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
 
-    // get deformation velocity
-    const Real* const udef = obstacleBlocks[skinBinfo.blockID]->udef[iSkin[1]][iSkin[0]];
-
-    // compute velocity of skin point
-    velocityH[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udef[0];
-    velocityH[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udef[1];
+      // compute velocity of skin point
+      velocityH[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udefX;
+      velocityH[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udefY;
+    }
   }
 
   // DEBUG purposes
@@ -432,8 +445,15 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getCartComm());
   if( sim.rank == 0 && blockIdSurf == -1 )
   {
-    printf("ABORT: coordinate (%g,%g) could not be associated to obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
+    printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
     fflush(0);
+    abort();
+  }
+
+  MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR, sim.chi->getCartComm());
+  if( error )
+  {
+    sim.dumpAll("failed");
     abort();
   }
   #endif
@@ -467,7 +487,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
     const std::array<Real,2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
 
     // get inverse gridspacing in block
-    const Real invhLifted = 1/velInfo[blockIdLifted].h_gridpoint;
+    const Real invhLifted = 1/liftedBinfo.h_gridpoint;
 
     // get index for sensor
     const std::array<int,2> iSens = safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);

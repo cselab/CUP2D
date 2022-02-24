@@ -1,4 +1,5 @@
-CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
+# CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
+CPPFLAGS+= -std=c++17 -Wall -g -Wno-unknown-pragmas
 LIBS+= -fopenmp
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual

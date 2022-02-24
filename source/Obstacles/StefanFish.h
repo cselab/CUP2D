@@ -25,7 +25,7 @@ class StefanFish: public Fish
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 
   // member functions for state in RL
-  std::vector<Real> state() const;
+  std::vector<Real> state( std::vector<double> origin ) const;
 
   // Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
