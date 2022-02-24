@@ -35,10 +35,14 @@ struct CUPMPILoader
       MPI_Query_thread(&provided);
     if (provided >= MPI_THREAD_MULTIPLE)
       return;
-    if (!flag)
-      fprintf(stderr, "Error: MPI does not have the required thread support!\n");
-    else
+    if (!flag) {
+      fprintf(stderr,
+              "Error: MPI does not have the required thread support!\n"
+              "Try setting the following environment variable:\n"
+              "    MPICH_MAX_THREAD_SAFETY=multiple\n");
+    } else {
       fprintf(stderr, "Error: MPI does not have or not initialized with the required thread support!\n");
+    }
     fflush(stderr);
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
