@@ -74,12 +74,12 @@ Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv
 
 Simulation::~Simulation() = default;
 
-void Simulation::insertOperator(std::shared_ptr<Operator> op)
+void Simulation::insertOperator(std::shared_ptr<OperatorBase> op)
 {
   pipeline.push_back(std::move(op));
 }
 void Simulation::insertOperatorAfter(
-    std::shared_ptr<Operator> op, const std::string &name)
+    std::shared_ptr<OperatorBase> op, const std::string &name)
 {
   for (size_t i = 0; i < pipeline.size(); ++i) {
     if (pipeline[i]->getName() == name) {

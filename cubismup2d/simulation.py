@@ -162,10 +162,9 @@ class Simulation(libcup2d._Simulation):
         super().simulate()
 
 
-class Operator(libcup2d._Operator):
+class Operator(libcup2d._OperatorBase):
     __slots__ = ('sim',)
-    def __init__(self, sim: Simulation, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None):
         if name is None:
             name = self.__class__.__name__
-        libcup2d._Operator.__init__(self, sim.data, name)
-        self.sim = sim
+        libcup2d._OperatorBase.__init__(self, name)

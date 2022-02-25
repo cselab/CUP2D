@@ -10,9 +10,9 @@ using namespace py::literals;
 namespace {
 
 /// Operator that stops the simulation when Ctrl-C is pressed in Python.
-class SIGINTHandlerOperator : public Operator {
+class SIGINTHandlerOperator : public OperatorBase {
 public:
-  using Operator::Operator;
+  using OperatorBase::OperatorBase;
 
   void operator()(double /* dt */) override {
     // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
@@ -79,7 +79,7 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   for (size_t i = 0; i < argv.size(); ++i)
     ptrs[i] = const_cast<char *>(argv[i].data());
   auto sim = std::make_shared<Simulation>((int)ptrs.size(), ptrs.data(), comm);
-  sim->pipeline.push_back(std::make_shared<SIGINTHandlerOperator>(sim->sim));
+  sim->pipeline.push_back(std::make_shared<SIGINTHandlerOperator>());
   return sim;
 }
 

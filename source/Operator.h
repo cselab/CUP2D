@@ -8,22 +8,12 @@
 
 #include "SimulationData.h"
 
-class Operator
+/// Abstract base operator with kernel evaluation static member functions.
+class OperatorBase
 {
 public:
-  SimulationData& sim;
-protected:
-  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-
-public:
-  Operator(SimulationData& s) : sim(s) { }
-  virtual ~Operator() {}
-  virtual void operator()(const Real dt) = 0;
-
-  virtual std::string getName() = 0;
-  
   template <typename Kernel, typename TGrid, typename LabMPI,typename TGrid_corr = TGrid>
-  void compute(const Kernel& kernel, TGrid& grid, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
+  static void compute(const Kernel& kernel, TGrid& grid, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
   {
     if (applyFluxCorrection)
       corrected_grid->Corrector.prepare(*corrected_grid);
@@ -61,7 +51,7 @@ public:
   }
 
   template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2, typename LabMPI2, typename TGrid_corr = TGrid>
-  void compute(const Kernel& kernel, TGrid& grid, TGrid2& grid2, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
+  static void compute(const Kernel& kernel, TGrid& grid, TGrid2& grid2, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
   {
     if (applyFluxCorrection)
       corrected_grid->Corrector.prepare(*corrected_grid);
@@ -140,4 +130,31 @@ public:
     //MPI_Barrier(grid.getCartComm());
   }
 
+  virtual ~OperatorBase() = default;
+  virtual void operator()(const Real dt) = 0;
+  virtual std::string getName() = 0;
+};
+
+
+class Operator : public OperatorBase
+{
+public:
+  SimulationData& sim;
+
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo;
+
+public:
+  Operator(SimulationData& s) : sim{s}, velInfo{_getVelInfo(s.vel)} { }
+
+private:
+  // Circumvent a g++ 9 bug where `s.vel ? ... : throw ...` erroneously
+  // triggers the warning "a temporary bound to 'Operator::velInfo' only
+  // persists until the constructor exits".
+  static inline const std::vector<cubism::BlockInfo> &_getVelInfo(VectorGrid *vel)
+  {
+    if (!vel)
+      throw std::runtime_error("cannot create an operator before initializing fields");
+    return vel->getBlocksInfo();
+  }
 };

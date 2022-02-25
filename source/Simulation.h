@@ -15,7 +15,7 @@ class Simulation
 {
  public:
   SimulationData sim;
-  std::vector<std::shared_ptr<Operator>> pipeline;
+  std::vector<std::shared_ptr<OperatorBase>> pipeline;
  protected:
   cubism::ArgumentParser parser;
 
@@ -42,11 +42,11 @@ public:
   }
 
   /// Insert the operator at the end of the pipeline.
-  void insertOperator(std::shared_ptr<Operator> op);
+  void insertOperator(std::shared_ptr<OperatorBase> op);
 
   /// Insert an operator after the operator of the given name.
   /// Throws an exception if the name is not found.
-  void insertOperatorAfter(std::shared_ptr<Operator> op, const std::string &name);
+  void insertOperatorAfter(std::shared_ptr<OperatorBase> op, const std::string &name);
 
   void reset();
   void resetRL();

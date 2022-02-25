@@ -8,7 +8,7 @@ class TestSimulationCase(TestCase):
                 cnt[0] += 1
 
         sim = TestSimulation(cells=(64, 64), nlevels=1)
-        sim.insert_operator(TestOperator(sim))
+        sim.insert_operator(TestOperator())
         sim.init()
         sim.simulate(nsteps=3)
         self.assertEqual(cnt[0], 3)
@@ -21,7 +21,7 @@ class TestSimulationCase(TestCase):
 
         sim = TestSimulation(cells=(64, 64), nlevels=1, extent=100.0)
         sim.add_shape(cup2d.Disk(sim, r=15.0, center=(40.0, 30.0)))
-        sim.insert_operator(TestOperator(sim))
+        sim.insert_operator(TestOperator())
         sim.init()
         sim.simulate(tend=1.2)
         self.assertGreaterEqual(sum(dts), 1.2 - 1e-8)
