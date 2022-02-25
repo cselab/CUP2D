@@ -82,9 +82,6 @@ void randomIC::operator()(const Real dt)
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
 
-  const Real Re = 1/sim.nu;
-  const Real lambda = 0.1;
-
   #pragma omp parallel
   {
     std::random_device seed;
