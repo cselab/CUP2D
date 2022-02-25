@@ -39,6 +39,9 @@ class Checker
 
 class IC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   IC(SimulationData& s) : Operator(s) { }
 
@@ -51,6 +54,9 @@ class IC : public Operator
 
 class gaussianIC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   gaussianIC(SimulationData& s) : Operator(s) { }
 
@@ -63,6 +69,9 @@ class gaussianIC : public Operator
 
 class randomIC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   randomIC(SimulationData& s) : Operator(s) { }
 
@@ -75,6 +84,9 @@ class randomIC : public Operator
 
 class ApplyObjVel : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   ApplyObjVel(SimulationData& s) : Operator(s) { }
 
