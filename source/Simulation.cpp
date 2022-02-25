@@ -442,8 +442,10 @@ void Simulation::advance(const Real dt)
   if (sim.rank == 0 && !sim.muteAll)
   {
     std::cout << kHorLine;
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
+    printf("[CUP2D] step:%d, blocks:%zu, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
+           sim.step, sim.chi->getBlocksInfo().size(),
+           (double)sim.time, (double)dt,
+           (double)sim.uinfx, (double)sim.uinfy, (double)sim.uMax_measured, (double)CFL);
   }
 
   // dump field
