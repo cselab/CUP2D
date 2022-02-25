@@ -2,6 +2,7 @@
 #include "../Shape.h"
 #include "../Simulation.h"
 #include "../Operators/AdaptTheMesh.h"
+#include "../Operators/Helpers.h"
 
 namespace cubismup2d {
 
@@ -83,11 +84,18 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   return sim;
 }
 
-static void pyAdaptMesh(Simulation &sim) {
+static void pyAdaptMesh(Simulation &sim)
+{
   auto *ptr = sim.findOperator<AdaptTheMesh>();
   if (!ptr)
     throw std::runtime_error("AdaptTheMesh operator not found");
   ptr->adapt();
+}
+
+static void pyComputeVorticity(Simulation &sim)
+{
+  computeVorticity op{sim.sim};
+  op(0);
 }
 
 void bindSimulation(py::module &m)
@@ -103,6 +111,7 @@ void bindSimulation(py::module &m)
       .def("insert_operator", &Simulation::insertOperatorAfter,
            "op"_a, "after"_a)
       .def("adapt_mesh", &pyAdaptMesh)
+      .def("compute_vorticity", &pyComputeVorticity)
       .def("init", &Simulation::init)
       .def("simulate", &Simulation::simulate);
 }
