@@ -46,19 +46,19 @@ void IC::operator()(const Real dt)
     //initial guess, which in turn leads to restarted simulations having the exact same result
     //as non-restarted ones (we also read pres because we need to read at least
     //one ScalarGrid, see hack below).
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.vel ), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.pres), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vel ), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.pres), "pres_" + ss.str(), sim.path4serialization);
 
     //hack: need to "read" the other grids too, so that the mesh is the same for every grid.
     //So we read VectorGrids from "vel" and ScalarGrids from "pres". We don't care about the
     //grid point values (those are set to zero below), we only care about the grid structure,
     //i.e. refinement levels etc.
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.pold), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.tmp ), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.pold), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.tmp ), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
     #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {

@@ -47,6 +47,25 @@ struct GradChiOnTmp
         break;
       }
     }
+/*
+    for(int y=0; y<VectorBlock::sizeY; ++y)
+    for(int x=0; x<VectorBlock::sizeX; ++x)
+    {
+      double p[2];
+      info.pos(p,x,y);
+      p[0] -= 1.0;
+      p[1] -= 1.0;
+      const double r = p[0]*p[0]+p[1]*p[1];
+      if (r>0.1*0.1 && r < 0.11*0.11)
+      {
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2  ).s = 2*sim.Rtol;
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2-1).s = 2*sim.Rtol;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2  ).s = 2*sim.Rtol;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2-1).s = 2*sim.Rtol;
+        break;
+      }
+    }
+*/
   }
 };
 
@@ -87,14 +106,14 @@ void AdaptTheMesh::adapt()
   tmpV_amr->TagLike(tmpInfo);
   uDef_amr->TagLike(tmpInfo);
 
-  tmp_amr ->Adapt(sim.time,sim.rank == 0,false);
-  chi_amr ->Adapt(sim.time,false        ,false);
-  vel_amr ->Adapt(sim.time,false        ,false);
-  vOld_amr->Adapt(sim.time,false        ,false);
-  pres_amr->Adapt(sim.time,false        ,false);
-  pold_amr->Adapt(sim.time,false        ,false);
-  tmpV_amr->Adapt(sim.time,false        ,true );
-  uDef_amr->Adapt(sim.time,false        ,true );
+  tmp_amr ->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
+  chi_amr ->Adapt(sim.time, false, false);
+  vel_amr ->Adapt(sim.time, false, false);
+  vOld_amr->Adapt(sim.time, false, false);
+  pres_amr->Adapt(sim.time, false, false);
+  pold_amr->Adapt(sim.time, false, false);
+  tmpV_amr->Adapt(sim.time, false, true);
+  uDef_amr->Adapt(sim.time, false, true);
 
   sim.stopProfiler();
 }

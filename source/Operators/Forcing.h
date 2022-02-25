@@ -10,6 +10,9 @@
 
 class Forcing : public Operator
 {
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
  public:
   Forcing(SimulationData& s) : Operator(s) { }
 
