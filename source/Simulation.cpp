@@ -132,10 +132,10 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  // pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
+  pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
