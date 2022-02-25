@@ -1,5 +1,6 @@
 #include "Fields.h"
 #include "../Definitions.h"
+#include "../Operators/ExportUniform.h"
 #include "../SimulationData.h"
 #include <Cubism/Grid.hh>
 #include <pybind11/numpy.h>
@@ -125,14 +126,15 @@ struct GridBlocksView
 
 }  // anonymous namespace
 
+// Non-const only needed because of BlockLab in the interpolation.
 template <typename Grid>
-static py::array_t<Real> gridToUniform(const Grid &grid, Real fillValue)
+static py::array_t<Real> gridToUniform(Grid *grid, Real fillValue, bool interpolate)
 {
   static constexpr bool kIsVector = std::is_same_v<Grid, VectorGrid>;
   using T = typename Grid::BlockType::ElementType;
   static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
 
-  const auto numCells = grid.getMaxMostRefinedCells();
+  const auto numCells = grid->getMaxMostRefinedCells();
   std::vector<ssize_t> shape(2 + kIsVector);  // (y, x, [channels])
   shape[0] = numCells[1];
   shape[1] = numCells[0];
@@ -143,12 +145,16 @@ static py::array_t<Real> gridToUniform(const Grid &grid, Real fillValue)
   T * const ptr = reinterpret_cast<T *>(out.mutable_data());
 
    // On one rank, local grid covers the whole domain, so no need to fill.
-  if (grid.world_size > 1) {
+  if (grid->world_size > 1) {
     Real * const p = reinterpret_cast<Real *>(ptr);
     for (ssize_t i = 0; i < out.size(); ++i)
       p[i] = fillValue;
   }
-  grid.copyToUniformNoInterpolation(ptr);
+  if (interpolate) {
+    interpolateGridToUniformMatrix(grid, ptr);
+  } else {
+    grid->copyToUniformNoInterpolation(ptr);
+  }
   return out;
 }
 
@@ -185,7 +191,8 @@ static void bindGrid(py::module &m, const char *name, const char *blocksViewName
 
   py::class_<Grid>(m, name)
     .def_property_readonly("blocks", [](Grid *grid) { return View{grid}; })
-    .def("to_uniform", &gridToUniform<Grid>, "fill"_a = (Real)0.0)
+    .def("to_uniform", &gridToUniform<Grid>,
+         "fill"_a = (Real)0.0, "interpolate"_a = true)
     .def("load_uniform", &gridLoadUniform<Grid>);
 }
 

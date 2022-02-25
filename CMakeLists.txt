@@ -163,12 +163,13 @@ if (CUP2D_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
-        ${SRC_DIR}/Bindings/Bindings.cpp
-        ${SRC_DIR}/Bindings/Fields.cpp
-        ${SRC_DIR}/Bindings/Operators.cpp
-        ${SRC_DIR}/Bindings/Poisson.cpp
-        ${SRC_DIR}/Bindings/Shapes.cpp
-        ${SRC_DIR}/Bindings/Simulation.cpp
+        "${SRC_DIR}/Bindings/Bindings.cpp"
+        "${SRC_DIR}/Bindings/Fields.cpp"
+        "${SRC_DIR}/Bindings/Operators.cpp"
+        "${SRC_DIR}/Bindings/Poisson.cpp"
+        "${SRC_DIR}/Bindings/Shapes.cpp"
+        "${SRC_DIR}/Bindings/Simulation.cpp"
+        "${SRC_DIR}/Operators/ExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
     target_include_directories(${PYLIB} PUBLIC BEFORE ${pybind11_INCLUDE_DIRS})
