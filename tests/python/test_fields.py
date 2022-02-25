@@ -57,17 +57,17 @@ class TestFields(TestCase):
         computed = field.to_uniform()
 
         # Method #1: compare block by block.
-        for block in field:
+        for block in field.blocks:
             # Get the block, group it into chunks of size `s`, average
             # over chunks and compare to the block content.
             part = expected[block.cell_range(level=max_level)]
             part = _average_chunks(part, (1 << (max_level - block.level)))
-            self.assertArrayAlmostEqual(part, block)
+            self.assertArrayAlmostEqual(part, block.data)
 
         # Method #2: compare only level max_level, then max_level-1 etc.
         for level in range(max_level, -1, -1):
             mask = np.zeros(expected.shape, dtype=bool)
-            for block in field:
+            for block in field.blocks:
                 if block.level == level:
                     mask[block.cell_range(level=level)] = True
             self.assertArrayAlmostEqual(mask * expected, mask * computed)
