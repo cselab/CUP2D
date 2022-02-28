@@ -15,6 +15,9 @@ class Shape;
 
 class PressureSingle : public Operator
 {
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   std::shared_ptr<PoissonSolver> pressureSolver;
 
   void preventCollidingObstacles() const;

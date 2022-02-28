@@ -12,10 +12,7 @@ class Operator
 {
 public:
   SimulationData& sim;
-protected:
-  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
 
-public:
   Operator(SimulationData& s) : sim(s) { }
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
@@ -23,7 +20,7 @@ public:
   virtual std::string getName() = 0;
   
   template <typename Kernel, typename TGrid, typename LabMPI,typename TGrid_corr = TGrid>
-  void compute(const Kernel& kernel, TGrid& grid, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
+  static void compute(const Kernel& kernel, TGrid& grid, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
   {
     if (applyFluxCorrection)
       corrected_grid->Corrector.prepare(*corrected_grid);
@@ -61,7 +58,7 @@ public:
   }
 
   template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2, typename LabMPI2, typename TGrid_corr = TGrid>
-  void compute(const Kernel& kernel, TGrid& grid, TGrid2& grid2, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
+  static void compute(const Kernel& kernel, TGrid& grid, TGrid2& grid2, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
   {
     if (applyFluxCorrection)
       corrected_grid->Corrector.prepare(*corrected_grid);

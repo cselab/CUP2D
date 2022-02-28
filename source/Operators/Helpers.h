@@ -39,6 +39,9 @@ class Checker
 
 class IC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   IC(SimulationData& s) : Operator(s) { }
 
@@ -51,6 +54,9 @@ class IC : public Operator
 
 class gaussianIC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   gaussianIC(SimulationData& s) : Operator(s) { }
 
@@ -63,6 +69,9 @@ class gaussianIC : public Operator
 
 class randomIC : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   randomIC(SimulationData& s) : Operator(s) { }
 
@@ -75,6 +84,9 @@ class randomIC : public Operator
 
 class ApplyObjVel : public Operator
 {
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   public:
   ApplyObjVel(SimulationData& s) : Operator(s) { }
 
@@ -126,7 +138,7 @@ class computeVorticity : public Operator
     Real recvbuf[2];
     MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getCartComm());
     recvbuf[1]=-recvbuf[1];
-    if (sim.rank == 0)
+    if (sim.rank == 0 && !sim.muteAll)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
   }
 

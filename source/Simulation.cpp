@@ -132,10 +132,10 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  // pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
+  pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
@@ -442,8 +442,10 @@ void Simulation::advance(const Real dt)
   if (sim.rank == 0 && !sim.muteAll)
   {
     std::cout << kHorLine;
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
+    printf("[CUP2D] step:%d, blocks:%zu, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
+           sim.step, sim.chi->getBlocksInfo().size(),
+           (double)sim.time, (double)dt,
+           (double)sim.uinfx, (double)sim.uinfy, (double)sim.uMax_measured, (double)CFL);
   }
 
   // dump field

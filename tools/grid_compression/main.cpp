@@ -17,12 +17,42 @@ void convert_to_float(std::string filename)
   const int ptsPerElement = 4;
   const int nx = 8;
   const int ny = 8;
-  const int C = 2;
+  //const int C = 2;
   size_t blocks = 0;
 
   H5open();
 
   hid_t file_id = H5Fopen((filename+".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+
+
+  std::vector<short int>levels;
+  {
+    hid_t dataset_id, fspace_id;
+    hsize_t dim;
+    dataset_id = H5Dopen2(file_id, "blockslevel", H5P_DEFAULT);
+    fspace_id = H5Dget_space(dataset_id);
+    H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
+    hid_t dtype =  H5Dget_type(dataset_id);
+
+    levels.resize(dim);
+
+    const bool isInt = H5Tequal(dtype, H5T_NATIVE_INT);
+    if (isInt)
+    {
+      std::vector<int> levels_int(dim);
+      H5Dread(dataset_id, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, levels_int.data());
+      for (size_t i = 0 ; i < dim ; i++)
+        levels[i] = (short int) levels_int[i];
+    }
+    else
+    {
+      H5Dread(dataset_id, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, levels.data());
+    }
+    H5Dclose(dataset_id);
+    H5Sclose(fspace_id);
+  }
+
+
   //read data
   std::vector<double> amr;
   {
@@ -68,22 +98,31 @@ void convert_to_float(std::string filename)
   const int NCHANNELS =  (vertices.size() == amr.size()*ptsPerElement*dimension) ? 1 : 3;
   blocks /= NCHANNELS;
 
-  std::vector<float> data_c    (amr.size()/C/C,0.0);
-  std::vector<float> vertices_c(vertices.size()/C/C,0.0);
+  std::vector<float> data_c    ;//(amr.size()/C/C,0.0);
+  std::vector<float> vertices_c;//(vertices.size()/C/C,0.0);
+  data_c.reserve(amr.size()/4);
+  vertices_c.reserve(vertices.size()/4);
   for (size_t i = 0 ; i < blocks ; i++)
   {
+    int C=1;
+    if (levels[i] == 10) C = 4;
+    if (levels[i] ==  9) C = 2;
     for (int y = 0 ; y < ny ; y+=C)
     for (int x = 0 ; x < nx ; x+=C)
     {
       for (int j = 0 ; j < NCHANNELS; j++)
       {
-	      data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] = 0.0;
+	//data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] = 0.0;
+	float element = 0.0;
         for (int yl = y; yl < y+C; yl++)
         for (int xl = x; xl < x+C; xl++)
         {
-          data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
+          //data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
+          element += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
         }
-        data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] /= (C*C);
+        //data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] /= (C*C);
+        element /= (C*C);
+	data_c.push_back(element);
       }
 
       const int bbase00 = (i*ny*nx+ y     *nx+x    )*ptsPerElement*dimension;
@@ -105,14 +144,23 @@ void convert_to_float(std::string filename)
       const float xm11 = vertices[bbase11+offset11  ];
       const float ym11 = vertices[bbase11+offset11+1];
       const int bbasef = (i*ny/C*nx/C+y/C*nx/C+x/C)*ptsPerElement*dimension;
-      vertices_c[bbasef              ]=xm00;
-      vertices_c[bbasef            +1]=ym00;
-      vertices_c[bbasef+  dimension  ]=xm10;
-      vertices_c[bbasef+  dimension+1]=ym10;
-      vertices_c[bbasef+2*dimension  ]=xm11;
-      vertices_c[bbasef+2*dimension+1]=ym11;
-      vertices_c[bbasef+3*dimension  ]=xm01;
-      vertices_c[bbasef+3*dimension+1]=ym01;  
+      //vertices_c[bbasef              ]=xm00;
+      //vertices_c[bbasef            +1]=ym00;
+      //vertices_c[bbasef+  dimension  ]=xm10;
+      //vertices_c[bbasef+  dimension+1]=ym10;
+      //vertices_c[bbasef+2*dimension  ]=xm11;
+      //vertices_c[bbasef+2*dimension+1]=ym11;
+      //vertices_c[bbasef+3*dimension  ]=xm01;
+      //vertices_c[bbasef+3*dimension+1]=ym01;  
+
+      vertices_c.push_back(xm00);
+      vertices_c.push_back(ym00);
+      vertices_c.push_back(xm10);
+      vertices_c.push_back(ym10);
+      vertices_c.push_back(xm11);
+      vertices_c.push_back(ym11);
+      vertices_c.push_back(xm01);
+      vertices_c.push_back(ym01);  
     }
   }
 
@@ -273,7 +321,7 @@ int main(int argc, char **argv)
   for (size_t i = 0 ; i < filenames.size(); i+= size)
   {
     if (i+rank >= filenames.size()) continue;
-    std::cout << "converting " << filenames[i+rank] << std::endl;
+    std::cout << "converting " << filenames[i+rank]<< ":"<< i+rank << " /" << filenames.size() << std::endl;
     convert_to_float(filenames[i+rank]);
   }
   MPI_Finalize();

@@ -11,6 +11,8 @@
 
 class advDiff : public Operator
 {
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& vOldInfo  = sim.vOld->getBlocksInfo();
 
