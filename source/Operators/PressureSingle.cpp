@@ -5,7 +5,7 @@
 //
 
 #include "PressureSingle.h"
-#include "../Poisson/Base.h"
+#include "Cubism/FluxCorrection.h"
 #include "../Shape.h"
 
 using namespace cubism;
