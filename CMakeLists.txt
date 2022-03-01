@@ -122,6 +122,8 @@ target_link_libraries(${CORE} PUBLIC Cubism::Cubism)
 target_link_libraries(${CORE} PUBLIC GSL::gsl)
 target_link_libraries(${CORE} PUBLIC ${HDF5_LIBRARIES})
 target_include_directories(${CORE} PUBLIC ${HDF5_INCLUDE_DIRS})
+# target_compile_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
+# target_link_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
 set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 set_property(TARGET ${CORE} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -172,7 +174,7 @@ if (CUP2D_BUILD_PY)
         "${SRC_DIR}/Operators/ExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
-    target_include_directories(${PYLIB} PUBLIC BEFORE ${pybind11_INCLUDE_DIRS})
+    target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})
     target_link_libraries(${PYLIB} PUBLIC ${CORE})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 endif()

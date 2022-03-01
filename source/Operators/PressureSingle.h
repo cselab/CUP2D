@@ -11,7 +11,6 @@
 class Shape;
 
 #include "../Poisson/Base.h"
-#include "Cubism/FluxCorrection.h"
 
 class PressureSingle : public Operator
 {
