@@ -1,6 +1,6 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 
@@ -9,143 +9,95 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <sstream>
 #include <string>
-
 #define NACTIONS 2
 
-// declarations of functions defined further below
-std::vector<Real> readIC( std::string filename );
-std::vector<std::vector<Real>> readActions( std::string filename );
-void setInitialConditions( StefanFish *agent, std::vector<Real> initialConditions );
+/*
+ ************************
+  HOW TO USE THIS SCRIPT
+ ************************
+ This script can be used to reproduce a sample (simulation) that was performed with Korali during an RL training.
+ It assumes that each agent has the same number of actions available to them (defined as 'NACTIONS').
+
+ To reproduce the run that we want, we need:
+  I. The initial conditions for that run.
+  II.The actions taken by each agent.
+
+ The initial conditions for the flow field are assumed to be the default ones from CUP2D. The initial conditions
+ for the obstacles and the settings for the simulation need to be hardcoded in launch/debugRL.sh
+ 
+ The actions taken by each agent need to be written in (and read from) files.
+ The RL training should produce files named actions0.txt, actions1.txt,... (one for each agent).
+ Each file contains (assuming NACTIONS=2) t0 a0 b0 t1 a1 b1 ... where a and b are the two actions and t is the 
+ time those two actions were taken.
+
+ Once actions*.txt are produced (from the original RL run), they need to be copied in the directory where this executable will run.
+ After copying them, use launch/debugRL.sh to launch the run.
+*/
+
+
+std::vector<std::vector<double>> readActions(const int Nagents);
 
 int main(int argc, char **argv)
 {
-  // Initialize Simulation class
+  int threadSafety;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
   Simulation* _environment = new Simulation(argc, argv, MPI_COMM_WORLD);
   _environment->init();
 
-  // Reading Initial Conditions from RL case
-  std::string icPath = "XXX/initialCondition.txt";
-  auto initialConditions = readIC(icPath);
-
-  // Reading Actions that were performed in RL
-  std::string actionsPath = "XXX/actions.txt";
-  auto actions = readActions(actionsPath);
-
-  // Obtaining agent
-  StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[1].get());
-
-  // Resetting environment and setting initial conditions
-  setInitialConditions(agent, initialConditions);
-
-  // After moving the agent, the obstacles have to be restarted
-  _environment->startObstacles();
-
-  // Setting maximum number of steps before truncation
-  size_t numActions = actions.size();
-
-  // Variables for time and step conditions
-  Real t = 0;        // Current time
-  Real dtAct;        // Time until next action
-  Real tNextAct = 0; // Time of next action
-
-  // Environment loop
-  for( size_t a = 0; a < numActions; a++)
+  const int Nagents = _environment->getShapes().size();
+  std::vector<std::vector<double>> actions;
+  int numActions;// max steps before truncation
+  if (rank == 0)
   {
-    // Reading new action
-    std::vector<Real> action = actions[a];
+    actions  = readActions(Nagents);
+    numActions = actions[0].size()/(NACTIONS+1);
+  }
+  MPI_Bcast(&numActions, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // Setting action
-    agent->act(t, action);
+  double t = 0;        // Current time
+  double dtAct;        // Time until next action
+  double tNextAct = 0; // Time of next action
 
-    // Run the simulation until next action is required
-    dtAct = agent->getLearnTPeriod() * 0.5;
-    tNextAct += dtAct;
-    while ( t < tNextAct )
+  for(int a = 0; a < numActions; a++) // Environment loop
+  {
+    for (int i = 0 ; i < Nagents ; i++)
     {
-      // Compute timestep
-      const Real dt = std::min(_environment->calcMaxTimestep(), dtAct);
+       StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[i].get());
+       //const double time = actions[i][a*(NACTIONS+1)  ];
+       std::vector<double> action(NACTIONS);
+       if (rank == 0)
+          for (int j = 1 ; j < NACTIONS+1; j++) action[j-1] = (actions[i][a*(NACTIONS+1)+j]);
+       MPI_Bcast(actions.data(), NACTIONS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+       agent->act(t, action);
+    }
+    StefanFish *agent0 = dynamic_cast<StefanFish *>(_environment->getShapes()[0].get());
+    dtAct = agent0->getLearnTPeriod() * 0.5;
+    tNextAct += dtAct;
+    while ( t < tNextAct ) // Run simulation until next action is needed
+    {
+      const double dt = std::min(_environment->calcMaxTimestep(), dtAct);
       t += dt;
-
-      // Advance simulation
       _environment->advance(dt);
     }
   }
-
   delete _environment;
+  MPI_Finalize();
 }
 
-std::vector<Real> readIC( std::string filename )
+std::vector<std::vector<double>> readActions(const int Nagents)
 {
-  std::string line;
-  Real tempIC;
-  std::vector<Real> initialConditions;
-
-  std::ifstream myfile(filename);
-  if( myfile.is_open() )
+  std::vector<std::vector<double>> actions(Nagents);
+  for (int i = 0 ; i < Nagents ; i++)
   {
-    while( std::getline(myfile,line) )
-    {
-      std::istringstream readingStream(line);
-      while (readingStream >> tempIC)
-        initialConditions.push_back(tempIC);
-    }
-    myfile.close();
+    std::fstream myfile("actions"+std::to_string(i)+".txt", std::ios_base::in);
+    double a;
+    while (myfile >> a)
+	actions[i].push_back(a);
   }
-  else{
-    cout << "[debugRL] Unable to open initialCondition file, setting (0,0.9,1)\n";
-    initialConditions.push_back(0.0);
-    initialConditions.push_back(0.9);
-    initialConditions.push_back(1.0);
-  } 
-
-  return initialConditions;
-} 
-
-std::vector<std::vector<Real>> readActions( std::string filename )
-{
-  std::string line;
-  Real tempA;
-  std::vector<std::vector<Real>> actions;
-
-  std::ifstream myfile(filename);
-  if( myfile.is_open() )
-  {
-    while( std::getline(myfile,line) )
-    {
-      std::vector<Real> action(NACTIONS);
-      std::istringstream readingStream(line);
-      while (readingStream >> tempA)
-        action.push_back(tempA);
-      actions.push_back(action);
-    }
-    myfile.close();
-  }
-  else{
-    cout << "[debugRL] Unable to open actions file, setting (0,0) for 20 actions\n";
-    for( size_t i = 0; i<20; i++ )
-    {
-      std::vector<Real> action(2,0.0);
-      actions.push_back(action);
-    }
-  }
-
   return actions;
-}
-
-void setInitialConditions(StefanFish *agent, std::vector<Real> initialConditions )
-{
-  // Initial conditions
-  Real initialAngle = initialConditions[0];
-  std::vector<Real> initialPosition{initialConditions[1], initialConditions[2]};
-
-  printf("[debugRL] Initial Condition:\n");
-  printf("[debugRL] angle: %f\n", (double)initialAngle);
-  printf("[debugRL] x: %f\n", (double)initialPosition[0]);
-  printf("[debugRL] y: %f\n", (double)initialPosition[1]);
-
-  // Setting initial position and orientation for the fish
-  agent->setCenterOfMass(initialPosition.data());
-  agent->setOrientation(initialAngle);
 }
