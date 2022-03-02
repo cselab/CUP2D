@@ -256,7 +256,6 @@ struct GridBlock
   static constexpr int sizeZ = _DIM_ > 2 ? _BS_ : 1;
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
-  using element_type = TElement;
   using RealType = Real;
 
   ElementType data[sizeZ][sizeY][sizeX];
