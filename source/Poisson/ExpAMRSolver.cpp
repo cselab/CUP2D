@@ -267,7 +267,7 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
     for (int k(0); k<BLEN; k++) // P_inv_ = (L^T)^{-1} L^{-1}
       aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
 
-    P_inv[i*BLEN+j] = aux;
+    P_inv[i*BLEN+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
   }
 
   // Create Linear system and backend solver objects
@@ -306,6 +306,8 @@ void ExpAMRSolver::makeFlux(
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
     const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+
+
 
     const int ix_c = indexer.ix_c(rhs_info, ix, iy);
     const int iy_c = indexer.iy_c(rhs_info, ix, iy);
@@ -557,10 +559,6 @@ void ExpAMRSolver::getVec()
     }
   }
 
-//  std::cout << "  [ExpAMRSolver] linear system " 
-//            << "rows: " << m_  << " cols: " << n_ 
-//            << " non-zero elements: " << nnz_ << std::endl;
-
   sim.stopProfiler();
 }
 
@@ -569,7 +567,8 @@ void ExpAMRSolver::solve(
     ScalarGrid * const output)
 {
 
-  std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
+  if (rank_ == 0)
+    std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
 
   const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
   const double max_rel_error = this->sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
@@ -577,7 +576,6 @@ void ExpAMRSolver::solve(
 
   if (sim.pres->UpdateFluxCorrection)
   {
-    std::cerr << "Rank: " << rank_ << " calling solveWithUpdate" << std::endl;
     sim.pres->UpdateFluxCorrection = false;
     this->getMat();
     this->getVec();
@@ -585,7 +583,6 @@ void ExpAMRSolver::solve(
   }
   else
   {
-    std::cerr << "Rank: " << rank_ << " calling solveNoUpdate" << std::endl;
     this->getVec();
     backend_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }

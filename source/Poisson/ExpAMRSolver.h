@@ -143,9 +143,9 @@ protected:
       { return WestNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0; }
+      { return ix == 0 || ix == BSX / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1; }
+      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return ix % 2 == 0; }
 
@@ -177,9 +177,9 @@ protected:
       { return SouthNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0; }
+      { return iy == 0 || iy == BSY / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1; }
+      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return iy % 2 == 0; }
 
@@ -211,9 +211,9 @@ protected:
       { return WestNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0; }
+      { return ix == 0 || ix == BSX / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1; }
+      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return ix % 2 == 0; }
 
@@ -245,9 +245,9 @@ protected:
       { return SouthNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0; }
+      { return iy == 0 || iy == BSY / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1; }
+      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return iy % 2 == 0; }
 

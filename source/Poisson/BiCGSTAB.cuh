@@ -64,7 +64,8 @@ private:
   // Haloed SpMV
   void hd_cusparseSpMV(
     double* d_op,  // operand vec
-    cusparseDnVecDescr_t spDescrOp,
+    cusparseDnVecDescr_t spDescrLocOp,
+    cusparseDnVecDescr_t spDescrBdOp,
     double* d_res, // result vec
     cusparseDnVecDescr_t Res);
 
@@ -116,15 +117,16 @@ private:
   // Device-side intermediate variables for BiCGSTAB
   double* d_rhat_;
   double* d_p_;
-  double* d_nu_; // vecs with halos
+  double* d_nu_; 
   double* d_t_;
-  double* d_z_;
+  double* d_z_; // vec with halos
   // Descriptors for variables that will pass through cuSPARSE
   cusparseSpMatDescr_t spDescrLocA_;
   cusparseSpMatDescr_t spDescrBdA_;
-  cusparseDnVecDescr_t spDescrZ_;
   cusparseDnVecDescr_t spDescrNu_;
   cusparseDnVecDescr_t spDescrT_;
+  cusparseDnVecDescr_t spDescrLocZ_;
+  cusparseDnVecDescr_t spDescrBdZ_;
   // Work buffer for cusparseSpMV
   size_t locSpMVBuffSz_;
   void* locSpMVBuff_;
