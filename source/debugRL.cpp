@@ -72,7 +72,7 @@ int main(int argc, char **argv)
        std::vector<double> action(NACTIONS);
        if (rank == 0)
           for (int j = 1 ; j < NACTIONS+1; j++) action[j-1] = (actions[i][a*(NACTIONS+1)+j]);
-       MPI_Bcast(actions.data(), NACTIONS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+       MPI_Bcast(action.data(), NACTIONS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
        agent->act(t, action);
     }
     StefanFish *agent0 = dynamic_cast<StefanFish *>(_environment->getShapes()[0].get());
