@@ -358,7 +358,7 @@ public:
   }
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
   {
     if (!coarse)
     {
@@ -471,7 +471,7 @@ public:
   }
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
   {
     if (!coarse)
     {

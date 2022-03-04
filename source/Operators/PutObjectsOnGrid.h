@@ -28,7 +28,7 @@ protected:
   void advanceShapes(Real dt);
   void putObjectsOnGrid();
 
-  std::string getName()
+  std::string getName() override
   {
     return "PutObjectsOnGrid";
   }

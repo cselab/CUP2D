@@ -25,12 +25,13 @@ protected:
   void penalize(const Real dt) const;
 
  public:
-  void operator()(const Real dt);
+  void operator() (const Real dt) override;
 
   PressureSingle(SimulationData& s);
   ~PressureSingle();
 
-  std::string getName() {
+  std::string getName() override
+  {
     return "PressureSingle";
   }
 };
