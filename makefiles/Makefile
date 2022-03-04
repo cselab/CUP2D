@@ -60,7 +60,7 @@ CPPFLAGS += -DCUBISM_USE_MAP
 endif
 
 # SET FLAGS FOR GSL
-LIBS += -lgsl
+LIBS += -lgsl -lgslcblas
 
 # SET FLAGS FOR HDF5
 ifneq "$(hdf)" "false"
