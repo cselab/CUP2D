@@ -8,9 +8,7 @@
 #include "cusparse.h"
 
 #include "LocalSpMatDnVec.h"
-#ifdef BICGSTAB_PROFILER
 #include "../Utils/DeviceProfiler.cuh"
-#endif
 
 struct BiCGSTABScalars {
   double alpha;
@@ -133,10 +131,5 @@ private:
   size_t bdSpMVBuffSz_;
   void* bdSpMVBuff_;
 
-#ifdef BICGSTAB_PROFILER
-  DeviceProfiler pMemcpy_;
-  DeviceProfiler pSpMV_;
-  DeviceProfiler pPrec_;
-  DeviceProfiler pGlob_;
-#endif
+  DeviceProfiler prof_;
 };

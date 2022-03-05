@@ -14,7 +14,7 @@ BiCGSTABSolver::BiCGSTABSolver(
     std::shared_ptr<LocalSpMatDnVec> LocalLS,
     const int &BLEN, 
     const double* const P_inv)
-  : m_comm_(m_comm), BLEN_(BLEN), LocalLS_(LocalLS)
+  : m_comm_(m_comm), BLEN_(BLEN), LocalLS_(LocalLS), prof_(m_comm)
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -45,6 +45,7 @@ BiCGSTABSolver::BiCGSTABSolver(
   // Copy preconditionner
   checkCudaErrors(cudaMalloc(&d_P_inv_, BLEN_ * BLEN_ * sizeof(double)));
   checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv, BLEN_ * BLEN_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+
 }
 
 BiCGSTABSolver::~BiCGSTABSolver()
@@ -53,12 +54,7 @@ BiCGSTABSolver::~BiCGSTABSolver()
   // Cleanup after last timestep
   this->freeLast();
 
-#ifdef BICGSTAB_PROFILER
-  std::cout << "  [BiCGSTAB]: total elapsed time: " << pGlob_.elapsed() << " [ms]." << std::endl;
-  std::cout << "  [BiCGSTAB]: memory transfers:   " << (pMemcpy_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
-  std::cout << "  [BiCGSTAB]: preconditioning:    " << (pPrec_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
-  std::cout << "  [BiCGSTAB]: SpVM:               " << (pSpMV_.elapsed()/pGlob_.elapsed())*100. << "%." << std::endl;
-#endif
+  prof_.print("Total");
 
   // Free preconditionner
   checkCudaErrors(cudaFree(d_P_inv_));
@@ -171,9 +167,7 @@ void BiCGSTABSolver::updateAll()
     checkCudaErrors(cudaMalloc(&dbd_cooColA_, bd_nnz_ * sizeof(int)));
   }
 
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.startProfiler(solver_stream_);
-#endif
+  prof_.startProfiler("Memcpy", solver_stream_);
   // H2D transfer of linear system
   checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_->loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_->loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
@@ -185,9 +179,7 @@ void BiCGSTABSolver::updateAll()
     checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_->bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_->bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   }
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.stopProfiler(solver_stream_);
-#endif
+  prof_.stopProfiler("Memcpy", solver_stream_);
 
   // Create descriptors for variables that will pass through cuSPARSE
   checkCudaErrors(cusparseCreateCoo(&spDescrLocA_, m_, m_, loc_nnz_, dloc_cooRowA_, dloc_cooColA_, dloc_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
@@ -230,15 +222,11 @@ void BiCGSTABSolver::updateAll()
 
 void BiCGSTABSolver::updateVec()
 {
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.startProfiler(solver_stream_);
-#endif
+  prof_.startProfiler("Memcpy", solver_stream_);
   // Copy RHS, LHS vec initial guess (to d_z_), if LS was updated, updateAll reallocates sufficient memory
   checkCudaErrors(cudaMemcpyAsync(d_x_, LocalLS_->x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_r_, LocalLS_->b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.stopProfiler(solver_stream_);
-#endif
+  prof_.stopProfiler("Memcpy", solver_stream_);
 }
 
 __global__ void set_squared(double* const val)
@@ -324,9 +312,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     }
   }
 
-#ifdef BICGSTAB_PROFILER
-  pSpMV_.startProfiler(solver_stream_);
-#endif
+  prof_.startProfiler("SpMV", solver_stream_);
   // A*x for local rows
   checkCudaErrors(cusparseSpMV( 
         cusparse_handle_, 
@@ -339,9 +325,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
         CUDA_R_64F, 
         CUSPARSE_MV_ALG_DEFAULT, 
         locSpMVBuff_)); 
-#ifdef BICGSTAB_PROFILER
-  pSpMV_.stopProfiler(solver_stream_);
-#endif
+  prof_.stopProfiler("SpMV", solver_stream_);
 
   if (comm_size_ > 1)
   {
@@ -353,9 +337,8 @@ void BiCGSTABSolver::hd_cusparseSpMV(
       MPI_Wait(&recv_requests[i], MPI_STATUS_IGNORE);
 
     checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_, halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-#ifdef BICGSTAB_PROFILER
-    pSpMV_.startProfiler(solver_stream_);
-#endif
+
+    prof_.startProfiler("SpMV", solver_stream_);
     // A*x for rows with halo elements, axpy with local results
     checkCudaErrors(cusparseSpMV( 
           cusparse_handle_, 
@@ -368,9 +351,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
           CUDA_R_64F, 
           CUSPARSE_MV_ALG_DEFAULT, 
           bdSpMVBuff_)); 
-#ifdef BICGSTAB_PROFILER
-    pSpMV_.stopProfiler(solver_stream_);
-#endif
+    prof_.stopProfiler("SpMV", solver_stream_);
   }
 }
 
@@ -379,9 +360,7 @@ void BiCGSTABSolver::main(
     const double max_rel_error, 
     const int max_restarts)
 {
-#ifdef BICGSTAB_PROFILER
-  pGlob_.startProfiler(solver_stream_);
-#endif 
+  prof_.startProfiler("Total", solver_stream_);
 
   // Initialize variables to evaluate convergence
   double error = 1e50;
@@ -480,13 +459,9 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_eye_, d_r_, 1, d_p_, 1));    // p <- r_{i-1} + p
 
     // 4. z <- K_2^{-1} * p_i
-#ifdef BICGSTAB_PROFILER
-    pPrec_.startProfiler(solver_stream_);
-#endif
+    prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_p_, BLEN_, d_nil_, d_z_, BLEN_));
-#ifdef BICGSTAB_PROFILER
-    pPrec_.stopProfiler(solver_stream_);
-#endif
+    prof_.stopProfiler("Prec", solver_stream_);
 
     // 5. nu_i = A * z
 	  hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_nu_, spDescrNu_);
@@ -495,9 +470,7 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
-    //std::cerr << "Rank: " << rank_ << ", pre-red alpha_den: " << h_coeffs_->buff_1 << std::endl;
     MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 1, MPI_DOUBLE, MPI_SUM, m_comm_);
-    //std::cerr << "Rank: " << rank_ << ", post-red alpha_den: " << h_coeffs_->buff_1 << std::endl;
     checkCudaErrors(cudaMemcpyAsync(&(d_coeffs_->buff_1), &(h_coeffs_->buff_1), sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
@@ -511,13 +484,9 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_, 1, d_r_, 1));
 
     // 10. z <- K_2^{-1} * s
-#ifdef BICGSTAB_PROFILER
-    pPrec_.startProfiler(solver_stream_);
-#endif
+    prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_r_, BLEN_, d_nil_, d_z_, BLEN_));
-#ifdef BICGSTAB_PROFILER
-    pPrec_.stopProfiler(solver_stream_);
-#endif
+    prof_.stopProfiler("Prec", solver_stream_);
 
     // 11. t = A * z
 	  hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_t_, spDescrT_);
@@ -581,14 +550,10 @@ void BiCGSTABSolver::main(
                 << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
   }
 
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.startProfiler(solver_stream_);
-#endif
+  prof_.startProfiler("Memcpy", solver_stream_);
   // Copy result back to host
   checkCudaErrors(cudaMemcpyAsync(LocalLS_->x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-#ifdef BICGSTAB_PROFILER
-  pMemcpy_.stopProfiler(solver_stream_);
-  pGlob_.stopProfiler(solver_stream_);
-#endif
+  prof_.stopProfiler("Memcpy", solver_stream_);
+  prof_.stopProfiler("Total", solver_stream_);
 }
 
