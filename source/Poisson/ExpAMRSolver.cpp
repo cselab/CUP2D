@@ -419,7 +419,7 @@ void ExpAMRSolver::getMat()
 
   // Perform cumulative sum
   static constexpr long long BLEN = BSX_*BSY_;
-  for (size_t i(1); i < Nblocks_xcumsum_.size()-1; i++)
+  for (size_t i(1); i < Nblocks_xcumsum_.size(); i++)
   {
     Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
     Nrows_xcumsum_[i] = BLEN*Nblocks_xcumsum_[i];

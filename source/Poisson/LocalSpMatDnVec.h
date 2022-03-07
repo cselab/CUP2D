@@ -72,6 +72,7 @@ class LocalSpMatDnVec
 
     // bd_recv_set_[r] contains columns that need to be received from rank 'r'
     std::vector<std::set<long long>> bd_recv_set_;
+    std::vector<std::vector<long long>> bd_recv_vec_;
 
     // Vectors that contain rules for sending and receiving
     std::vector<int> recv_ranks_;

@@ -16,6 +16,7 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm)
   MPI_Comm_size(m_comm_, &comm_size_);
 
   bd_recv_set_.resize(comm_size_);
+  bd_recv_vec_.resize(comm_size_);
   recv_ranks_.reserve(comm_size_); 
   recv_offset_.reserve(comm_size_); 
   recv_sz_.reserve(comm_size_);
@@ -68,7 +69,9 @@ void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row)
     }
     // Update recv set
     for (const auto &[rank, col_idx] : row.neirank_cols_)
+    {
       bd_recv_set_[rank].insert(col_idx);
+    }
   }
 }
 
@@ -78,25 +81,24 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   bd_nnz_  = bd_cooValA_.size();
   
   halo_ = 0;
-  std::vector<std::vector<long long>> bd_recv_vec(comm_size_);
   std::vector<int> bd_recv_sz(comm_size_); // ensure buffer available throughout function scope for MPI
   for (int r(0); r < comm_size_; r++)
   {
     if (r != rank_)
     {
       // Convert recv_set -> recv_vec to prep for communication
-      bd_recv_vec[r] = std::vector<long long>(bd_recv_set_[r].begin(), bd_recv_set_[r].end());    
+      bd_recv_vec_[r] = std::vector<long long>(bd_recv_set_[r].begin(), bd_recv_set_[r].end());    
 
-      bd_recv_sz[r] = (int)bd_recv_vec[r].size(); // cast as int for MPI
+      bd_recv_sz[r] = (int)bd_recv_vec_[r].size(); // cast as int for MPI
       halo_ += bd_recv_sz[r];
 
       // Each rank knows what it needs to receive, but needs to tell other ranks what to send to it
       MPI_Request req1;
       MPI_Isend(&bd_recv_sz[r], 1, MPI_INT, r, SZ_MSG_TAG, m_comm_, &req1); // send size of upcoming message
-      if (!bd_recv_vec[r].empty())
+      if (!bd_recv_vec_[r].empty())
       {
         MPI_Request req2;
-        MPI_Isend(bd_recv_vec[r].data(), bd_recv_sz[r], MPI_LONG_LONG, r, VEC_MSG_TAG, m_comm_, &req2); // send message
+        MPI_Isend(bd_recv_vec_[r].data(), bd_recv_sz[r], MPI_LONG_LONG, r, VEC_MSG_TAG, m_comm_, &req2); // send message
       }
     }
   }
@@ -123,12 +125,12 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   int offset = 0;
   for (int r(0); r < comm_size_; r++)
   {
-    if (r != rank_ && !bd_recv_vec[r].empty())
+    if (r != rank_ && !bd_recv_vec_[r].empty())
     {
       recv_ranks_.push_back(r); 
       recv_offset_.push_back(offset);
-      recv_sz_.push_back(bd_recv_vec[r].size());
-      offset += (int)bd_recv_vec[r].size();
+      recv_sz_.push_back(bd_recv_vec_[r].size());
+      offset += (int)bd_recv_vec_[r].size();
     }
   }
 
@@ -165,9 +167,9 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   glob_halo.reserve(halo_);
   int halo_idx = m_;
   for (size_t i(0); i < recv_ranks_.size(); i++)
-  for (size_t j(0); j < bd_recv_vec[recv_ranks_[i]].size(); j++)
+  for (size_t j(0); j < bd_recv_vec_[recv_ranks_[i]].size(); j++)
   {
-    glob_halo[bd_recv_vec[recv_ranks_[i]][j]] = halo_idx;
+    glob_halo[bd_recv_vec_[recv_ranks_[i]][j]] = halo_idx;
     halo_idx++;
   }
 
@@ -186,5 +188,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   // Local indexing for vector information to send to other ranks
   for (size_t i(0); i < send_ranks_.size(); i++)
     std::transform(bd_send_vec[send_ranks_[i]].begin(), bd_send_vec[send_ranks_[i]].end(), &send_buff_pack_idx_[send_offset_[i]], shift_func);
+
+  std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
 }
 
