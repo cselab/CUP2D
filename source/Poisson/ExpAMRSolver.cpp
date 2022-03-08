@@ -570,8 +570,8 @@ void ExpAMRSolver::solve(
   if (rank_ == 0)
     std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
 
-  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
-  const double max_rel_error = this->sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
 
   if (sim.pres->UpdateFluxCorrection)

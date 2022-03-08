@@ -14,10 +14,9 @@ cat <<EOF >daint_sbatch
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=$TASKS_PER_NODE
+#SBATCH --cpus-per-task=$OMP_NUM_THREADS
 #SBATCH --constraint=gpu
-export OMP_NUM_THREADS=1
 
 srun ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 EOF

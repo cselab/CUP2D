@@ -300,7 +300,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   if (comm_size_ > 1)
   {
-    send_buff_pack<<<send_buff_sz_/32+1,32, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
+    send_buff_pack<<<4*56,64, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaMemcpyAsync(h_send_buff_, d_send_buff_, send_buff_sz_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // try with events later

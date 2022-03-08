@@ -12,9 +12,16 @@ CubismUP-2D has the following prerequisite libraries:
 
 On Piz Daint:
 ```
-module load daint-gpu GSL cray-hdf5 cray-python
-export GSL_ROOT=/apps/dom/UES/jenkins/7.0.UP02/gpu/easybuild/software/GSL/2.5-CrayGNU-20.11
+module swap PrgEnv-cray PrgEnv-gnu
+module load daint-gpu 
+moudle load cray-python
+module load cray-hdf5 
+module load GSL 
+module load cdt-cuda
+module load craype-accel-nvidia60
 export MPICXX=CC
+export CXX=CC
+export NVCC=nvcc
 ```
 
 On Euler:
