@@ -21,8 +21,10 @@ BiCGSTABSolver::BiCGSTABSolver(
   MPI_Comm_size(m_comm_, &comm_size_);
 
   std::cout << "---------------- Calling on BiCGSTABSolver() constructor ------------\n";
-  // Set-up CUDA streams and handles
+  // Set-up CUDA streams events, and handles
   checkCudaErrors(cudaStreamCreate(&solver_stream_));
+  checkCudaErrors(cudaStreamCreate(&copy_stream_));
+  checkCudaErrors(cudaEventCreate(&sync_event_));
   checkCudaErrors(cublasCreate(&cublas_handle_)); 
   checkCudaErrors(cusparseCreate(&cusparse_handle_)); 
   // Set handles to stream
@@ -50,7 +52,6 @@ BiCGSTABSolver::BiCGSTABSolver(
 
 BiCGSTABSolver::~BiCGSTABSolver()
 {
-  std::cout << "---------------- Calling on BiCGSTABSolver() destructor ------------\n";
   // Cleanup after last timestep
   this->freeLast();
 
@@ -67,6 +68,8 @@ BiCGSTABSolver::~BiCGSTABSolver()
   // Destroy CUDA streams and handles
   checkCudaErrors(cublasDestroy(cublas_handle_)); 
   checkCudaErrors(cusparseDestroy(cusparse_handle_)); 
+  checkCudaErrors(cudaEventDestroy(sync_event_));
+  checkCudaErrors(cudaStreamDestroy(copy_stream_));
   checkCudaErrors(cudaStreamDestroy(solver_stream_));
 }
 
@@ -302,14 +305,8 @@ void BiCGSTABSolver::hd_cusparseSpMV(
   {
     send_buff_pack<<<4*56,64, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
     checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaMemcpyAsync(h_send_buff_, d_send_buff_, send_buff_sz_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
-    checkCudaErrors(cudaStreamSynchronize(solver_stream_)); // try with events later
+    checkCudaErrors(cudaEventRecord(sync_event_, solver_stream_)); // event to sync up for MPI comm
 
-    for (size_t i(0); i < send_ranks.size(); i++)
-    {
-      MPI_Request request;
-      MPI_Isend(&h_send_buff_[send_offset[i]], send_sz[i], MPI_DOUBLE, send_ranks[i], _HALO_MSG_, m_comm_, &request);
-    }
   }
 
   prof_.startProfiler("SpMV", solver_stream_);
@@ -329,13 +326,26 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   if (comm_size_ > 1)
   {
+    prof_.startProfiler("HaloComm", copy_stream_);
+    // Wait until copy to buffer has completed
+    checkCudaErrors(cudaStreamWaitEvent(copy_stream_, sync_event_, 0));
+    checkCudaErrors(cudaMemcpyAsync(h_send_buff_, d_send_buff_, send_buff_sz_ * sizeof(double), cudaMemcpyDeviceToHost, copy_stream_));
+    checkCudaErrors(cudaStreamSynchronize(copy_stream_));
+
     // Schedule receives and wait for them to arrive
     std::vector<MPI_Request> recv_requests(recv_ranks.size());
     for (size_t i(0); i < recv_ranks.size(); i++)
       MPI_Irecv(&h_recv_buff_[recv_offset[i]], recv_sz[i], MPI_DOUBLE, recv_ranks[i], _HALO_MSG_, m_comm_, &recv_requests[i]);
-    for (size_t i(0); i < recv_ranks.size(); i++)
-      MPI_Wait(&recv_requests[i], MPI_STATUS_IGNORE);
 
+    std::vector<MPI_Request> send_requests(send_ranks.size());
+    for (size_t i(0); i < send_ranks.size(); i++)
+      MPI_Isend(&h_send_buff_[send_offset[i]], send_sz[i], MPI_DOUBLE, send_ranks[i], _HALO_MSG_, m_comm_, &send_requests[i]);
+
+    MPI_Waitall(send_ranks.size(), send_requests.data(), MPI_STATUS_IGNORE);
+    MPI_Waitall(recv_ranks.size(), recv_requests.data(), MPI_STATUS_IGNORE);
+    prof_.stopProfiler("HaloComm", copy_stream_);
+
+    // Use solver stream, just in case... even though the halo doesn't particiapte in SpMV race conditions possible due to coalescing?
     checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_, halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 
     prof_.startProfiler("SpMV", solver_stream_);

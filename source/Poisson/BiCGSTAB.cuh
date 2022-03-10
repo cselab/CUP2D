@@ -68,6 +68,8 @@ private:
     cusparseDnVecDescr_t Res);
 
   cudaStream_t solver_stream_;
+  cudaStream_t copy_stream_;
+  cudaEvent_t sync_event_;
   cublasHandle_t cublas_handle_;
   cusparseHandle_t cusparse_handle_;
 

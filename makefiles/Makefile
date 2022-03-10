@@ -3,7 +3,7 @@ config ?= production
 precision ?= double
 bs ?= 8
 gpu ?= true
-profile ?= true
+profile ?= false
 
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)

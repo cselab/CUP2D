@@ -31,9 +31,8 @@ BASEPATH="${SCRATCH}/CUP2D/"
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
 if [ ${PSOLVER:0:4} == 'cuda' ] ; then
-  export MPICH_RDMA_ENABLED_CUDA=1
   export TASKS_PER_NODE=1
-  if ["${TASKS_PER_NODE}" -gt "1"] ; then
+  if [ "${TASKS_PER_NODE}" -gt "1" ] ; then
     export CRAY_CUDA_MPS=1
   else 
     export CRAY_CUDA_MPS=0
