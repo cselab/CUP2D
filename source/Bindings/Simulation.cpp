@@ -1,8 +1,9 @@
 #include "Common.h"
-#include "../Shape.h"
-#include "../Simulation.h"
 #include "../Operators/AdaptTheMesh.h"
 #include "../Operators/Helpers.h"
+#include "../Operators/PutObjectsOnGrid.h"
+#include "../Shape.h"
+#include "../Simulation.h"
 
 namespace cubismup2d {
 
@@ -11,17 +12,20 @@ using namespace py::literals;
 namespace {
 
 /// Operator that stops the simulation when Ctrl-C is pressed in Python.
-class SIGINTHandlerOperator : public Operator {
+class SIGINTHandlerOperator : public Operator
+{
 public:
   using Operator::Operator;
 
-  void operator()(double /* dt */) override {
+  void operator()(double /* dt */) override
+  {
     // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
     if (PyErr_CheckSignals() != 0)
       throw py::error_already_set();
   }
 
-  std::string getName() override {
+  std::string getName() override
+  {
     return "SIGINTHandlerOperator";
   }
 };
@@ -86,10 +90,16 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
 
 static void pyAdaptMesh(Simulation &sim)
 {
-  auto *ptr = sim.findOperator<AdaptTheMesh>();
-  if (!ptr)
+  // Immediately invoke putObjectsOnGrid(). Forgetting to invoke it after
+  // adapt() may cause the code to crash.
+  auto * const adapt = sim.findOperator<AdaptTheMesh>();
+  auto * const obj = sim.findOperator<PutObjectsOnGrid>();
+  if (!adapt)
     throw std::runtime_error("AdaptTheMesh operator not found");
-  ptr->adapt();
+  if (!obj)
+    throw std::runtime_error("PutObjectsOnGrid operator not found");
+  adapt->adapt();
+  obj->putObjectsOnGrid();
 }
 
 static void pyComputeVorticity(Simulation &sim)
@@ -111,7 +121,8 @@ void bindSimulation(py::module &m)
       .def("insert_operator", &Simulation::insertOperatorAfter,
            "op"_a, "after"_a)
       .def("adapt_mesh", &pyAdaptMesh)
-      .def("compute_vorticity", &pyComputeVorticity)
+      .def("compute_vorticity", &pyComputeVorticity,
+           "compute the vorticity and store it to the tmp field")
       .def("init", &Simulation::init)
       .def("simulate", &Simulation::simulate);
 }

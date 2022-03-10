@@ -19,9 +19,9 @@ protected:
  public:
   advDiff(SimulationData& s) : Operator(s) { }
 
-  void operator()(const Real dt);
+  void operator() (const Real dt) override;
 
-  std::string getName()
+  std::string getName() override
   {
     return "advDiff";
   }

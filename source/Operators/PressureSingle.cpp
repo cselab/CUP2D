@@ -5,12 +5,11 @@
 //
 
 #include "PressureSingle.h"
-#include "../Poisson/Base.h"
+#include "Cubism/FluxCorrection.h"
 #include "../Shape.h"
 
 using namespace cubism;
 
-static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 

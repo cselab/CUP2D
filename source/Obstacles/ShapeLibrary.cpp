@@ -8,10 +8,10 @@
 
 using namespace cubism;
 
-static inline Real mollified_heaviside(const Real x) {
-  const Real alpha = M_PI * std::min( (Real)1, std::max( (Real)0, (x+1)/2 ) );
-  return 0.5 + 0.5 * std::cos( alpha );
-}
+//static inline Real mollified_heaviside(const Real x) {
+//  const Real alpha = M_PI * std::min( (Real)1, std::max( (Real)0, (x+1)/2 ) );
+//  return 0.5 + 0.5 * std::cos( alpha );
+//}
 
 static Real distPointEllipseSpecial(const Real e[2],const Real y[2],Real x[2]);
 static Real distPointEllipse(const Real e[2], const Real y[2], Real x[2]);
