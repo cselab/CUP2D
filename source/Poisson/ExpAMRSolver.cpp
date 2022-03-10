@@ -19,9 +19,11 @@ class PolyO3I {
         const BlockInfo &info_f, const int &ix_f, const int &iy_f,
         const bool &neiCoarser, const EdgeCellIndexer &indexer,
         SpRowInfo &row)
-      : sign_(neiCoarser ? 1. : -1.), row_(row)
+      : rank_c_(s.tmp->Tree(info_c).rank()),
+        rank_f_(s.tmp->Tree(info_f).rank()),
+        sign_(neiCoarser ? 1. : -1.), row_(row)
     {
-      if (neiCoarser)
+      if (neiCoarser) // thisFiner
       {
         coarse_centre_idx_ = indexer.neiblock_n(info_c, ix_c, iy_c);
         if (indexer.back_corner(ix_c, iy_c))
@@ -45,18 +47,8 @@ class PolyO3I {
 
         fine_close_idx_ = indexer.This(info_f, ix_f, iy_f);
         fine_far_idx_ = indexer.inblock_n2(info_f, ix_f, iy_f);
-        
-        // Log the neighbour cell index and rank for future comunication
-        const int this_rank = s.tmp->Tree(info_f).rank();
-        const int nei_rank  = s.tmp->Tree(info_c).rank();
-        if (this_rank != nei_rank)
-        {
-          row_.logNeiRankCol(nei_rank, coarse_centre_idx_);
-          row_.logNeiRankCol(nei_rank, coarse_offset1_idx_);
-          row_.logNeiRankCol(nei_rank, coarse_offset2_idx_);
-        }
       }
-      else // neiFiner
+      else // neiFiner, thisCoarser
       {
         coarse_centre_idx_ = indexer.This(info_c, ix_c, iy_c);
 
@@ -81,15 +73,6 @@ class PolyO3I {
 
         fine_close_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 0);
         fine_far_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 1);
-
-        // Log the neighbour cell index and rank for future comunication
-        const int this_rank = s.tmp->Tree(info_c).rank();
-        const int nei_rank  = s.tmp->Tree(info_f).rank();
-        if (this_rank != nei_rank)
-        {
-          row_.logNeiRankCol(nei_rank, fine_close_idx_);
-          row_.logNeiRankCol(nei_rank, fine_far_idx_);
-        }
       }
 
       this->interpolate();
@@ -104,9 +87,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_top);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
     }
 
     // Central Difference "Lower" Taylor approximation (negative 1st order term)
@@ -116,9 +99,9 @@ class PolyO3I {
       static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
       static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_top);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
     }
 
     void BiasedUpperTaylor()
@@ -127,9 +110,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_offset2);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
     }
 
     void BiasedLowerTaylor()
@@ -138,9 +121,9 @@ class PolyO3I {
       static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
       static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
 
-      row_.mapColVal(coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(coarse_offset2_idx_, sign_*p_offset2);
+      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
+      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
+      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
     }
 
     // Aliases for offset based biased functionals to forward/backward differences in corners
@@ -178,14 +161,16 @@ class PolyO3I {
           break;
       }
 
-      row_.mapColVal(fine_close_idx_, sign_*p_fine_close);
-      row_.mapColVal(fine_far_idx_, sign_*p_fine_far);
+      row_.mapColVal(rank_f_, fine_close_idx_, sign_*p_fine_close);
+      row_.mapColVal(rank_f_, fine_far_idx_, sign_*p_fine_far);
 
       // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
-      row_.mapColVal(fine_close_idx_, -sign_);
+      row_.mapColVal(rank_f_, fine_close_idx_, -sign_);
     } 
 
   private:
+    const int rank_c_;
+    const int rank_f_;
     const double sign_;
     SpRowInfo &row_;
     long long coarse_centre_idx_;
@@ -213,23 +198,16 @@ double ExpAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation o
 }
 
 ExpAMRSolver::ExpAMRSolver(SimulationData& s)
-  : sim(s), Nblocks_xcumsum_(1), Nrows_xcumsum_(1), 
+  : sim(s), m_comm_(sim.comm), 
     NorthCell(s, Nblocks_xcumsum_), EastCell(s, Nblocks_xcumsum_), 
     SouthCell(s, Nblocks_xcumsum_), WestCell(s, Nblocks_xcumsum_)
 {
-  std::cerr << "BEGIN EXPAMR 1\n";
   // MPI
-  rank_ = sim.rank;
-  m_comm_ = sim.comm;
+  MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
-  std::cerr << "BEGIN EXPAMR 2\n";
-
-  LocalLS = std::make_shared<LocalSpMatDnVec>(rank_, m_comm_, comm_size_);
-  std::cerr << "BEGIN EXPAMR 3\n";
 
   Nblocks_xcumsum_.resize(comm_size_ + 1);
   Nrows_xcumsum_.resize(comm_size_ + 1);
-  std::cerr << "BEGIN EXPAMR 4\n";
 
   std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
   std::vector<std::vector<double>> L_inv; // inverse of L
@@ -289,11 +267,12 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
     for (int k(0); k<BLEN; k++) // P_inv_ = (L^T)^{-1} L^{-1}
       aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
 
-    P_inv[i*BLEN+j] = aux;
+    P_inv[i*BLEN+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
   }
 
-  backend_ =  std::make_shared<BiCGSTABSolver>(rank_, m_comm_, comm_size_, BSX_, BSY_, P_inv.data());
-  std::cerr << "END CONSTRUCTOR \n";
+  // Create Linear system and backend solver objects
+  LocalLS_ = std::make_shared<LocalSpMatDnVec>(m_comm_);
+  backend_ =  std::make_shared<BiCGSTABSolver>(m_comm_, LocalLS_, BSX_*BSY_, P_inv.data());
 }
 
 ExpAMRSolver::~ExpAMRSolver()
@@ -317,20 +296,18 @@ void ExpAMRSolver::makeFlux(
 
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { 
+    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
     const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy);
 
     // Map flux associated to out-of-block edges at the same level of refinement
-    row.mapColVal(nei_idx, 1.);
+    row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
-
-    // Log the neighbour cell index and rank for future comunication
-    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
-    if (rank_ != nei_rank)
-      row.logNeiRankCol(nei_rank, nei_idx);
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
     const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+
+
 
     const int ix_c = indexer.ix_c(rhs_info, ix, iy);
     const int iy_c = indexer.iy_c(rhs_info, ix, iy);
@@ -366,7 +343,7 @@ void ExpAMRSolver::makeEdgeCellRow( // excluding corners
     const long long n2_idx = indexer.inblock_n2(rhs_info, ix, iy); // in-block neighbour 2
     const long long n3_idx = indexer.inblock_n3(rhs_info, ix, iy); // in-block neighbour 3
 
-    SpRowInfo row(sfc_idx, 4); // worst case: this coarse with four fine out-of-rank nei
+    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 4); // worst case: this coarse with four fine out-of-rank nei
 
     // Map fluxes associated to in-block edges
     row.mapColVal(n1_idx, 1.);
@@ -377,7 +354,7 @@ void ExpAMRSolver::makeEdgeCellRow( // excluding corners
     if (!isBoundary)
       this->makeFlux(rhs_info, ix, iy, rhsNei, indexer, row);
 
-    LocalLS->cooPushBackRow(row);
+    LocalLS_->cooPushBackRow(row);
 }
 
 template<class EdgeIndexer1, class EdgeIndexer2>
@@ -396,7 +373,7 @@ void ExpAMRSolver::makeCornerCellRow(
     const long long n1_idx = indexer1.inblock_n2(rhs_info, ix, iy); // indexer.inblock_n2 is the opposite edge
     const long long n2_idx = indexer2.inblock_n2(rhs_info, ix, iy); // makes corner input order invariant
 
-    SpRowInfo row(sfc_idx, 8); // worst case: this coarse with four fine out-of-rank nei at both corner edges
+    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8); // worst case: this coarse with four fine out-of-rank nei at both corner edges
 
     // Map fluxes associated to in-block edges
     row.mapColVal(n1_idx, 1.);
@@ -408,7 +385,7 @@ void ExpAMRSolver::makeCornerCellRow(
     if (!isBoundary2)
       this->makeFlux(rhs_info, ix, iy, rhsNei_2, indexer2, row);
 
-    LocalLS->cooPushBackRow(row);
+    LocalLS_->cooPushBackRow(row);
 }
 
 void ExpAMRSolver::getMat()
@@ -420,40 +397,33 @@ void ExpAMRSolver::getMat()
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
 
   //Get a vector of all BlockInfos of the grid we're interested in
+  sim.tmp->UpdateBlockInfoAll_States(true); // update blockID's for blocks from other ranks
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
   const int N = BSX_*BSY_*Nblocks;
 
-  std::cerr << "PRE-RESERVE of LS\n";
   // Reserve sufficient memory for LS proper to the rank
-  LocalLS->reserve(N);
+  LocalLS_->reserve(N);
 
-  std::cerr << "HERE NOGATHER\n";
   // Calculate cumulative sums for blocks and rows for correct global indexing
   const long long Nblocks_long = Nblocks;
   MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1, MPI_LONG_LONG, m_comm_);
-  std::cerr << "FIN GATHER 1\n";
-  std::cerr << "MPI SIZE: " << comm_size_ << std::endl;
-  std::cerr << "CUMSUM SIZE: " << Nblocks_xcumsum_.size() << std::endl;
   for (int i(Nblocks_xcumsum_.size()-1); i > 0; i--)
   {
     Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i-1]; // shift to right for rank 'i+1' to have cumsum of rank 'i'
   }
   
-  std::cerr << "HERE GATHER 1\n";
   // Set cumsum for rank 0 to zero
   Nblocks_xcumsum_[0] = 0;
   Nrows_xcumsum_[0] = 0;
 
   // Perform cumulative sum
   static constexpr long long BLEN = BSX_*BSY_;
-  for (size_t i(1); i < Nblocks_xcumsum_.size()-1; i++)
+  for (size_t i(1); i < Nblocks_xcumsum_.size(); i++)
   {
     Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
     Nrows_xcumsum_[i] = BLEN*Nblocks_xcumsum_[i];
   }
-  std::cerr << "HERE GATHER 2\n";
 
   // No parallel for to ensure COO are ordered at construction
   for(int i=0; i<Nblocks; i++)
@@ -503,11 +473,11 @@ void ExpAMRSolver::getMat()
         const long long nn_idx = NorthCell.NorthNeighbour(rhs_info, ix, iy);
         
         // Push back in ascending order for 'col_idx'
-        LocalLS->cooPushBackVal(1., sfc_idx, sn_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, wn_idx);
-        LocalLS->cooPushBackVal(-4, sfc_idx, sfc_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, en_idx);
-        LocalLS->cooPushBackVal(1., sfc_idx, nn_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, sn_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, wn_idx);
+        LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, en_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, nn_idx);
       }
       else if (ix == 0 && (iy > 0 && iy < BSY_-1))
       { // west cells excluding corners
@@ -556,7 +526,7 @@ void ExpAMRSolver::getMat()
     } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
   } // for(int i=0; i< Nblocks; i++)
 
-  LocalLS->make(Nrows_xcumsum_);
+  LocalLS_->make(Nrows_xcumsum_);
 
   sim.stopProfiler();
 }
@@ -569,6 +539,7 @@ void ExpAMRSolver::getVec()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
+  const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
   #pragma omp parallel for
@@ -582,15 +553,11 @@ void ExpAMRSolver::getVec()
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
     {
-      const long long sfc_idx = NorthCell.This(rhs_info, ix, iy);
-      LocalLS->b_[sfc_idx] = rhs(ix,iy).s;
-      LocalLS->x_[sfc_idx] = p(ix,iy).s;
+      const long long sfc_loc = NorthCell.This(rhs_info, ix, iy) + shift;
+      LocalLS_->b_[sfc_loc] = rhs(ix,iy).s;
+      LocalLS_->x_[sfc_loc] = p(ix,iy).s;
     }
   }
-
-//  std::cout << "  [ExpAMRSolver] linear system " 
-//            << "rows: " << m_  << " cols: " << n_ 
-//            << " non-zero elements: " << nnz_ << std::endl;
 
   sim.stopProfiler();
 }
@@ -600,25 +567,24 @@ void ExpAMRSolver::solve(
     ScalarGrid * const output)
 {
 
-  std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
+  if (rank_ == 0)
+    std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
 
-  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol * sim.uMax_measured / sim.dt;
-  const double max_rel_error = this->sim.step < 10 ? 0.0 : min(1e-2,sim.PoissonTolRel * sim.uMax_measured / sim.dt );
+  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
 
   if (sim.pres->UpdateFluxCorrection)
   {
     sim.pres->UpdateFluxCorrection = false;
-    std::cerr << "GOTTA CALL GETMAT\n";
     this->getMat();
     this->getVec();
-    backend_->solveWithUpdate(LocalLS, max_error, max_rel_error, max_restarts);
+    backend_->solveWithUpdate(max_error, max_rel_error, max_restarts);
   }
   else
   {
-    std::cerr << "NAAAH, GETVEC GOOD ENOUGH\n";
     this->getVec();
-    backend_->solveNoUpdate(LocalLS, max_error, max_rel_error, max_restarts);
+    backend_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
@@ -628,32 +594,29 @@ void ExpAMRSolver::solve(
 
   double avg = 0;
   double avg1 = 0;
-  #pragma omp parallel
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(int i=0; i< Nblocks; i++)
   {
-     #pragma omp for reduction (+:avg,avg1)
-     for(int i=0; i< Nblocks; i++)
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     const double vv = zInfo[i].h*zInfo[i].h;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
      {
-        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-        const double vv = zInfo[i].h*zInfo[i].h;
-        for(int iy=0; iy<BSY_; iy++)
-        for(int ix=0; ix<BSX_; ix++)
-        {
-            P(ix,iy).s = LocalLS->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
-            avg += P(ix,iy).s * vv;
-            avg1 += vv;
-        }
+         P(ix,iy).s = LocalLS_->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
+         avg += P(ix,iy).s * vv;
+         avg1 += vv;
      }
-     #pragma omp single
-     {
-        avg = avg/avg1;
-     }
-     #pragma omp for
-     for(int i=0; i< Nblocks; i++)
-     {
-        ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-        for(int iy=0; iy<BSY_; iy++)
-        for(int ix=0; ix<BSX_; ix++)
-           P(ix,iy).s += -avg;
-     }
+  }
+  double quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, m_comm_);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for 
+  for(int i=0; i< Nblocks; i++)
+  {
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
+        P(ix,iy).s += -avg;
   }
 }

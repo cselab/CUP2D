@@ -8,12 +8,14 @@
 class SpRowInfo
 {
   public:
+    const int rank_;
     const long long idx_; // global row index
-    std::map<long long, double> colval_; // col_idx->val map
+    std::map<long long, double> loc_colval_; // col_idx->val map
+    std::map<long long, double> bd_colval_;
     // neirank_cols_[i] holds {rank of non-local col, idx of non-local col}
     std::vector<std::pair<int,long long>> neirank_cols_;
 
-    SpRowInfo(const long long &row_idx, const int &neirank_max) : idx_(row_idx) 
+    SpRowInfo(const int &rank, const long long &row_idx, const int &neirank_max) : rank_(rank), idx_(row_idx) 
     { 
       neirank_cols_.reserve(neirank_max); 
     }
@@ -21,18 +23,24 @@ class SpRowInfo
 
     void mapColVal(const long long &col_idx, const double &val) 
     { 
-      colval_[col_idx] += val; 
+      loc_colval_[col_idx] += val; 
     }
-    void logNeiRankCol(const int &rank, const long long &col_idx) 
+    void mapColVal(const int &rank, const long long &col_idx, const double &val) 
     {
-      neirank_cols_.push_back({rank, col_idx});
+      if (rank == rank_)
+        mapColVal(col_idx, val);
+      else
+      {
+        bd_colval_[col_idx] += val;
+        neirank_cols_.push_back({rank, col_idx});
+      }
     }
 };
 
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(const int &rank, const MPI_Comm &m_comm, const int &comm_size); 
+    LocalSpMatDnVec(MPI_Comm m_comm); 
     ~LocalSpMatDnVec() = default;
 
     int rank_;
@@ -40,22 +48,21 @@ class LocalSpMatDnVec
     int comm_size_; 
 
     int m_;
+    int halo_;
     int loc_nnz_;
     int bd_nnz_;
-    int lower_halo_;
-    int upper_halo_;
 
     // Local rows of linear system + dense vecs
     std::vector<double> loc_cooValA_;
-    std::vector<long long> loc_cooRowA_;
-    std::vector<long long> loc_cooColA_;
+    std::vector<long long> loc_cooRowA_long_;
+    std::vector<long long> loc_cooColA_long_;
     std::vector<double> x_;
     std::vector<double> b_;
 
     // Non-local rows with columns belonging to halo using rank-local indexing
     std::vector<double> bd_cooValA_;
-    std::vector<long long> bd_cooRowA_;
-    std::vector<long long> bd_cooColA_;
+    std::vector<long long> bd_cooRowA_long_;
+    std::vector<long long> bd_cooColA_long_;
 
     // Identical to above, but with integers
     std::vector<int> loc_cooRowA_int_;
@@ -65,6 +72,7 @@ class LocalSpMatDnVec
 
     // bd_recv_set_[r] contains columns that need to be received from rank 'r'
     std::vector<std::set<long long>> bd_recv_set_;
+    std::vector<std::vector<long long>> bd_recv_vec_;
 
     // Vectors that contain rules for sending and receiving
     std::vector<int> recv_ranks_;

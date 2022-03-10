@@ -32,12 +32,12 @@ public:
       ScalarGrid * const output);
 
 protected:
+  //this struct contains information such as the currect timestep size, fluid properties and many others
+  SimulationData& sim; 
+
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
-
-  //this struct contains information such as the currect timestep size, fluid properties and many others
-  SimulationData& sim; 
 
   // Pointer to solving backend of SpMat DnVec linear system
   std::shared_ptr<BiCGSTABSolver> backend_;
@@ -86,7 +86,7 @@ protected:
   void getVec(); // update initial guess and RHS vecs only
 
   // Class containing local linear system
-  std::shared_ptr<LocalSpMatDnVec> LocalLS;
+  std::shared_ptr<LocalSpMatDnVec> LocalLS_;
 
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
@@ -143,9 +143,9 @@ protected:
       { return WestNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0; }
+      { return ix == 0 || ix == BSX / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1; }
+      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return ix % 2 == 0; }
 
@@ -177,9 +177,9 @@ protected:
       { return SouthNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0; }
+      { return iy == 0 || iy == BSY / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1; }
+      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return iy % 2 == 0; }
 
@@ -211,9 +211,9 @@ protected:
       { return WestNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0; }
+      { return ix == 0 || ix == BSX / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1; }
+      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return ix % 2 == 0; }
 
@@ -245,9 +245,9 @@ protected:
       { return SouthNeighbour(info, ix, iy, dist); }
 
       static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0; }
+      { return iy == 0 || iy == BSY / 2; }
       static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1; }
+      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
       static bool mod(const int &ix, const int &iy)
       { return iy % 2 == 0; }
 
