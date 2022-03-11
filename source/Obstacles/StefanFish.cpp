@@ -343,6 +343,39 @@ std::vector<Real> StefanFish::state( std::vector<double> origin ) const
     S[15] = topShear[1] * Tperiod / length;
     // printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n", S[10],S[11], S[12],S[13], S[14],S[15]);
     // fflush(0);
+  #endif
+
+  #ifndef STEFANS_NEIGHBOUR_STATE
+    return S;
+  #else 
+    S.resize(22);
+
+    // Get all shapes in simulaton
+    const auto& shapes = sim.shapes;
+    const size_t N = shapes.size();
+
+    // Compute distance vector pointing from agent to neighbours
+    std::vector<std::vector<Real>> distanceVector(N, std::vector<Real>(2));
+    std::vector<std::pair<Real, size_t>> distances(N);
+    for( size_t i = 0; i<N; i++ )
+    {
+      const double distX = shapes[i]->center[0] - center[0];
+      const double distY = shapes[i]->center[1] - center[1];
+      distanceVector[i][0] = distX;
+      distanceVector[i][1] = distY;
+      distances[i].first = std::sqrt( distX*distX + distY*distY );
+      distances[i].second = i; 
+    }
+
+    // Only add distance vector for (first) three neighbours to state
+    std::sort( distances.begin(), distances.end() );
+    for( size_t i = 0; i<3; i++ )
+    {
+      // Ignore first entry, which will be the distance to itself
+      S[16+2*i]   = distanceVector[distances[i+1].second][0];
+      S[16+2*i+1] = distanceVector[distances[i+1].second][1];
+    }
+
     return S;
   #endif
 }
