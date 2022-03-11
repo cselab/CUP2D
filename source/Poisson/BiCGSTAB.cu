@@ -20,7 +20,6 @@ BiCGSTABSolver::BiCGSTABSolver(
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
 
-  std::cout << "---------------- Calling on BiCGSTABSolver() constructor ------------\n";
   // Set-up CUDA streams events, and handles
   checkCudaErrors(cudaStreamCreate(&solver_stream_));
   checkCudaErrors(cudaStreamCreate(&copy_stream_));
@@ -120,7 +119,7 @@ void BiCGSTABSolver::freeLast()
     checkCudaErrors(cusparseDestroyDnVec(spDescrLocZ_));
     if (comm_size_ > 1)
     {
-      checkCudaErrors(cudaFree(d_send_buff_pack_idx_));
+      checkCudaErrors(cudaFree(d_send_pack_idx_));
       checkCudaErrors(cudaFree(d_send_buff_));
       checkCudaErrors(cudaFreeHost(h_send_buff_));
       checkCudaErrors(cudaFreeHost(h_recv_buff_));
@@ -145,7 +144,7 @@ void BiCGSTABSolver::updateAll()
   hd_m_ = m_ + halo_;
   loc_nnz_ = LocalLS_->loc_nnz_ ;
   bd_nnz_ = LocalLS_->bd_nnz_ ;
-  send_buff_sz_ = LocalLS_->send_buff_pack_idx_.size();
+  send_buff_sz_ = LocalLS_->send_pack_idx_.size();
   
   // Allocate device memory for local linear system
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
@@ -161,7 +160,7 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&d_z_,  hd_m_ * sizeof(double)));
   if (comm_size_ > 1)
   {
-    checkCudaErrors(cudaMalloc(&d_send_buff_pack_idx_, send_buff_sz_ * sizeof(int)));
+    checkCudaErrors(cudaMalloc(&d_send_pack_idx_, send_buff_sz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&d_send_buff_, send_buff_sz_ * sizeof(double)));
     checkCudaErrors(cudaMallocHost(&h_send_buff_, send_buff_sz_ * sizeof(double)));
     checkCudaErrors(cudaMallocHost(&h_recv_buff_, halo_ * sizeof(double)));
@@ -177,7 +176,7 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_->loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   if (comm_size_ > 1)
   {
-    checkCudaErrors(cudaMemcpyAsync(d_send_buff_pack_idx_, LocalLS_->send_buff_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(d_send_pack_idx_, LocalLS_->send_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooValA_, LocalLS_->bd_cooValA_.data(), bd_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_->bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_->bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
@@ -303,7 +302,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   if (comm_size_ > 1)
   {
-    send_buff_pack<<<4*56,64, 0, solver_stream_>>>(send_buff_sz_, d_send_buff_pack_idx_, d_send_buff_, d_op_hd);
+    send_buff_pack<<<8*56,32, 0, solver_stream_>>>(send_buff_sz_, d_send_pack_idx_, d_send_buff_, d_op_hd);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaEventRecord(sync_event_, solver_stream_)); // event to sync up for MPI comm
 

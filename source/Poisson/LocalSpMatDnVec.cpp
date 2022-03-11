@@ -123,7 +123,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     }
   }
   std::vector<long long> send_pack_idx_long(offset);
-  send_buff_pack_idx_.resize(offset);
+  send_pack_idx_.resize(offset);
 
 
   // Post receives for column indices from other ranks required for SpMV
@@ -143,35 +143,41 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
 
   // Now re-index the linear system from global to local indexing
   const long long shift = -Nrows_xcumsum[rank_];
-  auto shift_func = [&shift](const long long &s) -> int { return int(s + shift); };
   loc_cooRowA_int_.resize(loc_nnz_);
   loc_cooColA_int_.resize(loc_nnz_);
   bd_cooRowA_int_.resize(bd_nnz_);
-  // Shift rows and columns to local indexing
-  std::transform(loc_cooRowA_long_.begin(), loc_cooRowA_long_.end(), loc_cooRowA_int_.begin(), shift_func);
-  std::transform(loc_cooColA_long_.begin(), loc_cooColA_long_.end(), loc_cooColA_int_.begin(), shift_func);
-  std::transform(bd_cooRowA_long_.begin(), bd_cooRowA_long_.end(), bd_cooRowA_int_.begin(), shift_func);
-
-  // Map indices of columns from other ranks to the halo
-  std::unordered_map<long long, int> glob_halo; 
-  glob_halo.reserve(halo_);
-  int halo_idx = m_;
-  for (size_t i(0); i < halo_; i++)
+  #pragma omp parallel
   {
-    glob_halo[recv_idx_list[i]] = halo_idx;
-    halo_idx++;
+    // Shift rows and columns to local indexing
+    #pragma omp for
+    for (int i=0; i < loc_nnz_; i++)
+      loc_cooRowA_int_[i] = (int)(loc_cooRowA_long_[i] + shift);
+    #pragma omp for
+    for (int i=0; i < loc_nnz_; i++)
+      loc_cooColA_int_[i] = (int)(loc_cooColA_long_[i] + shift);
+    #pragma omp for
+    for (int i=0; i < bd_nnz_; i++)
+      bd_cooRowA_int_[i] = (int)(bd_cooRowA_long_[i] + shift);
   }
 
-  // Reindex columns belonging to other ranks to the halo
-  auto halo_reindex_func = [&glob_halo](const long long &s) -> int { return glob_halo[s]; };
+  // Map indices of columns from other ranks to the halo
+  std::unordered_map<long long, int> bd_reindex_map; 
+  bd_reindex_map.reserve(halo_);
+  for (int i(0); i < halo_; i++)
+    bd_reindex_map[recv_idx_list[i]] = m_ + i;
+
   bd_cooColA_int_.resize(bd_nnz_);
-  std::transform(bd_cooColA_long_.begin(), bd_cooColA_long_.end(), bd_cooColA_int_.begin(), halo_reindex_func);
+  for (int i=0; i < bd_nnz_; i++)
+    bd_cooColA_int_[i] = bd_reindex_map[bd_cooColA_long_[i]];
 
   MPI_Waitall(recv_ranks_.size(), send_requests.data(), MPI_STATUS_IGNORE);
   MPI_Waitall(send_ranks_.size(), recv_requests.data(), MPI_STATUS_IGNORE);
 
-  std::transform(send_pack_idx_long.begin(), send_pack_idx_long.end(), send_buff_pack_idx_.begin(), shift_func);
+  #pragma omp parallel for
+  for (size_t i=0; i < send_pack_idx_.size(); i++)
+    send_pack_idx_[i] = (int)(send_pack_idx_long[i] + shift);
 
-  std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
+  if (rank_ == 0)
+    std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
 }
 

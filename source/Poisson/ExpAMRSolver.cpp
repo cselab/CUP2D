@@ -275,13 +275,6 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   backend_ =  std::make_shared<BiCGSTABSolver>(m_comm_, LocalLS_, BSX_*BSY_, P_inv.data());
 }
 
-ExpAMRSolver::~ExpAMRSolver()
-{
-  std::cout << "---------------- Calling on ExpAMRSolver() destructor ------------\n";
-}
-
-
-
 // Methods for cell centric construction of discrete Laplace operator
 template<class EdgeIndexer >
 void ExpAMRSolver::makeFlux(

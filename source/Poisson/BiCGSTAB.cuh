@@ -91,7 +91,7 @@ private:
 
   // Send/receive rules and buffers
   int send_buff_sz_;
-  int* d_send_buff_pack_idx_;
+  int* d_send_pack_idx_;
   double* d_send_buff_;
   double* h_send_buff_;
   double* h_recv_buff_;

@@ -24,7 +24,7 @@ public:
   }
   // Constructor and destructor
   ExpAMRSolver(SimulationData& s);
-  ~ExpAMRSolver();
+  ~ExpAMRSolver() = default;
 
   //main function used to solve Poisson's equation
   void solve(

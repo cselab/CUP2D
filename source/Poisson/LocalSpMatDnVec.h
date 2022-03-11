@@ -82,7 +82,7 @@ class LocalSpMatDnVec
     std::vector<int> send_ranks_;
     std::vector<int> send_offset_;
     std::vector<int> send_sz_;
-    std::vector<int> send_buff_pack_idx_;
+    std::vector<int> send_pack_idx_;
 
     void reserve(const int &N);
     void cooPushBackVal(const double &val, const long long &row, const long long &col);
