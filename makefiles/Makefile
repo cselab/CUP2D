@@ -2,7 +2,7 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 bs ?= 8
-gpu ?= true
+gpu ?= false
 profile ?= false
 
 # SMALL HELPER FOR OSX USERS
