@@ -415,7 +415,7 @@ void BiCGSTABSolver::main(
   checkCudaErrors(cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
 
   // 2. Set r_hat = r
-  checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
+  checkCudaErrors(cudaMemcpyAsync(d_rhat_, d_r_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
 
   // 4. Set initial values of vectors to zero
   checkCudaErrors(cudaMemsetAsync(d_nu_, 0, m_ * sizeof(double), solver_stream_));
@@ -452,7 +452,7 @@ void BiCGSTABSolver::main(
       {
         std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
       }
-      checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
+      checkCudaErrors(cudaMemcpyAsync(d_rhat_, d_r_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
       checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->rho_curr)));
       checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->rho_curr), &(d_coeffs_->rho_curr), sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
       checkCudaErrors(cudaStreamSynchronize(solver_stream_));
