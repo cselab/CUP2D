@@ -10,8 +10,6 @@ EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-0}
-PR=${PR:-100}
-PI=${PI:-10000}
 
 # Defaults for follower
 LENGTH=${LENGTH:-0.2}
@@ -204,7 +202,7 @@ else
 	fi
 echo "----------------------------"
 echo "setting simulation options"
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -maxPoissonIterations $PI -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 1 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 1 -verbose 0"
 echo $OPTIONS
 echo "----------------------------"
 fi

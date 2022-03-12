@@ -78,6 +78,14 @@ struct SimulationData
   // kinematic viscosity
   Real nu;
   
+  // forcing
+  bool bForcing;
+  Real forcingWavenumber;
+  Real forcingCoefficient;
+
+  // Flag for initial conditions
+  std::string ic;
+
   // poisson solver parameters
   std::string poissonSolver;  // for now only "iterative"
   Real PoissonTol;    // absolute error tolerance
@@ -166,7 +174,7 @@ struct SimulationData
     auto & infos = vel->getBlocksInfo();
     for (size_t i = 0 ; i< infos.size(); i++)
     {
-      minHGrid = std::min((Real)infos[i].h_gridpoint, minHGrid);
+      minHGrid = std::min((Real)infos[i].h, minHGrid);
     }
     MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
     return minHGrid;

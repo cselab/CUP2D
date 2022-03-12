@@ -143,7 +143,7 @@ struct KernelAdvectDiffuse
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
 
-  void operator()(VectorLab & lab, const BlockInfo& info) const
+  void operator()(VectorLab& lab, const BlockInfo& info) const
   {
     const Real h = info.h;
     const Real dfac = sim.nu*sim.dt;

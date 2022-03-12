@@ -56,8 +56,8 @@ void SimulationData::allocateGrid()
   }
   // Compute extents, assume all blockinfos have same h at the start!!!
   int aux = pow(2,levelStart);
-  extents[0] = aux * bpdx * velInfo[0].h_gridpoint * VectorBlock::sizeX;
-  extents[1] = aux * bpdy * velInfo[0].h_gridpoint * VectorBlock::sizeY;
+  extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
+  extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
   // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 
   // compute min and max gridspacing for set AMR parameter
@@ -69,42 +69,42 @@ void SimulationData::allocateGrid()
 void SimulationData::dumpChi(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,double, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPres(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,double, ScalarGrid,ScalarLab>(*pres, time, "pres_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*pres, time, "pres_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,double, ScalarGrid,ScalarLab>(*pold, time, "pold_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*pold, time, "pold_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpTmp(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,double, ScalarGrid,ScalarLab>(*tmp, time, "tmp_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*tmp, time, "tmp_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpVel(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, double, VectorGrid, VectorLab>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,  VectorGrid, VectorLab>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpVold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, double, VectorGrid, VectorLab>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, double, VectorGrid, VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpUdef(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, double, VectorGrid, VectorLab>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
 }
 
 
@@ -183,7 +183,6 @@ void SimulationData::dumpAll(std::string name)
   //dumpUdef(name);
   //dumpTmpV(name);
   //dumpVold(name);
-
   stopProfiler();
 }
 

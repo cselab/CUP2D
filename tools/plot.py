@@ -78,7 +78,7 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   ## compute dimensionless drag ##
   # totDrag = (u*forceX+v*forceY) / speed
   totDrag = forceX
-  dragCoeff = -totDrag / (radius*speed*speed)
+  dragCoeff = np.abs(totDrag) / (radius*speed*speed)
   # print("drag:", totDrag, dragCoeff)
   ##################
 
@@ -132,26 +132,31 @@ def plotForceTime( axs, root, runname, radius, i, j ):
   #################################################################################
   #### uncomment and adapt i to levelMax for which you want to plot the result ####
   # if i == j+2:
-  minLevels = 7
+  minLevels = 6
   ## plot drag ##
   if j == 0:
-    axs[j].plot(dynamicTime, dragCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
-    indices = (dynamicTime > 0.5) & (dynamicTime < 4.25)
-    print('[CUP2D] Average Drag $t\\in [0.50,4.25]$: ', sp.integrate.simps(dragCoeff[indices], dynamicTime[indices]) / (4.25-0.5) )
+    axs.plot(dynamicTime[::10], dragCoeff[::10], color=lighten_color(colors[i],1), label="{} levels".format(i+minLevels))
+    # indices = (dynamicTime > 0.5) & (dynamicTime < 4.25)
+    # print('[CUP2D] Average Drag $t\\in [0.50,4.25]$: ', sp.integrate.simps(dragCoeff[indices], dynamicTime[indices]) / (4.25-0.5) )
   ########################
 
-  ## plot lift ##
+  ## plot histogram of drag ##
   if j == 1:
-    axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
-    indices = (dynamicTime > 0.68) & (dynamicTime < 4.57)
-    print("[CUP2D] Average Lift $t\\in [0.68,4.57]$: ", sp.integrate.simps(liftCoeff[indices], dynamicTime[indices]) / (4.57-0.68) )
+    index = dynamicTime > 2
+    axs = sns.distplot(dragCoeff[index])
+
+  ## plot lift ##
+  # if j == 1:
+  #   axs[j].plot(dynamicTime, liftCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
+  #   indices = (dynamicTime > 0.68) & (dynamicTime < 4.57)
+  #   print("[CUP2D] Average Lift $t\\in [0.68,4.57]$: ", sp.integrate.simps(liftCoeff[indices], dynamicTime[indices]) / (4.57-0.68) )
   ########################
 
   ## plot power ##
-  if j == 2:
-    axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
-    indices = (dynamicTime > 0.36) & (dynamicTime < 4.14)
-    print("[CUP2D] Average Power $t\\in [0.36,4.14]$: ", sp.integrate.simps(powerCoeff[indices], dynamicTime[indices]) / (4.14-0.36) )
+  # if j == 2:
+  #   axs[j].plot(powerTime, powerCoeff, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+minLevels))
+  #   indices = (dynamicTime > 0.36) & (dynamicTime < 4.14)
+  #   print("[CUP2D] Average Power $t\\in [0.36,4.14]$: ", sp.integrate.simps(powerCoeff[indices], dynamicTime[indices]) / (4.14-0.36) )
   ########################
   
   ## plot autocorrelation of drag/lift to detect frequency ##
@@ -741,11 +746,60 @@ def plotForceTimeTeardrop():
                 mode="expand", borderaxespad=0, ncol=3)
   plt.show()
 
+def plotForceTimeSquare():
+
+  rootSCRATCH = "/scratch/snx3000/pweber/CUP2D/"
+
+  # runname = [ "rectangle_lowPoissonTol_levels{:d}".format(level) for level in np.arange(6,10) ]
+  # runname = [ "rectangle_e3`lowTol_levels6"]
+  # runname = ["singleNodeRuns/teardropFixed_levels7"]
+
+  runname = [ "disk_levels6"]
+
+
+  fig, ax = plt.subplots(1)
+
+  ###### plot simulation data ######
+  ##################################
+
+  chordlength = 0.1
+
+  j = 0
+  for i in range( len(runname) ):
+      plotForceTime( ax, rootSCRATCH, runname[i], chordlength, i, j )
+
+      if j == 0:
+        ax.set_xlabel("Time $t$")
+        ax.set_ylabel("Drag Coefficient $C_T=2|F_x|/Lu_\infty^2$")
+        # axs[j].set_xlim([0,5])
+        ax.set_ylim([0,10])
+
+        ax.grid(b=True, which='major', linestyle='-')
+
+      if j == 1:
+        ax.set_xlabel("$C_D$")
+        ax.set_ylabel("Density")
+        ax.set_yscale('log')
+        # plt.xscale("log")
+        # plt.yscale("log")
+
+      ax.legend()
+
+  plt.show()
+
 if __name__ == '__main__':
   # plotDragTimeCylinder()
   
-  plotForceTimeTeardrop()
+  # plotForceTimeTeardrop()
+
+  plotForceTimeSquare()
   
+  # fig, ax = plt.subplots(1)
+  # normalDistribution = np.random.normal(0, 1, 5000)
+  # ax = sns.distplot(normalDistribution)
+  # ax.set_yscale('log')
+  # plt.show()
+
   # plotDragLiftTimeNaca()
   # plotForceAngleNaca()
   

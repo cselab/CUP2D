@@ -11,10 +11,12 @@
 class Shape;
 
 #include "../Poisson/Base.h"
-#include "Cubism/FluxCorrection.h"
 
 class PressureSingle : public Operator
 {
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
   std::shared_ptr<PoissonSolver> pressureSolver;
 
   void preventCollidingObstacles() const;
@@ -23,12 +25,13 @@ class PressureSingle : public Operator
   void penalize(const Real dt) const;
 
  public:
-  void operator()(const Real dt);
+  void operator() (const Real dt) override;
 
   PressureSingle(SimulationData& s);
   ~PressureSingle();
 
-  std::string getName() {
+  std::string getName() override
+  {
     return "PressureSingle";
   }
 };

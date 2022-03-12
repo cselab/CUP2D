@@ -14,6 +14,7 @@
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
 #include "Operators/AdaptTheMesh.h"
+#include "Operators/Forcing.h"
 
 #include "Utils/FactoryFileLineParser.h"
 #include "Utils/StackTrace.h"
@@ -117,17 +118,27 @@ void Simulation::init()
   // impose field initial condition
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  IC ic(sim);
-  ic(0);
+  if( sim.ic == "random" )
+  {
+    randomIC ic(sim);
+    ic(0);
+  }
+  else
+  {
+    IC ic(sim);
+    ic(0);
+  }
   // create compute pipeline
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
+  if( sim.bForcing )
+    pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
 
   if( sim.rank == 0 && sim.verbose )
   {
@@ -197,6 +208,14 @@ void Simulation::parseRuntime()
 
   // kinematic viscocity
   sim.nu = parser("-nu").asDouble(1e-2);
+
+  // forcing
+  sim.bForcing = parser("-bForcing").asInt(0);
+  sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
+  sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
+
+  // Flag for initial condition
+  sim.ic = parser("-ic").asString("");
 
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
@@ -329,6 +348,7 @@ void Simulation::startObstacles()
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
   }
+  (*putObjectsOnGrid)(0.0);
 
   // impose velocity of obstacles
   if( not sim.bRestart )
@@ -359,6 +379,13 @@ void Simulation::simulate() {
 
     if (done)
     {
+      const bool bDump = sim.bDump();
+      if( bDump ) {
+        if( sim.rank == 0 && sim.verbose )
+          std::cout << "[CUP2D] dumping field...\n";
+        sim.registerDump();
+        sim.dumpAll("avemaria_");
+      }
       if (sim.rank == 0 && !sim.muteAll)
       {
         std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
@@ -415,8 +442,10 @@ void Simulation::advance(const Real dt)
   if (sim.rank == 0 && !sim.muteAll)
   {
     std::cout << kHorLine;
-    printf("[CUP2D] step:%d, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-      sim.step, (double) sim.time, (double) dt, (double) sim.uinfx, (double) sim.uinfy, (double) sim.uMax_measured, (double) CFL);
+    printf("[CUP2D] step:%d, blocks:%zu, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
+           sim.step, sim.chi->getBlocksInfo().size(),
+           (double)sim.time, (double)dt,
+           (double)sim.uinfx, (double)sim.uinfy, (double)sim.uMax_measured, (double)CFL);
   }
 
   // dump field
@@ -428,46 +457,7 @@ void Simulation::advance(const Real dt)
     sim.dumpAll("avemaria_");
   }
 
-  // For debuging state function LEAD-FOLLOW
-  // Shape *object = getShapes()[0];
-  // StefanFish *agent = dynamic_cast<StefanFish *>(getShapes()[1]);
-  // auto state = agent->state(object);
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-  // std::cout << "[CUP2D] Computed state:" << std::endl;
-  // for( auto s : state )
-  //   std::cout << s << std::endl;
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-
-  // // For debuging state function SMARTCYLINDER
-  // SmartCylinder *agent = dynamic_cast<SmartCylinder *>(getShapes()[0]);
-  // std::vector<Real> target{0.8,0.5};
-  // auto state = agent->state( target );
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-  // std::cout << "[CUP2D] Computed state:" << std::endl;
-  // for( auto s : state )
-  //   std::cout << s << std::endl;
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-
-
-  // // For debugging reward function for windmills
-  // Windmill *agent = dynamic_cast<Windmill *>(getShapes()[1]);
-  // // J = 2.9e-6
-  // Real upper_bound_act = 1e-5;
-  // std::uniform_real_distribution dist(0.0, upper_bound_act);
-  // std::default_random_engine rd;
-  // agent->act(dist(rd)); // put torque on the windmill
-  // std::array<Real, 2> target{0.4,0.5};
-  // std::vector<Real> target_vel{0.0,0.0};
-  // Real C = 1e8;
-  // Real r = agent->reward(target, target_vel, C);
-
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-  // std::cout << "[CUP2D] Computed reward:" << std::endl;
-  // std::cout << "Total reward: " << r << std::endl;
-  // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-
-  for (size_t c=0; c<pipeline.size(); c++)
-  {
+  for (size_t c=0; c<pipeline.size(); c++) {
     if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
     (*pipeline[c])(dt);

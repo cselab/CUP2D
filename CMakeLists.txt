@@ -103,6 +103,7 @@ add_library(
     "${SRC_DIR}/Operators/PressureSingle.cpp"
     "${SRC_DIR}/Operators/PutObjectsOnGrid.cpp"
     "${SRC_DIR}/Operators/advDiff.cpp"
+    "${SRC_DIR}/Operators/Forcing.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
     "${SRC_DIR}/Poisson/Base.cpp"
     "${SRC_DIR}/Shape.cpp"
@@ -121,6 +122,8 @@ target_link_libraries(${CORE} PUBLIC Cubism::Cubism)
 target_link_libraries(${CORE} PUBLIC GSL::gsl)
 target_link_libraries(${CORE} PUBLIC ${HDF5_LIBRARIES})
 target_include_directories(${CORE} PUBLIC ${HDF5_INCLUDE_DIRS})
+# target_compile_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
+# target_link_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
 set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 set_property(TARGET ${CORE} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -162,15 +165,16 @@ if (CUP2D_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
-        ${SRC_DIR}/Bindings/Bindings.cpp
-        ${SRC_DIR}/Bindings/Fields.cpp
-        ${SRC_DIR}/Bindings/Operators.cpp
-        ${SRC_DIR}/Bindings/Poisson.cpp
-        ${SRC_DIR}/Bindings/Shapes.cpp
-        ${SRC_DIR}/Bindings/Simulation.cpp
+        "${SRC_DIR}/Bindings/Bindings.cpp"
+        "${SRC_DIR}/Bindings/Fields.cpp"
+        "${SRC_DIR}/Bindings/Operators.cpp"
+        "${SRC_DIR}/Bindings/Poisson.cpp"
+        "${SRC_DIR}/Bindings/Shapes.cpp"
+        "${SRC_DIR}/Bindings/Simulation.cpp"
+        "${SRC_DIR}/Operators/ExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
-    target_include_directories(${PYLIB} PUBLIC BEFORE ${pybind11_INCLUDE_DIRS})
+    target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})
     target_link_libraries(${PYLIB} PUBLIC ${CORE})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 endif()

@@ -5,12 +5,11 @@
 //
 
 #include "PressureSingle.h"
-#include "../Poisson/Base.h"
+#include "Cubism/FluxCorrection.h"
 #include "../Shape.h"
 
 using namespace cubism;
 
-static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
@@ -677,8 +676,8 @@ void PressureSingle::preventCollidingObstacles() const
         if(coll.iM       < 2.0 || coll.jM       < 2.0) continue; //object i did not collide
         if(coll_other.iM < 2.0 || coll_other.jM < 2.0) continue; //object j did not collide
 
-        if (std::fabs(coll.iPosX/coll.iM  - coll_other.iPosX/coll_other.iM ) > 0.2 ||
-            std::fabs(coll.iPosY/coll.iM  - coll_other.iPosY/coll_other.iM ) > 0.2 ) //used 0.2 because fish lenght is 0.2 usually!
+        if (std::fabs(coll.iPosX/coll.iM  - coll_other.iPosX/coll_other.iM ) > shapes[i]->getCharLength() ||
+            std::fabs(coll.iPosY/coll.iM  - coll_other.iPosY/coll_other.iM ) > shapes[i]->getCharLength() )
         {
             continue; // then both objects i and j collided, but not with each other!
         }
@@ -690,8 +689,8 @@ void PressureSingle::preventCollidingObstacles() const
         const bool jForced = shapes[j]->bForced;
         if (iForced || jForced)
         {
-            std::cout << "Forced objects not supported for collision." << std::endl;
-            MPI_Abort(sim.chi->getCartComm(),1);
+            std::cout << "[CUP2D] WARNING: Forced objects not supported for collision." << std::endl;
+            // MPI_Abort(sim.chi->getCartComm(),1);
         }
 
         Real ho1[3];

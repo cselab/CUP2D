@@ -6,7 +6,7 @@
 
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
-//#include <random>
+#include <random>
 using namespace cubism;
 
 void IC::operator()(const Real dt)
@@ -46,19 +46,19 @@ void IC::operator()(const Real dt)
     //initial guess, which in turn leads to restarted simulations having the exact same result
     //as non-restarted ones (we also read pres because we need to read at least
     //one ScalarGrid, see hack below).
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.vel ), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.pres), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vel ), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.pres), "pres_" + ss.str(), sim.path4serialization);
 
     //hack: need to "read" the other grids too, so that the mesh is the same for every grid.
     //So we read VectorGrids from "vel" and ScalarGrids from "pres". We don't care about the
     //grid point values (those are set to zero below), we only care about the grid structure,
     //i.e. refinement levels etc.
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.pold), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, double, ScalarGrid>(*(sim.tmp ), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, double, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.pold), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.tmp ), "pres_" + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
+    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
     #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {
@@ -68,6 +68,44 @@ void IC::operator()(const Real dt)
       ScalarBlock& TMP  = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
+    }
+  }
+}
+
+void randomIC::operator()(const Real dt)
+{
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
+
+  #pragma omp parallel
+  {
+    std::random_device seed;
+    std::mt19937 gen(seed());
+    std::normal_distribution<Real> dist(0.0, 0.01);
+
+    #pragma omp for
+    for (size_t i=0; i < velInfo.size(); i++)
+    {
+      VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        VEL(ix,iy).u[0] = 0.5+dist(gen);
+        VEL(ix,iy).u[1] = 0.5+dist(gen);
+      }
+
+      VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
+      ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+      ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
+      ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
+      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
+      VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+      VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
     }
   }
 }
@@ -82,7 +120,7 @@ Real findMaxU::run() const
   Real momX = 0, momY = 0, totM = 0; 
   #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
   for (size_t i=0; i < Nblocks; i++) {
-    const Real h = velInfo[i].h_gridpoint;
+    const Real h = velInfo[i].h;
     const VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {

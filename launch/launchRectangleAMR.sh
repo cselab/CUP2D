@@ -7,7 +7,7 @@ CTOL=${CTOL:-0.01}
 EXTENT=${EXTENT:-4}
 CFL=${CFL:-0.15}
 DT=${DT:-0}
-PT=${PT:-1e-6}
+PT=${PT:-1e-10}
 PTR=${PTR:-0}
 # Defaults for Objects
 XPOS=${XPOS:-0.5}

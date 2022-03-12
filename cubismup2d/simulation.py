@@ -63,7 +63,7 @@ class Simulation(libcup2d._Simulation):
             rtol: float = 0.5,
             ctol: float = 0.1,
             extent: float = 1.0,
-            cfl: float = 0.1,
+            cfl: float = 0.4,
             dt: float = 0.0,
             nu: float = 0.001,
             brinkman_lambda: float = 1e6,
@@ -73,12 +73,14 @@ class Simulation(libcup2d._Simulation):
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
             mute_all: bool = False,
+            ic: str = "",
+            bForcing: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
         """
         Arguments:
             ...
-            nlevels: number of levels, set to 1 for a uniform grid
+            nlevels: number of levels, use 1 for a uniform grid
             start_level: level at which the grid is initialized,
                          defaults to min(nlevels - 1, 3)
             ...
@@ -93,12 +95,13 @@ class Simulation(libcup2d._Simulation):
             raise ValueError("Cannot specify both `cfl` and `dt`. To use "
                              "a fixed time step, set `cfl` to 0.")
         if not isinstance(nlevels, int) or nlevels < 1:
-            raise ValueError("expected integer larger than 1, got {nlevels!r}")
+            raise ValueError(f"expected integer larger than 1, got {nlevels!r}")
         if len(cells) != 2:
-            raise ValueError("expected 2 values, got {cells!r}")
+            raise ValueError(f"expected 2 values, got {cells!r}")
+        self.cells = cells
         if any(c % libcup2d.BLOCK_SIZE != 0 for c in cells):
-            raise ValueError("number of cells must be a multiple of the block "
-                             "size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
+            raise ValueError(f"number of cells must be a multiple of the block "
+                             f"size of {libcup2d.BLOCK_SIZE}, got {cells!r}")
         if start_level is None:
             start_level = min(nlevels - 1, 3)
         if serialization_dir is None:
@@ -123,6 +126,8 @@ class Simulation(libcup2d._Simulation):
             '-serialization', serialization_dir,
             '-verbose', verbose,
             '-muteAll', mute_all,
+            '-ic', ic,
+            '-bForcing', bForcing,
             *argv,
         ]
         argv = [sanitize_arg(arg) for arg in argv]

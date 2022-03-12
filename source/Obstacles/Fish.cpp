@@ -28,6 +28,9 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
   myFish->computeSurface();
   profile(pop_stop());
 
+  if( sim.rank == 0 && sim.bDump() )
+    myFish->writeMidline2File(0, "appending");
+
   //// 2) Integrate Linear and Angular Momentum and shift Fish accordingly
   profile(push_start("2dmoments"));
   // returns area, CoM_internal, vCoM_internal:
@@ -88,7 +91,7 @@ void Fish::create(const std::vector<BlockInfo>& vInfo)
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
     const Real DD = 4*h; //two points on each side
-    //const Real safe_distance = info.h_gridpoint; // one point on each side
+    //const Real safe_distance = info.h; // one point on each side
     AreaSegment*const tAS=new AreaSegment(std::make_pair(idx,next_idx),bbox,DD);
     tAS->changeToComputationalFrame(center, orientation);
     vSegments[i] = tAS;

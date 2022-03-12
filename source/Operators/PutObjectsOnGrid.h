@@ -12,6 +12,8 @@ class Shape;
 
 class PutObjectsOnGrid : public Operator
 {
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
@@ -20,11 +22,13 @@ class PutObjectsOnGrid : public Operator
   void putObjectVelOnGrid(Shape * const shape) const;
 
  public:
-  PutObjectsOnGrid(SimulationData& s) : Operator(s) { }
+  using Operator::Operator;
 
-  void operator()(const Real dt);
+  void operator()(Real dt) override;
+  void advanceShapes(Real dt);
+  void putObjectsOnGrid();
 
-  std::string getName()
+  std::string getName() override
   {
     return "PutObjectsOnGrid";
   }

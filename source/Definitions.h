@@ -11,7 +11,7 @@
 #include <cstdio>
 #include <vector>
 #include <omp.h>
-
+#define OMPI_SKIP_MPICXX 1
 #ifdef _FLOAT_PRECISION_
 using Real = float;
 #define MPI_Real MPI_FLOAT
@@ -256,7 +256,6 @@ struct GridBlock
   static constexpr int sizeZ = _DIM_ > 2 ? _BS_ : 1;
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
-  using element_type = TElement;
   using RealType = Real;
 
   ElementType data[sizeZ][sizeY][sizeX];
@@ -359,7 +358,7 @@ public:
   }
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
   {
     if (!coarse)
     {
@@ -472,7 +471,7 @@ public:
   }
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
   {
     if (!coarse)
     {
@@ -544,5 +543,8 @@ using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
 using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
 using ScalarLab = cubism::BlockLabMPI<BlockLabOpen     <ScalarBlock, std::allocator>,ScalarGrid>;
+// For periodic BC
+// using VectorLab = cubism::BlockLabMPI<cubism::BlockLab<VectorBlock, std::allocator>,VectorGrid>;
+// using ScalarLab = cubism::BlockLabMPI<cubism::BlockLab<ScalarBlock, std::allocator>,ScalarGrid>;
 using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
 using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
