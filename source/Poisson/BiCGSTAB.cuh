@@ -112,6 +112,7 @@ private:
   int* dbd_cooRowA_;
   int* dbd_cooColA_;
   double* d_x_;
+  double* d_x_opt_;
   double* d_r_;
   double* d_P_inv_;
   // Device-side intermediate variables for BiCGSTAB

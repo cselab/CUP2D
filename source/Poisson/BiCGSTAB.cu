@@ -104,6 +104,7 @@ void BiCGSTABSolver::freeLast()
     checkCudaErrors(cudaFree(dloc_cooRowA_));
     checkCudaErrors(cudaFree(dloc_cooColA_));
     checkCudaErrors(cudaFree(d_x_)); 
+    checkCudaErrors(cudaFree(d_x_opt_)); 
     checkCudaErrors(cudaFree(d_r_));
     // Cleanup memory allocated for BiCGSTAB arrays
     checkCudaErrors(cudaFree(d_rhat_));
@@ -151,6 +152,7 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&dloc_cooRowA_, loc_nnz_ * sizeof(int)));
   checkCudaErrors(cudaMalloc(&dloc_cooColA_, loc_nnz_ * sizeof(int)));
   checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_x_opt_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
@@ -374,6 +376,7 @@ void BiCGSTABSolver::main(
   // Initialize variables to evaluate convergence
   double error = 1e50;
   double error_init = 1e50;
+  double error_opt = 1e50;
   bool bConverged = false;
   int restarts = 0;
 
@@ -405,9 +408,11 @@ void BiCGSTABSolver::main(
     std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << std::endl;
     std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << std::endl;
   }
-  // Set initial error
+  // Set initial error and x_opt
   error = h_coeffs_->buff_2;
-  error_init = h_coeffs_->buff_2;
+  error_init = error;
+  error_opt = error;
+  checkCudaErrors(cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
 
   // 2. Set r_hat = r
   checkCudaErrors(cublasDcopy(cublas_handle_, m_, d_r_, 1, d_rhat_, 1));
@@ -531,16 +536,21 @@ void BiCGSTABSolver::main(
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
     MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_MAX, m_comm_);
 
-    if((error <= max_error) || (error / error_init <= max_rel_error))
-    // if(x_error <= max_error)
+    if (error < error_opt)
     {
-      if (rank_ == 0)
+      error_opt = error;
+      checkCudaErrors(cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
+
+      if((error <= max_error) || (error / error_init <= max_rel_error))
       {
-        std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+        if (rank_ == 0)
+          std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+
+        bConverged = true;
+        break;
       }
-      bConverged = true;
-      break;
     }
+
 
     // Update *_prev values for next iteration
     set_rho<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
@@ -551,17 +561,17 @@ void BiCGSTABSolver::main(
   if (rank_ == 0)
   {
     if( bConverged )
-      std::cout <<  "  [BiCGSTAB] Error norm (relative) = " << error << "/" << max_error 
-                << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+      std::cout <<  "  [BiCGSTAB] Error norm (relative) = " << error_opt << "/" << max_error 
+                << " (" << error_opt/error_init  << "/" << max_rel_error << ")" << std::endl;
     else
       std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
-                << ". Error norm (relative) = " << error << "/" << max_error 
-                << " (" << error/error_init  << "/" << max_rel_error << ")" << std::endl;
+                << ". Error norm (relative) = " << error_opt << "/" << max_error 
+                << " (" << error_opt/error_init  << "/" << max_rel_error << ")" << std::endl;
   }
 
   prof_.startProfiler("Memcpy", solver_stream_);
   // Copy result back to host
-  checkCudaErrors(cudaMemcpyAsync(LocalLS_->x_.data(), d_x_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(LocalLS_->x_.data(), d_x_opt_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
   prof_.stopProfiler("Total", solver_stream_);
 }
