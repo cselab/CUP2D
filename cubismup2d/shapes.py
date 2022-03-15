@@ -3,7 +3,7 @@ from .simulation import Simulation, sanitize_arg
 
 from typing import Any, Dict, Optional, Tuple
 
-__all__ = ['Disk', 'HalfDisk', 'Ellipse', 'Rectangle']
+__all__ = ['Disk', 'HalfDisk', 'Ellipse', 'Rectangle', 'StefanFish']
 
 def _init(
         cls: type,
@@ -80,3 +80,10 @@ class Rectangle(lib._Rectangle):
     def __init__(self, sim: Simulation, a: float, b: float, **kwargs):
         """Construct a Rectangle with sides `a` and `b`."""
         _init(lib._Rectangle, self, sim, dict(extentX=a, extentY=b), **kwargs)
+
+
+class StefanFish(lib._StefanFish):
+    __slots__ = ()
+    def __init__(self, sim: Simulation, pid: int, pidpos: int, **kwargs):
+        """Construct a StefanFish with required PID control `pid` and `pidpos`."""
+        _init(lib._StefanFish, self, sim, dict(bCorrectTrajectory=pid, bCorrectPosition=pidpos), **kwargs)
