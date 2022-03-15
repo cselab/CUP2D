@@ -43,7 +43,6 @@ public:
       halo = &Synch.avail_halo();
       #pragma omp barrier
 
-      lab.prepare(grid, Synch);
       #pragma omp for nowait
       for (const cubism::BlockInfo *I : *halo) {
         lab.load(*I, 0);
