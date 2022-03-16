@@ -258,7 +258,7 @@ Real StefanFish::getPhase(const Real t) const
   return (phase<0) ? 2*M_PI + phase : phase;
 }
 
-std::vector<Real> StefanFish::state( const std::vector<double> origin ) const
+std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::vector<Real> S(10,0);
