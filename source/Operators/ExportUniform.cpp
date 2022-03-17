@@ -147,7 +147,7 @@ static void _interpolateGrid(Grid *grid, T *out, StencilInfo stencil)
 {
   const int yStride = Block::sizeX * grid->getMaxMostRefinedBlocks()[0];
   ExportKernel<Block> kernel{stencil, grid->levelMax, yStride, out};
-  Operator::compute<ExportKernel<Block>, Grid, Lab, Grid>(kernel, *grid);
+  cubism::compute<Lab>(kernel, grid);
 }
 
 void interpolateGridToUniformMatrix(ScalarGrid *grid, ScalarElement *out)

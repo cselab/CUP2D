@@ -80,7 +80,7 @@ class ComputeLHS : public Operator
   void operator()(const Real dt)
   {
     const LHSkernel K(sim);
-    compute<LHSkernel,ScalarGrid,ScalarLab,ScalarGrid>(K,*sim.pres,true,sim.tmp);
+    cubism::compute<ScalarLab>(K,sim.pres,sim.tmp);
     if( sim.bMeanConstraint ) {
       int index = -1;
       Real mean = 0.0;

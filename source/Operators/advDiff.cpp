@@ -234,7 +234,7 @@ void advDiff::operator()(const Real dt)
   // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
   KernelAdvectDiffuse Step1(sim,0.5,UINF[0],UINF[1]) ;
-  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step1,*sim.vel,true,sim.tmpV);
+  cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
 
   //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   #pragma omp parallel for
@@ -257,7 +257,7 @@ void advDiff::operator()(const Real dt)
   // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
   KernelAdvectDiffuse Step2(sim,1.0,UINF[0],UINF[1]) ;
-  compute<KernelAdvectDiffuse,VectorGrid,VectorLab,VectorGrid>(Step2,*sim.vel,true,sim.tmpV);
+  cubism::compute<VectorLab>(Step2,sim.vel,sim.tmpV);
   //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
