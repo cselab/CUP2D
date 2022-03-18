@@ -48,7 +48,7 @@ class TestFields(TestCase):
             # Test that the matrix is reordered properly automatically.
             old_shape = expected.shape
             old_strides = expected.strides
-            expected = np.ascontiguousarray(expected.T).T
+            expected = np.ascontiguousarray(expected)
             # assert expected.shape == old_shape
             # assert expected.strides != old_strides
 
