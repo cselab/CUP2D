@@ -40,6 +40,9 @@
 
 using namespace cubism;
 
+BCflag cubismBCX;
+BCflag cubismBCY;
+
 static const char kHorLine[] = 
     "=======================================================================\n";
 
@@ -216,6 +219,12 @@ void Simulation::parseRuntime()
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
+
+  // Boundary conditions (freespace or periodic)
+  std::string BC_x = parser("-BC_x").asString("freespace");
+  std::string BC_y = parser("-BC_y").asString("freespace");
+  cubismBCX = string2BCflag(BC_x);
+  cubismBCY = string2BCflag(BC_y);
 
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
