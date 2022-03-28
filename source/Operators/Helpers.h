@@ -121,7 +121,7 @@ class computeVorticity : public Operator
   void operator()(const Real dt)
   {
     const KernelVorticity mykernel(sim);
-    compute<KernelVorticity,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
+    cubism::compute<VectorLab>(mykernel,sim.vel);
     Real maxv = -1e10;
     Real minv = -1e10;
     for (auto & info: sim.tmp->getBlocksInfo())
@@ -179,7 +179,7 @@ class computeQ : public Operator
   void operator()(const Real dt)
   {
     const KernelQ mykernel(sim);
-    compute<KernelQ,VectorGrid,VectorLab>(mykernel,*sim.vel,false);
+    cubism::compute<VectorLab>(mykernel,sim.vel);
   }
 
   std::string getName()
@@ -250,7 +250,7 @@ class computeDivergence : public Operator
   {
 
     const KernelDivergence mykernel(sim);
-    compute<KernelDivergence,VectorGrid,VectorLab,ScalarGrid>(mykernel,*sim.vel,true,sim.tmp);
+    cubism::compute<VectorLab>(mykernel,sim.vel,sim.tmp);
     #if 0
     Real total = 0.0;
     Real abs   = 0.0;

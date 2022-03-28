@@ -11,8 +11,8 @@ class CustomOperator(cup2d.Operator):
         data: cup2d.SimulationData = self.sim.data
 
         # Accessing blocks of a field.
-        for block in data.chi:
-            b = np.asarray(block)
+        for block in data.chi.blocks:
+            b = block.data # modifying b will modify the data in CUP
             print(f"chi block: {block}    "
                   f"numpy array: (shape={b.shape}, dtype={b.dtype}, sum={b.sum()})")
 

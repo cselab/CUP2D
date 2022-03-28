@@ -5,8 +5,8 @@ import numpy as np
 import os
 
 class TestShapes(TestCase):
-    def compute_moments(self, c: np.ndarray, dx: float, dy: float,
-                        x: float, y: float):
+    def _compute_moments(self, c: np.ndarray, dx: float, dy: float,
+                         x: float, y: float):
         relx = (0.5 + np.arange(c.shape[1])) * dx - x
         rely = (0.5 + np.arange(c.shape[0])) * dy - y
         relx = relx[None, :]
@@ -32,7 +32,7 @@ class TestShapes(TestCase):
         # Test chi field by looking at moments.
         dx = 100.0 / c.shape[1]
         dy = 50.0 / c.shape[0]
-        M = self.compute_moments(c, dx, dy, x=40.0, y=20.0)
+        M = self._compute_moments(c, dx, dy, x=40.0, y=20.0)
         self.assertClose(M['0'], np.pi * 5.0 ** 2, rtol=1e-3)
         self.assertClose(M['1x'], 0.0, atol=1e-2)
         self.assertClose(M['1y'], 0.0, atol=1e-2)
