@@ -191,7 +191,7 @@ struct pressureCorrectionKernel
 void PressureSingle::pressureCorrection(const Real dt)
 {
   const pressureCorrectionKernel K(sim);
-  compute<pressureCorrectionKernel,ScalarGrid,ScalarLab,VectorGrid>(K,*sim.pres,true,sim.tmpV);
+  cubism::compute<ScalarLab>(K,sim.pres,sim.tmpV);
 
   std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   #pragma omp parallel for
@@ -836,7 +836,7 @@ void PressureSingle::operator()(const Real dt)
     }
   }
   updatePressureRHS1 K1(sim);
-  compute<updatePressureRHS1,ScalarGrid,ScalarLab>(K1,*sim.pold,true,sim.tmp);
+  cubism::compute<ScalarLab>(K1,sim.pold,sim.tmp);
   if (sim.GuessDpDt && sim.step > 10)
   {
     #pragma omp parallel for

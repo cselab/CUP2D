@@ -187,7 +187,7 @@ void PutObjectsOnGrid::putObjectsOnGrid()
 
   // 3) Compute chi and shape center of mass
   const PutChiOnGrid K(sim);
-  compute<PutChiOnGrid,ScalarGrid,ScalarLab>(K,*sim.tmp,false);
+  cubism::compute<ScalarLab>(K,sim.tmp);
   const ComputeSurfaceNormals K1(sim);
   compute<ComputeSurfaceNormals,ScalarGrid,ScalarLab,ScalarGrid,ScalarLab>(K1,*sim.chi,*sim.tmp);
   for(const auto& shape : sim.shapes)

@@ -40,6 +40,22 @@ using Real = long double;
 #define _DIM_ 2
 #endif//_DIM_
 
+enum BCflag {freespace, periodic, wall};
+inline BCflag string2BCflag(const std::string &strFlag)
+{
+  if      (strFlag == "periodic" ) return periodic;
+  else if (strFlag == "freespace") return freespace;
+  else
+  {
+     fprintf(stderr,"BC not recognized %s\n",strFlag.c_str());
+     fflush(0);abort();
+     return periodic; // dummy
+  }
+}
+//CAREFUL THESE ARE GLOBAL VARIABLES!
+extern BCflag cubismBCX;
+extern BCflag cubismBCY;
+
 template<typename BlockType, template<typename X> class allocator = std::allocator>
 class BlockLabDirichlet: public cubism::BlockLab<BlockType, allocator>
 {
@@ -49,8 +65,8 @@ public:
   static constexpr int sizeY = BlockType::sizeY;
   static constexpr int sizeZ = BlockType::sizeZ;
 
-  virtual bool is_xperiodic() override{ return false; }
-  virtual bool is_yperiodic() override{ return false; }
+  virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
+  virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
   virtual bool is_zperiodic() override{ return false; }
 
   // Apply bc on face of direction dir and side side (0 or 1):
@@ -118,25 +134,62 @@ public:
   {
     if (!coarse)
     {
-      if( info.index[0]==0 )           this->template applyBCface<0,0>();
-      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
-      if( info.index[1]==0 )           this->template applyBCface<1,0>();
-      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+      if (is_xperiodic() == false)
+      {
+        if( info.index[0]==0 )           this->template applyBCface<0,0>();
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
+      }
+      if (is_yperiodic() == false)
+      {
+        if( info.index[1]==0 )           this->template applyBCface<1,0>();
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+      }
     }
     else
     {
-      if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
-      if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
-      if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
-      if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+      if (is_xperiodic() == false)
+      {
+        if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
+      }
+      if (is_yperiodic() == false)
+      {
+        if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+      }
     }
-
-
   }
 
   BlockLabDirichlet(): cubism::BlockLab<BlockType,allocator>(){}
   BlockLabDirichlet(const BlockLabDirichlet&) = delete;
   BlockLabDirichlet& operator=(const BlockLabDirichlet&) = delete;
+};
+
+
+
+template<typename BlockType, template<typename X> class allocator = std::allocator>
+class BlockLabNeumann: public cubism::BlockLabNeumann<BlockType, 2, allocator>
+{
+public:
+  using cubismLab = cubism::BlockLabNeumann<BlockType, 2, allocator>;
+  virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
+  virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
+  virtual bool is_zperiodic() override{ return false; }
+
+  // Called by Cubism:
+  void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
+  {
+      if (is_xperiodic() == false)
+      {
+       if(info.index[0]==0 )          cubismLab::template Neumann2D<0,0>(coarse);
+       if(info.index[0]==this->NX-1 ) cubismLab::template Neumann2D<0,1>(coarse);
+      }
+      if (is_yperiodic() == false)
+      {
+       if(info.index[1]==0 )          cubismLab::template Neumann2D<1,0>(coarse);
+       if(info.index[1]==this->NY-1 ) cubismLab::template Neumann2D<1,1>(coarse);
+      }
+  }
 };
 
 using ScalarElement = cubism::ScalarElement<Real>;
@@ -147,9 +200,6 @@ using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>
 using VectorGrid    = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
 
 using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
-using ScalarLab = cubism::BlockLabMPI< cubism::BlockLabNeumann<ScalarBlock, 2 ,std::allocator>,ScalarGrid>;
-// For periodic BC
-// using VectorLab = cubism::BlockLabMPI<cubism::BlockLab<VectorBlock, std::allocator>,VectorGrid>;
-// using ScalarLab = cubism::BlockLabMPI<cubism::BlockLab<ScalarBlock, std::allocator>,ScalarGrid>;
-using ScalarAMR     = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
-using VectorAMR     = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
+using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann  <ScalarBlock, std::allocator>,ScalarGrid>;
+using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
+using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;

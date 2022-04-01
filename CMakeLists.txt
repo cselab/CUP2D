@@ -73,7 +73,6 @@ set(_PRIVATE_RELEASE_FLAGS
     -ftree-vectorize
     -fmerge-all-constants
 )
-# TODO: figure out how to convince cmake to send -std=c++17 and not -std=gnu++17.
 target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
@@ -171,7 +170,7 @@ if (CUP2D_BUILD_PY)
         "${SRC_DIR}/Bindings/Poisson.cpp"
         "${SRC_DIR}/Bindings/Shapes.cpp"
         "${SRC_DIR}/Bindings/Simulation.cpp"
-        "${SRC_DIR}/Operators/ExportUniform.cpp"
+        "${SRC_DIR}/Operators/ImportExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
     target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})
