@@ -84,8 +84,12 @@ class LocalSpMatDnVec
     std::vector<int> send_sz_;
     std::vector<int> send_pack_idx_;
 
+    // Reserve space for linear system
     void reserve(const int &N);
+    // Push back value to COO matrix, up to user to insure ordering of row and column elements
     void cooPushBackVal(const double &val, const long long &row, const long long &col);
+    // Push back row to COO matrix, up to user to ensure ordering of rows
     void cooPushBackRow(const SpRowInfo &row);
+    // Make the distributed linear system for solver
     void make(const std::vector<long long>& Nrows_xcumsum);
 };

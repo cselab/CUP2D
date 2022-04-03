@@ -1,8 +1,7 @@
 #include "Fields.h"
 #include "../Definitions.h"
-#include "../Operators/ExportUniform.h"
+#include "../Operators/ImportExportUniform.h"
 #include "../SimulationData.h"
-#include <Cubism/Grid.hh>
 #include <pybind11/numpy.h>
 
 // Note: using "field" nomenclature instead of "grid" because "field" sounds
@@ -151,9 +150,9 @@ static py::array_t<Real> gridToUniform(Grid *grid, Real fillValue, bool interpol
       p[i] = fillValue;
   }
   if (interpolate) {
-    interpolateGridToUniformMatrix(grid, ptr);
+    exportToUniformMatrix(grid, ptr);
   } else {
-    grid->copyToUniformNoInterpolation(ptr);
+    exportToUniformMatrixNearestInterpolation(grid, ptr);
   }
   return out;
 }
@@ -178,7 +177,7 @@ static void gridLoadUniform(Grid *grid, py::array_t<Real, py::array::c_style> ar
                                    : py::make_tuple(cells[1], cells[0]);
     throw py::type_error("expected shape {}, got {}"_s.format(expected, shape));
   }
-  grid->copyFromMatrix(reinterpret_cast<const T *>(array.data()));
+  importFromUniformMatrix(grid, reinterpret_cast<const T *>(array.data()));
 }
 
 template <typename Grid>
@@ -193,7 +192,7 @@ static void bindGrid(py::module &m, const char *name, const char *blocksViewName
     .def_property_readonly("blocks", [](Grid *grid) { return View{grid}; })
     .def("to_uniform", &gridToUniform<Grid>,
          "fill"_a = (Real)0.0, "interpolate"_a = true)
-    .def("load_uniform", &gridLoadUniform<Grid>);
+    .def("load_uniform", &gridLoadUniform<Grid>, "array"_a.noconvert());
 }
 
 void bindFields(py::module &m)

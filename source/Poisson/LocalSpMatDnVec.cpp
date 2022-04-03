@@ -1,12 +1,8 @@
 #include <unordered_map>
-#include <algorithm>
-//#include <execution>
+#include <algorithm> // std::copy
 #include <iostream>
 
 #include "LocalSpMatDnVec.h"
-
-#define SZ_MSG_TAG  100
-#define VEC_MSG_TAG 101
 
 LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm) 
   : m_comm_(m_comm)
@@ -88,6 +84,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   for (int r(0); r < comm_size_; r++)
     recv_sz_allranks[r] = bd_recv_set_[r].size();
 
+  // Exchange message sizes between all ranks
   MPI_Alltoall(recv_sz_allranks.data(), 1, MPI_INT, send_sz_allranks.data(), 1, MPI_INT, m_comm_);
 
   // Set receiving rules into halo
@@ -97,7 +94,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   int offset = 0;
   for (int r(0); r < comm_size_; r++)
   {
-    if (r != rank_ && recv_sz_allranks[r]!=0)
+    if (r != rank_ && recv_sz_allranks[r] > 0)
     {
       recv_ranks_.push_back(r); 
       recv_offset_.push_back(offset);
@@ -114,7 +111,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   offset = 0;
   for (int r(0); r < comm_size_; r++)
   {
-    if (r !=rank_ && send_sz_allranks[r]!=0)
+    if (r !=rank_ && send_sz_allranks[r] > 0)
     {
       send_ranks_.push_back(r);
       send_offset_.push_back(offset);
@@ -129,7 +126,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   // Post receives for column indices from other ranks required for SpMV
   std::vector<MPI_Request> recv_requests(send_ranks_.size());
   for (int i(0); i < send_ranks_.size(); i++)
-    MPI_Irecv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG, send_ranks_[i], VEC_MSG_TAG, m_comm_, &recv_requests[i]);
+    MPI_Irecv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG, send_ranks_[i], 546, m_comm_, &recv_requests[i]);
 
 
   // Create sends to inform other ranks what they will need to send here
@@ -138,7 +135,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   for (int i(0); i < recv_ranks_.size(); i++)
   {
     std::copy(bd_recv_set_[recv_ranks_[i]].begin(), bd_recv_set_[recv_ranks_[i]].end(), &recv_idx_list[recv_offset_[i]]);
-    MPI_Isend(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG, recv_ranks_[i], VEC_MSG_TAG, m_comm_, &send_requests[i]);
+    MPI_Isend(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG, recv_ranks_[i], 546, m_comm_, &send_requests[i]);
   }
 
   // Now re-index the linear system from global to local indexing
@@ -160,6 +157,10 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
       bd_cooRowA_int_[i] = (int)(bd_cooRowA_long_[i] + shift);
   }
 
+  // Make sure recv_idx_list is safe to use (and not prone to deallocation
+  // because it will no longer be in use)
+  MPI_Waitall(send_ranks_.size(), recv_requests.data(), MPI_STATUS_IGNORE);
+
   // Map indices of columns from other ranks to the halo
   std::unordered_map<long long, int> bd_reindex_map; 
   bd_reindex_map.reserve(halo_);
@@ -171,7 +172,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     bd_cooColA_int_[i] = bd_reindex_map[bd_cooColA_long_[i]];
 
   MPI_Waitall(recv_ranks_.size(), send_requests.data(), MPI_STATUS_IGNORE);
-  MPI_Waitall(send_ranks_.size(), recv_requests.data(), MPI_STATUS_IGNORE);
 
   #pragma omp parallel for
   for (size_t i=0; i < send_pack_idx_.size(); i++)

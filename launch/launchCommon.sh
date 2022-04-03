@@ -34,8 +34,6 @@ if [ ${PSOLVER:0:4} == 'cuda' ] ; then
   export TASKS_PER_NODE=1
   if [ "${TASKS_PER_NODE}" -gt "1" ] ; then
     export CRAY_CUDA_MPS=1
-  else 
-    export CRAY_CUDA_MPS=0
   fi
   export OMP_NUM_THREADS=$(expr 12 / $TASKS_PER_NODE)
 else

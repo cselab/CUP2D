@@ -95,7 +95,7 @@ void AdaptTheMesh::adapt()
 
   // compute grad(chi) and if it's >0 set tmp = infinity
   GradChiOnTmp K2(sim);
-  compute<GradChiOnTmp,ScalarGrid,ScalarLab>(K2,*sim.chi,false);
+  cubism::compute<ScalarLab>(K2,sim.chi);
 
   tmp_amr ->Tag();
   chi_amr ->TagLike(tmpInfo);

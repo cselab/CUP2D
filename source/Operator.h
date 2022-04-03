@@ -12,51 +12,12 @@ class Operator
 {
 public:
   SimulationData& sim;
-
   Operator(SimulationData& s) : sim(s) { }
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
-
   virtual std::string getName() = 0;
   
-  template <typename Kernel, typename TGrid, typename LabMPI,typename TGrid_corr = TGrid>
-  static void compute(const Kernel& kernel, TGrid& grid, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
-  {
-    if (applyFluxCorrection)
-      corrected_grid->Corrector.prepare(*corrected_grid);
-
-    cubism::SynchronizerMPI_AMR<Real,TGrid>& Synch = * grid.sync(kernel);
-
-    std::vector<cubism::BlockInfo*> & inner = Synch.avail_inner();
-    std::vector<cubism::BlockInfo*> *halo;
-    #pragma omp parallel
-    {
-      LabMPI lab;
-      lab.prepare(grid, Synch);
-      #pragma omp for nowait
-      for (const cubism::BlockInfo *I : inner) {
-        lab.load(*I, 0);
-        kernel(lab, *I);
-      }
-
-      #pragma omp master
-      halo = &Synch.avail_halo();
-      #pragma omp barrier
-
-      lab.prepare(grid, Synch);
-      #pragma omp for nowait
-      for (const cubism::BlockInfo *I : *halo) {
-        lab.load(*I, 0);
-        kernel(lab, *I);
-      }
-    }
-
-    if (applyFluxCorrection)
-      corrected_grid->Corrector.FillBlockCases();
-
-    //MPI_Barrier(grid.getCartComm());
-  }
-
+  //HACKY and ugly solution to get two BlockLabs from two different Grids
   template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2, typename LabMPI2, typename TGrid_corr = TGrid>
   static void compute(const Kernel& kernel, TGrid& grid, TGrid2& grid2, const bool applyFluxCorrection = false, TGrid_corr * corrected_grid = nullptr)
   {
@@ -75,7 +36,6 @@ public:
     kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
     kernel2.stencil.selcomponents.clear();
     kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-
 
     cubism::SynchronizerMPI_AMR<Real,TGrid2>& Synch2 = * grid2.sync(kernel2);
 
@@ -133,8 +93,5 @@ public:
 
     if (applyFluxCorrection)
       corrected_grid->Corrector.FillBlockCases();
-
-    //MPI_Barrier(grid.getCartComm());
   }
-
 };
