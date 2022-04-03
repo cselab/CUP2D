@@ -310,7 +310,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   }
 
-  prof_.startProfiler("SpMV", solver_stream_);
+  prof_.startProfiler("KerSpMV", solver_stream_);
   // A*x for local rows
   checkCudaErrors(cusparseSpMV( 
         cusparse_handle_, 
@@ -323,7 +323,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
         CUDA_R_64F, 
         CUSPARSE_MV_ALG_DEFAULT, 
         locSpMVBuff_)); 
-  prof_.stopProfiler("SpMV", solver_stream_);
+  prof_.stopProfiler("KerSpMV", solver_stream_);
 
   if (comm_size_ > 1)
   {
@@ -349,7 +349,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     // Use solver stream, just in case... even though the halo doesn't particiapte in SpMV race conditions possible due to coalescing?
     checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_, halo_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 
-    prof_.startProfiler("SpMV", solver_stream_);
+    prof_.startProfiler("HaloSpMV", solver_stream_);
     // A*x for rows with halo elements, axpy with local results
     checkCudaErrors(cusparseSpMV( 
           cusparse_handle_, 
@@ -362,7 +362,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
           CUDA_R_64F, 
           CUSPARSE_MV_ALG_DEFAULT, 
           bdSpMVBuff_)); 
-    prof_.stopProfiler("SpMV", solver_stream_);
+    prof_.stopProfiler("HaloSpMV", solver_stream_);
   }
 }
 
