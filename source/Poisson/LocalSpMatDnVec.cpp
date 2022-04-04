@@ -128,14 +128,14 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
 
   // Post receives for column indices from other ranks required for SpMV
   std::vector<MPI_Request> recv_requests(send_ranks_.size());
-  for (int i(0); i < send_ranks_.size(); i++)
+  for (size_t i(0); i < send_ranks_.size(); i++)
     MPI_Irecv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG, send_ranks_[i], 546, m_comm_, &recv_requests[i]);
 
 
   // Create sends to inform other ranks what they will need to send here
   std::vector<long long> recv_idx_list(halo_);
   std::vector<MPI_Request> send_requests(recv_ranks_.size());
-  for (int i(0); i < recv_ranks_.size(); i++)
+  for (size_t i(0); i < recv_ranks_.size(); i++)
   {
     std::copy(bd_recv_set_[recv_ranks_[i]].begin(), bd_recv_set_[recv_ranks_[i]].end(), &recv_idx_list[recv_offset_[i]]);
     MPI_Isend(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG, recv_ranks_[i], 546, m_comm_, &send_requests[i]);
