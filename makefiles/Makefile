@@ -79,6 +79,8 @@ ifeq ("$(gpu)", "true")
   ifeq ("$(profile)", "true")
     CPPFLAGS += -DBICGSTAB_PROFILER
   endif
+else
+  CPPFLAGS+= -Wno-unknown-pragmas
 endif
 
 ifneq ($(ERROR),)
