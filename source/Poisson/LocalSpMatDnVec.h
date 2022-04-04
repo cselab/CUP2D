@@ -1,8 +1,9 @@
 #pragma once
 
 #include <map>
-#include <vector>
 #include <set>
+#include <vector>
+#include <memory>
 #include <mpi.h>
 
 class SpRowInfo
@@ -37,12 +38,44 @@ class SpRowInfo
     }
 };
 
+// Forward declaration of BiCGSTABSolver class
+class BiCGSTABSolver;
+
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(MPI_Comm m_comm); 
+    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv); 
     ~LocalSpMatDnVec() = default;
 
+    // Reserve space for linear system
+    void reserve(const int &N);
+    // Push back value to COO matrix, up to user to insure ordering of row and column elements
+    void cooPushBackVal(const double &val, const long long &row, const long long &col);
+    // Push back row to COO matrix, up to user to ensure ordering of rows
+    void cooPushBackRow(const SpRowInfo &row);
+    // Make the distributed linear system for solver
+    void make(const std::vector<long long>& Nrows_xcumsum);
+
+    // Solve method with update to LHS matrix
+    void solveWithUpdate(
+      const double max_error,
+      const double max_rel_error,
+      const int max_restarts); 
+
+    // Solve method without update to LHS matrix
+    void solveNoUpdate(
+      const double max_error,
+      const double max_rel_error,
+      const int max_restarts); 
+
+    // Modifiable references for x and b for setting and getting initial conditions/solution
+    std::vector<double>& get_x() { return x_; }
+    std::vector<double>& get_b() { return b_; }
+
+    // Expose private variables to friendly solver
+    friend class BiCGSTABSolver;
+
+  private:
     int rank_;
     MPI_Comm m_comm_;
     int comm_size_; 
@@ -84,12 +117,5 @@ class LocalSpMatDnVec
     std::vector<int> send_sz_;
     std::vector<int> send_pack_idx_;
 
-    // Reserve space for linear system
-    void reserve(const int &N);
-    // Push back value to COO matrix, up to user to insure ordering of row and column elements
-    void cooPushBackVal(const double &val, const long long &row, const long long &col);
-    // Push back row to COO matrix, up to user to ensure ordering of rows
-    void cooPushBackRow(const SpRowInfo &row);
-    // Make the distributed linear system for solver
-    void make(const std::vector<long long>& Nrows_xcumsum);
+    std::unique_ptr<BiCGSTABSolver> solver_;
 };

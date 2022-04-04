@@ -1,11 +1,12 @@
 CPPFLAGS+= -std=c++17 -Wall
 LIBS+= -lgsl -lgslcblas -fopenmp
 
-CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls
+CPPFLAGS+= -Wno-switch
 
 ifeq "$(findstring prod,$(config))" ""
 

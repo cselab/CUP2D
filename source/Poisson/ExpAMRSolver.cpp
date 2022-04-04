@@ -271,8 +271,7 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   }
 
   // Create Linear system and backend solver objects
-  LocalLS_ = std::make_shared<LocalSpMatDnVec>(m_comm_);
-  backend_ =  std::make_shared<BiCGSTABSolver>(m_comm_, LocalLS_, BSX_*BSY_, P_inv.data());
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, P_inv);
 }
 
 // Methods for cell centric construction of discrete Laplace operator
@@ -526,12 +525,12 @@ void ExpAMRSolver::getMat()
 
 void ExpAMRSolver::getVec()
 {
-  sim.startProfiler("Poisson solver: LS");
-
   //Get a vector of all BlockInfos of the grid we're interested in
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
+  std::vector<double>& x = LocalLS_->get_x();
+  std::vector<double>& b = LocalLS_->get_b();
   const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
@@ -547,12 +546,10 @@ void ExpAMRSolver::getVec()
     for(int ix=0; ix<BSX_; ix++)
     {
       const long long sfc_loc = NorthCell.This(rhs_info, ix, iy) + shift;
-      LocalLS_->b_[sfc_loc] = rhs(ix,iy).s;
-      LocalLS_->x_[sfc_loc] = p(ix,iy).s;
+      b[sfc_loc] = rhs(ix,iy).s;
+      x[sfc_loc] = p(ix,iy).s;
     }
   }
-
-  sim.stopProfiler();
 }
 
 void ExpAMRSolver::solve(
@@ -572,18 +569,19 @@ void ExpAMRSolver::solve(
     sim.pres->UpdateFluxCorrection = false;
     this->getMat();
     this->getVec();
-    backend_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+    LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
   }
   else
   {
     this->getVec();
-    backend_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+    LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
   //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = zInfo.size();
+  const std::vector<double>& x = LocalLS_->get_x();
 
   double avg = 0;
   double avg1 = 0;
@@ -595,7 +593,7 @@ void ExpAMRSolver::solve(
      for(int iy=0; iy<BSY_; iy++)
      for(int ix=0; ix<BSX_; ix++)
      {
-         P(ix,iy).s = LocalLS_->x_[i*BSX_*BSY_ + iy*BSX_ + ix];
+         P(ix,iy).s = x[i*BSX_*BSY_ + iy*BSX_ + ix];
          avg += P(ix,iy).s * vv;
          avg1 += vv;
      }

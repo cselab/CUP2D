@@ -6,14 +6,11 @@
 
 #include "BiCGSTAB.cuh"
 
-
-#define _HALO_MSG_ 200
-
 BiCGSTABSolver::BiCGSTABSolver(
     MPI_Comm m_comm,
-    std::shared_ptr<LocalSpMatDnVec> LocalLS,
-    const int &BLEN, 
-    const double* const P_inv)
+    LocalSpMatDnVec& LocalLS,
+    const int BLEN, 
+    const std::vector<double>& P_inv)
   : m_comm_(m_comm), BLEN_(BLEN), LocalLS_(LocalLS), prof_(m_comm)
 {
   // MPI
@@ -45,7 +42,7 @@ BiCGSTABSolver::BiCGSTABSolver(
 
   // Copy preconditionner
   checkCudaErrors(cudaMalloc(&d_P_inv_, BLEN_ * BLEN_ * sizeof(double)));
-  checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv, BLEN_ * BLEN_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv.data(), BLEN_ * BLEN_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
 
 }
 
@@ -140,12 +137,12 @@ void BiCGSTABSolver::updateAll()
   this->freeLast();
 
   // Update LS metadata
-  m_ = LocalLS_->m_;
-  halo_ = LocalLS_->halo_ ;
+  m_ = LocalLS_.m_;
+  halo_ = LocalLS_.halo_ ;
   hd_m_ = m_ + halo_;
-  loc_nnz_ = LocalLS_->loc_nnz_ ;
-  bd_nnz_ = LocalLS_->bd_nnz_ ;
-  send_buff_sz_ = LocalLS_->send_pack_idx_.size();
+  loc_nnz_ = LocalLS_.loc_nnz_ ;
+  bd_nnz_ = LocalLS_.bd_nnz_ ;
+  send_buff_sz_ = LocalLS_.send_pack_idx_.size();
   
   // Allocate device memory for local linear system
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
@@ -173,15 +170,15 @@ void BiCGSTABSolver::updateAll()
 
   prof_.startProfiler("Memcpy", solver_stream_);
   // H2D transfer of linear system
-  checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_->loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_->loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_->loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_.loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_.loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_.loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   if (comm_size_ > 1)
   {
-    checkCudaErrors(cudaMemcpyAsync(d_send_pack_idx_, LocalLS_->send_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
-    checkCudaErrors(cudaMemcpyAsync(dbd_cooValA_, LocalLS_->bd_cooValA_.data(), bd_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-    checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_->bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
-    checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_->bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(d_send_pack_idx_, LocalLS_.send_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(dbd_cooValA_, LocalLS_.bd_cooValA_.data(), bd_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_.bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_.bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   }
   prof_.stopProfiler("Memcpy", solver_stream_);
 
@@ -228,8 +225,8 @@ void BiCGSTABSolver::updateVec()
 {
   prof_.startProfiler("Memcpy", solver_stream_);
   // Copy RHS, LHS vec initial guess (to d_z_), if LS was updated, updateAll reallocates sufficient memory
-  checkCudaErrors(cudaMemcpyAsync(d_x_, LocalLS_->x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(d_r_, LocalLS_->b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_x_, LocalLS_.x_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_r_, LocalLS_.b_.data(), m_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
 }
 
@@ -295,12 +292,12 @@ void BiCGSTABSolver::hd_cusparseSpMV(
   cusparseDnVecDescr_t spDescrRes)
 {
 
-  const std::vector<int> &recv_ranks = LocalLS_->recv_ranks_;
-  const std::vector<int> &recv_offset = LocalLS_->recv_offset_;
-  const std::vector<int> &recv_sz = LocalLS_->recv_sz_;
-  const std::vector<int> &send_ranks = LocalLS_->send_ranks_;
-  const std::vector<int> &send_offset = LocalLS_->send_offset_;
-  const std::vector<int> &send_sz = LocalLS_->send_sz_;
+  const std::vector<int> &recv_ranks = LocalLS_.recv_ranks_;
+  const std::vector<int> &recv_offset = LocalLS_.recv_offset_;
+  const std::vector<int> &recv_sz = LocalLS_.recv_sz_;
+  const std::vector<int> &send_ranks = LocalLS_.send_ranks_;
+  const std::vector<int> &send_offset = LocalLS_.send_offset_;
+  const std::vector<int> &send_sz = LocalLS_.send_sz_;
 
   if (comm_size_ > 1)
   {
@@ -336,11 +333,11 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     // Schedule receives and wait for them to arrive
     std::vector<MPI_Request> recv_requests(recv_ranks.size());
     for (size_t i(0); i < recv_ranks.size(); i++)
-      MPI_Irecv(&h_recv_buff_[recv_offset[i]], recv_sz[i], MPI_DOUBLE, recv_ranks[i], _HALO_MSG_, m_comm_, &recv_requests[i]);
+      MPI_Irecv(&h_recv_buff_[recv_offset[i]], recv_sz[i], MPI_DOUBLE, recv_ranks[i], 978, m_comm_, &recv_requests[i]);
 
     std::vector<MPI_Request> send_requests(send_ranks.size());
     for (size_t i(0); i < send_ranks.size(); i++)
-      MPI_Isend(&h_send_buff_[send_offset[i]], send_sz[i], MPI_DOUBLE, send_ranks[i], _HALO_MSG_, m_comm_, &send_requests[i]);
+      MPI_Isend(&h_send_buff_[send_offset[i]], send_sz[i], MPI_DOUBLE, send_ranks[i], 978, m_comm_, &send_requests[i]);
 
     MPI_Waitall(send_ranks.size(), send_requests.data(), MPI_STATUS_IGNORE);
     MPI_Waitall(recv_ranks.size(), recv_requests.data(), MPI_STATUS_IGNORE);
@@ -571,7 +568,7 @@ void BiCGSTABSolver::main(
 
   prof_.startProfiler("Memcpy", solver_stream_);
   // Copy result back to host
-  checkCudaErrors(cudaMemcpyAsync(LocalLS_->x_.data(), d_x_opt_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(LocalLS_.x_.data(), d_x_opt_, m_ * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
   prof_.stopProfiler("Total", solver_stream_);
 }

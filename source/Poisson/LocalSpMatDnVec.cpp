@@ -3,8 +3,9 @@
 #include <iostream>
 
 #include "LocalSpMatDnVec.h"
+#include "BiCGSTAB.cuh"
 
-LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm) 
+LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv) 
   : m_comm_(m_comm)
 {
   // MPI
@@ -19,6 +20,8 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm)
   send_ranks_.reserve(comm_size_); 
   send_offset_.reserve(comm_size_); 
   send_sz_.reserve(comm_size_); 
+
+  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, P_inv);
 }
 
 void LocalSpMatDnVec::reserve(const int &N)
@@ -125,14 +128,14 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
 
   // Post receives for column indices from other ranks required for SpMV
   std::vector<MPI_Request> recv_requests(send_ranks_.size());
-  for (int i(0); i < send_ranks_.size(); i++)
+  for (size_t i(0); i < send_ranks_.size(); i++)
     MPI_Irecv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG, send_ranks_[i], 546, m_comm_, &recv_requests[i]);
 
 
   // Create sends to inform other ranks what they will need to send here
   std::vector<long long> recv_idx_list(halo_);
   std::vector<MPI_Request> send_requests(recv_ranks_.size());
-  for (int i(0); i < recv_ranks_.size(); i++)
+  for (size_t i(0); i < recv_ranks_.size(); i++)
   {
     std::copy(bd_recv_set_[recv_ranks_[i]].begin(), bd_recv_set_[recv_ranks_[i]].end(), &recv_idx_list[recv_offset_[i]]);
     MPI_Isend(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG, recv_ranks_[i], 546, m_comm_, &send_requests[i]);
@@ -181,3 +184,19 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
 }
 
+// Solve method with update to LHS matrix
+void LocalSpMatDnVec::solveWithUpdate(
+  const double max_error,
+  const double max_rel_error,
+  const int max_restarts)
+{
+  solver_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+}
+// Solve method without update to LHS matrix
+void LocalSpMatDnVec::solveNoUpdate(
+  const double max_error,
+  const double max_rel_error,
+  const int max_restarts)
+{
+  solver_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+}

@@ -26,9 +26,9 @@ class BiCGSTABSolver {
 public:
   BiCGSTABSolver(
       MPI_Comm m_comm,
-      std::shared_ptr<LocalSpMatDnVec> LocalLS,
-      const int &BLEN, 
-      const double* const P_inv);  
+      LocalSpMatDnVec& LocalLS,
+      const int BLEN, 
+      const std::vector<double>& P_inv);  
   ~BiCGSTABSolver();  
 
   // Solve method with update to LHS matrix
@@ -86,8 +86,8 @@ private:
   int hd_m_; // haloed number of row
   const int BLEN_; // block length (i.e no. of rows in preconditioner)
 
-  // LocalLS to be solved
-  std::shared_ptr<LocalSpMatDnVec> LocalLS_;
+  // Reference to owner LocalLS
+  LocalSpMatDnVec& LocalLS_;
 
   // Send/receive rules and buffers
   int send_buff_sz_;
