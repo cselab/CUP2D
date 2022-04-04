@@ -3,8 +3,9 @@
 #include <iostream>
 
 #include "LocalSpMatDnVec.h"
+#include "BiCGSTAB.cuh"
 
-LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm) 
+LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv) 
   : m_comm_(m_comm)
 {
   // MPI
@@ -19,6 +20,8 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm)
   send_ranks_.reserve(comm_size_); 
   send_offset_.reserve(comm_size_); 
   send_sz_.reserve(comm_size_); 
+
+  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, P_inv);
 }
 
 void LocalSpMatDnVec::reserve(const int &N)
@@ -181,3 +184,19 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
     std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
 }
 
+// Solve method with update to LHS matrix
+void LocalSpMatDnVec::solveWithUpdate(
+  const double max_error,
+  const double max_rel_error,
+  const int max_restarts)
+{
+  solver_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+}
+// Solve method without update to LHS matrix
+void LocalSpMatDnVec::solveNoUpdate(
+  const double max_error,
+  const double max_rel_error,
+  const int max_restarts)
+{
+  solver_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+}

@@ -40,7 +40,7 @@ protected:
   int comm_size_;
 
   // Pointer to solving backend of SpMat DnVec linear system
-  std::shared_ptr<BiCGSTABSolver> backend_;
+  std::unique_ptr<BiCGSTABSolver> backend_;
 
   static constexpr int BSX_ = VectorBlock::sizeX;
   static constexpr int BSY_ = VectorBlock::sizeY;
