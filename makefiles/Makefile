@@ -2,39 +2,40 @@ hdf5 ?= true
 config ?= production
 precision ?= double
 bs ?= 8
+gpu ?= false
+profile ?= false
 
 # SMALL HELPER FOR OSX USERS
 ifeq ($(shell uname -s), Darwin)
-include make.macos
+  include make.macos
 endif
 
 # SET FLAGS FOR COMPILER
 ifneq ($(MPICXX),)
-CXX=$(MPICXX)
+  CXX=$(MPICXX)
 else
-ERROR += "MPICXX not set"
+  ERROR += "MPICXX not set"
 endif
 
-ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
-ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
-compiler=gnu
-include make.gcc.flags
-else
+# Determine compiler type and load corresponding flags
+ifeq ("$(shell $(CXX) --version | grep -ci 'llvm')", "1")
 compiler=llvm
-include make.llvm.flags
-endif
+  include make.llvm.flags
+else ifeq ("$(shell $(CXX) --version | grep -ci 'icpc')", "1")
+  compiler=intel
+  include make.icc.flags
 else
-compiler=intel
-include make.icc.flags
+  compiler=gnu
+  include make.gcc.flags
 endif
-
-# SET FLAGS FOR CUBISM
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
+
+# SET FLAGS FOR CUBISM
+CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
 
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
@@ -45,22 +46,17 @@ OBJECTS = \
 		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o
 
 ifeq "$(precision)" "single"
-CPPFLAGS += -D_FLOAT_PRECISION_
-endif
-ifeq "$(precision)" "double"
-CPPFLAGS += -D_DOUBLE_PRECISION_
-endif
-ifeq "$(precision)" "long_double"
-CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
+  CPPFLAGS += -D_FLOAT_PRECISION_
+else ifeq "$(precision)" "double"
+  CPPFLAGS += -D_DOUBLE_PRECISION_
+else ifeq "$(precision)" "long_double"
+  CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
 endif
 
 usemap ?= true
 ifeq "$(usemap)" "true"
-CPPFLAGS += -DCUBISM_USE_MAP
+  CPPFLAGS += -DCUBISM_USE_MAP
 endif
-
-# SET FLAGS FOR GSL
-LIBS += -lgsl -lgslcblas
 
 # SET FLAGS FOR HDF5
 ifneq "$(hdf)" "false"
@@ -70,6 +66,21 @@ CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
 else
 ERROR += "HDF5_ROOT not set"
 endif
+endif
+
+ifeq ("$(gpu)", "true")
+  OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
+	CPPFLAGS := -std=c++17 -O3 --use_fast_math \
+						 -Xcompiler "$(CPPFLAGS) -fopenmp"  \
+						 -DGPU_POISSON
+	LIBS := -Xcompiler "$(LIBS)" -lcudart -lcublas -lcusparse
+	CXX := $(NVCC) -ccbin=$(CXX)
+  
+  ifeq ("$(profile)", "true")
+    CPPFLAGS += -DBICGSTAB_PROFILER
+  endif
+else
+  CPPFLAGS+= -Wno-unknown-pragmas
 endif
 
 ifneq ($(ERROR),)
@@ -97,6 +108,12 @@ cup.libs.txt:
 	echo $(LIBS) > cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
+%.o: %.cu
+	$(CXX) $(CPPFLAGS) -c $< -o $@
+
+%.d: %.cu
+	$(CXX) $(CPPFLAGS) -c -MD $<
+
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
@@ -105,5 +122,5 @@ cup.libs.txt:
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
-	rm -f simulation libcup.a cup.cflags.txt cup.libs.txt
+	rm -f debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 	rm -f *.o *.d

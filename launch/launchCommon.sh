@@ -30,7 +30,16 @@ elif [ ${HOST:0:5} == 'daint' ] ; then
 BASEPATH="${SCRATCH}/CUP2D/"
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
-export OMP_NUM_THREADS=1
+if [ ${PSOLVER:0:4} == 'cuda' ] ; then
+  export TASKS_PER_NODE=1
+  if [ "${TASKS_PER_NODE}" -gt "1" ] ; then
+    export CRAY_CUDA_MPS=1
+  fi
+  export OMP_NUM_THREADS=$(expr 12 / $TASKS_PER_NODE)
+else
+  export TASKS_PER_NODE=12
+  export OMP_NUM_THREADS=1
+fi
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
@@ -41,7 +50,7 @@ if [[ "$?" -gt "0" ]] ; then
 source launchSbatch.sh
 else
 cd ${FOLDERNAME}
-srun --nodes $SLURM_NNODES --ntasks-per-node=12 --cpus-per-task=1 --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+srun --nodes $SLURM_NNODES --ntasks-per-node=$TASKS_PER_NODE --cpus-per-task=$OMP_NUM_THREADS --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 fi
 
 ###################################################################################################
