@@ -6,7 +6,6 @@ CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls
-CPPFLAGS+= -Wno-switch
 
 ifeq "$(findstring prod,$(config))" ""
 

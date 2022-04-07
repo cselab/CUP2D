@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.12)
-project(CubismUP_2D)
+project(CubismUP_2D LANGUAGES CXX)
 
 if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
+endif()
+
+if(POLICY CMP0104)
+    cmake_policy(SET CMP0104 NEW)
+endif()
+
+include(CheckLanguage)
+check_language(CUDA)
+if (CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
 endif()
 
 # Set Release mode as default.
@@ -32,6 +42,14 @@ set(CUP2D_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_2D repository root pat
 set(CUP2D_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_2D build path")
 set(CUP2D_PRECISION "double" CACHE STRING "floating point precision")
 set_property(CACHE CUP2D_PRECISION PROPERTY STRINGS single double long_double)
+if (CMAKE_CUDA_COMPILER)
+    option(CUP2D_CUDA "Compile optional CUDA features" ON)
+else()
+    option(CUP2D_CUDA "Compile optional CUDA features" OFF)
+    if (CUP2D_CUDA)
+        check_language(CUDA REQUIRED)
+    endif()
+endif()
 
 
 ### Dependencies.
@@ -66,18 +84,27 @@ find_package(OpenMP REQUIRED)
 add_library(${PRIVATEDEP} INTERFACE)
 set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
 set(_PRIVATE_RELEASE_FLAGS
-    -march=native
-    -fstrict-aliasing
-    -ffast-math
+    $<$<COMPILE_LANGUAGE:CXX>:-ffast-math -march=native>
+    $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math -Xcompiler -march=native>
     -falign-functions=32
-    -ftree-vectorize
     -fmerge-all-constants
+    -fstrict-aliasing
+    -ftree-vectorize
 )
 target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
                        $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
                        $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
+if (CUP2D_CUDA)
+    find_package(CUDAToolkit)
+    # Safest option is not to pass any architecture flags, in case the code is
+    # compiled on machines different than those the code is executed on.
+    set_property(TARGET ${PRIVATEDEP} PROPERTY CUDA_ARCHITECTURES OFF)
+    target_compile_definitions(${PRIVATEDEP} INTERFACE -DGPU_POISSON)
+    target_include_directories(${PRIVATEDEP} INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    target_link_libraries(${PRIVATEDEP} INTERFACE CUDA::cublas CUDA::cusparse)
+endif()
 
 add_library(
     ${CORE} STATIC EXCLUDE_FROM_ALL
@@ -102,6 +129,7 @@ add_library(
     "${SRC_DIR}/Operators/PressureSingle.cpp"
     "${SRC_DIR}/Operators/PutObjectsOnGrid.cpp"
     "${SRC_DIR}/Operators/advDiff.cpp"
+    "${SRC_DIR}/Operators/ImportExportUniform.cpp"
     "${SRC_DIR}/Operators/Forcing.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
     "${SRC_DIR}/Poisson/Base.cpp"
@@ -111,6 +139,15 @@ add_library(
     "${SRC_DIR}/Utils/BufferedLogger.cpp"
     "${SRC_DIR}/Utils/StackTrace.cpp"
 )
+if (CUP2D_CUDA)
+    target_sources(
+        ${CORE}
+        PRIVATE
+        "${SRC_DIR}/Poisson/BiCGSTAB.cu"
+        "${SRC_DIR}/Poisson/ExpAMRSolver.cpp"
+        "${SRC_DIR}/Poisson/LocalSpMatDnVec.cpp"
+    )
+endif()
 
 add_library(cubismup2d::core ALIAS ${CORE})
 target_compile_definitions(${CORE} PUBLIC CUP2D_BLOCK_SIZE=${CUP2D_BLOCK_SIZE})
@@ -170,7 +207,6 @@ if (CUP2D_BUILD_PY)
         "${SRC_DIR}/Bindings/Poisson.cpp"
         "${SRC_DIR}/Bindings/Shapes.cpp"
         "${SRC_DIR}/Bindings/Simulation.cpp"
-        "${SRC_DIR}/Operators/ImportExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
     target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})

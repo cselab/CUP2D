@@ -9,6 +9,8 @@
  *
  */
 
+// MODIFIED: added default switch cases to silence -Wswitch.
+
 ////////////////////////////////////////////////////////////////////////////////
 // These are CUDA Helper functions for initialization and error checking
 
@@ -178,6 +180,9 @@ static const char *_cudaGetErrorEnum(cusparseStatus_t error) {
 
     case CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED:
       return "CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED";
+
+    default:
+      break;  // Silence -Wswitch.
   }
 
   return "<unknown>";
