@@ -13,6 +13,7 @@
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
+#include "Operators/advDiffSGS.h"
 #include "Operators/AdaptTheMesh.h"
 #include "Operators/Forcing.h"
 
@@ -135,7 +136,10 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  pipeline.push_back(std::make_shared<advDiff>(sim));
+  if( sim.smagorinskyCoeff != 0 )
+    pipeline.push_back(std::make_shared<advDiff>(sim));
+  else
+    pipeline.push_back(std::make_shared<advDiffSGS>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
@@ -216,6 +220,9 @@ void Simulation::parseRuntime()
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
+
+  // Smagorinsky Model
+  sim.smagorinskyCoeff = parser("-Cs").asDouble(0);
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
