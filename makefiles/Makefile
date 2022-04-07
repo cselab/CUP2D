@@ -70,17 +70,15 @@ endif
 
 ifeq ("$(gpu)", "true")
   OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS := -std=c++17 -O3 --use_fast_math \
-						 -Xcompiler "$(CPPFLAGS) -fopenmp"  \
-						 -DGPU_POISSON
-	LIBS := -Xcompiler "$(LIBS)" -lcudart -lcublas -lcusparse
-	CXX := $(NVCC) -ccbin=$(CXX)
+  CPPFLAGS += -fopenmp -DGPU_POISSON
+	NVCCFLAGS := -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
+	LIBS += -lcudart -lcublas -lcusparse
   
   ifeq ("$(profile)", "true")
     CPPFLAGS += -DBICGSTAB_PROFILER
   endif
 else
-  CPPFLAGS+= -Wno-unknown-pragmas
+  CPPFLAGS += -Wno-unknown-pragmas
 endif
 
 ifneq ($(ERROR),)
@@ -102,17 +100,17 @@ libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 
 cup.cflags.txt:
-	echo $(CPPFLAGS) > cup.cflags.txt
+	echo '$(CPPFLAGS)' > cup.cflags.txt
 
 cup.libs.txt:
-	echo $(LIBS) > cup.libs.txt
+	echo '$(LIBS)' > cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
 
 %.d: %.cu
-	$(CXX) $(CPPFLAGS) -c -MD $<
+	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c -MD $<
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
