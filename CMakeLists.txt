@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
-project(CubismUP_2D LANGUAGES CXX)
+
+# Enable C because HDF5 is not found on some system otherwise.
+project(CubismUP_2D LANGUAGES C CXX)
 
 if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
@@ -79,6 +81,12 @@ find_package(HDF5 REQUIRED)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 
+# On CRAY systems MPI_CXX_INCLUDE_DIRS are empty so we apply this workaround to
+# make mpi.h available from CUDA files.
+if (DEFINED ENV{CRAY_MPICH_DIR})
+    set(MPI_C_INCLUDE_DIRS   "$ENV{CRAY_MPICH_DIR}/include")
+    set(MPI_CXX_INCLUDE_DIRS "$ENV{CRAY_MPICH_DIR}/include")
+endif()
 
 # Targets.
 add_library(${PRIVATEDEP} INTERFACE)
@@ -100,7 +108,12 @@ if (CUP2D_CUDA)
     find_package(CUDAToolkit)
     # Safest option is not to pass any architecture flags, in case the code is
     # compiled on machines different than those the code is executed on.
-    set_property(TARGET ${PRIVATEDEP} PROPERTY CUDA_ARCHITECTURES OFF)
+    if (${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.18)
+        set_property(TARGET ${PRIVATEDEP} PROPERTY CUDA_ARCHITECTURES OFF)
+    endif()
+    # cuda_std_17 might not work, manually add -std=c++17 instead.
+    # target_compile_features(${PRIVATEDEP} INTERFACE cuda_std_17)
+    target_compile_options(${PRIVATEDEP} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:-std=c++17>)
     target_compile_definitions(${PRIVATEDEP} INTERFACE -DGPU_POISSON)
     target_include_directories(${PRIVATEDEP} INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_link_libraries(${PRIVATEDEP} INTERFACE CUDA::cublas CUDA::cusparse)
@@ -147,6 +160,8 @@ if (CUP2D_CUDA)
         "${SRC_DIR}/Poisson/ExpAMRSolver.cpp"
         "${SRC_DIR}/Poisson/LocalSpMatDnVec.cpp"
     )
+    target_include_directories(${CORE} PUBLIC ${MPI_CXX_INCLUDE_DIRS})
+    get_cmake_property(_variableNames VARIABLES)
 endif()
 
 add_library(cubismup2d::core ALIAS ${CORE})

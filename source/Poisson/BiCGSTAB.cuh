@@ -1,11 +1,10 @@
 #pragma once
 
 #include <memory>
-#include "mpi.h"
+#include <mpi.h>
 
-#include "cuda_runtime.h"
-#include "cublas_v2.h"
-#include "cusparse.h"
+#include <cublas_v2.h>
+#include <cusparse.h>
 
 #include "LocalSpMatDnVec.h"
 #include "../Utils/DeviceProfiler.cuh"

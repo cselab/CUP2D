@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <mpi.h>
 
-#include "cuda_runtime.h"
+#include <cuda_runtime.h>
 #include "../include/helper_cuda.h"
 
 // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf?page=1&tab=scoredesc#tab-top
