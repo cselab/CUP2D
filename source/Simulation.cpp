@@ -136,7 +136,7 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  if( sim.smagorinskyCoeff != 0 )
+  if( sim.smagorinskyCoeff == 0 )
     pipeline.push_back(std::make_shared<advDiff>(sim));
   else
     pipeline.push_back(std::make_shared<advDiffSGS>(sim));
