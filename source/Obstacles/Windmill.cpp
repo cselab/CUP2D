@@ -8,7 +8,7 @@ using namespace cubism;
 void Windmill::create(const std::vector<BlockInfo>& vInfo)
 {
   // windmill stuff
-  const Real h =  vInfo[0].h_gridpoint;
+  const Real h =  vInfo[0].h;
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
@@ -189,7 +189,7 @@ double Windmill::reward(std::vector<double> target_profile, std::vector<double> 
 void Windmill::update_avg_vel_profile(double dt)
 {
   std::vector<double> vel = vel_profile();
-  for (int k(0); k < vel.size(); ++k)
+  for (size_t k(0); k < vel.size(); ++k)
   {
     avg_profile[k] += vel[k] * dt / time_step;
   }
@@ -205,7 +205,7 @@ void Windmill::print_vel_profile(std::vector<double> vel_profile)
     std::stringstream & fout = logger.get_stream(ssF.str());
     fout<<sim.time;
 
-    for (int k = 0; k < vel_profile.size(); ++k)
+    for (size_t k = 0; k < vel_profile.size(); ++k)
     {
       // need to normalize profile by the time step
       fout<<" "<<vel_profile[k];
