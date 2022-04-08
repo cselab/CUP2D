@@ -15,7 +15,7 @@ using namespace cubism;
 
 class ControlledCurvatureFish : public FishData
 {
-    const Real amplitudeFactor, phaseShift, Tperiod;
+    const Real Tperiod;
 public:
     // Last baseline curvature
     Real lastB3 = 0;
@@ -103,7 +103,7 @@ protected:
 public:
 
     ControlledCurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-            : FishData(L, _h), amplitudeFactor(_A),  phaseShift(phi),  Tperiod(T), rK(_alloc(Nm)), vK(_alloc(Nm)),
+            : FishData(L, _h), Tperiod(T), rK(_alloc(Nm)), vK(_alloc(Nm)),
               rBC(_alloc(Nm)),vBC(_alloc(Nm)), rUC(_alloc(Nm)), vUC(_alloc(Nm)),
               tauTail(0.0), vTauTail(0.0), phiUndulatory(0.0), vPhiUndulatory(0.0), alpha(0.0) {
         _computeWidth();

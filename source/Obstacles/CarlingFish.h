@@ -19,7 +19,7 @@ class CarlingFish: public Fish
 
 class AmplitudeFish : public FishData
 {
-  const Real amplitudeFactor, phaseShift, Tperiod;
+  const Real phaseShift, Tperiod;
  public:
   inline Real midlineLatPos(const Real s, const Real t) const {
     const Real arg = 2*M_PI*(s/length - t/Tperiod + phaseShift);
@@ -39,8 +39,8 @@ class AmplitudeFish : public FishData
     return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
   }
 
-  AmplitudeFish(Real L, Real T, Real phi, Real _h, Real _A)
-  : FishData(L, _h), amplitudeFactor(_A),  phaseShift(phi),  Tperiod(T) { _computeWidth(); }
+  AmplitudeFish(Real L, Real T, Real phi, Real _h)
+  : FishData(L, _h),  phaseShift(phi),  Tperiod(T) { _computeWidth(); }
 
   void computeMidline(const Real time, const Real dt) override;
   Real _width(const Real s, const Real L) override

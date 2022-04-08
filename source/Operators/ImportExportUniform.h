@@ -14,7 +14,13 @@ namespace cubismup2d {
 /// (max grid cells Y, max grid cells X). The interpolation is O(h^2) accurate
 /// everywhere except at the boundary between coarse and fine blocks, where the
 /// accuracy is O(h).
-void interpolateGridToUniformMatrix(ScalarGrid *grid, ScalarElement *out);
-void interpolateGridToUniformMatrix(VectorGrid *grid, VectorElement *out);
+void exportToUniformMatrix(ScalarGrid *grid, ScalarElement *out);
+void exportToUniformMatrix(VectorGrid *grid, VectorElement *out);
+
+void exportToUniformMatrixNearestInterpolation(ScalarGrid *grid, ScalarElement *out);
+void exportToUniformMatrixNearestInterpolation(VectorGrid *grid, VectorElement *out);
+
+void importFromUniformMatrix(ScalarGrid *grid, const ScalarElement *in);
+void importFromUniformMatrix(VectorGrid *grid, const VectorElement *in);
 
 }  // namespace cubismup2d

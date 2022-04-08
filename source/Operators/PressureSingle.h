@@ -11,7 +11,6 @@
 class Shape;
 
 #include "../Poisson/Base.h"
-#include "Cubism/FluxCorrection.h"
 
 class PressureSingle : public Operator
 {
@@ -26,12 +25,13 @@ protected:
   void penalize(const Real dt) const;
 
  public:
-  void operator()(const Real dt);
+  void operator() (const Real dt) override;
 
   PressureSingle(SimulationData& s);
   ~PressureSingle();
 
-  std::string getName() {
+  std::string getName() override
+  {
     return "PressureSingle";
   }
 };

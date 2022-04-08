@@ -75,6 +75,7 @@ class Simulation(libcup2d._Simulation):
             mute_all: bool = False,
             ic: str = "",
             bForcing: bool = False,
+            cuda: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
         """
@@ -89,6 +90,7 @@ class Simulation(libcup2d._Simulation):
             ...
             serialization_dir: folder containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
+            cuda: (bool) if True, use cuda_iterative Poisson solver
             argv: (list of strings) extra argv passed to CubismUP2D
         """
         if cfl != 0.0 and dt != 0.0:
@@ -128,6 +130,7 @@ class Simulation(libcup2d._Simulation):
             '-muteAll', mute_all,
             '-ic', ic,
             '-bForcing', bForcing,
+            *(['-poissonSolver', 'cuda_iterative'] if cuda else []),
             *argv,
         ]
         argv = [sanitize_arg(arg) for arg in argv]

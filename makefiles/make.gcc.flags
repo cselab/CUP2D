@@ -1,9 +1,8 @@
-# CPPFLAGS+= -std=c++17 -fopenmp -Wall -g
-CPPFLAGS+= -std=c++17 -Wall -g -Wno-unknown-pragmas
-LIBS+= -fopenmp
+CPPFLAGS+= -std=c++17 -Wall
+LIBS+= -lgsl -lgslcblas -fopenmp
 
-CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations #-Wredundant-decls -Wshadow
+CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls

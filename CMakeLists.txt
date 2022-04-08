@@ -1,8 +1,20 @@
 cmake_minimum_required(VERSION 3.12)
-project(CubismUP_2D)
+
+# Enable C because HDF5 is not found on some system otherwise.
+project(CubismUP_2D LANGUAGES C CXX)
 
 if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
+endif()
+
+if(POLICY CMP0104)
+    cmake_policy(SET CMP0104 NEW)
+endif()
+
+include(CheckLanguage)
+check_language(CUDA)
+if (CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
 endif()
 
 # Set Release mode as default.
@@ -32,6 +44,14 @@ set(CUP2D_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_2D repository root pat
 set(CUP2D_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_2D build path")
 set(CUP2D_PRECISION "double" CACHE STRING "floating point precision")
 set_property(CACHE CUP2D_PRECISION PROPERTY STRINGS single double long_double)
+if (CMAKE_CUDA_COMPILER)
+    option(CUP2D_CUDA "Compile optional CUDA features" ON)
+else()
+    option(CUP2D_CUDA "Compile optional CUDA features" OFF)
+    if (CUP2D_CUDA)
+        check_language(CUDA REQUIRED)
+    endif()
+endif()
 
 
 ### Dependencies.
@@ -61,24 +81,43 @@ find_package(HDF5 REQUIRED)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 
+# On CRAY systems MPI_CXX_INCLUDE_DIRS are empty so we apply this workaround to
+# make mpi.h available from CUDA files.
+if (DEFINED ENV{CRAY_MPICH_DIR})
+    set(MPI_C_INCLUDE_DIRS   "$ENV{CRAY_MPICH_DIR}/include")
+    set(MPI_CXX_INCLUDE_DIRS "$ENV{CRAY_MPICH_DIR}/include")
+endif()
 
 # Targets.
 add_library(${PRIVATEDEP} INTERFACE)
 set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
 set(_PRIVATE_RELEASE_FLAGS
-    -march=native
-    -fstrict-aliasing
-    -ffast-math
+    $<$<COMPILE_LANGUAGE:CXX>:-ffast-math -march=native>
+    $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math -Xcompiler -march=native>
     -falign-functions=32
-    -ftree-vectorize
     -fmerge-all-constants
+    -fstrict-aliasing
+    -ftree-vectorize
 )
-# TODO: figure out how to convince cmake to send -std=c++17 and not -std=gnu++17.
 target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
                        $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
                        $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
+if (CUP2D_CUDA)
+    find_package(CUDAToolkit)
+    # Safest option is not to pass any architecture flags, in case the code is
+    # compiled on machines different than those the code is executed on.
+    if (${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.18)
+        set_property(TARGET ${PRIVATEDEP} PROPERTY CUDA_ARCHITECTURES OFF)
+    endif()
+    # cuda_std_17 might not work, manually add -std=c++17 instead.
+    # target_compile_features(${PRIVATEDEP} INTERFACE cuda_std_17)
+    target_compile_options(${PRIVATEDEP} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:-std=c++17>)
+    target_compile_definitions(${PRIVATEDEP} INTERFACE -DGPU_POISSON)
+    target_include_directories(${PRIVATEDEP} INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    target_link_libraries(${PRIVATEDEP} INTERFACE CUDA::cublas CUDA::cusparse)
+endif()
 
 add_library(
     ${CORE} STATIC EXCLUDE_FROM_ALL
@@ -103,6 +142,7 @@ add_library(
     "${SRC_DIR}/Operators/PressureSingle.cpp"
     "${SRC_DIR}/Operators/PutObjectsOnGrid.cpp"
     "${SRC_DIR}/Operators/advDiff.cpp"
+    "${SRC_DIR}/Operators/ImportExportUniform.cpp"
     "${SRC_DIR}/Operators/Forcing.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
     "${SRC_DIR}/Poisson/Base.cpp"
@@ -112,6 +152,17 @@ add_library(
     "${SRC_DIR}/Utils/BufferedLogger.cpp"
     "${SRC_DIR}/Utils/StackTrace.cpp"
 )
+if (CUP2D_CUDA)
+    target_sources(
+        ${CORE}
+        PRIVATE
+        "${SRC_DIR}/Poisson/BiCGSTAB.cu"
+        "${SRC_DIR}/Poisson/ExpAMRSolver.cpp"
+        "${SRC_DIR}/Poisson/LocalSpMatDnVec.cpp"
+    )
+    target_include_directories(${CORE} PUBLIC ${MPI_CXX_INCLUDE_DIRS})
+    get_cmake_property(_variableNames VARIABLES)
+endif()
 
 add_library(cubismup2d::core ALIAS ${CORE})
 target_compile_definitions(${CORE} PUBLIC CUP2D_BLOCK_SIZE=${CUP2D_BLOCK_SIZE})
@@ -122,6 +173,8 @@ target_link_libraries(${CORE} PUBLIC Cubism::Cubism)
 target_link_libraries(${CORE} PUBLIC GSL::gsl)
 target_link_libraries(${CORE} PUBLIC ${HDF5_LIBRARIES})
 target_include_directories(${CORE} PUBLIC ${HDF5_INCLUDE_DIRS})
+# target_compile_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
+# target_link_options(${CORE} PUBLIC -fsanitize=address -static-libasan)
 set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 set_property(TARGET ${CORE} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -169,10 +222,9 @@ if (CUP2D_BUILD_PY)
         "${SRC_DIR}/Bindings/Poisson.cpp"
         "${SRC_DIR}/Bindings/Shapes.cpp"
         "${SRC_DIR}/Bindings/Simulation.cpp"
-        "${SRC_DIR}/Operators/ExportUniform.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
-    target_include_directories(${PYLIB} PUBLIC BEFORE ${pybind11_INCLUDE_DIRS})
+    target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})
     target_link_libraries(${PYLIB} PUBLIC ${CORE})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 endif()

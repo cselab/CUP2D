@@ -13,6 +13,7 @@
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
+#include "Operators/advDiffSGS.h"
 #include "Operators/AdaptTheMesh.h"
 #include "Operators/Forcing.h"
 
@@ -39,6 +40,9 @@
 // #include <random>
 
 using namespace cubism;
+
+BCflag cubismBCX;
+BCflag cubismBCY;
 
 static const char kHorLine[] = 
     "=======================================================================\n";
@@ -132,7 +136,10 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
-  pipeline.push_back(std::make_shared<advDiff>(sim));
+  if( sim.smagorinskyCoeff != 0 )
+    pipeline.push_back(std::make_shared<advDiff>(sim));
+  else
+    pipeline.push_back(std::make_shared<advDiffSGS>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
@@ -214,8 +221,17 @@ void Simulation::parseRuntime()
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
 
+  // Smagorinsky Model
+  sim.smagorinskyCoeff = parser("-Cs").asDouble(0);
+
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
+
+  // Boundary conditions (freespace or periodic)
+  std::string BC_x = parser("-BC_x").asString("freespace");
+  std::string BC_y = parser("-BC_y").asString("freespace");
+  cubismBCX = string2BCflag(BC_x);
+  cubismBCY = string2BCflag(BC_y);
 
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");

@@ -4,15 +4,15 @@
 BPDX=${BPDX:-4}
 BPDY=${BPDY:-2}
 LEVELS=${LEVELS:-7}
-RTOL=${RTOL-2}
-CTOL=${CTOL-1}
+RTOL=${RTOL-1.0}
+CTOL=${CTOL-0.01}
 EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-0}
 
 # Defaults for Swimmer
-XPOS=${XPOS:-0.9}
+XPOS=${XPOS:-0.6}
 LENGTH=${LENGTH:-0.2}
 PERIOD=${PERIOD:-1}
 
@@ -25,7 +25,7 @@ PERIOD=${PERIOD:-1}
 ####################################
 NU=${NU:-0.00004}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 5.0 -muteAll 0 -verbose 1"
 OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 

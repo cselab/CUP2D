@@ -10,14 +10,13 @@ cat <<EOF >daint_sbatch
 
 #SBATCH --account=s929
 #SBATCH --job-name="${RUNNAME}"
+#SBATCH --time=24:00:00
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
-#SBATCH --time=24:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=12
-#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=$TASKS_PER_NODE
+#SBATCH --cpus-per-task=$OMP_NUM_THREADS
 #SBATCH --constraint=gpu
-export OMP_NUM_THREADS=1
 
 srun ./simulation ${OPTIONS} -shapes "${OBJECTS}"
 EOF

@@ -1,4 +1,5 @@
 #include "../Obstacles/ShapesSimple.h"
+#include "../Obstacles/StefanFish.h"
 #include "../Shape.h"
 #include "../SimulationData.h"
 #include "../Utils/FactoryFileLineParser.h"
@@ -37,18 +38,17 @@ void bindShapes(py::module &m)
     .def_readonly("center", &Shape::center)
     .def_readwrite("u", &Shape::u)
     .def_readwrite("v", &Shape::v)
-    .def_property_readonly(
-        "com",
-        [](const Shape& shape) {
-          return std::array<Real, 2>{shape.centerOfMass[0], shape.centerOfMass[1]};
-        },
-        "center of mass");
+    .def_readonly("com", &Shape::centerOfMass);
 
   bindShape<Disk>(m, "_Disk")
     .def_property_readonly("r", &Disk::getRadius);
   bindShape<HalfDisk>(m, "_HalfDisk");
   bindShape<Ellipse>(m, "_Ellipse");
   bindShape<Rectangle>(m, "_Rectangle");
+  bindShape<StefanFish>(m, "_StefanFish")
+    .def("act", &StefanFish::act, "Set Action")
+    .def("state", &StefanFish::state, "Get State")
+    .def_readonly("efficiency", &StefanFish::EffPDefBnd);
 }
 
 }  // namespace cubismup2d

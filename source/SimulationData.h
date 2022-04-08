@@ -83,6 +83,9 @@ struct SimulationData
   Real forcingWavenumber;
   Real forcingCoefficient;
 
+  // Smagorinsky Model
+  Real smagorinskyCoeff;
+
   // Flag for initial conditions
   std::string ic;
 

@@ -4,7 +4,7 @@
 //  Distributed under the terms of the MIT license.
 //
 
-#include "advDiff.h"
+#include "advDiffSGS.h"
 
 using namespace cubism;
 
@@ -75,7 +75,17 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   return (fp-fm);
 }
 
-static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
+static inline Real computeEddyViscosity( const Real C, const Real h, const Real dudx, const Real dudy, const Real dvdx, const Real dvdy )
+{
+  const Real dudxSq = dudx*dudx;
+  const Real dudySq = dudy*dudy;
+  const Real dvdxSq = dvdx*dvdx;
+  const Real dvdySq = dvdy*dvdy;
+  const Real dudydvdx = dudy*dvdx;
+  return -(C*h)*(C*h)*std::sqrt(2*(dudxSq+dvdySq+dudydvdx)+dudySq+dvdxSq);
+}
+
+static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy, const Real h, const Real C)
 {
   const Real u    = V(ix,iy).u[0];
   const Real v    = V(ix,iy).u[1];
@@ -99,16 +109,6 @@ static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   const Real dudx = derivative(UU,um3x,um2x,um1x,u,up1x,up2x,up3x);
   const Real dudy = derivative(VV,um3y,um2y,um1y,u,up1y,up2y,up3y);
 
-  return advF*(UU*dudx+VV*dudy) + difF*( ((up1x + um1x) + (up1y  + um1y)) - 4*u);
-}
-  
-static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
-{
-  const Real u    = V(ix,iy).u[0];
-  const Real v    = V(ix,iy).u[1];
-  const Real UU   = u + uinf[0];
-  const Real VV   = v + uinf[1];
-
   const Real vp1x = V(ix+1,iy).u[1];
   const Real vp2x = V(ix+2,iy).u[1];
   const Real vp3x = V(ix+3,iy).u[1];
@@ -126,19 +126,25 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
   const Real dvdx = derivative(UU,vm3x,vm2x,vm1x,v,vp1x,vp2x,vp3x);
   const Real dvdy = derivative(VV,vm3y,vm2y,vm1y,v,vp1y,vp2y,vp3y);
 
-  return advF*(UU*dvdx+VV*dvdy) + difF*( ((vp1x+ vm1x) + (vp1y+ vm1y)) - 4*v);
+  const Real eddyViscocity = computeEddyViscosity( C, h, dudx, dudy, dudx, dudy );
+
+  const Real dU_adv_dif = advF*(UU*dudx+VV*dudy) + ( difF + eddyViscocity )*( ((up1x + um1x) + (up1y + um1y)) - 4*u);
+  const Real dV_adv_dif = advF*(UU*dvdx+VV*dvdy) + ( difF + eddyViscocity )*( ((vp1x + vm1x) + (vp1y + vm1y)) - 4*v);
+
+  return std::array<Real, 2>{dU_adv_dif,dV_adv_dif};
 }
 
 
-struct KernelAdvectDiffuse
+struct KernelAdvectDiffuseSGS
 {
-  KernelAdvectDiffuse(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy) : sim(s),coef(c)
+  KernelAdvectDiffuseSGS(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy, const Real _C) : sim(s), coef(c), C(_C)
   {
     uinf[0] = uinfx;
     uinf[1] = uinfy;
   }
   const SimulationData & sim;
   const Real coef;
+  const Real C;
   Real uinf [2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
@@ -152,8 +158,9 @@ struct KernelAdvectDiffuse
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP(ix,iy).u[0] = coef*dU_adv_dif(lab,uinf,afac,dfac,ix,iy);
-      TMP(ix,iy).u[1] = coef*dV_adv_dif(lab,uinf,afac,dfac,ix,iy);
+      const std::array<Real,2> dUV_adv_dif = d_adv_dif(lab,uinf,afac,dfac,ix,iy,h,C);
+      TMP(ix,iy).u[0] = coef*dUV_adv_dif[0];
+      TMP(ix,iy).u[1] = coef*dUV_adv_dif[1];
     }
     BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
     VectorBlock::ElementType * faceXm = nullptr;
@@ -210,11 +217,12 @@ struct KernelAdvectDiffuse
 };
 
 
-void advDiff::operator()(const Real dt)
+void advDiffSGS::operator()(const Real dt)
 {
-  sim.startProfiler("advDiff");
+  sim.startProfiler("advDiffSGS");
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
+  const Real C = sim.smagorinskyCoeff;
 
   //1.Save u^{n} to dataOld
   #pragma omp parallel for
@@ -233,7 +241,7 @@ void advDiff::operator()(const Real dt)
   /********************************************************************/
   // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuse Step1(sim,0.5,UINF[0],UINF[1]) ;
+  KernelAdvectDiffuseSGS Step1(sim,0.5,UINF[0],UINF[1],C) ;
   cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
 
   //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
@@ -256,7 +264,7 @@ void advDiff::operator()(const Real dt)
   /********************************************************************/
   // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuse Step2(sim,1.0,UINF[0],UINF[1]) ;
+  KernelAdvectDiffuseSGS Step2(sim,1.0,UINF[0],UINF[1],C) ;
   cubism::compute<VectorLab>(Step2,sim.vel,sim.tmpV);
   //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   #pragma omp parallel for

@@ -136,18 +136,14 @@ void PutObjectsOnGrid::operator()(const Real dt)
 {
   sim.startProfiler("PutObjectsGrid");
 
-  const size_t Nblocks = velInfo.size();
+  advanceShapes(dt);
+  putObjectsOnGrid();
 
-  // 1. Clear fields related to obstacle
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
-    ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
-    ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
-  }
+  sim.stopProfiler();
+}
 
-  // 2. Update object position
+void PutObjectsOnGrid::advanceShapes(const Real dt)
+{
   // Update laboratory frame of reference
   int nSum[2] = {0, 0}; Real uSum[2] = {0, 0};
   for (const auto& shape : sim.shapes)
@@ -170,14 +166,28 @@ void PutObjectsOnGrid::operator()(const Real dt)
       abort();
     }
   }
+}
 
-  // 3) Compute signed dist function and udef
+void PutObjectsOnGrid::putObjectsOnGrid()
+{
+  const size_t Nblocks = velInfo.size();
+
+  // 1) Clear fields related to obstacle
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
+    ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
+    ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
+  }
+
+  // 2) Compute signed dist function and udef
   for(const auto& shape : sim.shapes)
     shape->create(tmpInfo);
 
-  // 4) Compute chi and shape center of mass
+  // 3) Compute chi and shape center of mass
   const PutChiOnGrid K(sim);
-  compute<PutChiOnGrid,ScalarGrid,ScalarLab>(K,*sim.tmp,false);
+  cubism::compute<ScalarLab>(K,sim.tmp);
   const ComputeSurfaceNormals K1(sim);
   compute<ComputeSurfaceNormals,ScalarGrid,ScalarLab,ScalarGrid,ScalarLab>(K1,*sim.chi,*sim.tmp);
   for(const auto& shape : sim.shapes)
@@ -198,11 +208,10 @@ void PutObjectsOnGrid::operator()(const Real dt)
     shape->centerOfMass[1] += com[2]/com[0];
   }
 
-  //// 5) remove moments from characteristic function and put on grid U_s
+  // 4) remove moments from characteristic function and put on grid U_s
   for(const auto& shape : sim.shapes)
   {
     shape->removeMoments(chiInfo);
     putObjectVelOnGrid(shape.get());
   }
-  sim.stopProfiler();
 }
