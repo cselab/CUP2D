@@ -24,6 +24,8 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vec
   solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, P_inv);
 }
 
+LocalSpMatDnVec::~LocalSpMatDnVec() {}
+
 void LocalSpMatDnVec::reserve(const int &N)
 {
   m_ = N;
