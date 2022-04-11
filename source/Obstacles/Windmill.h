@@ -57,7 +57,7 @@ class Windmill : public Shape
   void printActions(double value);
   
   void act( double action );
-  double reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_);
+  double reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof);
 
   void update_avg_vel_profile(double dt);
   void print_vel_profile(std::vector<double> vel_profile);

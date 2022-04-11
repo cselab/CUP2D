@@ -170,7 +170,7 @@ void Windmill::act( double action )
   if (sim.rank == 0) printActions(action_ang_accel);
 }
 
-double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_)
+double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof)
 {
 
   double r_flow = 0.0;
@@ -178,8 +178,10 @@ double Windmill::reward(std::vector<double> target_profile, std::vector<double> 
   for(int i=0; i < 32; ++i)
   {
     // used to be r_flow += std::sqrt( (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]) );
-    r_flow += (profile_t_1[i] - target_profile[i]) * (profile_t_1[i] - target_profile[i]) - (profile_t_[i] - target_profile[i]) * (profile_t_[i] - target_profile[i]);
+    r_flow += std::abs(profile_t_1[i] - target_profile[i]) - std::abs(profile_t_[i] - target_profile[i]);
   }
+
+  r_flow /= norm_prof;
 
   if (sim.rank == 0) printRewards(r_flow);
   
