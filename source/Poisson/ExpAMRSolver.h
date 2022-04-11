@@ -9,7 +9,6 @@
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 #include "Base.h"
-#include "BiCGSTAB.cuh"
 #include "LocalSpMatDnVec.h"
 
 class ExpAMRSolver : public PoissonSolver
@@ -38,9 +37,6 @@ protected:
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
-
-  // Pointer to solving backend of SpMat DnVec linear system
-  std::unique_ptr<BiCGSTABSolver> backend_;
 
   static constexpr int BSX_ = VectorBlock::sizeX;
   static constexpr int BSY_ = VectorBlock::sizeY;
@@ -85,8 +81,8 @@ protected:
   void getMat(); // update LHS and RHS after refinement
   void getVec(); // update initial guess and RHS vecs only
 
-  // Class containing local linear system
-  std::shared_ptr<LocalSpMatDnVec> LocalLS_;
+  // Distributed linear system which uses local indexing
+  std::unique_ptr<LocalSpMatDnVec> LocalLS_;
 
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;

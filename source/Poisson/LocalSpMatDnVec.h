@@ -45,7 +45,7 @@ class LocalSpMatDnVec
 {
   public:
     LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv); 
-    ~LocalSpMatDnVec() = default;
+    ~LocalSpMatDnVec();
 
     // Reserve space for linear system
     void reserve(const int &N);
