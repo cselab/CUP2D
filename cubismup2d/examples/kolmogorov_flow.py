@@ -24,8 +24,8 @@ class CustomOperator(cup2d.Operator):
         
         # Skip transient region
         if (data.time > timeStart) and (not self.done):
-            # Get the whole field as a large uniform matrix (this copies the whole
-            # grid). Note that the order of axes is [y, x], not [x, y]!
+            # Get the whole field as a large uniform matrix
+            # Note that the order of axes is [y, x], not [x, y]!
             vel = data.vel.to_uniform()
             N = vel.shape[0]
 
@@ -86,19 +86,26 @@ class CustomOperator(cup2d.Operator):
                 numPerWavenumber = 1
                 for i, _k in enumerate(wavenumbers[:-1]):
                     next_k = wavenumbers[ i + 1 ]
+                    mid_k = (next_k-k)/2
                     indices = (_k <= k) & (k < next_k)
-                    averagedEnergySpectrum[i] = np.mean(energy[indices])
+                    averagedEnergySpectrum[i] = np.mean(energy[indices]/k[indices])
 
                 #### Save Energy Spectrum
-                np.savetxt("EnergySpectrum_N={}.out".format(N), (wavenumbers,averagedEnergySpectrum))
+                np.savetxt("EnergySpectrum_N={}_Cs={}.out".format(N,data.Cs), (wavenumbers,averagedEnergySpectrum))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--N', help='Number of Gridpoints per Dimension.', required=True, type=int,)
+parser.add_argument('--N', help='Number of Gridpoints per Dimension.', required=True, type=int)
+parser.add_argument('--Cs', help='Smagorinsky Model constant Cs', required=True, type=float)
 args = parser.parse_args()
 
+
+
 sim = cup2d.Simulation(cells=(args.N, args.N), nlevels=1, start_level=0,
-                       extent=2.0*np.pi, tdump=0.1, ic="random", 
-                       bForcing=1, output_dir="./")
+                       extent=2.0*np.pi, tdump=0.0, ic="random",
+                       bForcing=1, output_dir="./", cuda=True, Cs=args.Cs)
 sim.init()
-sim.insert_operator(CustomOperator(sim), after='advDiff')
+if args.Cs == 0:
+    sim.insert_operator(CustomOperator(sim), after='advDiff')
+else:
+    sim.insert_operator(CustomOperator(sim), after='advDiffSGS')
 sim.simulate(tend=50.1)

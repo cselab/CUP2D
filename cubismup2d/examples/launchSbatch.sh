@@ -27,7 +27,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --cpus-per-task=12
 #SBATCH --constraint=gpu
 
-srun python kolmogorov_flow.py --N $N
+srun python kolmogorov_flow.py --N $N -Cs 0.0
 EOF
 
 chmod 755 daint_sbatch
