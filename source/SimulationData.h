@@ -99,6 +99,7 @@ struct SimulationData
   bool GuessDpDt; // include DpDt in the initial guess
 
   // output setting
+  int profilerFreq = 0;
   int dumpFreq;
   Real dumpTime;
   bool verbose;

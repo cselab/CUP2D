@@ -243,6 +243,7 @@ void Simulation::parseRuntime()
   sim.GuessDpDt = parser("-GuessDpDt").asBool(false);
 
   // output parameters
+  sim.profilerFreq = parser("-profilerFreq").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
   sim.path2file = parser("-file").asString("./");
@@ -392,6 +393,9 @@ void Simulation::simulate() {
 
     if (!done)
       done = sim.bOver();
+
+    if (sim.rank == 0 && sim.profilerFreq > 0 && sim.step % sim.profilerFreq == 0)
+      sim.printResetProfiler();
 
     if (done)
     {
