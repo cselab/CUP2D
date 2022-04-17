@@ -82,7 +82,7 @@ static inline Real computeEddyViscosity( const Real C, const Real h, const Real 
   const Real dvdxSq = dvdx*dvdx;
   const Real dvdySq = dvdy*dvdy;
   const Real dudydvdx = dudy*dvdx;
-  return -(C*h)*(C*h)*std::sqrt(2*(dudxSq+dvdySq+dudydvdx)+dudySq+dvdxSq);
+  return (C*h)*(C*h)*std::sqrt(2*(dudxSq+dvdySq+dudydvdx)+dudySq+dvdxSq);
 }
 
 static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy, const Real h, const Real dt, const Real C)
