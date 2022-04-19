@@ -98,8 +98,6 @@ parser.add_argument('--N', help='Number of Gridpoints per Dimension.', required=
 parser.add_argument('--Cs', help='Smagorinsky Model constant Cs', required=True, type=float)
 args = parser.parse_args()
 
-
-
 sim = cup2d.Simulation(cells=(args.N, args.N), nlevels=1, start_level=0,
                        extent=2.0*np.pi, tdump=0.0, ic="random",
                        bForcing=1, output_dir="./", cuda=True, Cs=args.Cs)

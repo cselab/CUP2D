@@ -3,13 +3,14 @@
 # Defaults for Options
 BPDX=${BPDX:-4}
 BPDY=${BPDY:-2}
-LEVELS=${LEVELS:-7}
-RTOL=${RTOL-1.0}
-CTOL=${CTOL-0.01}
+LEVELS=${LEVELS:-9}
+RTOL=${RTOL-2.0}
+CTOL=${CTOL-1.0}
 EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-0}
+PSOLVER=${PSOLVER:-'iterative'}
 
 # Defaults for Swimmer
 XPOS=${XPOS:-0.6}
