@@ -557,8 +557,12 @@ void ExpAMRSolver::solve(
     ScalarGrid * const output)
 {
 
-  if (rank_ == 0)
-    std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
+  if (rank_ == 0) {
+    if (sim.verbose)
+      std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------\n";
+    else
+      std::cout << '\n';
+  }
 
   const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
   const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;

@@ -8,7 +8,13 @@
 
 using namespace cubism;
 
-__attribute__((optimize("-O1")))
+#ifdef CUP2D_PRESERVE_SYMMETRY
+#define CUP2D_DISABLE_OPTIMIZATIONS __attribute__((optimize("-O1")))
+#else
+#define CUP2D_DISABLE_OPTIMIZATIONS
+#endif
+
+CUP2D_DISABLE_OPTIMIZATIONS
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
   const Real exponent = 2;
@@ -32,7 +38,7 @@ static inline Real weno5_plus(const Real um2, const Real um1, const Real u, cons
   return (w1*f1+w3*f3)+w2*f2;
 }
 
-__attribute__((optimize("-O1")))
+CUP2D_DISABLE_OPTIMIZATIONS
 static inline Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2)
 {
   const Real exponent = 2;

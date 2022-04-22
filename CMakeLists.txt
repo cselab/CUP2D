@@ -49,7 +49,7 @@ if (CMAKE_CUDA_COMPILER)
 else()
     option(CUP2D_CUDA "Compile optional CUDA features" OFF)
     if (CUP2D_CUDA)
-        check_language(CUDA REQUIRED)
+        message(FATAL_ERROR "CUDA compiler not found, cannot compile with CUP2D_CUDA enabled.")
     endif()
 endif()
 
@@ -142,6 +142,7 @@ add_library(
     "${SRC_DIR}/Operators/PressureSingle.cpp"
     "${SRC_DIR}/Operators/PutObjectsOnGrid.cpp"
     "${SRC_DIR}/Operators/advDiff.cpp"
+    "${SRC_DIR}/Operators/advDiffSGS.cpp"
     "${SRC_DIR}/Operators/ImportExportUniform.cpp"
     "${SRC_DIR}/Operators/Forcing.cpp"
     "${SRC_DIR}/Poisson/AMRSolver.cpp"
@@ -216,6 +217,7 @@ if (CUP2D_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
+        NO_EXTRAS
         "${SRC_DIR}/Bindings/Bindings.cpp"
         "${SRC_DIR}/Bindings/Fields.cpp"
         "${SRC_DIR}/Bindings/Operators.cpp"

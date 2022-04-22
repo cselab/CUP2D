@@ -82,10 +82,10 @@ static inline Real computeEddyViscosity( const Real C, const Real h, const Real 
   const Real dvdxSq = dvdx*dvdx;
   const Real dvdySq = dvdy*dvdy;
   const Real dudydvdx = dudy*dvdx;
-  return -(C*h)*(C*h)*std::sqrt(2*(dudxSq+dvdySq+dudydvdx)+dudySq+dvdxSq);
+  return (C*h)*(C*h)*std::sqrt(2*(dudxSq+dvdySq+dudydvdx)+dudySq+dvdxSq);
 }
 
-static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy, const Real h, const Real C)
+static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy, const Real h, const Real dt, const Real C)
 {
   const Real u    = V(ix,iy).u[0];
   const Real v    = V(ix,iy).u[1];
@@ -128,8 +128,8 @@ static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2]
 
   const Real eddyViscocity = computeEddyViscosity( C, h, dudx, dudy, dudx, dudy );
 
-  const Real dU_adv_dif = advF*(UU*dudx+VV*dudy) + ( difF + eddyViscocity )*( ((up1x + um1x) + (up1y + um1y)) - 4*u);
-  const Real dV_adv_dif = advF*(UU*dvdx+VV*dvdy) + ( difF + eddyViscocity )*( ((vp1x + vm1x) + (vp1y + vm1y)) - 4*v);
+  const Real dU_adv_dif = advF*(UU*dudx+VV*dudy) + ( difF + dt*eddyViscocity )*( ((up1x + um1x) + (up1y + um1y)) - 4*u);
+  const Real dV_adv_dif = advF*(UU*dvdx+VV*dvdy) + ( difF + dt*eddyViscocity )*( ((vp1x + vm1x) + (vp1y + vm1y)) - 4*v);
 
   return std::array<Real, 2>{dU_adv_dif,dV_adv_dif};
 }
@@ -158,7 +158,7 @@ struct KernelAdvectDiffuseSGS
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      const std::array<Real,2> dUV_adv_dif = d_adv_dif(lab,uinf,afac,dfac,ix,iy,h,C);
+      const std::array<Real,2> dUV_adv_dif = d_adv_dif(lab,uinf,afac,dfac,ix,iy,h,sim.dt,C);
       TMP(ix,iy).u[0] = coef*dUV_adv_dif[0];
       TMP(ix,iy).u[1] = coef*dUV_adv_dif[1];
     }
