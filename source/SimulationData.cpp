@@ -131,6 +131,7 @@ SimulationData::~SimulationData()
   if(vOld not_eq nullptr) delete vOld;
   if(tmpV not_eq nullptr) delete tmpV;
   if(tmp not_eq nullptr) delete tmp;
+  if(Cs not_eq nullptr) delete Cs;
 }
 
 bool SimulationData::bOver() const
