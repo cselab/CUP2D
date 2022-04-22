@@ -222,7 +222,7 @@ void Simulation::parseRuntime()
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
 
   // Smagorinsky Model
-  sim.smagorinskyCoeff = parser("-Cs").asDouble(0);
+  sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");

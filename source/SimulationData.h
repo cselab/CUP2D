@@ -113,14 +113,15 @@ struct SimulationData
   cubism::Profiler * profiler = new cubism::Profiler();
 
   // declare grids
-  ScalarGrid * chi   = nullptr;
-  VectorGrid * vel   = nullptr;
-  VectorGrid * vOld  = nullptr;
-  ScalarGrid * pres  = nullptr;
-  VectorGrid * tmpV  = nullptr;
-  ScalarGrid * tmp   = nullptr;
-  VectorGrid * uDef  = nullptr;
-  ScalarGrid * pold  = nullptr;
+  ScalarGrid * chi  = nullptr;
+  VectorGrid * vel  = nullptr;
+  VectorGrid * vOld = nullptr;
+  ScalarGrid * pres = nullptr;
+  VectorGrid * tmpV = nullptr;
+  ScalarGrid * tmp  = nullptr;
+  VectorGrid * uDef = nullptr;
+  ScalarGrid * pold = nullptr;
+  ScalarGrid * Cs   = nullptr;
 
   // vector containing obstacles
   std::vector<std::shared_ptr<Shape>> shapes;

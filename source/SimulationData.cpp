@@ -46,6 +46,9 @@ void SimulationData::allocateGrid()
   uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
+  // For RL SGS learning
+  Cs = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
   if (velInfo.size() == 0)

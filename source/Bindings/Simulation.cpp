@@ -40,7 +40,7 @@ void bindSimulationData(py::module &m)
       .def_readonly("uinfx", &SimulationData::uinfx)
       .def_readonly("uinfy", &SimulationData::uinfy)
       .def_readonly("shapes", &SimulationData::shapes)
-      .def_readonly("Cs", &SimulationData::smagorinskyCoeff)
+      .def_readonly("smagorinskyCoeff", &SimulationData::smagorinskyCoeff)
       .def_readwrite("time", &SimulationData::time)
       .def_readwrite("step", &SimulationData::step)
       .def_readwrite("_nsteps", &SimulationData::nsteps)
@@ -59,6 +59,7 @@ void bindSimulationData(py::module &m)
   pyData.def_readonly("tmp", &SimulationData::tmp, byRef);
   pyData.def_readonly("uDef", &SimulationData::uDef, byRef);
   pyData.def_readonly("pold", &SimulationData::pold, byRef);
+  pyData.def_readonly("Cs", &SimulationData::Cs, byRef);
 
   // TODO: Create a `fields.dump()` function. To do it properly, instead of
   // recompiling large HDF5 dump functions, compile them in a separate file and
