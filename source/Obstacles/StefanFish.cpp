@@ -26,6 +26,7 @@ void StefanFish::saveRestart( FILE * f ) {
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
   cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->periodScheduler.save("periodScheduler"+ ss.str() + ".restart");
   cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
 
   //Save these numbers for PID controller and other stuff. Maybe not all of them are needed
@@ -53,6 +54,7 @@ void StefanFish::loadRestart( FILE * f ) {
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
   cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
+  cFish->periodScheduler.restart("periodScheduler"+ ss.str() + ".restart");
   cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
 
   bool ret = true;
@@ -546,6 +548,9 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
 
 void CurvatureFish::computeMidline(const Real t, const Real dt)
 {
+  periodScheduler.transition(t,transition_start,transition_end,current_period,next_period);
+  periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
+
   // define interpolation points on midline
   const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).15*length,
     (Real).4*length, (Real).65*length, (Real).9*length, length
@@ -572,7 +577,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
   rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS, rB, vB);
 
   // next term takes into account the derivative of periodPIDval in darg:
-  const Real diffT = TperiodPID? 1 - (t-time0)*periodPIDdif/periodPIDval : 1;
+  const Real diffT = 1 - (t-time0)*periodPIDdif/periodPIDval;
   // time derivative of arg:
   const Real darg = 2*M_PI/periodPIDval * diffT;
   const Real arg0 = 2*M_PI*((t-time0)/periodPIDval +timeshift) +M_PI*phaseShift;

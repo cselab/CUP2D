@@ -69,6 +69,13 @@ class CurvatureFish : public FishData
   // next scheduler is used for midline-bending control points for RL:
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 
+  // next scheduler is used to ramp-up the period
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period    = 0.0;
+  Real next_period       = 0.0;
+  Real transition_start  = 0.0;
+  Real transition_end    = 0.0;
+
  protected:
   Real * const rK;
   Real * const vK;
@@ -104,6 +111,7 @@ class CurvatureFish : public FishData
     lastTime = 0;
     lastAvel = 0;
     curvatureScheduler.resetAll();
+    periodScheduler.resetAll();
     rlBendingScheduler.resetAll();
 
     FishData::resetAll();
@@ -152,14 +160,19 @@ class CurvatureFish : public FishData
 
     if (a.size()>1) // also modify the swimming period
     {
+      if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
       lastTact = a[1]; // store action
       // this is arg of sinusoidal before change-of-Tp begins:
       const Real lastArg = (t_rlAction - time0)/periodPIDval + timeshift;
       // make sure change-of-Tp affects only body config for future times:
       timeshift = lastArg; // add phase shift that accounts for current body shape
       time0 = t_rlAction; // shift time axis of undulation
-      periodPIDval = Tperiod * (1 + a[1]); // actually change period
-      periodPIDdif = 0; // constant periodPIDval between infrequent actions
+      //periodPIDval = Tperiod * (1 + a[1]); // actually change period
+      //periodPIDdif = 0; // constant periodPIDval between infrequent actions
+      current_period = periodPIDval;
+      next_period = Tperiod * (1 + a[1]);
+      transition_start = t_rlAction;
+      transition_end = transition_start + 0.2*Tperiod;
     }
   }
 
