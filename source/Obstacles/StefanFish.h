@@ -71,10 +71,10 @@ class CurvatureFish : public FishData
 
   // next scheduler is used to ramp-up the period
   Schedulers::ParameterSchedulerScalar periodScheduler;
-  Real current_period    = 0.0;
-  Real next_period       = 0.0;
+  Real current_period    = Tperiod;
+  Real next_period       = Tperiod;
   Real transition_start  = 0.0;
-  Real transition_end    = 0.0;
+  Real transition_duration = 0.2*Tperiod;
 
  protected:
   Real * const rK;
@@ -172,7 +172,6 @@ class CurvatureFish : public FishData
       current_period = periodPIDval;
       next_period = Tperiod * (1 + a[1]);
       transition_start = t_rlAction;
-      transition_end = transition_start + 0.2*Tperiod;
     }
   }
 
