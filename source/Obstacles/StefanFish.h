@@ -155,20 +155,11 @@ class CurvatureFish : public FishData
     lastCurv = a[0]; // store action
 
     rlBendingScheduler.Turn(a[0], t_rlAction);
-    //printf("Turning by %g at time %g with period %g.\n",
-    //       a[0], t_current, t_rlAction);
 
     if (a.size()>1) // also modify the swimming period
     {
       if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
       lastTact = a[1]; // store action
-      // this is arg of sinusoidal before change-of-Tp begins:
-      const Real lastArg = (t_rlAction - time0)/periodPIDval + timeshift;
-      // make sure change-of-Tp affects only body config for future times:
-      timeshift = lastArg; // add phase shift that accounts for current body shape
-      time0 = t_rlAction; // shift time axis of undulation
-      //periodPIDval = Tperiod * (1 + a[1]); // actually change period
-      //periodPIDdif = 0; // constant periodPIDval between infrequent actions
       current_period = periodPIDval;
       next_period = Tperiod * (1 + a[1]);
       transition_start = t_rlAction;

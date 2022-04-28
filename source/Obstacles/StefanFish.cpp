@@ -550,12 +550,12 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
 void CurvatureFish::computeMidline(const Real t, const Real dt)
 {
   periodScheduler.transition(t,transition_start,transition_start+transition_duration,current_period,next_period);
+  periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
   if (transition_start < t && t < transition_start+transition_duration)//timeshift also rampedup
   {
 	  timeshift = (t - time0)/periodPIDval + timeshift;
 	  time0 = t;
   }
-  periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
 
   // define interpolation points on midline
   const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).15*length,
