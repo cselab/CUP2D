@@ -246,7 +246,8 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 Real StefanFish::getLearnTPeriod() const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  return cFish->periodPIDval;
+  //return cFish->periodPIDval;
+  return cFish->next_period;
 }
 
 Real StefanFish::getPhase(const Real t) const
@@ -549,6 +550,11 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
 void CurvatureFish::computeMidline(const Real t, const Real dt)
 {
   periodScheduler.transition(t,transition_start,transition_start+transition_duration,current_period,next_period);
+  if (transition_start < t && t < transition_start+transition_duration)//timeshift also rampedup
+  {
+	  timeshift = (t - time0)/periodPIDval + timeshift;
+	  time0 = t;
+  }
   periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
 
   // define interpolation points on midline
