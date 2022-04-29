@@ -82,7 +82,7 @@ class Simulation(libcup2d._Simulation):
             BCy: str = 'freespace',
             smagorinskyCoeff: float = 0.0,
             bForcing: bool = False,
-            focingC: float = 4.0,
+            forcingC: float = 4.0,
             forcingW: float = 4.0,
             cuda: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
