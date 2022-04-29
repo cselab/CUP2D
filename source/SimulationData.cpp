@@ -109,6 +109,11 @@ void SimulationData::dumpUdef(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
 }
+void SimulationData::dumpCs(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*(Cs), time,"Cs_" + ss.str(), path4serialization);
+}
 
 
 void SimulationData::registerDump()
@@ -187,6 +192,8 @@ void SimulationData::dumpAll(std::string name)
   //dumpUdef(name);
   //dumpTmpV(name);
   //dumpVold(name);
+  if( bDumpCs )
+    dumpCs(name);
   stopProfiler();
 }
 

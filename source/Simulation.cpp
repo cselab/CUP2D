@@ -223,6 +223,7 @@ void Simulation::parseRuntime()
 
   // Smagorinsky Model
   sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
+  sim.bDumpCs = parser("-dumpCs").asInt(0);
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
