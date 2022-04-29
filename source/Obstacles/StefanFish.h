@@ -9,9 +9,6 @@
 #include "Fish.h"
 #include "FishData.h"
 
-#define STEFANS_SENSORS_STATE
-// #define STEFANS_NEIGHBOUR_STATE
-
 class StefanFish: public Fish
 {
   const bool bCorrectTrajectory;

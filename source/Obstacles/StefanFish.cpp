@@ -264,7 +264,7 @@ Real StefanFish::getPhase(const Real t) const
 std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  std::vector<Real> S(10,0);
+  std::vector<Real> S(16,0);
   S[0] = ( center[0] - origin[0] )/ length;
   S[1] = ( center[1] - origin[1] )/ length;
   S[2] = getOrientation();
@@ -276,9 +276,6 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   S[8] = cFish->lastCurv;
   S[9] = cFish->oldrCurv;
 
-  #ifndef STEFANS_SENSORS_STATE
-    return S;
-  #else
     S.resize(16);
 
     // Get velInfo
@@ -346,7 +343,6 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
     S[15] = topShear[1] * Tperiod / length;
     // printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n", S[10],S[11], S[12],S[13], S[14],S[15]);
     // fflush(0);
-  #endif
 
   #ifndef STEFANS_NEIGHBOUR_STATE
     return S;
