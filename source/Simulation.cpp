@@ -236,7 +236,7 @@ void Simulation::parseRuntime()
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
-  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
+  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
