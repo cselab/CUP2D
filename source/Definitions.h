@@ -50,7 +50,7 @@ inline BCflag string2BCflag(const std::string &strFlag)
   }
   else if (strFlag == "freespace")
   {
-    printf("[CUP2D] Using periodic boundary conditions\n");
+    printf("[CUP2D] Using freespace boundary conditions\n");
     return freespace;
   }
   else
