@@ -201,7 +201,9 @@ void SimulationData::writeRestartFiles()
 {
   if (rank != 0) return;
   // write restart file for field
-  FILE * fField = fopen("field.restart", "w");
+  std::stringstream ssR;
+  ssR << path4serialization + "/field.restart";
+  FILE * fField = fopen(ssR.str().c_str(), "w");
   if (fField == NULL) {
     printf("Could not write %s. Aborting...\n", "field.restart");
     fflush(0); abort();
@@ -217,7 +219,7 @@ void SimulationData::writeRestartFiles()
   // write restart file for shapes
   for(std::shared_ptr<Shape> shape : shapes){
     std::stringstream ssR;
-    ssR << "shape_" << shape->obstacleID << ".restart";
+    ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
     FILE * fShape = fopen(ssR.str().c_str(), "w");
     if (fShape == NULL) {
       printf("Could not write %s. Aborting...\n", ssR.str().c_str());
