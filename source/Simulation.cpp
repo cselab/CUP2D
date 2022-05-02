@@ -429,7 +429,7 @@ Real Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const Real dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
+    const Real dtDiffusion = 0.25*h*h/(sim.nu+0.25*h*sim.uMax_measured);
     const Real dtAdvection = h / ( sim.uMax_measured + 1e-8 );
     
     //non-constant timestep introduces a source term = (1-dt_new/dt_old) \nabla^2 P_{old}
