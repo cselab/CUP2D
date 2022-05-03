@@ -200,33 +200,41 @@ void SimulationData::dumpAll(std::string name)
 void SimulationData::writeRestartFiles()
 {
   if (rank != 0) return;
+
   // write restart file for field
-  std::stringstream ssR;
-  ssR << path4serialization + "/field.restart";
-  FILE * fField = fopen(ssR.str().c_str(), "w");
-  if (fField == NULL) {
-    printf("Could not write %s. Aborting...\n", "field.restart");
-    fflush(0); abort();
+  {
+     std::stringstream ssR;
+     ssR << path4serialization + "/field.restart";
+     FILE * fField = fopen(ssR.str().c_str(), "w");
+     if (fField == NULL)
+     {
+        printf("Could not write %s. Aborting...\n", "field.restart");
+        fflush(0); abort();
+     }
+     assert(fField != NULL);
+     fprintf(fField, "time: %20.20e\n",  time);
+     fprintf(fField, "stepid: %d\n",     step);
+     fprintf(fField, "uinfx: %20.20e\n", uinfx);
+     fprintf(fField, "uinfy: %20.20e\n", uinfy);
+     fprintf(fField, "dt: %20.20e\n", dt);
+     fclose(fField);
   }
-  assert(fField != NULL);
-  fprintf(fField, "time: %20.20e\n",  time);
-  fprintf(fField, "stepid: %d\n",     step);
-  fprintf(fField, "uinfx: %20.20e\n", uinfx);
-  fprintf(fField, "uinfy: %20.20e\n", uinfy);
-  fprintf(fField, "dt: %20.20e\n", dt);
-  fclose(fField);
 
   // write restart file for shapes
-  for(std::shared_ptr<Shape> shape : shapes){
-    std::stringstream ssR;
-    ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
-    FILE * fShape = fopen(ssR.str().c_str(), "w");
-    if (fShape == NULL) {
-      printf("Could not write %s. Aborting...\n", ssR.str().c_str());
-      fflush(0); abort();
-    }
-    shape->saveRestart( fShape );
-    fclose(fShape);
+  {
+     for(std::shared_ptr<Shape> shape : shapes)
+     {
+        std::stringstream ssR;
+        ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
+        FILE * fShape = fopen(ssR.str().c_str(), "w");
+        if (fShape == NULL)
+	{
+           printf("Could not write %s. Aborting...\n", ssR.str().c_str());
+           fflush(0); abort();
+        }
+        shape->saveRestart( fShape );
+        fclose(fShape);
+     }
   }
 }
 

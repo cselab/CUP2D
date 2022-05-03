@@ -301,7 +301,7 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
     //// Sensor Signal on Side of Fish ////
     ///////////////////////////////////////
 
-    std::array<Real,2> lowShear, topShear;
+    std::array<Real,2> lowShear={0,0}, topShear={0,0};
 
     // get index for sensors on the side of head
     int iHeadSide = 0;
