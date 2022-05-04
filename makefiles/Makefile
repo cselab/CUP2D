@@ -2,6 +2,7 @@ config ?= production
 precision ?= double
 bs ?= 8
 gpu ?= false
+openmp ?= false
 profile ?= false
 
 # SMALL HELPER FOR OSX USERS
@@ -27,6 +28,10 @@ CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls
+
+ifeq "$(openmp)" "true"
+	CPPFLAGS+= -fopenmp
+endif
 
 # FLAGS FOR EXTERNAL LIBRARIES
 LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
