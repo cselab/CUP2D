@@ -62,7 +62,7 @@ endif
 ifneq "$(hdf)" "false"
 ifneq ($(HDF5_ROOT),)
 LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
-CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
+CPPFLAGS += -I$(HDF5_ROOT)/include
 else
 ERROR += "HDF5_ROOT not set"
 endif
