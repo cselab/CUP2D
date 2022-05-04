@@ -29,7 +29,7 @@ CPPFLAGS+= -Wno-float-equal
 CPPFLAGS+= -Wno-redundant-decls
 
 # FLAGS FOR EXTERNAL LIBRARIES
-LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5 -lm -lstdc++
+LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
 
 # ADD LIBRARY PATHS IF GIVEN
 ifneq ($(HDF5_ROOT),)
