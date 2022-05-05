@@ -41,6 +41,7 @@ void SimulationData::allocateGrid()
   vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  invm = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
@@ -94,6 +95,11 @@ void SimulationData::dumpVel(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerVector, Real,  VectorGrid, VectorLab>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
+void SimulationData::dumpInvm(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI<StreamerVector, Real,  VectorGrid, VectorLab>(*(invm), time,"invm_" + ss.str(), path4serialization);
+}
 void SimulationData::dumpVold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -134,6 +140,7 @@ SimulationData::~SimulationData()
   if(pres not_eq nullptr) delete pres;
   if(pold not_eq nullptr) delete pold;
   if(vOld not_eq nullptr) delete vOld;
+  if(invm not_eq nullptr) delete invm;
   if(tmpV not_eq nullptr) delete tmpV;
   if(tmp not_eq nullptr) delete tmp;
   if(Cs not_eq nullptr) delete Cs;
@@ -188,6 +195,7 @@ void SimulationData::dumpAll(std::string name)
   dumpChi (name);
   dumpVel (name);
   dumpPres(name);
+  dumpInvm(name);
   //dumpPold(name);
   //dumpUdef(name);
   //dumpTmpV(name);

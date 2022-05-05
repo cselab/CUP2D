@@ -118,6 +118,7 @@ struct SimulationData
   VectorGrid * vOld = nullptr;
   ScalarGrid * pres = nullptr;
   VectorGrid * tmpV = nullptr;
+  VectorGrid * invm = nullptr;
   ScalarGrid * tmp  = nullptr;
   VectorGrid * uDef = nullptr;
   ScalarGrid * pold = nullptr;
@@ -201,6 +202,7 @@ struct SimulationData
   void dumpVold (std::string name);
   void dumpPold (std::string name);
   void dumpTmpV (std::string name);
+  void dumpInvm (std::string name);
   void dumpCs   (std::string name);
   void dumpAll  (std::string name);
 };

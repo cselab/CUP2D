@@ -28,6 +28,7 @@ void IC::operator()(const Real dt)
       VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
+      VectorBlock& INVM = *(VectorBlock*)invmInfo[i].ptrBlock; INVM.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
@@ -36,7 +37,11 @@ void IC::operator()(const Real dt)
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        CS(ix,iy).s = sim.smagorinskyCoeff;
+        double p[2];
+	invmInfo[i].pos(p, ix, iy);
+	INVM(ix, iy).u[0] = p[0];
+	INVM(ix, iy).u[1] = p[1];
+	CS(ix,iy).s = sim.smagorinskyCoeff;
       }
     }
   }
@@ -119,12 +124,17 @@ void randomIC::operator()(const Real dt)
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+      VectorBlock& INVM = *(VectorBlock*)invmInfo[i].ptrBlock; INVM.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        CS(ix,iy).s = sim.smagorinskyCoeff;
+        double p[2];
+	invmInfo[i].pos(p, ix, iy);
+	INVM(ix, iy).u[0] = p[0];
+	INVM(ix, iy).u[1] = p[1];
+	CS(ix,iy).s = sim.smagorinskyCoeff;
       }
     }
   }
