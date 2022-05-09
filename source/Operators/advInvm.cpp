@@ -178,53 +178,52 @@ void advInvm::operator()(const Real dt)
 	for (size_t i = 0; i < Nblocks; i++)
 	{
 		const VectorBlock & __restrict__ INVM0 = *(VectorBlock*)invmInfo[i].ptrBlock;
-		VectorBlock & __restrict__ Vold = *(VectorBlock*)vOldInfo[i].ptrBlock;
+		VectorBlock & __restrict__ INVM1 = *(VectorBlock*)tmpV1Info[i].ptrBlock;
 		const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 		const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
-				Vold(ix, iy).u[0] = INVM0(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-				Vold(ix, iy).u[1] = INVM0(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+				INVM1(ix, iy).u[0] = INVM0(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
+				INVM1(ix, iy).u[1] = INVM0(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
 			}
 	}
 																					/********************************************************************/
 	//invm2=0.75*invm0+0.25*invm1+0.25*dt*RHS(invm1)
 	KernelAdvect Step2(sim, 0.25, UINF[0], UINF[1]);
-	cubism::compute<VectorLab>(Step2, sim.vOld, sim.tmpV);
+	cubism::compute<VectorLab>(Step2, sim.tmpV1, sim.tmpV);
 	//compute invm2 and save it in uDef
 	#pragma omp parallel for
 	for (size_t i = 0; i < Nblocks; i++)
 	{
 		VectorBlock & __restrict__ INVM0 = *(VectorBlock*)invmInfo[i].ptrBlock;
-		const VectorBlock & __restrict__ Vold = *(VectorBlock*)vOldInfo[i].ptrBlock;
-		VectorBlock & __restrict__ uDef = *(VectorBlock*)uDefInfo[i].ptrBlock;
+		const VectorBlock & __restrict__ INVM1 = *(VectorBlock*)tmpV1Info[i].ptrBlock;
+		VectorBlock & __restrict__ INVM2 = *(VectorBlock*)tmpV2Info[i].ptrBlock;
 		const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 		const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX;++ix)															{
-				uDef(ix, iy).u[0] = 0.75*INVM0(ix, iy).u[0] + 0.25*Vold(ix, iy).u[0]+ tmpV(ix, iy).u[0] * ih2;
-				uDef(ix, iy).u[1] = 0.75*INVM0(ix, iy).u[1] + 0.25*Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+				INVM2(ix, iy).u[0] = 0.75*INVM0(ix, iy).u[0] + 0.25*INVM1(ix, iy).u[0]+ tmpV(ix, iy).u[0] * ih2;
+				INVM2(ix, iy).u[1] = 0.75*INVM0(ix, iy).u[1] + 0.25*INVM1(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
 			}
 	}
 	/********************************************************************/
 	//invm3=1/3*invm0+2/3*invm2+2/3*dt*RHS(invm2)
 	KernelAdvect Step3(sim, 2.0/3.0, UINF[0], UINF[1]);
-	cubism::compute<VectorLab>(Step3, sim.uDef, sim.tmpV);
+	cubism::compute<VectorLab>(Step3, sim.tmpV2, sim.tmpV);
 	//compute invm2 and save it in invm
 	#pragma omp parallel for
 	for (size_t i = 0; i < Nblocks; i++)
 	{
 		VectorBlock & __restrict__ INVM = *(VectorBlock*)invmInfo[i].ptrBlock;
-		VectorBlock & __restrict__ uDef = *(VectorBlock*)uDefInfo[i].ptrBlock;
+		VectorBlock & __restrict__ INVM2 = *(VectorBlock*)tmpV2Info[i].ptrBlock;
 		const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 		const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
-				INVM(ix, iy).u[0] = 1.0/3.0*INVM(ix, iy).u[0] + 2.0/3.0*uDef(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-				INVM(ix, iy).u[1] = 0.75*INVM(ix, iy).u[1] + 2.0 / 3.0*uDef(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;								}
-		uDef.clear();
+				INVM(ix, iy).u[0] = 1.0/3.0*INVM(ix, iy).u[0] + 2.0/3.0*INVM2(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
+				INVM(ix, iy).u[1] = 0.75*INVM(ix, iy).u[1] + 2.0 / 3.0*INVM2(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;								}
 	}																				/********************************************************************/
 	sim.stopProfiler();
 }

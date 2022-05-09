@@ -105,6 +105,8 @@ void AdaptTheMesh::adapt()
   vel_amr ->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
+  tmpV1_amr->TagLike(tmpInfo);
+  tmpV2_amr->TagLike(tmpInfo);
   uDef_amr->TagLike(tmpInfo);
 
   tmp_amr ->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
@@ -115,6 +117,8 @@ void AdaptTheMesh::adapt()
   pold_amr->Adapt(sim.time, false, false);
   invm_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
+  tmpV1_amr->Adapt(sim.time,false,true);
+  tmpV2_amr->Adapt(sim.time,false,true);
   uDef_amr->Adapt(sim.time, false, true);
 
   sim.stopProfiler();

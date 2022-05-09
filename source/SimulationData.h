@@ -118,6 +118,8 @@ struct SimulationData
   VectorGrid * vOld = nullptr;
   ScalarGrid * pres = nullptr;
   VectorGrid * tmpV = nullptr;
+  VectorGrid * tmpV1 = nullptr;
+  VectorGrid * tmpV2 = nullptr;
   VectorGrid * invm = nullptr;
   ScalarGrid * tmp  = nullptr;
   VectorGrid * uDef = nullptr;

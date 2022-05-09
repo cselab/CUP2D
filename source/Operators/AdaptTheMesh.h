@@ -18,6 +18,8 @@ class AdaptTheMesh : public Operator
   VectorAMR * vel_amr;
   VectorAMR * vOld_amr;
   VectorAMR * tmpV_amr;
+  VectorAMR * tmpV1_amr;
+  VectorAMR * tmpV2_amr;
   VectorAMR * uDef_amr;
   VectorAMR * invm_amr;
 
@@ -31,6 +33,8 @@ class AdaptTheMesh : public Operator
     invm_amr = new VectorAMR(*sim.invm , sim.Rtol,sim.Ctol);
     vOld_amr = new VectorAMR(*sim.vOld,sim.Rtol,sim.Ctol);
     tmpV_amr = new VectorAMR(*sim.tmpV,sim.Rtol,sim.Ctol);
+    tmpV1_amr = new VectorAMR(*sim.tmpV1,sim.Rtol,sim.Ctol);
+    tmpV2_amr = new VectorAMR(*sim.tmpV2,sim.Rtol,sim.Ctol);
     uDef_amr = new VectorAMR(*sim.uDef,sim.Rtol,sim.Ctol);
   }
 
@@ -44,6 +48,8 @@ class AdaptTheMesh : public Operator
     delete invm_amr;
     delete vOld_amr;
     delete tmpV_amr;
+    delete tmpV1_amr;
+    delete tmpV2_amr;
     delete uDef_amr;
   }
 

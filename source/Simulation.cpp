@@ -12,10 +12,13 @@
 #include "Operators/PressureSingle.h"
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
+#include "Operators/advInvm.h"
 #include "Operators/advDiff.h"
 #include "Operators/advDiffSGS.h"
 #include "Operators/AdaptTheMesh.h"
 #include "Operators/Forcing.h"
+
+
 
 #include "Utils/FactoryFileLineParser.h"
 #include "Utils/StackTrace.h"
@@ -66,8 +69,7 @@ Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv
     std::cout <<"=======================================================================\n";
     std::cout <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
     std::cout <<"=======================================================================\n";
-    parser.print_args();
-    omp_set_num_threads(2);
+    parser.print_args();   
     #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
@@ -157,8 +159,34 @@ void Simulation::init()
 
   // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
+  initinvm();
 }
-
+//bool AreSame(e a, double b) {
+//   return std::fabs(a - b) < std::numeric_limits<double>::epsilon();
+//}
+void Simulation::initinvm(){
+  const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  #pragma omp parallel for
+    for (size_t i=0; i < invmInfo.size(); i++)
+    {
+    	//VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
+	VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
+	ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
+	//ScalarBlock& CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
+	for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      	for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+      		{
+         	// Define inverse map only inside solids
+               	 	if(CHI(ix,iy).s>0){
+                   	double p[2];
+       			invmInfo[i].pos(p, ix, iy);
+           	 	INVM(ix, iy).u[0] = p[0];
+ 			INVM(ix, iy).u[1] = p[1];
+                	}
+   		 } 
+    }
+}
 void Simulation::parseRuntime()
 {
   // restart the simulation?

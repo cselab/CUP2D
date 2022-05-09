@@ -18,16 +18,13 @@ void IC::operator()(const Real dt)
   const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpV1Info = sim.tmpV1->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpV2Info  = sim.tmpV2->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
   const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
   if( not sim.bRestart )
   {
-    #pragma omp parallel for
-    for (size_t i=0; i < velInfo.size(); i++) ( (ScalarBlock*)   tmpInfo[i].ptrBlock )->set(-1);
-    #pragma omp parallel for
-    for(const auto& shape : sim.shapes) 
-    	shape->create(tmpInfo);
     #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {
@@ -37,23 +34,17 @@ void IC::operator()(const Real dt)
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
       VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock; INVM.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
-      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  
-      VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock; TMP.clear(); 
+      ScalarBlock& TMPV = *(ScalarBlock*)  tmpVInfo[i].ptrBlock; TMPV.clear(); 
+      VectorBlock& TMPV1= *(VectorBlock*) tmpV1Info[i].ptrBlock; TMPV1.clear();
+      VectorBlock& TMPV2= *(VectorBlock*) tmpV2Info[i].ptrBlock; TMPV2.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-         // Define inverse map only inside solids
-	 if(TMP(ix,iy).s>0){
-		double p[2];
-		invmInfo[i].pos(p, ix, iy);
-		INVM(ix, iy).u[0] = p[0];
-		INVM(ix, iy).u[1] = p[1];
-	}
-	CS(ix,iy).s = sim.smagorinskyCoeff;
+        CS(ix,iy).s = sim.smagorinskyCoeff;
       }
-      TMP.clear();
     }
   }
   else
@@ -109,6 +100,8 @@ void randomIC::operator()(const Real dt)
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpV1Info = sim.tmpV1->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpV2Info = sim.tmpV2->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
   const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
 
@@ -135,6 +128,8 @@ void randomIC::operator()(const Real dt)
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+      VectorBlock& TMPV1= *(VectorBlock*) tmpV1Info[i].ptrBlock; TMPV1.clear();
+      VectorBlock& TMPV2= *(VectorBlock*) tmpV2Info[i].ptrBlock; TMPV2.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)

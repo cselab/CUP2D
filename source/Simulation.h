@@ -52,6 +52,7 @@ public:
   void resetRL();
   void init();
   void startObstacles();
+  void initinvm();
   void simulate();
   Real calcMaxTimestep();
   void advance(const Real dt);

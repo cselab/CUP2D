@@ -23,7 +23,7 @@ endif
 
 # LOAD FLAGS -- GCC NEEDED
 CPPFLAGS+= -std=c++17 -Wall
-CPPFLAGS+= -pedantic -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal

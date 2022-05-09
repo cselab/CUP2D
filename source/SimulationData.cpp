@@ -43,6 +43,8 @@ void SimulationData::allocateGrid()
   pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   invm = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV1 = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV2 = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
@@ -142,6 +144,8 @@ SimulationData::~SimulationData()
   if(vOld not_eq nullptr) delete vOld;
   if(invm not_eq nullptr) delete invm;
   if(tmpV not_eq nullptr) delete tmpV;
+  if(tmpV1 not_eq nullptr) delete tmpV1;
+  if(tmpV2 not_eq nullptr) delete tmpV2;
   if(tmp not_eq nullptr) delete tmp;
   if(Cs not_eq nullptr) delete Cs;
 }
