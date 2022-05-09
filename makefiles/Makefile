@@ -18,12 +18,12 @@ else
 endif
 
 ifneq ($(ERROR),)
-	$(error $(ERROR))
+$(error $(ERROR))
 endif
 
 # LOAD FLAGS -- GCC NEEDED
 CPPFLAGS+= -std=c++17 -Wall
-CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -pedantic -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
@@ -89,7 +89,7 @@ CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -
 
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
-		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
+		PressureSingle.o PutObjectsOnGrid.o advInvm.o advDiff.o ComputeForces.o\
 		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \

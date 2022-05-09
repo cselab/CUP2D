@@ -99,6 +99,7 @@ void AdaptTheMesh::adapt()
 
   tmp_amr ->Tag();
   chi_amr ->TagLike(tmpInfo);
+  invm_amr->TagLike(tmpInfo);
   pres_amr->TagLike(tmpInfo);
   pold_amr->TagLike(tmpInfo);
   vel_amr ->TagLike(tmpInfo);
@@ -112,6 +113,7 @@ void AdaptTheMesh::adapt()
   vOld_amr->Adapt(sim.time, false, false);
   pres_amr->Adapt(sim.time, false, false);
   pold_amr->Adapt(sim.time, false, false);
+  invm_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
   uDef_amr->Adapt(sim.time, false, true);
 

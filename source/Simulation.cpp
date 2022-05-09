@@ -67,6 +67,7 @@ Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv
     std::cout <<"    CubismUP 2D (velocity-pressure 2D incompressible Navier-Stokes)    \n";
     std::cout <<"=======================================================================\n";
     parser.print_args();
+    omp_set_num_threads(2);
     #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
@@ -135,7 +136,7 @@ void Simulation::init()
   // create compute pipeline
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
-
+  pipeline.push_back(std::make_shared<advInvm>(sim));
   if( sim.smagorinskyCoeff == 0 )
     pipeline.push_back(std::make_shared<advDiff>(sim));
   else

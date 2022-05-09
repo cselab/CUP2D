@@ -7,6 +7,7 @@
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 #include <random>
+#include "../Shape.h"
 using namespace cubism;
 
 void IC::operator()(const Real dt)
@@ -14,6 +15,7 @@ void IC::operator()(const Real dt)
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
@@ -22,27 +24,36 @@ void IC::operator()(const Real dt)
   if( not sim.bRestart )
   {
     #pragma omp parallel for
+    for (size_t i=0; i < velInfo.size(); i++) ( (ScalarBlock*)   tmpInfo[i].ptrBlock )->set(-1);
+    #pragma omp parallel for
+    for(const auto& shape : sim.shapes) 
+    	shape->create(tmpInfo);
+    #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {
       VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
       VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
-      VectorBlock& INVM = *(VectorBlock*)invmInfo[i].ptrBlock; INVM.clear();
+      VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock; INVM.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
-      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
+      ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        double p[2];
-	invmInfo[i].pos(p, ix, iy);
-	INVM(ix, iy).u[0] = p[0];
-	INVM(ix, iy).u[1] = p[1];
+         // Define inverse map only inside solids
+	 if(TMP(ix,iy).s>0){
+		double p[2];
+		invmInfo[i].pos(p, ix, iy);
+		INVM(ix, iy).u[0] = p[0];
+		INVM(ix, iy).u[1] = p[1];
+	}
 	CS(ix,iy).s = sim.smagorinskyCoeff;
       }
+      TMP.clear();
     }
   }
   else
@@ -124,17 +135,12 @@ void randomIC::operator()(const Real dt)
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
-      VectorBlock& INVM = *(VectorBlock*)invmInfo[i].ptrBlock; INVM.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        double p[2];
-	invmInfo[i].pos(p, ix, iy);
-	INVM(ix, iy).u[0] = p[0];
-	INVM(ix, iy).u[1] = p[1];
-	CS(ix,iy).s = sim.smagorinskyCoeff;
+        CS(ix,iy).s = sim.smagorinskyCoeff;
       }
     }
   }
