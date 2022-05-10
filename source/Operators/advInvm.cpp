@@ -223,7 +223,7 @@ void advInvm::operator()(const Real dt)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
 				INVM(ix, iy).u[0] = 1.0/3.0*INVM(ix, iy).u[0] + 2.0/3.0*INVM2(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-				INVM(ix, iy).u[1] = 0.75*INVM(ix, iy).u[1] + 2.0 / 3.0*INVM2(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;								}
+				INVM(ix, iy).u[1] = 1.0/3.0*INVM(ix, iy).u[1] + 2.0 / 3.0*INVM2(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;								}
 	}																				/********************************************************************/
 	sim.stopProfiler();
 }
