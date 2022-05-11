@@ -81,6 +81,10 @@ struct KernelComputeForces
           {
             if ((int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
             if (chi(x,y).s <3e-1 && found >= 1) break;
+
+	    if (ix + kk*dx_a + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx_a -1 < small) break;
+            if (iy + kk*dy_a + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy_a -1 < small) break;
+
             x  = ix + kk*dx_a; 
             y  = iy + kk*dy_a;
             if (chi(x,y).s < 1e-3 ) found ++;
