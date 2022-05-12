@@ -457,6 +457,7 @@ void PressureSingle::preventCollidingObstacles() const
     const auto& shapes = sim.shapes;
     const auto & infos  = sim.chi->getBlocksInfo();
     const size_t N = shapes.size();
+    sim.bCollisionID.clear();
 
     struct CollisionInfo // hitter and hittee, symmetry but we do things twice
     {
@@ -684,6 +685,8 @@ void PressureSingle::preventCollidingObstacles() const
 
         // A collision happened!
         sim.bCollision = true;
+	sim.bCollisionID.push_back(i);
+	sim.bCollisionID.push_back(j);
 
         const bool iForced = shapes[i]->bForced;
         const bool jForced = shapes[j]->bForced;

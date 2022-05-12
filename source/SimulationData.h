@@ -153,6 +153,7 @@ struct SimulationData
 
   // bool for detecting collisions
   bool bCollision = false;
+  std::vector<int> bCollisionID;
 
   void addShape(std::shared_ptr<Shape> shape);
 
