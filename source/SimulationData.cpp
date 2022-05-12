@@ -199,9 +199,9 @@ void SimulationData::dumpAll(std::string name)
 
 void SimulationData::writeRestartFiles()
 {
-  if (rank != 0) return;
 
   // write restart file for field
+  if (rank == 0)
   {
      std::stringstream ssR;
      ssR << path4serialization + "/field.restart";
@@ -222,8 +222,21 @@ void SimulationData::writeRestartFiles()
 
   // write restart file for shapes
   {
-     for(std::shared_ptr<Shape> shape : shapes)
+     int size;
+     MPI_Comm_size(comm,&size);
+     const size_t tasks = shapes.size();
+     size_t my_share = tasks / size;
+     if (tasks % size != 0 && rank == size - 1) //last rank gets what's left
      {
+       my_share += tasks % size;
+     }
+     const size_t my_start = rank * (tasks/ size);
+     const size_t my_end   = my_start + my_share;
+
+#pragma omp parallel for schedule(static,1)
+     for(size_t j = my_start ; j < my_end ; j++)
+     {
+	auto & shape = shapes[j];
         std::stringstream ssR;
         ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
         FILE * fShape = fopen(ssR.str().c_str(), "w");
