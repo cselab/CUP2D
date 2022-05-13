@@ -361,10 +361,10 @@ struct KernelComputeForces
         O->omega_s[k] = (DvDx - DuDy)/info.h;
         O->uDef_s [k] = O->udef[iy][ix][0];
         O->vDef_s [k] = O->udef[iy][ix][1];
-        O->fX_s   [k] = fXT;
-        O->fY_s   [k] = fYT;
-        O->fXv_s  [k] = fXV;
-        O->fYv_s  [k] = fYV;
+        O->fX_s   [k] = -P(ix,iy).s * dx + NUoH*DuDx*dx + NUoH*DuDy*dy;//scale by 1/h
+        O->fY_s   [k] = -P(ix,iy).s * dy + NUoH*DvDx*dx + NUoH*DvDy*dy;//scale by 1/h
+        O->fXv_s  [k] = NUoH*DuDx*dx + NUoH*DuDy*dy;//scale by 1/h
+        O->fYv_s  [k] = NUoH*DvDx*dx + NUoH*DvDy*dy;//scale by 1/h
 
         //perimeter:
         O->perimeter += std::sqrt(normX*normX + normY*normY);

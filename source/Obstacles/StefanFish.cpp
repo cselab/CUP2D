@@ -294,6 +294,11 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   const std::array<Real,2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
   const std::array<Real,2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
 
+  //compute shear stress force (x,y) components
+  std::array<Real,2> shearFront = getShear( locFront );
+  std::array<Real,2> shearUpper = getShear( locLower );
+  std::array<Real,2> shearLower = getShear( locUpper );
+
   //normal vectors at sensor locations (these vectors already have unit length)
   // first point of the two skins is the same normal should be almost the same: take the mean
   const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
@@ -305,11 +310,6 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
   const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
   const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
-
-  //compute shear stress force (x,y) components
-  std::array<Real,2> shearFront = getShear( locFront, norFront, sim.vel->getBlocksInfo() );
-  std::array<Real,2> shearUpper = getShear( locLower, norLower, sim.vel->getBlocksInfo() );
-  std::array<Real,2> shearLower = getShear( locUpper, norUpper, sim.vel->getBlocksInfo() );
 
   // project three stresses to normal and tangent directions
   const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
@@ -328,98 +328,42 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   S[15] = shearUpper_t * Tperiod / length;
 
   return S;
-  //Nearest neighbor state (not used)
-  /*
-  S.resize(22);
-  // Get all shapes in simulaton
-  const auto& shapes = sim.shapes;
-  const size_t N = shapes.size();
-  // Compute distance vector pointing from agent to neighbours
-  std::vector<std::vector<Real>> distanceVector(N, std::vector<Real>(2));
-  std::vector<std::pair<Real, size_t>> distances(N);
-  for( size_t i = 0; i<N; i++ )
-  {
-    const double distX = shapes[i]->center[0] - center[0];
-    const double distY = shapes[i]->center[1] - center[1];
-    distanceVector[i][0] = distX;
-    distanceVector[i][1] = distY;
-    distances[i].first = std::sqrt( distX*distX + distY*distY );
-    distances[i].second = i; 
-  }
-  // Only add distance vector for (first) three neighbours to state
-  std::sort( distances.begin(), distances.end() );
-  for( size_t i = 0; i<3; i++ )
-  {
-    // Ignore first entry, which will be the distance to itself
-    S[16+2*i]   = distanceVector[distances[i+1].second][0];
-    S[16+2*i+1] = distanceVector[distances[i+1].second][1];
-  }
-  return S;
-  */
 }
 
 /* helpers to compute sensor information */
 
 // function that finds block id of block containing pos (x,y)
-ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
+ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos) const
 {
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   for(size_t i=0; i<velInfo.size(); ++i)
   {
-    // get gridspacing in block
-    const Real h = velInfo[i].h;
-
-    // compute lower left corner of block
-    std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
-    for(int j=0; j<2; ++j)
-      MIN[j] -= 0.5 * h; // pos returns cell centers
-
-    // compute top right corner of block
+    // compute lower left and top right corners of block (+- 0.5 h because pos returns cell centers)
+    std::array<Real,2> MIN = velInfo[i].pos<Real>(0                   , 0                   );
     std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
-    for(int j=0; j<2; ++j)
-      MAX[j] += 0.5 * h; // pos returns cell centers
+    MIN[0] -= 0.5 * velInfo[i].h;
+    MIN[1] -= 0.5 * velInfo[i].h;
+    MAX[0] += 0.5 * velInfo[i].h;
+    MAX[1] += 0.5 * velInfo[i].h;
 
     // check whether point is inside block
     if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
-      // point lies inside this block
       return i;
     }
   }
-  // rank does not contain point
-  return -1;
-};
-
-// function that gives indice of point in block
-std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const
-{
-  const int indx = (int) std::round((pos[0] - org[0])*invh);
-  const int indy = (int) std::round((pos[1] - org[1])*invh);
-  const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
-  const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
-  return std::array<int, 2>{{ix, iy}};
+  return -1; // rank does not contain point
 };
 
 // returns shear at given surface location
-std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const
+std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf) const
 {
-  // 1. Compute velocities (us,vs) on the fish surface (point pSurf) 
-  //    from the fish linear, angular and deformation velocities
-  // 2. Estimate the gradients needed for shear stresses (du/dx,du/dy,dv/dx,dv/dy).
-  //    To do that, we use finite differences with (us,vs) and:
-  //       i . (u_px,v_px) for d/dx derivatives
-  //       ii. (u_py,v_py) for d/dy derivatives
-  //    where 
-  //      u_px is the u velocity at the gridpoint closest to point (pSurf[0] + h * normSurf[0], pSurf[1])
-  //      v_px is the v velocity at the gridpoint closest to point (pSurf[0] + h * normSurf[0], pSurf[1])
-  //      u_py is the u velocity at the gridpoint closest to point (pSurf[0], pSurf[1] + h * normSurf[1])
-  //      v_py is the v velocity at the gridpoint closest to point (pSurf[0], pSurf[1] + h * normSurf[1])
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo(); 
 
+  Real myF[2] = {0,0};
   
-  // 1. Compute (us,vs,h)
-  Real US [3] = {0,0,0};
-
-  // Get blockId of block that contains point pSurf. If that block is found, also get (us,vs)
-  ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
+  // Get blockId of block that contains point pSurf.
+  ssize_t blockIdSurf = holdingBlockID(pSurf);
   char error = false;
   if( blockIdSurf >= 0 )
   {
@@ -440,28 +384,27 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
       }
       fflush(0);
       error = true;
-      // abort();
     }
     else
     {
-      // get origin of block
-      const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
-
-      // get index of point in block
-      const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/skinBinfo.h);
-
-      // get deformation velocity
-      const Real udefX = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
-      const Real udefY = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
-
-      // compute velocity of skin point
-      US[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udefX;
-      US[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udefY;
-      US[2] = skinBinfo.h;
+      Real dmin = 1e10;
+      ObstacleBlock * const O = obstacleBlocks[blockIdSurf];
+      for(size_t k = 0; k < O->n_surfPoints; ++k)
+      {
+        const int ix = O->surface[k]->ix;
+        const int iy = O->surface[k]->iy;
+        const std::array<Real,2> p = skinBinfo.pos<Real>(ix, iy);
+        const Real d = (p[0]-pSurf[0])*(p[0]-pSurf[0])+(p[1]-pSurf[1])*(p[1]-pSurf[1]);
+        if (d < dmin)
+        {
+          dmin = d;
+          myF[0] = O->fXv_s[k];
+          myF[1] = O->fYv_s[k];
+        }
+      }
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, US, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
-  const Real h = US[2];
+  MPI_Allreduce(MPI_IN_PLACE, myF, 2, MPI_Real, MPI_SUM, sim.chi->getCartComm());
 
   // DEBUG purposes
   #if 1
@@ -480,57 +423,8 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
     }
   #endif
 
-
-  // 2. Compute gradients
-  // compute point on lifted surface and their blockIDs
-  const std::array<Real,2> pLifted_x = {pSurf[0] + h * normSurf[0], pSurf[1]                  };
-  const std::array<Real,2> pLifted_y = {pSurf[0]                  , pSurf[1] + h * normSurf[1]};
-  const ssize_t blockId_x = holdingBlockID(pLifted_x, velInfo);
-  const ssize_t blockId_y = holdingBlockID(pLifted_y, velInfo);
-
-  Real buffer[6] = {0,0,0,0,0,0};//contains x,u,v , y,u,v for pLifted_x and pLifted_y
-
-  if( blockId_x >= 0 )
-  {
-    const auto & liftedBinfo = velInfo[blockId_x];
-    const VectorBlock& b = * (const VectorBlock*) liftedBinfo.ptrBlock;
-
-    // get index for sensor
-    const std::array<int,2> iSens = safeIdInBlock(pLifted_x,liftedBinfo.pos<Real>(0, 0),1/liftedBinfo.h);
-
-    // get velocity field at point
-    liftedBinfo.pos( &buffer[0], iSens[0], iSens[1]);
-    buffer[1] = b(iSens[0], iSens[1]).u[0];
-    buffer[2] = b(iSens[0], iSens[1]).u[1];
-  }
-  if( blockId_y >= 0 )
-  {
-    const auto & liftedBinfo = velInfo[blockId_y];
-    const VectorBlock& b = * (const VectorBlock*) liftedBinfo.ptrBlock;
-
-    // get index for sensor
-    const std::array<int,2> iSens = safeIdInBlock(pLifted_y,liftedBinfo.pos<Real>(0, 0),1/liftedBinfo.h);
-
-    // get velocity field at point
-    liftedBinfo.pos( &buffer[3], iSens[0], iSens[1]);
-    buffer[3] = buffer[4];
-    buffer[4] = b(iSens[0], iSens[1]).u[0];
-    buffer[5] = b(iSens[0], iSens[1]).u[1];
-  }
-  MPI_Allreduce(MPI_IN_PLACE, buffer, 6, MPI_Real, MPI_SUM, sim.chi->getCartComm());
-
-  const Real dudx = (US[0] - buffer[1] ) / (pSurf[0] - buffer[0]);
-  const Real dvdx = (US[1] - buffer[2] ) / (pSurf[0] - buffer[0]);
-
-  const Real dudy = (US[0] - buffer[4] ) / (pSurf[1] - buffer[3]);
-  const Real dvdy = (US[1] - buffer[5] ) / (pSurf[1] - buffer[3]);
-
-  const Real nx = normSurf[0];
-  const Real ny = normSurf[1];
-
   // return shear
-  return std::array<Real, 2>{{dudx * nx + 0.5*(dudy+dvdx)*ny,
-                              dvdy * ny + 0.5*(dudy+dvdx)*nx}};
+  return std::array<Real, 2>{{myF[0],myF[1]}};
 };
 
 void CurvatureFish::computeMidline(const Real t, const Real dt)
