@@ -112,6 +112,11 @@ void SimulationData::dumpTmpV(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
+void SimulationData::dumpTmpV1(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(tmpV1), time,"tmpV1_" + ss.str(), path4serialization);
+}
 void SimulationData::dumpUdef(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -200,6 +205,7 @@ void SimulationData::dumpAll(std::string name)
   dumpVel (name);
   dumpPres(name);
   dumpInvm(name);
+  dumpTmpV1(name);//dump extrapolated invm
   //dumpPold(name);
   //dumpUdef(name);
   //dumpTmpV(name);

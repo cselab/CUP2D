@@ -31,7 +31,7 @@ struct FillBlocks_Cylinder
   };
 
   FillBlocks_Cylinder(Real R, Real h, Real C[2], Real rho) :
-    radius(R), safety(2*h), rhoS(rho), pos{(Real)C[0], (Real)C[1]} {}
+    radius(R), safety(5*h), rhoS(rho), pos{(Real)C[0], (Real)C[1]} {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
       return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
@@ -54,7 +54,7 @@ struct FillBlocks_HalfCylinder
   };
 
   FillBlocks_HalfCylinder(Real R, Real h, Real C[2], Real rho, Real ang):
-    radius(R), safety(2*h), pos{(Real)C[0],(Real)C[1]}, angle(ang), rhoS(rho) {}
+    radius(R), safety(5*h), pos{(Real)C[0],(Real)C[1]}, angle(ang), rhoS(rho) {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
     const Real X =   x * cosang + y * sinang;
@@ -82,7 +82,7 @@ struct FillBlocks_Ellipse
   };
 
   FillBlocks_Ellipse(const Real _e0, const Real _e1, const Real h,
-    const Real C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(2*h),
+    const Real C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(5*h),
     pos{(Real)C[0], (Real)C[1]}, angle(ang), rhoS(rho) {}
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {
@@ -101,7 +101,7 @@ struct FillBlocks_Rectangle
     { pos[1] - extentX - extentY - safety, pos[1] + extentX + extentY + safety}
   };
 
-  FillBlocks_Rectangle(Real _extentX, Real _extentY, Real h, const Real C[2], Real ang, Real rho): extentX(_extentX), extentY(_extentY), safety(h*2), pos{ (Real) C[0], (Real) C[1] }, angle(ang), rhoS(rho) { }
+  FillBlocks_Rectangle(Real _extentX, Real _extentY, Real h, const Real C[2], Real ang, Real rho): extentX(_extentX), extentY(_extentY), safety(h*5), pos{ (Real) C[0], (Real) C[1] }, angle(ang), rhoS(rho) { }
 
   inline Real distance(const Real x, const Real y) const {
     const Real X =  x*cosang + y*sinang, Y = -x*sinang + y*cosang;

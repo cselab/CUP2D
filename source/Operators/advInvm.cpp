@@ -1,5 +1,6 @@
 #include "advInvm.h"
-
+#include <eigen3/Eigen/Dense>
+#include "../Shape.h"
 using namespace cubism;
 
 #ifdef CUP2D_PRESERVE_SYMMETRY
@@ -147,22 +148,74 @@ struct KernelAdvect
 	const StencilInfo stencil{ -3, -3, 0, 4, 4, 1, true, {0,1} };
 	const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
 	const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+	const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
 	void operator()(VectorLab& lab, const BlockInfo& info) const
 	{
 		const Real h = info.h;
 		const Real afac = -sim.dt*h;
 		VectorBlock & __restrict__ TMP = *(VectorBlock*)tmpVInfo[info.blockID].ptrBlock;
 		VectorBlock & __restrict__ V = *(VectorBlock*)velInfo[info.blockID].ptrBlock;
+		ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[info.blockID].ptrBlock;
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
-				const Real V0[2] = { V(ix,iy).u[0],V(ix,iy).u[1] };
+				const Real V0[2]={V(ix,iy).u[0],V(ix,iy).u[1]};
 				TMP(ix, iy).u[0] = coef * dINVMX_adv(lab, V0, uinf, afac, ix, iy);
 				TMP(ix, iy).u[1] = coef * dINVMY_adv(lab, V0, uinf, afac, ix, iy);
 			}
 	}
 };
 
+struct Kernelextrapolate
+{
+	Kernelextrapolate(const SimulationData & s,const int r) : sim(s), radius(r)
+	{}
+	const SimulationData & sim;
+	const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0,1}};
+	const int radius;
+	const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+	void operator()(VectorLab& lab, const BlockInfo& info) const
+	{
+		VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;TMP.clear();
+		//decide if info.blockID is a obstacle block
+		bool compute = false;
+		for (auto shape : sim.shapes) {
+			const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+			compute = compute || (OBLOCK[info.blockID] != nullptr);
+		}
+		if (!compute) return;
+		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+		for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
+		{
+			//decide point (ix,iy) is a point adjacent to the valid inverse map
+			if(lab(ix,iy).u[0]!=0.0||lab(ix,iy).u[1]!=0.0) {TMP(ix, iy).u[0]=lab(ix,iy).u[0];TMP(ix, iy).u[1]=lab(ix,iy).u[1];continue;}
+			if (lab(ix - 1, iy).u[0] == 0.0 && lab(ix + 1, iy).u[0] == 0.0 && lab(ix, iy - 1).u[0] == 0.0 && lab(ix, iy + 1).u[0] == 0.0) continue;
+			//collect points with known inverse map value within the radius 
+			std::vector<Real> bufA((2*radius+1)*(2*radius+1)*3);
+			std::vector<Real> bufb((2 * radius + 1)*(2 * radius + 1)*2);
+			int num_ngbs = 0;
+			for (int i = -radius; i <= radius; i++) 
+			for (int j = -radius; j <= radius; j++) {
+				if (lab(ix + i, iy + j).u[0] > 0) {
+					bufA[num_ngbs * 3] = Real(i);
+					bufA[num_ngbs * 3 + 1] = Real(j);
+					bufA[num_ngbs * 3 + 2] = 1.0;
+					bufb[num_ngbs*2] = lab(ix + i, iy + j).u[0];
+					bufb[num_ngbs * 2+1] = lab(ix + i, iy + j).u[1];
+					num_ngbs ++;
+				}
+			}
+			//assemble least square matrix Ax=b
+			Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> A(bufA.data(), num_ngbs, 3);
+			Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> b(bufb.data(), num_ngbs, 2);
+			//solve a,b,c in inv_m(x,y)=ax+by+c
+			Eigen::Matrix<Real, 3, 2> x =  (A.transpose() * A).ldlt().solve(A.transpose() * b);
+			//update the inverse map at (ix,iy)
+			TMP(ix, iy).u[0] = x(2, 0);
+			TMP(ix, iy).u[1] = x(2, 1);
+			}
+	}
+};
 
 void advInvm::operator()(const Real dt)
 {
@@ -188,7 +241,7 @@ void advInvm::operator()(const Real dt)
 				INVM1(ix, iy).u[1] = INVM0(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
 			}
 	}
-																					/********************************************************************/
+	/********************************************************************/
 	//invm2=0.75*invm0+0.25*invm1+0.25*dt*RHS(invm1)
 	KernelAdvect Step2(sim, 0.25, UINF[0], UINF[1]);
 	cubism::compute<VectorLab>(Step2, sim.tmpV1, sim.tmpV);
@@ -217,13 +270,55 @@ void advInvm::operator()(const Real dt)
 	{
 		VectorBlock & __restrict__ INVM = *(VectorBlock*)invmInfo[i].ptrBlock;
 		VectorBlock & __restrict__ INVM2 = *(VectorBlock*)tmpV2Info[i].ptrBlock;
+		const ScalarBlock & __restrict__ CHI=*(ScalarBlock*)chiInfo[i].ptrBlock;
 		const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 		const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
-				INVM(ix, iy).u[0] = 1.0/3.0*INVM(ix, iy).u[0] + 2.0/3.0*INVM2(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-				INVM(ix, iy).u[1] = 1.0/3.0*INVM(ix, iy).u[1] + 2.0 / 3.0*INVM2(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;								}
-	}																				/********************************************************************/
+				if(CHI(ix,iy).s==1.0){
+					INVM(ix, iy).u[0] = 1.0/3.0*INVM(ix, iy).u[0] + 2.0/3.0*INVM2(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
+					INVM(ix, iy).u[1] = 1.0/3.0*INVM(ix, iy).u[1] + 2.0 / 3.0*INVM2(ix, iy).u[1]+tmpV(ix,iy).u[1]*ih2;
+				}	
+			else{INVM(ix, iy).u[0]=0.0;INVM(ix, iy).u[1]=0.0;}
+			}
+	}
+	/*******************************************************************/
+	//copy INVM to TMPV1
+	#pragma omp parallel for
+	for (size_t i = 0; i < Nblocks; i++){
+		VectorBlock & __restrict__ INVM = *(VectorBlock*)invmInfo[i].ptrBlock;
+                VectorBlock & __restrict__ TMPV1 = *(VectorBlock*)tmpV1Info[i].ptrBlock;TMPV1.clear();
+		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+                for (int ix = 0; ix < VectorBlock::sizeX; ++ix){
+			TMPV1(ix,iy).u[0]=INVM(ix,iy).u[0];
+			TMPV1(ix,iy).u[1]=INVM(ix,iy).u[1];
+		}
+	}
+	//********************************************************************/
+	Kernelextrapolate extrapolate(sim,4);
+	//extrapolate 5 layers and store in tmpv1
+	for(int t=0;t<5;t++)	
+	{
+		cubism::compute<VectorLab>(extrapolate,sim.tmpV1,sim.tmpV);
+		#pragma omp parallel for
+		for (size_t i = 0; i < Nblocks; i++)
+         	{
+			bool compute = false;
+                	for (auto shape : sim.shapes) {
+                        	const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+                        	compute = compute || (OBLOCK[i] != nullptr);
+                	}
+                	if (!compute) continue;
+			VectorBlock & __restrict__ TMPV1 = (t==4)?*(VectorBlock*)invmInfo[i].ptrBlock:*(VectorBlock*)tmpV1Info[i].ptrBlock;
+			VectorBlock & __restrict__ TMPV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
+			for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+                        for (int ix = 0; ix < VectorBlock::sizeX; ++ix){
+				TMPV1(ix,iy).u[0]=TMPV(ix,iy).u[0];
+				TMPV1(ix,iy).u[1]=TMPV(ix,iy).u[1];	
+			}
+		}
+	}
+	/********************************************************************/
 	sim.stopProfiler();
 }
