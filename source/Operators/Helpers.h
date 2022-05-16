@@ -131,7 +131,7 @@ class computeVorticity : public Operator
   {
     Real maxv = -1e10;
     Real minv = -1e10;
-    #pragma omp parallel for reduction(min:minv) reduction(max:maxv)
+    #pragma omp parallel for reduction(max:minv,maxv)
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
