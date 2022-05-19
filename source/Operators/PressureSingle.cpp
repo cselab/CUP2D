@@ -685,8 +685,11 @@ void PressureSingle::preventCollidingObstacles() const
 
         // A collision happened!
         sim.bCollision = true;
-	sim.bCollisionID.push_back(i);
-	sim.bCollisionID.push_back(j);
+        #pragma omp critical
+        {
+            sim.bCollisionID.push_back(i);
+            sim.bCollisionID.push_back(j);
+        }
 
         const bool iForced = shapes[i]->bForced;
         const bool jForced = shapes[j]->bForced;
