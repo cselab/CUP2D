@@ -22,7 +22,7 @@ ifneq ($(ERROR),)
 endif
 
 # LOAD FLAGS -- GCC NEEDED
-CPPFLAGS+= -std=c++17 -Wall
+CPPFLAGS+= -std=c++17 -Wall -g
 CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
@@ -49,7 +49,7 @@ endif
 
 # ENABLE OPTIMIZATION/DEBUG FLAGS IF WISHED
 ifeq "$(findstring prod,$(config))" ""
-	CPPFLAGS+= -g -O0
+	CPPFLAGS+= -O0
 	ifeq "$(config)" "segf"
 		CPPFLAGS+= -fsanitize=address
 		LIBS+= -fsanitize=address -static-libasan
