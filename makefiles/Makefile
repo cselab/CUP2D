@@ -5,11 +5,6 @@ gpu ?= false
 openmp ?= false
 profile ?= false
 
-# SMALL HELPER FOR OSX USERS
-ifeq ($(shell uname -s), Darwin)
-  include make.macos
-endif
-
 # SET FLAGS FOR COMPILER
 ifneq ($(MPICXX),)
   CXX=$(MPICXX)
