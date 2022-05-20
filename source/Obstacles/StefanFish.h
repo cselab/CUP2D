@@ -24,6 +24,7 @@ class StefanFish: public Fish
 
   // member functions for state in RL
   std::vector<Real> state( const std::vector<double>& origin ) const;
+  std::vector<Real> state3D( ) const;
 
   // Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,2> pos) const;

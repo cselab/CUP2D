@@ -10,8 +10,6 @@
 
 using namespace cubism;
 
-//bool TperiodPID = false;
-
 void StefanFish::resetAll() {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
@@ -25,9 +23,38 @@ void StefanFish::saveRestart( FILE * f ) {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
-  cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
-  cFish->periodScheduler.save("periodScheduler"+ ss.str() + ".restart");
-  cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  {
+     std::ofstream savestream;
+     savestream.setf(std::ios::scientific);
+     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
+     savestream.open(filename);
+     {
+       const auto & c = cFish->curvatureScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+       const auto & c = cFish->periodScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+      const auto & c = cFish->rlBendingScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     savestream.close();
+  }
 
   //Save these numbers for PID controller and other stuff. Maybe not all of them are needed
   //but we don't care, it's only a few numbers.
@@ -53,9 +80,28 @@ void StefanFish::loadRestart( FILE * f ) {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
-  cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
-  cFish->periodScheduler.restart("periodScheduler"+ ss.str() + ".restart");
-  cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
+  std::ifstream restartstream;
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  restartstream.open(filename);
+  {
+     auto & c = cFish->curvatureScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->periodScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->rlBendingScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  restartstream.close();
 
   bool ret = true;
   ret = ret && 1==fscanf(f, "curv_PID_fac: %le\n", &cFish->curv_PID_fac);
@@ -326,6 +372,98 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   S[13] = shearLower_t * Tperiod / length;
   S[14] = shearUpper_n * Tperiod / length;
   S[15] = shearUpper_t * Tperiod / length;
+
+  return S;
+}
+
+
+std::vector<Real> StefanFish::state3D() const
+{
+  const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::vector<Real> S(25);
+  S[0 ] = center[0];
+  S[1 ] = center[1];
+  S[2 ] = 1.0;
+  
+  //convert angle to quaternion
+  S[3 ] = cos(0.5*getOrientation());
+  S[4 ] = 0.0;
+  S[5 ] = 0.0;
+  S[6 ] = sin(0.5*getOrientation());
+
+  S[7 ] = getPhase( sim.time );
+
+  S[8 ] = getU() * Tperiod / length;
+  S[9 ] = getV() * Tperiod / length;
+  S[10] = 0.0;
+
+  S[11] = 0.0;
+  S[12] = 0.0;
+  S[13] = getW() * Tperiod;
+
+  S[14] = cFish->lastCurv;
+  S[15] = cFish->oldrCurv;
+
+  //Shear stress computation at three sensors
+  //******************************************
+  // Get fish skin
+  const auto &DU = myFish->upperSkin;
+  const auto &DL = myFish->lowerSkin;
+
+  // index for sensors on the side of head
+  int iHeadSide = 0;
+  for(int i=0; i<myFish->Nm-1; ++i)
+    if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
+      iHeadSide = i;
+  assert(iHeadSide>0);
+
+  //sensor locations
+  const std::array<Real,2> locFront = {DU.xSurf[0]       , DU.ySurf[0]       };
+  const std::array<Real,2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
+  const std::array<Real,2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
+
+  //compute shear stress force (x,y) components
+  std::array<Real,2> shearFront = getShear( locFront );
+  std::array<Real,2> shearUpper = getShear( locLower );
+  std::array<Real,2> shearLower = getShear( locUpper );
+  S[16] = shearFront[0]* Tperiod / length;
+  S[17] = shearFront[1]* Tperiod / length;
+  S[18] = 0.0;
+  S[19] = shearLower[0]* Tperiod / length;
+  S[20] = shearLower[1]* Tperiod / length;
+  S[21] = 0.0;
+  S[22] = shearUpper[0]* Tperiod / length;
+  S[23] = shearUpper[1]* Tperiod / length;
+  S[24] = 0.0;
+  #if 0
+  //normal vectors at sensor locations (these vectors already have unit length)
+  // first point of the two skins is the same normal should be almost the same: take the mean
+  const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
+  const std::array<Real,2> norUpper = { DU.normXSurf[iHeadSide], DU.normYSurf[iHeadSide]};
+  const std::array<Real,2> norLower = { DL.normXSurf[iHeadSide], DL.normYSurf[iHeadSide]};
+
+  //tangent vectors at sensor locations (these vectors already have unit length)
+  //signs alternate so that both upper and lower tangent vectors point towards fish tail
+  const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
+  const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
+  const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
+
+  // project three stresses to normal and tangent directions
+  const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
+  const double shearUpper_n = shearUpper[0]*norUpper[0]+shearUpper[1]*norUpper[1];
+  const double shearLower_n = shearLower[0]*norLower[0]+shearLower[1]*norLower[1];
+  const double shearFront_t = shearFront[0]*tanFront[0]+shearFront[1]*tanFront[1];
+  const double shearUpper_t = shearUpper[0]*tanUpper[0]+shearUpper[1]*tanUpper[1];
+  const double shearLower_t = shearLower[0]*tanLower[0]+shearLower[1]*tanLower[1];
+
+  // put non-dimensional results into state into state
+  S[10] = shearFront_n * Tperiod / length;
+  S[11] = shearFront_t * Tperiod / length;
+  S[12] = shearLower_n * Tperiod / length;
+  S[13] = shearLower_t * Tperiod / length;
+  S[14] = shearUpper_n * Tperiod / length;
+  S[15] = shearUpper_t * Tperiod / length;
+  #endif
 
   return S;
 }
