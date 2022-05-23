@@ -18,7 +18,7 @@ void IC::operator()(const Real dt)
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
-  const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
+
   if( not sim.bRestart )
   {
     #pragma omp parallel for
@@ -32,11 +32,20 @@ void IC::operator()(const Real dt)
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
-      ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
-      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+    }
+
+    if( sim.smagorinskyCoeff != 0 )
+    {
+      const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
+      #pragma omp parallel for
+      for (size_t i=0; i < CsInfo.size(); i++)
       {
-        CS(ix,iy).s = sim.smagorinskyCoeff;
+        ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
+        for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        {
+          CS(ix,iy).s = sim.smagorinskyCoeff;
+        }
       }
     }
   }
@@ -66,6 +75,7 @@ void IC::operator()(const Real dt)
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
+
     #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {
@@ -75,11 +85,21 @@ void IC::operator()(const Real dt)
       ScalarBlock& TMP  = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
-      ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
-      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+    }
+
+    if( sim.smagorinskyCoeff != 0 )
+    {
+      ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.Cs), "pres_" + ss.str(), sim.path4serialization);
+      const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
+      #pragma omp parallel for
+      for (size_t i=0; i < CsInfo.size(); i++)
       {
-        CS(ix,iy).s = sim.smagorinskyCoeff;
+        ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
+        for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        {
+          CS(ix,iy).s = sim.smagorinskyCoeff;
+        }
       }
     }
   }
@@ -94,7 +114,6 @@ void randomIC::operator()(const Real dt)
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
-  const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
 
   #pragma omp parallel
   {
@@ -120,6 +139,15 @@ void randomIC::operator()(const Real dt)
       ScalarBlock& TMP = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV= *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
+    }
+  }
+
+  if( sim.smagorinskyCoeff != 0 )
+  {
+    const std::vector<BlockInfo>& CsInfo   = sim.Cs->getBlocksInfo();
+    #pragma omp parallel for
+    for (size_t i=0; i < CsInfo.size(); i++)
+    {
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)

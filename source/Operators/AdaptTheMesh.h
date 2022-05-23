@@ -19,6 +19,7 @@ class AdaptTheMesh : public Operator
   VectorAMR * vOld_amr;
   VectorAMR * tmpV_amr;
   VectorAMR * uDef_amr;
+  ScalarAMR * Cs_amr;
 
   AdaptTheMesh(SimulationData& s) : Operator(s)
   {
@@ -30,6 +31,8 @@ class AdaptTheMesh : public Operator
     vOld_amr = new VectorAMR(*sim.vOld,sim.Rtol,sim.Ctol);
     tmpV_amr = new VectorAMR(*sim.tmpV,sim.Rtol,sim.Ctol);
     uDef_amr = new VectorAMR(*sim.uDef,sim.Rtol,sim.Ctol);
+    if( sim.smagorinskyCoeff != 0 )
+      Cs_amr = new ScalarAMR(*sim.Cs,sim.Rtol,sim.Ctol);
   }
 
   ~AdaptTheMesh()
@@ -42,6 +45,7 @@ class AdaptTheMesh : public Operator
     delete vOld_amr;
     delete tmpV_amr;
     delete uDef_amr;
+    delete Cs_amr;
   }
 
   void operator() (const Real dt) override;
