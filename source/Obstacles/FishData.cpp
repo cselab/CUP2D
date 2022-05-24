@@ -433,7 +433,6 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, ScalarBlock& b,
   }
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
   std::fill(o->chi [0], o->chi [0] + BS[1]*BS[0],  0);
-  std::fill(o->rho [0], o->rho [0] + BS[1]*BS[0],  1);
 }
 
 void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
@@ -562,7 +561,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, ScalarBlock& b,
             o->udef[sy][sx][1] = W * udef[1];
             o->dist[sy][sx] = sign2d * dist1;
             o->chi [sy][sx] = W;
-            o->rho [sy][sx] = 1;
           }
           // Not chi yet, I stored squared distance from analytical boundary
           // distSq is updated only if curr value is smaller than the old one
@@ -627,7 +625,6 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, ScalarBlock& b,
           o->udef[idy][idx][0] += wxwy*udef[0];
           o->udef[idy][idx][1] += wxwy*udef[1];
           o->chi [idy][idx] += wxwy;
-          o->rho[idy][idx] = 1;
           // set sign for all interior points
           static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
           if( std::fabs(o->dist[idy][idx]+1) < EPS ) o->dist[idy][idx] = 1;

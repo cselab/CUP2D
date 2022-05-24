@@ -14,7 +14,6 @@ using namespace cubism;
 //#define EXPL_INTEGRATE_MOM
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-Real Shape::getMinRhoS() const { return rhoS; }
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u*u + v*v); }
 
@@ -138,7 +137,6 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if(pos == nullptr) continue;
     const CHI_MAT & __restrict__ CHI = pos->chi;
-    const CHI_MAT & __restrict__ RHO = pos->rho;
     const UDEFMAT & __restrict__ UDEF = pos->udef;
     for(int iy=0; iy<ObstacleBlock::sizeY; ++iy)
     for(int ix=0; ix<ObstacleBlock::sizeX; ++ix)
@@ -146,16 +144,16 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
       if (CHI[iy][ix] <= 0) continue;
       Real p[2];
       vInfo[i].pos(p, ix, iy);
-      const Real rhochi = CHI[iy][ix] * RHO[iy][ix] * hsq;
+      const Real chi = CHI[iy][ix] * hsq;
       p[0] -= centerOfMass[0];
       p[1] -= centerOfMass[1];
-      _x += rhochi*p[0];
-      _y += rhochi*p[1];
-      _m += rhochi;
-      _j += rhochi*(p[0]*p[0] + p[1]*p[1]);
-      _u += rhochi*UDEF[iy][ix][0];
-      _v += rhochi*UDEF[iy][ix][1];
-      _a += rhochi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
+      _x += chi*p[0];
+      _y += chi*p[1];
+      _m += chi;
+      _j += chi*(p[0]*p[0] + p[1]*p[1]);
+      _u += chi*UDEF[iy][ix][0];
+      _v += chi*UDEF[iy][ix][1];
+      _a += chi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
     }
   }
   Real quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
@@ -363,7 +361,6 @@ void Shape::computeForces()
 Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   sim(s), origC{C[0],C[1]}, origAng( p("-angle").asDouble(0)*M_PI/180 ),
   center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),
-  rhoS(      p("-rhoS").asDouble(1) ),
   bFixed(    p("-bFixed").asBool(false) ),
   bFixedx(   p("-bFixedx" ).asBool(bFixed) ),
   bFixedy(   p("-bFixedy" ).asBool(bFixed) ),

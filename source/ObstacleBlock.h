@@ -27,10 +27,7 @@ struct ObstacleBlock
 
   // bulk quantities:
   Real  chi[sizeY][sizeX];
-  Real  chiX[sizeY][sizeX];
-  Real  chiY[sizeY][sizeX];
   Real dist[sizeY][sizeX];
-  Real  rho[sizeY][sizeX];
   Real udef[sizeY][sizeX][2];
 
   //surface quantities:
@@ -113,7 +110,6 @@ struct ObstacleBlock
     clear_surface();
     std::fill(dist[0], dist[0] + sizeX * sizeY, -1);
     std::fill(chi [0], chi [0] + sizeX * sizeY,  0);
-    memset(rho, 0, sizeof(Real)*sizeX*sizeY);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*2);
   }
 

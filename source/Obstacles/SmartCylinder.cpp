@@ -19,7 +19,7 @@ void SmartCylinder::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    FillBlocks_Cylinder kernel(radius, h, center, rhoS);
+    FillBlocks_Cylinder kernel(radius, h, center);
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)

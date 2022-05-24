@@ -23,7 +23,6 @@ class Shape
   Real labCenterOfMass[2] = {0,0};
   Real orientation = origAng;
 
-  const Real rhoS;
   const bool bFixed;
   const bool bFixedx;
   const bool bFixedy;
@@ -162,8 +161,6 @@ class Shape
   {
     this->orientation = angle;
   }
-
-  virtual Real getMinRhoS() const;
 
   //functions needed for restarting the simulation
   virtual void saveRestart( FILE * f );
