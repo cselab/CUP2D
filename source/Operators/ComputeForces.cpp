@@ -405,7 +405,7 @@ void ComputeForces::operator()(const Real dt)
 {
   sim.startProfiler("ComputeForces");
   KernelComputeForces K(sim);
-  compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
+  cubism::compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
 
   // finalize partial sums
   for (const auto& shape : sim.shapes)
