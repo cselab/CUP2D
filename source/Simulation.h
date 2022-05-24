@@ -9,8 +9,6 @@
 #include "SimulationData.h"
 #include "Operator.h"
 
-class Profiler;
-
 class Simulation
 {
  public:
@@ -21,8 +19,6 @@ class Simulation
 
   void createShapes();
   void parseRuntime();
-  // should this stuff be moved? - serialize method will do that
-  //void _dumpSettings(ostream& outStream);
 
 public:
   Simulation(int argc, char ** argv, MPI_Comm comm);
