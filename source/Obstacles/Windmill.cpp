@@ -23,7 +23,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
-    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3));
 
     // center of ellipse 2 wrt to center of windmill,at T=0
     double center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
@@ -31,7 +31,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
-    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3));
 
     // center of ellipse 3 wrt to center of windmill,at T=0
     double center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
@@ -39,7 +39,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
-    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation);
     */
 
     //// symmetrical ellipse
@@ -53,7 +53,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
-    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3));
 
     // center of ellipse 2 wrt to center of windmill,at T=0, top one
     double center_orig2[2] = {d * std::sin(M_PI/6), +d * std::cos(M_PI/6)};
@@ -61,7 +61,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
-    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3));
 
     // center of ellipse 3 wrt to center of windmill,at T=0, horizontal one
     double center_orig3[2] = {-d, 0};
@@ -69,7 +69,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
-    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation);
 
 
     // fill blocks for the three ellipses

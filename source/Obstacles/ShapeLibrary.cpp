@@ -29,7 +29,6 @@ void FillBlocks_Cylinder::operator()(const BlockInfo& I,
     if( dist > O.dist[iy][ix] ) {
       O.dist[iy][ix] = dist;
       B(ix,iy).s = std::max( B(ix,iy).s, dist );
-      O.rho[iy][ix] = rhoS;
     }
   }
 }
@@ -48,7 +47,6 @@ void FillBlocks_HalfCylinder::operator()(const BlockInfo& I,
       if( dist > O.dist[iy][ix] ) {
         O.dist[iy][ix] = dist;
         B(ix,iy).s = std::max( B(ix,iy).s, dist );
-        O.rho[iy][ix] = rhoS;
       }
     }
   }
@@ -68,7 +66,6 @@ void FillBlocks_Rectangle::operator()(const BlockInfo& I,
       if( dist > O.dist[iy][ix] ) {
         O.dist[iy][ix] = dist;
         B(ix,iy).s = std::max( B(ix,iy).s, dist );
-        O.rho[iy][ix] = rhoS;
       }
     }
   }
@@ -100,7 +97,6 @@ void FillBlocks_Ellipse::operator()(const BlockInfo& I,
       if( dist > O.dist[iy][ix] ) {
         O.dist[iy][ix] = dist;
         B(ix,iy).s = std::max( B(ix,iy).s, dist );
-        O.rho[iy][ix] = rhoS;
       }
     }
   }

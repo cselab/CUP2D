@@ -18,7 +18,7 @@ void Disk::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    FillBlocks_Cylinder kernel(radius, h, center, rhoS);
+    FillBlocks_Cylinder kernel(radius, h, center);
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -50,7 +50,7 @@ void HalfDisk::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    FillBlocks_HalfCylinder kernel(radius, h, center, rhoS, orientation);
+    FillBlocks_HalfCylinder kernel(radius, h, center, orientation);
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -82,7 +82,7 @@ void Ellipse::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    FillBlocks_Ellipse kernel(semiAxis[0], semiAxis[1], h, center, orientation, rhoS);
+    FillBlocks_Ellipse kernel(semiAxis[0], semiAxis[1], h, center, orientation);
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -105,7 +105,7 @@ void Rectangle::create(const std::vector<BlockInfo>& vInfo)
 
   #pragma omp parallel
   {
-    FillBlocks_Rectangle kernel(extentX, extentY, h, center, orientation, rhoS);
+    FillBlocks_Rectangle kernel(extentX, extentY, h, center, orientation);
 
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)

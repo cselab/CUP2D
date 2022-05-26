@@ -225,7 +225,6 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
     const Real hsq = velInfo[i].h*velInfo[i].h;
 
     if(OBLOCK[velInfo[i].blockID] == nullptr) continue;
-    const CHI_MAT & __restrict__ rho = OBLOCK[velInfo[i].blockID]->rho;
     const CHI_MAT & __restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
     const UDEFMAT & __restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
     #ifndef EXPL_INTEGRATE_MOM
@@ -240,10 +239,10 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
         VEL(ix,iy).u[0] - udef[iy][ix][0], VEL(ix,iy).u[1] - udef[iy][ix][1]
       };
       #ifdef EXPL_INTEGRATE_MOM
-        const Real F = hsq * rho[iy][ix] * chi[iy][ix];
+        const Real F = hsq * chi[iy][ix];
       #else
         const Real Xlamdt = chi[iy][ix] * lambdt;
-        const Real F = hsq * rho[iy][ix] * Xlamdt / (1 + Xlamdt);
+        const Real F = hsq * Xlamdt / (1 + Xlamdt);
       #endif
       Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
       PM += F;

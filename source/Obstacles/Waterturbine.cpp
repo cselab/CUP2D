@@ -32,7 +32,7 @@ void Waterturbine::create(const std::vector<BlockInfo>& vInfo)
     Real center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
-    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + M_PI/2), rhoS); //
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + M_PI/2)); //
 
     // BLADE 2 (top right, moving from alinged with flow towards being perpendicular to flow)
     Real center_orig2[2] = {4*smajax*std::cos(M_PI/3), 4*smajax*std::sin(M_PI/3)};
@@ -40,7 +40,7 @@ void Waterturbine::create(const std::vector<BlockInfo>& vInfo)
     Real center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
-    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation - M_PI/6), rhoS);
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation - M_PI/6));
 
     // BLADE 3 (bottom right, moving from being perpendicular to towards being aligned with flow)
     Real center_orig3[2] = {4*smajax*std::cos(M_PI/3), -(4*smajax)*std::sin(M_PI/3)};
@@ -48,7 +48,7 @@ void Waterturbine::create(const std::vector<BlockInfo>& vInfo)
     Real center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
-    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, (orientation + M_PI/6), rhoS);
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, (orientation + M_PI/6));
 
     // fill blocks for the three ellipses
     #pragma omp for schedule(dynamic, 1)
