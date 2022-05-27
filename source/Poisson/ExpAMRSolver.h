@@ -40,42 +40,20 @@ protected:
 
   static constexpr int BSX_ = VectorBlock::sizeX;
   static constexpr int BSY_ = VectorBlock::sizeY;
+  static constexpr int BLEN_ = BSX_ * BSY_;
 
   //This returns element K_{I1,I2}. It is used when we invert K
   double getA_local(int I1,int I2);
 
   // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
-  template<class EdgeIndexer >
+  class EdgeCellIndexer; // forward declaration
   void makeFlux(
       const cubism::BlockInfo &rhs_info,
-      const int &ix,
-      const int &iy,
+      const int ix,
+      const int iy,
       const cubism::BlockInfo &rhsNei,
-      const EdgeIndexer &helper,
+      const EdgeCellIndexer &indexer,
       SpRowInfo &row) const;
-
-  // Method to construct matrix row for cell on edge of block
-  template<class EdgeIndexer>
-  void makeEdgeCellRow( // excluding corners
-      const cubism::BlockInfo &rhs_info,
-      const int &ix,
-      const int &iy,
-      const bool &isBoundary,
-      const cubism::BlockInfo &rhsNei,
-      const EdgeIndexer &helper);
-
-  // Method to construct matrix row for cell on corner of block
-  template<class EdgeIndexer1, class EdgeIndexer2>
-  void makeCornerCellRow(
-      const cubism::BlockInfo &rhs_info,
-      const int &ix,
-      const int &iy,
-      const bool &isBoundary1,
-      const cubism::BlockInfo &rhsNei_1,
-      const EdgeIndexer1 &helper1, 
-      const bool &isBoundary2,
-      const cubism::BlockInfo &rhsNei_2,
-      const EdgeIndexer2 &helper2);
 
   // Method to compute A and b for the current mesh
   void getMat(); // update LHS and RHS after refinement
@@ -90,175 +68,240 @@ protected:
   // Edge descriptors to allow algorithmic access to cell indices regardless of edge type
   class CellIndexer{
     public:
-      CellIndexer(SimulationData &s, std::vector<long long> &Nblocks_xcumsum) : sim(s), Nblocks_xcumsum_(Nblocks_xcumsum) {}
+      CellIndexer(const ExpAMRSolver& pSolver) : ps(pSolver) {}
       ~CellIndexer() = default;
 
-      long long This(const cubism::BlockInfo &info, const int &ix, const int &iy) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(iy*BSX + ix); }
-      long long WestNeighbour(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(iy*BSX + ix-dist); }
-      long long NorthNeighbour(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)((iy+dist)*BSX + ix);}
-      long long EastNeighbour(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(iy*BSX + ix+dist); }
-      long long SouthNeighbour(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)((iy-dist)*BSX + ix); }
+      long long This(const cubism::BlockInfo &info, const int ix, const int iy) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + ix); }
 
-      long long WestmostCell(const cubism::BlockInfo &info, const int &ix, const int &iy, const int offset = 0) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(iy*BSX + offset); }
-      long long NorthmostCell(const cubism::BlockInfo &info, const int &ix, const int &iy, const int offset = 0) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)((BSY-1-offset)*BSX + ix); }
-      long long EastmostCell(const cubism::BlockInfo &info, const int &ix, const int &iy, const int offset = 0) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(iy*BSX + (BSX-1-offset)); }
-      long long SouthmostCell(const cubism::BlockInfo &info, const int &ix, const int &iy, const int offset = 0) const
-      { return (info.blockID + Nblocks_xcumsum_[sim.tmp->Tree(info).rank()])*BLEN + (long long)(offset*BSX + ix); }
+      static bool validXm(const int ix, const int iy)
+      { return ix > 0; }
+      static bool validXp(const int ix, const int iy)
+      { return ix < BSX_ - 1; }
+      static bool validYm(const int ix, const int iy)
+      { return iy > 0; }
+      static bool validYp(const int ix, const int iy)
+      { return iy < BSY_ - 1; }
 
-      SimulationData &sim;
-      std::vector<long long> &Nblocks_xcumsum_;
-      static constexpr int BSX = VectorBlock::sizeX;
-      static constexpr int BSY = VectorBlock::sizeY;
-      static constexpr long long BLEN = BSX * BSY;
+      long long Xmin(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + offset); }
+      long long Xmax(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + (BSX_-1-offset)); }
+      long long Ymin(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(offset*BSX_ + ix); }
+      long long Ymax(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)((BSY_-1-offset)*BSX_ + ix); }
+
+    protected:
+      long long blockOffset(const cubism::BlockInfo &info) const
+      { return (info.blockID + ps.Nblocks_xcumsum_[ps.sim.tmp->Tree(info).rank()])*BLEN_; }
+      static int ix_f(const int ix) { return (ix % (BSX_/2)) * 2; }
+      static int iy_f(const int iy) { return (iy % (BSY_/2)) * 2; }
+
+      const ExpAMRSolver &ps; // poisson solver
   };
 
-  class NorthEdgeIndexer : public CellIndexer{
+  class EdgeCellIndexer : public CellIndexer
+  {
     public:
-      NorthEdgeIndexer(SimulationData &s, std::vector<long long> &Nblocks_xcumsum) : CellIndexer(s, Nblocks_xcumsum) {}
+      EdgeCellIndexer(const ExpAMRSolver& pSolver) : CellIndexer(pSolver) {}
 
-      long long inblock_n1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return EastNeighbour(info, ix, iy, dist); }
-      long long inblock_n2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return SouthNeighbour(info, ix, iy, dist); }
-      long long inblock_n3(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return WestNeighbour(info, ix, iy, dist); }
-      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int offset = 0) const
-      { return SouthmostCell(nei_info, ix, iy, offset); }
+      // When I am uniform with the neighbouring block
+      virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const = 0;
 
-      long long forward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return EastNeighbour(info, ix, iy, dist); }
-      long long backward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return WestNeighbour(info, ix, iy, dist); }
+      // When I am finer than neighbouring block
+      virtual long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const = 0;
+      virtual double taylorSign(const int ix, const int iy) const = 0;
 
-      static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0 || ix == BSX / 2; }
-      static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
-      static bool mod(const int &ix, const int &iy)
-      { return ix % 2 == 0; }
+      // Indices of coarses cells in neighbouring blocks, to be overridden where appropriate
+      virtual int ix_c(const cubism::BlockInfo &info, const int ix) const
+      { return info.index[0] % 2 == 0 ? ix/2 : ix/2 + BSX_/2; }
+      virtual int iy_c(const cubism::BlockInfo &info, const int iy) const
+      { return info.index[1] % 2 == 0 ? iy/2 : iy/2 + BSY_/2; }
 
-      static int ix_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return (info.index[0] % 2 == 1) ? (ix/2 + BSX/2) : (ix/2); }
-      static int iy_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return -1; } // in correct execution, this should not participate anywhere
+      // When I am coarser than neighbouring block
+      // neiFine1 must correspond to cells where taylorSign == -1., neiFine2 must correspond to taylorSign == 1.
+      virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const = 0;
+      virtual long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const = 0;
 
-      static long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy)
-      {return ix < BSX/2 ? nei_info.Zchild[0][0][0] : nei_info.Zchild[1][0][0];}
+      // Indexing aids for derivatives in Taylor approximation in coarse cell
+      virtual bool isBD(const int ix, const int iy) const = 0;
+      virtual bool isFD(const int ix, const int iy) const = 0;
+      virtual long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const = 0; 
+
+      // When I am coarser and need to determine which Zchild I'm next to
+      virtual long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const = 0;
   };
 
-  class EastEdgeIndexer : public CellIndexer{
+  // ----------------------------------------------------- Edges perpendicular to x-axis -----------------------------------
+  class XbaseIndexer : public EdgeCellIndexer
+  {
     public:
-      EastEdgeIndexer(SimulationData &s, std::vector<long long> &Nblocks_xcumsum) : CellIndexer(s, Nblocks_xcumsum) {}
+      XbaseIndexer(const ExpAMRSolver& pSolver) : EdgeCellIndexer(pSolver) {}
 
-      long long inblock_n1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return SouthNeighbour(info, ix, iy, dist); }
-      long long inblock_n2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return WestNeighbour(info, ix, iy, dist); }
-      long long inblock_n3(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return NorthNeighbour(info, ix, iy, dist); }
-      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int offset = 0) const
-      { return WestmostCell(nei_info, ix, iy, offset); }
-
-      long long forward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return NorthNeighbour(info, ix, iy, dist); }
-      long long backward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return SouthNeighbour(info, ix, iy, dist); }
-
-      static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0 || iy == BSY / 2; }
-      static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
-      static bool mod(const int &ix, const int &iy)
-      { return iy % 2 == 0; }
-
-      static int ix_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return -1; }
-      static int iy_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return (info.index[1] % 2 == 1) ? (iy/2 + BSY/2) : (iy/2); }
-
-      static long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy)
-      {return iy < BSY/2 ? nei_info.Zchild[0][0][0] : nei_info.Zchild[0][1][0];}
+      double taylorSign(const int ix, const int iy) const override
+      { return iy % 2 == 0 ? -1.: 1.; }
+      bool isBD(const int ix, const int iy) const override 
+      { return iy == BSY_ -1 || iy == BSY_/2 - 1; }
+      bool isFD(const int ix, const int iy) const override 
+      { return iy == 0 || iy == BSY_/2; }
+      long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const override
+      { return This(info, ix, iy+dist); }
   };
 
-  class SouthEdgeIndexer : public CellIndexer{
+  class XminIndexer : public XbaseIndexer
+  {
     public:
-      SouthEdgeIndexer(SimulationData &s, std::vector<long long> &Nblocks_xcumsum) : CellIndexer(s, Nblocks_xcumsum) {}
+      XminIndexer(const ExpAMRSolver& pSolver) : XbaseIndexer(pSolver) {}
 
-      long long inblock_n1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return WestNeighbour(info, ix, iy, dist); }
-      long long inblock_n2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return NorthNeighbour(info, ix, iy, dist); }
-      long long inblock_n3(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return EastNeighbour(info, ix, iy, dist); }
-      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int offset = 0) const
-      { return NorthmostCell(nei_info, ix, iy, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Xmax(nei_info, ix, iy); }
 
-      long long forward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return EastNeighbour(info, ix, iy, dist); }
-      long long backward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return WestNeighbour(info, ix, iy, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix+1, iy); }
 
-      static bool back_corner(const int &ix, const int &iy)
-      { return ix == 0 || ix == BSX / 2; }
-      static bool front_corner(const int &ix, const int &iy)
-      { return ix == BSX - 1 || ix == (BSX / 2 - 1); }
-      static bool mod(const int &ix, const int &iy)
-      { return ix % 2 == 0; }
+      int ix_c(const cubism::BlockInfo &info, const int ix) const override
+      { return BSX_ - 1; }
 
-      static int ix_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return (info.index[0] % 2 == 1) ? (ix/2 + BSX/2) : (ix/2); }
-      static int iy_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return -1; }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy)+1, offset); }
 
-      static long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy)
-      {return ix < BSX/2 ? nei_info.Zchild[0][1][0] : nei_info.Zchild[1][1][0];}
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[1][int(iy >= BSY_/2)][0]; }
   };
 
-  class WestEdgeIndexer : public CellIndexer{
+  class XmaxIndexer : public XbaseIndexer
+  {
     public:
-      WestEdgeIndexer(SimulationData &s, std::vector<long long> &Nblocks_xcumsum) : CellIndexer(s, Nblocks_xcumsum) {}
+      XmaxIndexer(const ExpAMRSolver& pSolver) : XbaseIndexer(pSolver) {}
 
-      long long inblock_n1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return NorthNeighbour(info, ix, iy, dist); }
-      long long inblock_n2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return EastNeighbour(info, ix, iy, dist); }
-      long long inblock_n3(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return SouthNeighbour(info, ix, iy, dist); }
-      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int offset = 0) const
-      { return EastmostCell(nei_info, ix, iy, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Xmin(nei_info, ix, iy); }
 
-      long long forward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return NorthNeighbour(info, ix, iy, dist); }
-      long long backward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int dist = 1) const
-      { return SouthNeighbour(info, ix, iy, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix-1, iy); }
 
-      static bool back_corner(const int &ix, const int &iy)
-      { return iy == 0 || iy == BSY / 2; }
-      static bool front_corner(const int &ix, const int &iy)
-      { return iy == BSY - 1 || iy == (BSY / 2 - 1); }
-      static bool mod(const int &ix, const int &iy)
-      { return iy % 2 == 0; }
+      int ix_c(const cubism::BlockInfo &info, const int ix) const override
+      { return 0; }
 
-      static int ix_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return -1; }
-      static int iy_c(const cubism::BlockInfo &info, const int &ix, const int &iy)
-      { return (info.index[1] % 2 == 1) ? (iy/2 + BSY/2) : (iy/2); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy)+1, offset); }
 
-      static long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy)
-      {return iy < BSY/2 ? nei_info.Zchild[1][0][0] : nei_info.Zchild[1][1][0];}
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[0][int(iy >= BSY_/2)][0]; }
   };
 
-  // Edge descriptors for use in the class
-  NorthEdgeIndexer NorthCell;
-  EastEdgeIndexer  EastCell;
-  SouthEdgeIndexer SouthCell;
-  WestEdgeIndexer  WestCell;
+  // ----------------------------------------------------- Edges perpendicular to y-axis -----------------------------------
+  class YbaseIndexer : public EdgeCellIndexer
+  {
+    public:
+      YbaseIndexer(const ExpAMRSolver& pSolver) : EdgeCellIndexer(pSolver) {}
+
+      double taylorSign(const int ix, const int iy) const override
+      { return ix % 2 == 0 ? -1.: 1.; }
+      bool isBD(const int ix, const int iy) const override 
+      { return ix == BSX_ -1 || ix == BSX_/2 - 1; }
+      bool isFD(const int ix, const int iy) const override 
+      { return ix == 0 || ix == BSX_/2; }
+      long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const override
+      { return This(info, ix+dist, iy); }
+  };
+
+  class YminIndexer : public YbaseIndexer
+  {
+    public:
+      YminIndexer(const ExpAMRSolver& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Ymax(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix, iy+1); }
+
+      int iy_c(const cubism::BlockInfo &info, const int iy) const override
+      { return BSY_ - 1; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix)+1, iy_f(iy), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[int(ix >= BSX_/2)][1][0]; }
+  };
+
+  class YmaxIndexer : public YbaseIndexer
+  {
+    public:
+      YmaxIndexer(const ExpAMRSolver& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Ymin(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix, iy-1); }
+
+      int iy_c(const cubism::BlockInfo &info, const int iy) const override
+      { return 0; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix)+1, iy_f(iy), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[int(ix >= BSX_/2)][0][0]; }
+  };
+
+  CellIndexer GenericCell;
+  XminIndexer XminCell;
+  XmaxIndexer XmaxCell;
+  YminIndexer YminCell;
+  YmaxIndexer YmaxCell;
+  // Array of pointers for the indexers above for polymorphism in makeFlux
+  std::array<const EdgeCellIndexer*, 4> edgeIndexers;
+
+  std::array<std::pair<long long, double>, 3> D1(const cubism::BlockInfo &info, const EdgeCellIndexer &indexer, const int ix, const int iy) const
+  {
+    // Scale D1 by h^l/4
+    if (indexer.isBD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, -2),  1./8.}, 
+                {indexer.Nei(info, ix, iy, -1), -1./2.}, 
+                {indexer.This(info, ix, iy),     3./8.} }};
+    else if (indexer.isFD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, 2), -1./8.}, 
+                {indexer.Nei(info, ix, iy, 1),  1./2.}, 
+                {indexer.This(info, ix, iy),   -3./8.} }};
+
+    return {{ {indexer.Nei(info, ix, iy, -1), -1./8.}, 
+              {indexer.Nei(info, ix, iy,  1),  1./8.}, 
+              {indexer.This(info, ix, iy),     0.} }};
+  }
+
+  std::array<std::pair<long long, double>, 3> D2(const cubism::BlockInfo &info, const EdgeCellIndexer &indexer, const int ix, const int iy) const
+  {
+    // Scale D2 by 0.5*(h^l/4)^2
+    if (indexer.isBD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, -2),  1./32.}, 
+                {indexer.Nei(info, ix, iy, -1), -1./16.}, 
+                {indexer.This(info, ix, iy),     1./32.} }};
+    else if (indexer.isFD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, 2),  1./32.}, 
+                {indexer.Nei(info, ix, iy, 1), -1./16.}, 
+                {indexer.This(info, ix, iy),    1./32.} }};
+
+    return {{ {indexer.Nei(info, ix, iy, -1),  1./32.}, 
+              {indexer.Nei(info, ix, iy,  1),  1./32.}, 
+              {indexer.This(info, ix, iy),    -1./16.} }};
+  }
+
+  void interpolate(
+      const cubism::BlockInfo &info_c, const int ix_c, const int iy_c,
+      const cubism::BlockInfo &info_f, const long long fine_close_idx, const long long fine_far_idx,
+      const double signI, const double signT,
+      const EdgeCellIndexer &indexer, SpRowInfo& row) const;
 };
