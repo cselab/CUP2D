@@ -230,6 +230,10 @@ void ExpAMRSolver::getMat()
     isBoundary[2] = (rhs_info.index[1] == 0           ); // Ym
     isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS); // Yp
 
+    std::array<bool, 2> isPeriodic; // same dimension ordering as isBoundary
+    isPeriodic[0] = (cubismBCX == periodic);
+    isPeriodic[1] = (cubismBCY == periodic);
+
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     std::array<long long, 4> Z;
     Z[0] = rhs_info.Znei[1-1][1][1]; // Xm
@@ -287,7 +291,7 @@ void ExpAMRSolver::getMat()
             row.mapColVal(idxNei[j], 1);
             row.mapColVal(sfc_idx, -1);
           }
-          else if (!isBoundary[j])
+          else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j/2]))
             this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j], row);
         }
 
