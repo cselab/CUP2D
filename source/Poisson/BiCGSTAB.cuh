@@ -27,6 +27,7 @@ public:
       MPI_Comm m_comm,
       LocalSpMatDnVec& LocalLS,
       const int BLEN, 
+      const bool bMeanConstraint,
       const std::vector<double>& P_inv);  
   ~BiCGSTABSolver();  
 
@@ -84,6 +85,8 @@ private:
   int bd_nnz_;
   int hd_m_; // haloed number of row
   const int BLEN_; // block length (i.e no. of rows in preconditioner)
+  const bool bMeanConstraint_;
+  int bMeanRow_;
 
   // Reference to owner LocalLS
   LocalSpMatDnVec& LocalLS_;
@@ -114,6 +117,14 @@ private:
   double* d_x_opt_;
   double* d_r_;
   double* d_P_inv_;
+
+  // bMeanConstraint buffers
+  size_t red_temp_storage_bytes_;
+  void* d_red_temp_storage_;
+  double* d_red_;     // auxilary buffer for carrying out reductions
+  double* d_red_res_; // auxilary buffer for reduction result
+  double* d_h2_;
+
   // Device-side intermediate variables for BiCGSTAB
   double* d_rhat_;
   double* d_p_;

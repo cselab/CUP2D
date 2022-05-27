@@ -95,7 +95,7 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   }
 
   // Create Linear system and backend solver objects
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, P_inv);
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, sim.bMeanConstraint, P_inv);
 }
 void ExpAMRSolver::interpolate(
     const BlockInfo &info_c, const int ix_c, const int iy_c,
@@ -248,6 +248,13 @@ void ExpAMRSolver::getMat()
     rhsNei[2] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
     rhsNei[3] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
 
+    // Record local index of row which is to be modified with bMeanConstraint reduction result
+    if (sim.bMeanConstraint &&
+        rhs_info.index[0] == 0 &&
+        rhs_info.index[1] == 0 &&
+        rhs_info.index[2] == 0)
+      LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) - Nrows_xcumsum_[rank_]);
+
     //For later: there's a total of three boolean variables:
     // I.   grid->Tree(rhsNei_west).Exists()
     // II.  grid->Tree(rhsNei_west).CheckCoarser()
@@ -311,8 +318,9 @@ void ExpAMRSolver::getVec()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
-  std::vector<double>& x = LocalLS_->get_x();
-  std::vector<double>& b = LocalLS_->get_b();
+  std::vector<double>& x  = LocalLS_->get_x();
+  std::vector<double>& b  = LocalLS_->get_b();
+  std::vector<double>& h2 = LocalLS_->get_h2();
   const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
@@ -323,6 +331,7 @@ void ExpAMRSolver::getVec()
     const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
+    h2[i] = RhsInfo[i].h * RhsInfo[i].h;
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
