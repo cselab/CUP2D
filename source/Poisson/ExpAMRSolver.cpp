@@ -256,7 +256,7 @@ void ExpAMRSolver::getMat()
     { // Following logic needs to be in for loop to assure cooRows are ordered
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
 
-      if ((ix > 0 && iy < BSX_-1) && (iy > 0 && iy < BSY_-1))
+      if ((ix > 0 && ix < BSX_-1) && (iy > 0 && iy < BSY_-1))
       { // Inner cells, push back in ascending order for column index
         LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix, iy-1));
         LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix-1, iy));
@@ -290,6 +290,8 @@ void ExpAMRSolver::getMat()
           else if (!isBoundary[j])
             this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j], row);
         }
+
+        LocalLS_->cooPushBackRow(row);
       }
     } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
   } // for(int i=0; i< Nblocks; i++)
