@@ -337,7 +337,15 @@ void ExpAMRSolver::getVec()
     for(int ix=0; ix<BSX_; ix++)
     {
       const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
-      b[sfc_loc] = rhs(ix,iy).s;
+      if (sim.bMeanConstraint &&
+          rhs_info.index[0] == 0 &&
+          rhs_info.index[1] == 0 &&
+          rhs_info.index[2] == 0 &&
+          ix == 0 && iy == 0)
+        b[sfc_loc] = 0.;
+      else
+        b[sfc_loc] = rhs(ix,iy).s;
+
       x[sfc_loc] = p(ix,iy).s;
     }
   }
