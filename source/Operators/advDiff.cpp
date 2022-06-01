@@ -138,13 +138,12 @@ static inline Real dV_adv_dif(const VectorLab&V, const Real uinf[2], const Real 
 
 struct KernelAdvectDiffuse
 {
-  KernelAdvectDiffuse(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy) : sim(s),coef(c)
+  KernelAdvectDiffuse(const SimulationData & s) : sim(s)
   {
-    uinf[0] = uinfx;
-    uinf[1] = uinfy;
+    uinf[0] = sim.uinfx;
+    uinf[1] = sim.uinfy;
   }
   const SimulationData & sim;
-  const Real coef;
   Real uinf [2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
@@ -158,8 +157,8 @@ struct KernelAdvectDiffuse
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP(ix,iy).u[0] = coef*dU_adv_dif(lab,uinf,afac,dfac,ix,iy);
-      TMP(ix,iy).u[1] = coef*dV_adv_dif(lab,uinf,afac,dfac,ix,iy);
+      TMP(ix,iy).u[0] = dU_adv_dif(lab,uinf,afac,dfac,ix,iy);
+      TMP(ix,iy).u[1] = dV_adv_dif(lab,uinf,afac,dfac,ix,iy);
     }
     BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
     VectorBlock::ElementType * faceXm = nullptr;
@@ -167,7 +166,7 @@ struct KernelAdvectDiffuse
     VectorBlock::ElementType * faceYm = nullptr;
     VectorBlock::ElementType * faceYp = nullptr;
 
-    const Real aux_coef = dfac*coef;
+    const Real aux_coef = dfac;
 
     if (tempCase != nullptr)
     {
@@ -220,7 +219,7 @@ void advDiff::operator()(const Real dt)
 {
   sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
-  const Real UINF[2]= {sim.uinfx, sim.uinfy};
+  KernelAdvectDiffuse Step1(sim) ;
 
   //1.Save u^{n} to dataOld
   #pragma omp parallel for
@@ -239,7 +238,6 @@ void advDiff::operator()(const Real dt)
   /********************************************************************/
   // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuse Step1(sim,0.5,UINF[0],UINF[1]) ;
   cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
 
   //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
@@ -253,8 +251,8 @@ void advDiff::operator()(const Real dt)
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
-      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + (0.5*tmpV(ix,iy).u[0])*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + (0.5*tmpV(ix,iy).u[1])*ih2;
     }
   }
   /********************************************************************/
@@ -262,8 +260,7 @@ void advDiff::operator()(const Real dt)
   /********************************************************************/
   // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuse Step2(sim,1.0,UINF[0],UINF[1]) ;
-  cubism::compute<VectorLab>(Step2,sim.vel,sim.tmpV);
+  cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
   //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
