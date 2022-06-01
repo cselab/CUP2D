@@ -43,7 +43,6 @@ void SimulationData::allocateGrid()
   pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   // For RL SGS learning
@@ -104,11 +103,6 @@ void SimulationData::dumpTmpV(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
-void SimulationData::dumpUdef(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
-}
 void SimulationData::dumpCs(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -125,12 +119,9 @@ SimulationData::SimulationData() = default;
 
 SimulationData::~SimulationData()
 {
-  #ifndef SMARTIES_APP
-    delete profiler;
-  #endif
+  delete profiler;
   if(vel not_eq nullptr) delete vel;
   if(chi not_eq nullptr) delete chi;
-  if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
   if(pold not_eq nullptr) delete pold;
   if(vOld not_eq nullptr) delete vOld;
@@ -189,7 +180,6 @@ void SimulationData::dumpAll(std::string name)
   dumpVel (name);
   dumpPres(name);
   //dumpPold(name);
-  //dumpUdef(name);
   //dumpTmpV(name);
   //dumpVold(name);
   if( bDumpCs )

@@ -14,7 +14,6 @@ void IC::operator()(const Real dt)
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
@@ -25,7 +24,6 @@ void IC::operator()(const Real dt)
     for (size_t i=0; i < velInfo.size(); i++)
     {
       VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
-      VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
@@ -64,14 +62,12 @@ void IC::operator()(const Real dt)
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(*(sim.tmp ), "pres_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.tmpV), "vel_"  + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.uDef), "vel_"  + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(*(sim.vOld), "vel_"  + ss.str(), sim.path4serialization);
     #pragma omp parallel for
     for (size_t i=0; i < velInfo.size(); i++)
     {
       ScalarBlock& CHI  = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
       ScalarBlock& POLD = *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
-      VectorBlock& UDEF = *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& TMP  = *(ScalarBlock*)  tmpInfo[i].ptrBlock;  TMP.clear();
       VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
       VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
@@ -90,7 +86,6 @@ void randomIC::operator()(const Real dt)
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<BlockInfo>& uDefInfo = sim.uDef->getBlocksInfo();
   const std::vector<BlockInfo>& tmpInfo  = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
@@ -113,7 +108,6 @@ void randomIC::operator()(const Real dt)
         VEL(ix,iy).u[1] = 0.5+dist(gen);
       }
 
-      VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
@@ -244,16 +238,44 @@ void Checker::run(std::string when) const
 
 void ApplyObjVel::operator()(const Real dt)
 {
+  //We loop over each shape's obstacle blocks and copy the obstacle's
+  //deformation velocity UDEF to tmpV.
+  //Then, we put that velocity to the grid.
+
   const size_t Nblocks = velInfo.size();
-
-  const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
-  const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
-
+  const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (VectorBlock*) tmpVInfo[i].ptrBlock )->clear();
+  }
+  for(const auto& shape : sim.shapes)
+  {
+     const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+     #pragma omp parallel for
+     for (size_t i=0; i < Nblocks; i++)
+     {
+         if(OBLOCK[tmpVInfo[i].blockID] == nullptr) continue; //obst not in block
+         const UDEFMAT & __restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+         const CHI_MAT & __restrict__ chi  = OBLOCK[tmpVInfo[i].blockID]->chi;
+         auto & __restrict__ UDEF = *(VectorBlock*)tmpVInfo[i].ptrBlock; // dest
+         const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
+         for(int iy=0; iy<VectorBlock::sizeY; iy++)
+         for(int ix=0; ix<VectorBlock::sizeX; ix++)
+         {
+            if( chi[iy][ix] < CHI(ix,iy).s) continue;
+            Real p[2]; tmpVInfo[i].pos(p, ix, iy);
+            UDEF(ix, iy).u[0] += udef[iy][ix][0];
+            UDEF(ix, iy).u[1] += udef[iy][ix][1];
+         }
+     }
+  }
   #pragma omp parallel for schedule(static)
   for (size_t i=0; i < Nblocks; i++)
   {
     VectorBlock& UF = *(VectorBlock*)  velInfo[i].ptrBlock;
-    VectorBlock& US = *(VectorBlock*) uDefInfo[i].ptrBlock;
+    VectorBlock& US = *(VectorBlock*) tmpVInfo[i].ptrBlock;
     ScalarBlock& X  = *(ScalarBlock*)  chiInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
