@@ -36,7 +36,7 @@
 */
 
 
-std::vector<std::vector<double>> readActions(const int Nagents);
+std::vector<std::vector<Real>> readActions(const int Nagents);
 
 int main(int argc, char **argv)
 {
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
   _environment->init();
 
   const int Nagents = _environment->getShapes().size();
-  std::vector<std::vector<double>> actions;
+  std::vector<std::vector<Real>> actions;
   int numActions;// max steps before truncation
   if (rank == 0)
   {
@@ -59,9 +59,9 @@ int main(int argc, char **argv)
   }
   MPI_Bcast(&numActions, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  double t = 0;        // Current time
-  double dtAct;        // Time until next action
-  double tNextAct = 0; // Time of next action
+  Real t = 0;        // Current time
+  Real dtAct;        // Time until next action
+  Real tNextAct = 0; // Time of next action
 
   for(int a = 0; a < numActions; a++) // Environment loop
   {
@@ -69,10 +69,10 @@ int main(int argc, char **argv)
     {
        StefanFish *agent = dynamic_cast<StefanFish *>(_environment->getShapes()[i].get());
        //const double time = actions[i][a*(NACTIONS+1)  ];
-       std::vector<double> action(NACTIONS);
+       std::vector<Real> action(NACTIONS);
        if (rank == 0)
           for (int j = 1 ; j < NACTIONS+1; j++) action[j-1] = (actions[i][a*(NACTIONS+1)+j]);
-       MPI_Bcast(action.data(), NACTIONS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+       MPI_Bcast(action.data(), NACTIONS, MPI_Real, 0, MPI_COMM_WORLD);
        agent->act(t, action);
     }
     StefanFish *agent0 = dynamic_cast<StefanFish *>(_environment->getShapes()[0].get());
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     tNextAct += dtAct;
     while ( t < tNextAct ) // Run simulation until next action is needed
     {
-      const double dt = std::min(_environment->calcMaxTimestep(), dtAct);
+      const Real dt = std::min(_environment->calcMaxTimestep(), dtAct);
       t += dt;
       _environment->advance(dt);
     }
@@ -89,13 +89,13 @@ int main(int argc, char **argv)
   MPI_Finalize();
 }
 
-std::vector<std::vector<double>> readActions(const int Nagents)
+std::vector<std::vector<Real>> readActions(const int Nagents)
 {
-  std::vector<std::vector<double>> actions(Nagents);
+  std::vector<std::vector<Real>> actions(Nagents);
   for (int i = 0 ; i < Nagents ; i++)
   {
     std::fstream myfile("actions"+std::to_string(i)+".txt", std::ios_base::in);
-    double a;
+    Real a;
     while (myfile >> a)
 	actions[i].push_back(a);
   }

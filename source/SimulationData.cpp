@@ -121,14 +121,14 @@ SimulationData::SimulationData() = default;
 SimulationData::~SimulationData()
 {
   delete profiler;
-  if(vel not_eq nullptr) delete vel;
-  if(chi not_eq nullptr) delete chi;
+  if(vel  not_eq nullptr) delete vel;
+  if(chi  not_eq nullptr) delete chi;
   if(pres not_eq nullptr) delete pres;
   if(pold not_eq nullptr) delete pold;
   if(vOld not_eq nullptr) delete vOld;
   if(tmpV not_eq nullptr) delete tmpV;
-  if(tmp not_eq nullptr) delete tmp;
-  if(Cs not_eq nullptr) delete Cs;
+  if(tmp  not_eq nullptr) delete tmp;
+  if(Cs   not_eq nullptr) delete Cs;
 }
 
 bool SimulationData::bOver() const
@@ -203,11 +203,11 @@ void SimulationData::writeRestartFiles()
         fflush(0); abort();
      }
      assert(fField != NULL);
-     fprintf(fField, "time: %20.20e\n",  time);
+     fprintf(fField, "time: %20.20e\n",  (double)time);
      fprintf(fField, "stepid: %d\n",     step);
-     fprintf(fField, "uinfx: %20.20e\n", uinfx);
-     fprintf(fField, "uinfy: %20.20e\n", uinfy);
-     fprintf(fField, "dt: %20.20e\n", dt);
+     fprintf(fField, "uinfx: %20.20e\n", (double)uinfx);
+     fprintf(fField, "uinfy: %20.20e\n", (double)uinfy);
+     fprintf(fField, "dt: %20.20e\n",    (double)dt);
      fclose(fField);
   }
 
@@ -253,17 +253,22 @@ void SimulationData::readRestartFiles()
   assert(fField != NULL);
   if (rank == 0 && verbose) printf("Reading %s...\n", "field.restart");
   bool ret = true;
-  ret = ret && 1==fscanf(fField, "time: %le\n",   &time);
+  double in_time, in_uinfx, in_uinfy, in_dt;
+  ret = ret && 1==fscanf(fField, "time: %le\n",   &in_time);
   ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
-  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &uinfx);
-  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &uinfy);
-  ret = ret && 1==fscanf(fField, "dt: %le\n",  &dt);
+  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &in_uinfx);
+  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &in_uinfy);
+  ret = ret && 1==fscanf(fField, "dt: %le\n",     &in_dt);
+  time  = (Real) in_time ;
+  uinfx = (Real) in_uinfx;
+  uinfy = (Real) in_uinfy;
+  dt    = (Real) in_dt   ;
   fclose(fField);
   if( (not ret) || step<0 || time<0) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
   }
-  if (rank == 0 && verbose) printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n", time, step, uinfx, uinfy);
+  if (rank == 0 && verbose) printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n", (double)time, step, (double)uinfx, (double)uinfy);
   nextDumpTime = time + dumpTime;
 
   // read restart file for shapes

@@ -23,7 +23,7 @@ struct GradChiOnTmp
     if (sim.Qcriterion)
       for(int y=0; y<VectorBlock::sizeY; ++y)
       for(int x=0; x<VectorBlock::sizeX; ++x)
-        TMP(x,y).s = max(TMP(x,y).s,0.0);//compress if Q<0
+        TMP(x,y).s = max(TMP(x,y).s,(Real)0.0);//compress if Q<0
 
     //Loop over block and halo cells and set TMP(0,0) to a value which will cause mesh refinement
     //if any of the cells have:

@@ -385,18 +385,18 @@ Shape::~Shape()
 //functions needed for restarting the simulation
 void Shape::saveRestart( FILE * f ) {
   assert(f != NULL);
-  fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
-  fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );
-  fprintf(f, "xlab:  %20.20e\n", labCenterOfMass[0]);
-  fprintf(f, "ylab:  %20.20e\n", labCenterOfMass[1]);
-  fprintf(f, "u:     %20.20e\n", u                 );
-  fprintf(f, "v:     %20.20e\n", v                 );
-  fprintf(f, "omega: %20.20e\n", omega             );
-  fprintf(f, "orientation: %20.20e\n", orientation );
-  fprintf(f, "d_gm0: %20.20e\n", d_gm[0] );
-  fprintf(f, "d_gm1: %20.20e\n", d_gm[1] );
-  fprintf(f, "center0: %20.20e\n", center[0] );
-  fprintf(f, "center1: %20.20e\n", center[1] );
+  fprintf(f, "x:     %20.20e\n",        (double)centerOfMass[0]   );
+  fprintf(f, "y:     %20.20e\n",        (double)centerOfMass[1]   );
+  fprintf(f, "xlab:  %20.20e\n",        (double)labCenterOfMass[0]);
+  fprintf(f, "ylab:  %20.20e\n",        (double)labCenterOfMass[1]);
+  fprintf(f, "u:     %20.20e\n",        (double)u                 );
+  fprintf(f, "v:     %20.20e\n",        (double)v                 );
+  fprintf(f, "omega: %20.20e\n",        (double)omega             );
+  fprintf(f, "orientation: %20.20e\n",  (double)orientation       );
+  fprintf(f, "d_gm0: %20.20e\n",        (double)d_gm[0]           );
+  fprintf(f, "d_gm1: %20.20e\n",        (double)d_gm[1]           );
+  fprintf(f, "center0: %20.20e\n",      (double)center[0]         );
+  fprintf(f, "center1: %20.20e\n",      (double)center[1]         );
   //maybe center0,center1,d_gm0,d_gm1 are not all needed, but it's only four numbers so we might
   //as well dump them
 }
@@ -404,22 +404,35 @@ void Shape::saveRestart( FILE * f ) {
 void Shape::loadRestart( FILE * f ) {
   assert(f != NULL);
   bool ret = true;
-  ret = ret && 1==fscanf(f, "x:     %le\n", &centerOfMass[0]   );
-  ret = ret && 1==fscanf(f, "y:     %le\n", &centerOfMass[1]   );
-  ret = ret && 1==fscanf(f, "xlab:  %le\n", &labCenterOfMass[0]);
-  ret = ret && 1==fscanf(f, "ylab:  %le\n", &labCenterOfMass[1]);
-  ret = ret && 1==fscanf(f, "u:     %le\n", &u                 );
-  ret = ret && 1==fscanf(f, "v:     %le\n", &v                 );
-  ret = ret && 1==fscanf(f, "omega: %le\n", &omega             );
-  ret = ret && 1==fscanf(f, "orientation: %le\n", &orientation );
-  ret = ret && 1==fscanf(f, "d_gm0: %le\n", &d_gm[0] );
-  ret = ret && 1==fscanf(f, "d_gm1: %le\n", &d_gm[1] );
-  ret = ret && 1==fscanf(f, "center0: %le\n", &center[0] );
-  ret = ret && 1==fscanf(f, "center1: %le\n", &center[1] );
+  double in_centerOfMass0, in_centerOfMass1, in_labCenterOfMass0, in_labCenterOfMass1, in_u, in_v, in_omega, in_orientation, in_d_gm0, in_d_gm1, in_center0, in_center1;         
+  ret = ret && 1==fscanf(f, "x:     %le\n",       &in_centerOfMass0   );
+  ret = ret && 1==fscanf(f, "y:     %le\n",       &in_centerOfMass1   );
+  ret = ret && 1==fscanf(f, "xlab:  %le\n",       &in_labCenterOfMass0);
+  ret = ret && 1==fscanf(f, "ylab:  %le\n",       &in_labCenterOfMass1);
+  ret = ret && 1==fscanf(f, "u:     %le\n",       &in_u               );
+  ret = ret && 1==fscanf(f, "v:     %le\n",       &in_v               );
+  ret = ret && 1==fscanf(f, "omega: %le\n",       &in_omega           );
+  ret = ret && 1==fscanf(f, "orientation: %le\n", &in_orientation     );
+  ret = ret && 1==fscanf(f, "d_gm0: %le\n",       &in_d_gm0           );
+  ret = ret && 1==fscanf(f, "d_gm1: %le\n",       &in_d_gm1           );
+  ret = ret && 1==fscanf(f, "center0: %le\n",     &in_center0         );
+  ret = ret && 1==fscanf(f, "center1: %le\n",     &in_center1         );
   if( (not ret) ) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
   }
+  centerOfMass[0]    = in_centerOfMass0   ;
+  centerOfMass[1]    = in_centerOfMass1   ;
+  labCenterOfMass[0] = in_labCenterOfMass0;
+  labCenterOfMass[1] = in_labCenterOfMass1;
+  u                  = in_u               ;
+  v                  = in_v               ;
+  omega              = in_omega           ;
+  orientation        = in_orientation     ;
+  d_gm[0]            = in_d_gm0           ;
+  d_gm[1]            = in_d_gm1           ;
+  center[0]          = in_center0         ;
+  center[1]          = in_center1         ;
   if (sim.rank == 0)
-    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", centerOfMass[0], centerOfMass[1], labCenterOfMass[0], labCenterOfMass[1], u, v, omega);
+    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", (double)centerOfMass[0], (double)centerOfMass[1], (double)labCenterOfMass[0], (double)labCenterOfMass[1], (double)u, (double)v, (double)omega);
 }
