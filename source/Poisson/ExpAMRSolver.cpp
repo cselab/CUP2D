@@ -8,181 +8,6 @@
 
 using namespace cubism;
 
-// Five-point interpolation machinery
-enum FDType {FDLower, FDUpper, BDLower, BDUpper, CDLower, CDUpper};
-
-class PolyO3I {
-  public:
-    template<class EdgeCellIndexer>
-    PolyO3I(SimulationData &s,
-        const BlockInfo &info_c, const int &ix_c, const int &iy_c,
-        const BlockInfo &info_f, const int &ix_f, const int &iy_f,
-        const bool &neiCoarser, const EdgeCellIndexer &indexer,
-        SpRowInfo &row)
-      : rank_c_(s.tmp->Tree(info_c).rank()),
-        rank_f_(s.tmp->Tree(info_f).rank()),
-        sign_(neiCoarser ? 1. : -1.), row_(row)
-    {
-      if (neiCoarser) // thisFiner
-      {
-        coarse_centre_idx_ = indexer.neiblock_n(info_c, ix_c, iy_c);
-        if (indexer.back_corner(ix_c, iy_c))
-        { // Forward Differences
-          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
-          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c+2, iy_c+2); 
-          type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
-        }
-        else if (indexer.front_corner(ix_c, iy_c))
-        { // BD
-          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
-          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c-2, iy_c-2); 
-          type_ = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
-        }
-        else
-        { // CD
-          coarse_offset1_idx_ = indexer.neiblock_n(info_c, ix_c-1, iy_c-1); 
-          coarse_offset2_idx_ = indexer.neiblock_n(info_c, ix_c+1, iy_c+1); 
-          type_ = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
-        }
-
-        fine_close_idx_ = indexer.This(info_f, ix_f, iy_f);
-        fine_far_idx_ = indexer.inblock_n2(info_f, ix_f, iy_f);
-      }
-      else // neiFiner, thisCoarser
-      {
-        coarse_centre_idx_ = indexer.This(info_c, ix_c, iy_c);
-
-        if (indexer.back_corner(ix_c, iy_c))
-        { // FD
-          coarse_offset1_idx_ = indexer.forward(info_c, ix_c, iy_c, 1);
-          coarse_offset2_idx_ = indexer.forward(info_c, ix_c, iy_c, 2);
-          type_ = indexer.mod(ix_f, iy_f) ? FDLower : FDUpper;
-        }
-        else if (indexer.front_corner(ix_c, iy_c))
-        { // BD
-          coarse_offset1_idx_ = indexer.backward(info_c, ix_c, iy_c, 1);
-          coarse_offset2_idx_ = indexer.backward(info_c, ix_c, iy_c, 2);
-          type_ = indexer.mod(ix_f, iy_f) ? BDLower : BDUpper;
-        }
-        else
-        { // CD
-          coarse_offset1_idx_ = indexer.backward(info_c, ix_c, iy_c);
-          coarse_offset2_idx_ = indexer.forward(info_c, ix_c, iy_c);
-          type_ = indexer.mod(ix_f, iy_f) ? CDLower : CDUpper;
-        }
-
-        fine_close_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 0);
-        fine_far_idx_ = indexer.neiblock_n(info_f, ix_f, iy_f, 1);
-      }
-
-      this->interpolate();
-    }
-
-  private:
-    // Central Difference "Upper" Taylor approximation (positive 1st order term)
-    void CDUpperTaylor()
-    {
-      // 8./15. comes from coeff of polynomial at 2nd step of interpolation
-      static constexpr double p_centre = (8./15.) * (1. - 1./16.);
-      static constexpr double p_bottom = (8./15.) * (-1./8. + 1./32.);
-      static constexpr double p_top = (8./15.) * ( 1./8. + 1./32.);
-
-      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
-    }
-
-    // Central Difference "Lower" Taylor approximation (negative 1st order term)
-    void CDLowerTaylor()
-    {
-      static constexpr double p_centre = (8./15.) * (1. - 1./16.);
-      static constexpr double p_bottom = (8./15.) * ( 1./8. + 1./32.);
-      static constexpr double p_top = (8./15.) * (-1./8. + 1./32.);
-
-      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_bottom);
-      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_top);
-    }
-
-    void BiasedUpperTaylor()
-    {
-      static constexpr double p_centre = (8./15.) * (1 + 3./8. + 1./32.);
-      static constexpr double p_offset1 = (8./15.) * (-1./2. - 1./16.);
-      static constexpr double p_offset2 = (8./15.) * ( 1./8. + 1./32.);
-
-      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
-    }
-
-    void BiasedLowerTaylor()
-    {
-      static constexpr double p_centre = (8./15.) * (1 - 3./8. + 1./32.);
-      static constexpr double p_offset1 = (8./15.) * ( 1./2. - 1./16.);
-      static constexpr double p_offset2 = (8./15.) * (-1./8. + 1./32.);
-
-      row_.mapColVal(rank_c_, coarse_centre_idx_, sign_*p_centre);
-      row_.mapColVal(rank_c_, coarse_offset1_idx_, sign_*p_offset1);
-      row_.mapColVal(rank_c_, coarse_offset2_idx_, sign_*p_offset2);
-    }
-
-    // Aliases for offset based biased functionals to forward/backward differences in corners
-    void BDUpperTaylor() { return BiasedUpperTaylor(); }
-    void BDLowerTaylor() { return BiasedLowerTaylor(); }
-    void FDUpperTaylor() { return BiasedLowerTaylor(); }
-    void FDLowerTaylor() { return BiasedUpperTaylor(); }
-
-    // F_i = sign * (p_{interpolation} - p_{fine_cell_idx})
-    void interpolate()
-    {
-      static constexpr double p_fine_close = 2./3.;
-      static constexpr double p_fine_far = -1./5.;
-
-      // Interpolated flux sign * p_{interpolation}
-      switch(type_)
-      {
-        case FDLower:
-          FDLowerTaylor();
-          break;
-        case FDUpper:
-          FDUpperTaylor();
-          break;
-        case BDLower:
-          BDLowerTaylor();
-          break;
-        case BDUpper:
-          BDUpperTaylor();
-          break;
-        case CDLower:
-          CDLowerTaylor();
-          break;
-        case CDUpper:
-          CDUpperTaylor();
-          break;
-      }
-
-      row_.mapColVal(rank_f_, fine_close_idx_, sign_*p_fine_close);
-      row_.mapColVal(rank_f_, fine_far_idx_, sign_*p_fine_far);
-
-      // Non-interpolated flux contribution -sign * p_{fine_cell_idx}
-      row_.mapColVal(rank_f_, fine_close_idx_, -sign_);
-    } 
-
-  private:
-    const int rank_c_;
-    const int rank_f_;
-    const double sign_;
-    SpRowInfo &row_;
-    long long coarse_centre_idx_;
-    long long coarse_offset1_idx_; // bottom/left
-    long long coarse_offset2_idx_; // top/right
-    long long fine_close_idx_;
-    long long fine_far_idx_;
-    FDType type_;
-};
-
-
-
 double ExpAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
 {
    int j1 = I1 / BSX_;
@@ -198,9 +23,9 @@ double ExpAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation o
 }
 
 ExpAMRSolver::ExpAMRSolver(SimulationData& s)
-  : sim(s), m_comm_(sim.comm), 
-    NorthCell(s, Nblocks_xcumsum_), EastCell(s, Nblocks_xcumsum_), 
-    SouthCell(s, Nblocks_xcumsum_), WestCell(s, Nblocks_xcumsum_)
+  : sim(s), m_comm_(sim.comm), GenericCell(*this),
+    XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this),
+    edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell}
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -212,10 +37,9 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
   std::vector<std::vector<double>> L_inv; // inverse of L
 
-  static constexpr int BLEN = BSX_*BSY_;
-  L.resize(BLEN);
-  L_inv.resize(BLEN);
-  for (int i(0); i<BLEN ; i++)
+  L.resize(BLEN_);
+  L_inv.resize(BLEN_);
+  for (int i(0); i<BLEN_ ; i++)
   {
     L[i].resize(i+1);
     L_inv[i].resize(i+1);
@@ -226,13 +50,13 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   }
 
   // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
-  for (int i(0); i<BLEN ; i++)
+  for (int i(0); i<BLEN_ ; i++)
   {
     double s1 = 0;
     for (int k(0); k<=i-1; k++)
       s1 += L[i][k]*L[i][k];
     L[i][i] = sqrt(getA_local(i,i) - s1);
-    for (int j(i+1); j<BLEN; j++)
+    for (int j(i+1); j<BLEN_; j++)
     {
       double s2 = 0;
       for (int k(0); k<=i-1; k++)
@@ -244,13 +68,13 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
      L will act as the left block (it does not need to be modified in the process), 
      L_inv will act as the right block and at the end of the algo will contain the inverse */
-  for (int br(0); br<BLEN; br++)
+  for (int br(0); br<BLEN_; br++)
   { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
     const double bsf = 1. / L[br][br];
     for (int c(0); c<=br; c++)
       L_inv[br][c] *= bsf;
 
-    for (int wr(br+1); wr<BLEN; wr++)
+    for (int wr(br+1); wr<BLEN_; wr++)
     { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
       const double wsf = L[wr][br];
       for (int c(0); c<=br; c++)
@@ -259,29 +83,57 @@ ExpAMRSolver::ExpAMRSolver(SimulationData& s)
   }
 
   // P_inv_ holds inverse preconditionner in row major order!
-  std::vector<double> P_inv(BLEN * BLEN);
-  for (int i(0); i<BLEN; i++)
-  for (int j(0); j<BLEN; j++)
+  std::vector<double> P_inv(BLEN_ * BLEN_);
+  for (int i(0); i<BLEN_; i++)
+  for (int j(0); j<BLEN_; j++)
   {
     double aux = 0.;
-    for (int k(0); k<BLEN; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+    for (int k(0); k<BLEN_; k++) // P_inv_ = (L^T)^{-1} L^{-1}
       aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
 
-    P_inv[i*BLEN+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
+    P_inv[i*BLEN_+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
   }
 
   // Create Linear system and backend solver objects
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, P_inv);
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, sim.bMeanConstraint, P_inv);
+}
+void ExpAMRSolver::interpolate(
+    const BlockInfo &info_c, const int ix_c, const int iy_c,
+    const BlockInfo &info_f, const long long fine_close_idx, const long long fine_far_idx,
+    const double signInt, const double signTaylor, // sign of interpolation and sign of taylor
+    const EdgeCellIndexer &indexer, SpRowInfo& row) const
+{
+  const int rank_c = sim.tmp->Tree(info_c).rank();
+  const int rank_f = sim.tmp->Tree(info_f).rank();
+
+  // 2./3.*p_fine_close_idx - 1./5.*p_fine_far_idx
+  row.mapColVal(rank_f, fine_close_idx, signInt * 2./3.);
+  row.mapColVal(rank_f, fine_far_idx,  -signInt * 1./5.);
+
+  // 8./15 * p_T, constant term
+  const double tf = signInt * 8./15.; // common factor for all terms of Taylor expansion
+  row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
+
+  std::array<std::pair<long long, double>, 3> D;
+
+  // first derivative
+  D = D1(info_c, indexer, ix_c, iy_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
+
+  // second derivative
+  D = D2(info_c, indexer, ix_c, iy_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
 
 // Methods for cell centric construction of discrete Laplace operator
-template<class EdgeIndexer >
 void ExpAMRSolver::makeFlux(
   const BlockInfo &rhs_info,
-  const int &ix,
-  const int &iy,
+  const int ix,
+  const int iy,
   const BlockInfo &rhsNei,
-  const EdgeIndexer &indexer,
+  const EdgeCellIndexer &indexer,
   SpRowInfo &row) const
 {
   const long long sfc_idx = indexer.This(rhs_info, ix, iy);
@@ -289,7 +141,7 @@ void ExpAMRSolver::makeFlux(
   if (this->sim.tmp->Tree(rhsNei).Exists())
   { 
     const int nei_rank = sim.tmp->Tree(rhsNei).rank();
-    const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy);
+    const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
 
     // Map flux associated to out-of-block edges at the same level of refinement
     row.mapColVal(nei_rank, nei_idx, 1.);
@@ -298,86 +150,31 @@ void ExpAMRSolver::makeFlux(
   else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
   {
     const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+    const int ix_c = indexer.ix_c(rhs_info, ix);
+    const int iy_c = indexer.iy_c(rhs_info, iy);
+    const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
+    const double signTaylor = indexer.taylorSign(ix, iy);
 
-
-
-    const int ix_c = indexer.ix_c(rhs_info, ix, iy);
-    const int iy_c = indexer.iy_c(rhs_info, ix, iy);
-
-    // Perform intepolation to calculate flux at interface with coarse cell
-    PolyO3I f(sim, rhsNei_c, ix_c, iy_c, rhs_info, ix, iy, true, indexer, row);
+    interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1., signTaylor, indexer, row);
+    row.mapColVal(sfc_idx, -1.);
   }
   else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
   {
     const BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
+    const int nei_rank = this->sim.tmp->Tree(rhsNei_f).rank();
 
-    const int ix_f = (ix % (BSX_/2)) * 2;
-    const int iy_f = (iy % (BSY_/2)) * 2;
-
-    // Interpolate flux at interfaces with both fine neighbour cells
-    PolyO3I f1(sim, rhs_info, ix, iy, rhsNei_f, ix_f, iy_f, false, indexer, row);
-    PolyO3I f2(sim, rhs_info, ix, iy, rhsNei_f, ix_f+1, iy_f+1, false, indexer, row); // same coarse indices here...
+    // F1
+    long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
+    long long fine_far_idx   = indexer.neiFine1(rhsNei_f, ix, iy, 1);
+    row.mapColVal(nei_rank, fine_close_idx, 1.);
+    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1., -1., indexer, row);
+    // F2
+    fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
+    fine_far_idx   = indexer.neiFine2(rhsNei_f, ix, iy, 1);
+    row.mapColVal(nei_rank, fine_close_idx, 1.);
+    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,  1., indexer, row);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
-}
-
-template<class EdgeIndexer>
-void ExpAMRSolver::makeEdgeCellRow( // excluding corners
-    const BlockInfo &rhs_info,
-    const int &ix,
-    const int &iy,
-    const bool &isBoundary,
-    const BlockInfo &rhsNei,
-    const EdgeIndexer &indexer)
-{
-    const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-    const long long n1_idx = indexer.inblock_n1(rhs_info, ix, iy); // in-block neighbour 1
-    const long long n2_idx = indexer.inblock_n2(rhs_info, ix, iy); // in-block neighbour 2
-    const long long n3_idx = indexer.inblock_n3(rhs_info, ix, iy); // in-block neighbour 3
-
-    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 4); // worst case: this coarse with four fine out-of-rank nei
-
-    // Map fluxes associated to in-block edges
-    row.mapColVal(n1_idx, 1.);
-    row.mapColVal(n2_idx, 1.);
-    row.mapColVal(n3_idx, 1.);
-    row.mapColVal(sfc_idx, -3.);
-
-    if (!isBoundary)
-      this->makeFlux(rhs_info, ix, iy, rhsNei, indexer, row);
-
-    LocalLS_->cooPushBackRow(row);
-}
-
-template<class EdgeIndexer1, class EdgeIndexer2>
-void ExpAMRSolver::makeCornerCellRow(
-    const BlockInfo &rhs_info,
-    const int &ix,
-    const int &iy,
-    const bool &isBoundary1,
-    const BlockInfo &rhsNei_1,
-    const EdgeIndexer1 &indexer1, 
-    const bool &isBoundary2,
-    const BlockInfo &rhsNei_2,
-    const EdgeIndexer2 &indexer2)
-{
-    const long long sfc_idx = indexer1.This(rhs_info, ix, iy);
-    const long long n1_idx = indexer1.inblock_n2(rhs_info, ix, iy); // indexer.inblock_n2 is the opposite edge
-    const long long n2_idx = indexer2.inblock_n2(rhs_info, ix, iy); // makes corner input order invariant
-
-    SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8); // worst case: this coarse with four fine out-of-rank nei at both corner edges
-
-    // Map fluxes associated to in-block edges
-    row.mapColVal(n1_idx, 1.);
-    row.mapColVal(n2_idx, 1.);
-    row.mapColVal(sfc_idx, -2.);
-
-    if (!isBoundary1)
-      this->makeFlux(rhs_info, ix, iy, rhsNei_1, indexer1, row);
-    if (!isBoundary2)
-      this->makeFlux(rhs_info, ix, iy, rhsNei_2, indexer2, row);
-
-    LocalLS_->cooPushBackRow(row);
 }
 
 void ExpAMRSolver::getMat()
@@ -410,11 +207,10 @@ void ExpAMRSolver::getMat()
   Nrows_xcumsum_[0] = 0;
 
   // Perform cumulative sum
-  static constexpr long long BLEN = BSX_*BSY_;
   for (size_t i(1); i < Nblocks_xcumsum_.size(); i++)
   {
     Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
-    Nrows_xcumsum_[i] = BLEN*Nblocks_xcumsum_[i];
+    Nrows_xcumsum_[i] = BLEN_*Nblocks_xcumsum_[i];
   }
 
   // No parallel for to ensure COO are ordered at construction
@@ -428,22 +224,36 @@ void ExpAMRSolver::getMat()
     const int MAX_Y_BLOCKS = blocksPerDim[1]*aux - 1; //this means that if level 0 has blocksPerDim[1] blocks in the y-direction, level rhs.level will have this many blocks
 
     //index is the (i,j) coordinates of a block at the current level 
-    const bool isWestBoundary  = (rhs_info.index[0] == 0           ); // don't check for west neighbor
-    const bool isEastBoundary  = (rhs_info.index[0] == MAX_X_BLOCKS); // don't check for east neighbor
-    const bool isSouthBoundary = (rhs_info.index[1] == 0           ); // don't check for south neighbor
-    const bool isNorthBoundary = (rhs_info.index[1] == MAX_Y_BLOCKS); // don't check for north neighbor
+    std::array<bool, 4> isBoundary;
+    isBoundary[0] = (rhs_info.index[0] == 0           ); // Xm, same order as faceIndexers made in constructor!
+    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS); // Xp
+    isBoundary[2] = (rhs_info.index[1] == 0           ); // Ym
+    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS); // Yp
+
+    std::array<bool, 2> isPeriodic; // same dimension ordering as isBoundary
+    isPeriodic[0] = (cubismBCX == periodic);
+    isPeriodic[1] = (cubismBCY == periodic);
 
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
-    const long long Z_west  = rhs_info.Znei[1-1][1][1];
-    const long long Z_east  = rhs_info.Znei[1+1][1][1];
-    const long long Z_south = rhs_info.Znei[1][1-1][1];
-    const long long Z_north = rhs_info.Znei[1][1+1][1];
+    std::array<long long, 4> Z;
+    Z[0] = rhs_info.Znei[1-1][1][1]; // Xm
+    Z[1] = rhs_info.Znei[1+1][1][1]; // Xp
+    Z[2] = rhs_info.Znei[1][1-1][1]; // Ym
+    Z[3] = rhs_info.Znei[1][1+1][1]; // Yp
     //rhs.Z == rhs.Znei[1][1][1] is true always
 
-    const BlockInfo &rhsNei_west  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_west );
-    const BlockInfo &rhsNei_east  = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_east );
-    const BlockInfo &rhsNei_south = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_south);
-    const BlockInfo &rhsNei_north = this->sim.tmp->getBlockInfoAll(rhs_info.level,Z_north);
+    std::array<const BlockInfo*, 4> rhsNei;
+    rhsNei[0] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
+    rhsNei[1] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
+    rhsNei[2] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
+    rhsNei[3] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
+
+    // Record local index of row which is to be modified with bMeanConstraint reduction result
+    if (sim.bMeanConstraint &&
+        rhs_info.index[0] == 0 &&
+        rhs_info.index[1] == 0 &&
+        rhs_info.index[2] == 0)
+      LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) - Nrows_xcumsum_[rank_]);
 
     //For later: there's a total of three boolean variables:
     // I.   grid->Tree(rhsNei_west).Exists()
@@ -454,66 +264,45 @@ void ExpAMRSolver::getMat()
     // Add matrix elements associated to interior cells of a block
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
-    {
-      // Following logic needs to be in for loop to assure cooRows are ordered
-      if ((ix > 0 && ix<BSX_-1) && (iy > 0 && iy<BSY_-1))
-      { // Inner cells
-        const long long sn_idx = NorthCell.SouthNeighbour(rhs_info, ix, iy); // indexer type irrelevant here
-        const long long wn_idx = NorthCell.WestNeighbour(rhs_info, ix, iy);
-        const long long sfc_idx = NorthCell.This(rhs_info, ix, iy);
-        const long long en_idx = NorthCell.EastNeighbour(rhs_info, ix, iy);
-        const long long nn_idx = NorthCell.NorthNeighbour(rhs_info, ix, iy);
-        
-        // Push back in ascending order for 'col_idx'
-        LocalLS_->cooPushBackVal(1., sfc_idx, sn_idx);
-        LocalLS_->cooPushBackVal(1., sfc_idx, wn_idx);
+    { // Following logic needs to be in for loop to assure cooRows are ordered
+      const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
+
+      if ((ix > 0 && ix < BSX_-1) && (iy > 0 && iy < BSY_-1))
+      { // Inner cells, push back in ascending order for column index
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix, iy-1));
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix-1, iy));
         LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
-        LocalLS_->cooPushBackVal(1., sfc_idx, en_idx);
-        LocalLS_->cooPushBackVal(1., sfc_idx, nn_idx);
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix+1, iy));
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix, iy+1));
       }
-      else if (ix == 0 && (iy > 0 && iy < BSY_-1))
-      { // west cells excluding corners
-        this->makeEdgeCellRow(rhs_info, ix, iy, isWestBoundary, rhsNei_west, WestCell);
-      }
-      else if (ix == BSX_-1 && (iy > 0 && iy < BSY_-1))
-      { // east cells excluding corners
-        this->makeEdgeCellRow(rhs_info, ix, iy, isEastBoundary, rhsNei_east, EastCell);
-      }
-      else if ((ix > 0 && ix < BSX_-1) && iy == 0)
-      { // south cells excluding corners
-        this->makeEdgeCellRow(rhs_info, ix, iy, isSouthBoundary, rhsNei_south, SouthCell);
-      }
-      else if ((ix > 0 && ix < BSX_-1) && iy == BSY_-1)
-      { // north cells excluding corners
-        this->makeEdgeCellRow(rhs_info, ix, iy, isNorthBoundary, rhsNei_north, NorthCell);
-      }
-      else if (ix == 0 && iy == 0)
-      { // south-west corner
-        this->makeCornerCellRow(
-            rhs_info, ix, iy, 
-            isSouthBoundary, rhsNei_south, SouthCell, 
-            isWestBoundary, rhsNei_west, WestCell);
-      }
-      else if (ix == BSX_-1 && iy == 0)
-      { // south-east corner
-        this->makeCornerCellRow(
-            rhs_info, ix, iy, 
-            isEastBoundary, rhsNei_east, EastCell, 
-            isSouthBoundary, rhsNei_south, SouthCell);
-      }
-      else if (ix == 0 && iy == BSY_-1)
-      { // north-west corner
-        this->makeCornerCellRow(
-            rhs_info, ix, iy, 
-            isWestBoundary, rhsNei_west, WestCell, 
-            isNorthBoundary, rhsNei_north, NorthCell);
-      }
-      else if (ix == BSX_-1 && iy == BSY_-1)
-      { // north-east corner
-        this->makeCornerCellRow(
-            rhs_info, ix, iy, 
-            isNorthBoundary, rhsNei_north, NorthCell, 
-            isEastBoundary, rhsNei_east, EastCell);
+      else
+      { // See which edge is shared with a cell from different block
+        std::array<bool, 4> validNei;
+        validNei[0] = GenericCell.validXm(ix, iy); 
+        validNei[1] = GenericCell.validXp(ix, iy); 
+        validNei[2] = GenericCell.validYm(ix, iy); 
+        validNei[3] = GenericCell.validYp(ix, iy);  
+
+        // Get index of cell accross the edge (correct only for cells in this block)
+        std::array<long long, 4> idxNei;
+        idxNei[0] = GenericCell.This(rhs_info, ix-1, iy);
+        idxNei[1] = GenericCell.This(rhs_info, ix+1, iy);
+        idxNei[2] = GenericCell.This(rhs_info, ix, iy-1);
+        idxNei[3] = GenericCell.This(rhs_info, ix, iy+1);
+
+				SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8);
+        for (int j(0); j < 4; j++)
+        { // Iterate over each edge of cell
+          if (validNei[j])
+          { // This edge is 'inner' wrt to the block
+            row.mapColVal(idxNei[j], 1);
+            row.mapColVal(sfc_idx, -1);
+          }
+          else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j/2]))
+            this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j], row);
+        }
+
+        LocalLS_->cooPushBackRow(row);
       }
     } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
   } // for(int i=0; i< Nblocks; i++)
@@ -529,8 +318,9 @@ void ExpAMRSolver::getVec()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
-  std::vector<double>& x = LocalLS_->get_x();
-  std::vector<double>& b = LocalLS_->get_b();
+  std::vector<double>& x  = LocalLS_->get_x();
+  std::vector<double>& b  = LocalLS_->get_b();
+  std::vector<double>& h2 = LocalLS_->get_h2();
   const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
@@ -541,12 +331,21 @@ void ExpAMRSolver::getVec()
     const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
 
+    h2[i] = RhsInfo[i].h * RhsInfo[i].h;
     // Construct RHS and x_0 vectors for linear system
     for(int iy=0; iy<BSY_; iy++)
     for(int ix=0; ix<BSX_; ix++)
     {
-      const long long sfc_loc = NorthCell.This(rhs_info, ix, iy) + shift;
-      b[sfc_loc] = rhs(ix,iy).s;
+      const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
+      if (sim.bMeanConstraint &&
+          rhs_info.index[0] == 0 &&
+          rhs_info.index[1] == 0 &&
+          rhs_info.index[2] == 0 &&
+          ix == 0 && iy == 0)
+        b[sfc_loc] = 0.;
+      else
+        b[sfc_loc] = rhs(ix,iy).s;
+
       x[sfc_loc] = p(ix,iy).s;
     }
   }

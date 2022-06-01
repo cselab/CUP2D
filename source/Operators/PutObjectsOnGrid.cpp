@@ -108,30 +108,6 @@ struct PutChiOnGrid
   }
 };
 
-void PutObjectsOnGrid::putObjectVelOnGrid(Shape * const shape) const
-{
-  const size_t Nblocks = velInfo.size();
-  const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
-  #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
-  {
-    if(OBLOCK[uDefInfo[i].blockID] == nullptr) continue; //obst not in block
-    const UDEFMAT & __restrict__ udef = OBLOCK[uDefInfo[i].blockID]->udef;
-    const CHI_MAT & __restrict__ chi  = OBLOCK[uDefInfo[i].blockID]->chi;
-    auto & __restrict__ UDEF = *(VectorBlock*)uDefInfo[i].ptrBlock; // dest
-    const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
-
-    for(int iy=0; iy<VectorBlock::sizeY; iy++)
-    for(int ix=0; ix<VectorBlock::sizeX; ix++)
-    {
-      if( chi[iy][ix] < CHI(ix,iy).s) continue;
-      Real p[2]; uDefInfo[i].pos(p, ix, iy);
-      UDEF(ix, iy).u[0] += udef[iy][ix][0];
-      UDEF(ix, iy).u[1] += udef[iy][ix][1];
-    }
-  }
-}
-
 void PutObjectsOnGrid::operator()(const Real dt)
 {
   sim.startProfiler("PutObjectsGrid");
@@ -178,7 +154,6 @@ void PutObjectsOnGrid::putObjectsOnGrid()
   {
     ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
     ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
-    ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
   }
 
   // 2) Compute signed dist function and udef
@@ -212,6 +187,5 @@ void PutObjectsOnGrid::putObjectsOnGrid()
   for(const auto& shape : sim.shapes)
   {
     shape->removeMoments(chiInfo);
-    putObjectVelOnGrid(shape.get());
   }
 }

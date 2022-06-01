@@ -795,8 +795,37 @@ void PressureSingle::operator()(const Real dt)
   penalize(dt);
 
   // compute pressure RHS
+  // first we put uDef to tmpV so that we can create a VectorLab to compute div(uDef)
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (VectorBlock*) tmpVInfo[i].ptrBlock )->clear();
+  }
+  for(const auto& shape : sim.shapes)
+  {
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      if(OBLOCK[tmpVInfo[i].blockID] == nullptr) continue; //obst not in block
+      const UDEFMAT & __restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      const CHI_MAT & __restrict__ chi  = OBLOCK[tmpVInfo[i].blockID]->chi;
+      auto & __restrict__ UDEF = *(VectorBlock*)tmpVInfo[i].ptrBlock; // dest
+      const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+         if( chi[iy][ix] < CHI(ix,iy).s) continue;
+         Real p[2]; tmpVInfo[i].pos(p, ix, iy);
+         UDEF(ix, iy).u[0] += udef[iy][ix][0];
+         UDEF(ix, iy).u[1] += udef[iy][ix][1];
+      }
+    }
+  }
   updatePressureRHS K(sim);
-  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.uDef,true,sim.tmp);
+  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.tmpV,true,sim.tmp);
 
 
   //Add p_old (+dp/dt) to RHS

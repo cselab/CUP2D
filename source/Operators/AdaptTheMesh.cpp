@@ -104,7 +104,6 @@ void AdaptTheMesh::adapt()
   vel_amr ->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
-  uDef_amr->TagLike(tmpInfo);
   if( sim.smagorinskyCoeff != 0 )
     Cs_amr->TagLike(tmpInfo);
 
@@ -115,7 +114,6 @@ void AdaptTheMesh::adapt()
   pres_amr->Adapt(sim.time, false, false);
   pold_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
-  uDef_amr->Adapt(sim.time, false, true);
   if( sim.smagorinskyCoeff != 0 )
     Cs_amr->Adapt(sim.time, false, true);
 
