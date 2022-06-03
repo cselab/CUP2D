@@ -93,7 +93,7 @@ OBJECTS = \
 # ENABLE GPU SUPPORT
 ifeq ("$(gpu)", "true")
 	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON
+	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
 	NVCCFLAGS := -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
 	LIBS += -lcudart -lcublas -lcusparse
   
