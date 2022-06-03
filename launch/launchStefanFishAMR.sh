@@ -26,7 +26,7 @@ PERIOD=${PERIOD:-1}
 ####################################
 NU=${NU:-0.00004}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 5.0 -muteAll 0 -verbose 1"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4  -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -poissonTol $PT -poissonTolRel $PTR -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0.1 -nu $NU -tend 5.0 -muteAll 0 -verbose 1 -poissonSolver $PSOLVER"
 OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 
