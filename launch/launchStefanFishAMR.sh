@@ -10,7 +10,7 @@ EXTENT=${EXTENT:-2}
 CFL=${CFL:-0.4}
 PT=${PT:-1e-5}
 PTR=${PTR:-0}
-PSOLVER=${PSOLVER:-'cuda_iterative'}
+PSOLVER="cuda_iterative"
 
 # Defaults for Swimmer
 XPOS=${XPOS:-0.6}
