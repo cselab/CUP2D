@@ -404,7 +404,8 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
     MPI_Allreduce(MPI_IN_PLACE, &h_red_res, 1, MPI_DOUBLE, MPI_SUM, m_comm_);
     
-    checkCudaErrors(cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+    if (bMeanRow_ >= 0)
+      checkCudaErrors(cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   }
 }
 
