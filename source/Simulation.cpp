@@ -161,31 +161,30 @@ void Simulation::init()
   startObstacles();
   initinvm();
 }
-//bool AreSame(e a, double b) {
-//   return std::fabs(a - b) < std::numeric_limits<double>::epsilon();
-//}
-void Simulation::initinvm(){
+void Simulation::initinvm()
+{
   const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   #pragma omp parallel for
-    for (size_t i=0; i < invmInfo.size(); i++)
+  for (size_t i=0; i < invmInfo.size(); i++)
+  {
+    //VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
+	  VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
+	  ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
+	  //ScalarBlock& CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
+	  for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+    for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
     {
-    	//VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
-	VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
-	ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
-	//ScalarBlock& CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
-	for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-      	for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
-      		{
-         	// Define inverse map only inside solids
-               	 	if(CHI(ix,iy).s>0){
-                   	double p[2];
-       			invmInfo[i].pos(p, ix, iy);
-           	 	INVM(ix, iy).u[0] = p[0];
- 			INVM(ix, iy).u[1] = p[1];
-                	}
-   		 } 
-    }
+      // Define inverse map only inside solids
+      if(CHI(ix,iy).s>0)
+      {
+        Real p[2];
+        invmInfo[i].pos(p, ix, iy);
+        INVM(ix, iy).u[0] = p[0];
+ 			  INVM(ix, iy).u[1] = p[1];
+      }
+    } 
+  }
 }
 void Simulation::parseRuntime()
 {

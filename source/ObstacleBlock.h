@@ -32,6 +32,7 @@ struct ObstacleBlock
   Real dist[sizeY][sizeX];
   Real  rho[sizeY][sizeX];
   Real udef[sizeY][sizeX][2];
+  Real invm[sizeY][sizeX][2];
 
   //surface quantities:
   size_t n_surfPoints=0;
@@ -115,6 +116,7 @@ struct ObstacleBlock
     std::fill(chi [0], chi [0] + sizeX * sizeY,  0);
     memset(rho, 0, sizeof(Real)*sizeX*sizeY);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*2);
+    memset(invm, 0, sizeof(Real)*sizeX*sizeY*2);
   }
 
   void write(const int ix, const int iy, const Real delta, const Real gradUX, const Real gradUY)

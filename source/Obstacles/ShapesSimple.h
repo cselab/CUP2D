@@ -92,7 +92,18 @@ class Ellipse : public Shape
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
 };
-
+class ElasticDisk:public Shape
+{
+  protected:
+   const Real semiAxis[2];
+   const Real radius;
+   const Real G=1.0;
+  public:
+    ElasticDisk(SimulationData&s, cubism::ArgumentParser&p,Real C[2]):
+    Shape(s,p,C),G(p("-G").asDouble(1.0)),radius( p("-radius").asDouble(0.1) ){}
+    void create(const std::vector<cubism::BlockInfo>& vInfo) override;//construct obstacleBlock and retrive sdf
+    bool istouching()
+}
 class Rectangle : public Shape
 {
  protected:

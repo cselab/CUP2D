@@ -92,6 +92,43 @@ struct FillBlocks_Ellipse
   void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;
 };
 
+struct FillBlocks_ElasticDisk
+{
+  const Real radius,center[2], safety, rhoS; //initial attributes
+  Real e0, e1, pos[2]//current extents and position
+  const Real bbox[2][2] = {
+   { pos[0] -std::max(e0,e1) -safety, pos[0] +std::max(e0,e1) +safety },
+   { pos[1] -std::max(e0,e1) -safety, pos[1] +std::max(e0,e1) +safety }
+  };
+
+  FillBlocks_ElasticDisk(const Real r, const Real IC[2], const Real h, Real rho)
+  : radius(r),center{(Real)IC[0],(Real)IC[1]}, safety(5*h),
+    pos{(Real)IC[0], (Real)IC[1]},e0(r),e1(r), rhoS(rho) {}
+
+  inline bool is_touching(const cubism::BlockInfo& INFO) const {
+    return _is_touching(INFO, bbox, safety);
+  }
+  inline Real distanceToDisk(const Real x, const Real y) const {
+      return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
+  }
+  inline void setextents(const Real e0_,const Real e1_,const Real pos_[2]){
+    e0=e0_;e1=e1_;pos[0]=pos_[0];pos[1]=pos_[1];
+    bbox[0][0]=pos[0] -std::max(e0,e1) -safety;
+    bbox[0][1]=pos[0] +std::max(e0,e1) +safety;
+    bbox[1][0]=pos[1] -std::max(e0,e1) -safety;
+    bbox[1][1]=pos[1] +std::max(e0,e1) +safety;
+  }
+  void operator()(const cubism::BlockInfo&, ScalarBlock&, ObstacleBlock&) const;
+};
+struct FastMarching
+{ 
+  FastMarching(const SimulationData & s,const std::vector<ObstacleBlock*> & o): sim(s),OBLOCK(o){}
+  const SimulationData & sim;
+  Real minx,maxx,miny,maxy;
+  const std::vector<ObstacleBlock*>& OBLOCK;
+  const StencilInfo stencil{ -1, -1, 0, 2, 2, 1, true, {0,1} };
+  void operator()(ScalarLab& lab,const BlockInfo& info,Real signal) const;
+}
 struct FillBlocks_Rectangle
 {
   const Real extentX, extentY, safety, pos[2], angle, rhoS;

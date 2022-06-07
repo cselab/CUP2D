@@ -5,7 +5,7 @@
 //
 
 #include "ShapeLibrary.h"
-
+#include <bits/stdc++.h>
 using namespace cubism;
 
 //static inline Real mollified_heaviside(const Real x) {
@@ -105,7 +105,92 @@ void FillBlocks_Ellipse::operator()(const BlockInfo& I,
     }
   }
 }
+void FillBlocks_ElasticDisk::operator()(const BlockInfo& I,
+                                        ScalarBlock& B,
+                                      ObstacleBlock& O) const
+{
+    //retrieve sdf
+    for(int iy=0; iy<ObstacleBlock::sizeY; iy++)
+    for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
+    {
+      if(O.invm[iy][ix][0]==0&&O.invm[iy][ix][1]==0) continue;
+      Real p[2]={O.invm[iy][ix][0]-center[0],O.invm[iy][ix][1]-center[1]};
+      const Real dist = distanceToDisk(p[0], p[1]);
+      if( dist > O.dist[iy][ix] ) {
+        O.dist[iy][ix] = dist;
+        B(ix,iy).s = std::max( B(ix,iy).s, dist );
+        O.rho[iy][ix] = rhoS;
+      }
+    }
+}
+void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info,Real signal) const{
+  // use fast marching method to reinitialize signed distance
+  /*
+  ==========================================================================
+  # modified version using bellman-ford 
+  initialize boundary(second order) ---skip for now
+  for each point, if sdf(i,j)>0 continue, 
+  else, use eikonal equation to update
+  ** boundary case:
+  1. inner boundary: keep static
+  2. outter boundary: uninitialized value=0
+  ==========================================================================
+  */
+  if(OBLOCK[info.blockID]==nullptr) return;
+  ObstacleBlock& o = * OBLOCK[info.blockID];
+  CHI_MAT & __restrict__ sdf = o.dist;
+  for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
+	for (int ix = 0; ix < ScalarBlock::sizeX; ++ix)
+  {
+    if(lab(ix,iy)>0) continue;
+    Real Ux,Uy;
+    const Real h = info.h;
+    // Outter boundary
+    if (lab(ix-1,iy)==signal) Ux=lab(ix+1,iy);
+    else if (lab(ix+1,iy)==signal) Ux=lab(ix-1,iy);
+    else Ux=std::max(lab(ix-1,iy),lab(ix+1,iy));
 
+    if (lab(ix,iy-1)==signal) Uy=lab(ix,iy+1);
+    else if (lab(ix,iy+1)==signal) Uy=lab(ix,iy-1);
+    else Uy=std::max(lab(ix,iy-1),lab(ix,iy+1));
+    //inner boundary
+    if(Ux>0&&Uy>0) 
+    {
+      //update bounding box
+      Real p[2];
+      info.pos(p,ix,iy);
+      minx=std::min(minx,p[0]);
+      maxx=std::max(maxx,p[0]);
+      miny=std::min(miny,p[1]);
+      maxy=std::max(maxy,p[1]);
+      continue;
+    }
+    if(abs(Ux-Uy)<=h) 
+      lab(ix,iy)=0.5*(Ux+Uy+std::sqrt((Ux+Uy)*(Ux+Uy)-2*(Ux*Ux+Uy*Uy-h*h)))
+    else
+      lab(ix,iy)=std::max(Ux-h,Uy-h)
+    sdf[iy][ix]=lab(ix,iy);
+  }
+  
+  
+  /**=========================================================================*/
+  //  original fast marching algorithm
+  // 1.1) maintain a min heap of undecided nodes(blockID,i,j)
+  // 1.2) keep track of decided and undecided
+  // c.2) search neighbors of decided
+  
+  // find smallest value, mark it as decided
+  // iteration
+      // if it is at the edge load the lab, otherwise pull the neighbors straightforwardly
+      // load lab 
+      // find the neighbors
+      // update the neighbors (change values in the heap)
+      // how to update the neighbors in other grid
+      
+      // find next smallest in the miniheap
+
+  
+}
 Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2])
 {
   static constexpr int imax = 2*std::numeric_limits<Real>::max_exponent;
