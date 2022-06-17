@@ -173,7 +173,7 @@ Real findMaxU::run() const
     }
   }
   Real temp[3] = {momX,momY,totM};
-  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   momX = temp[0];
   momY = temp[1];
   totM = temp[2];
@@ -198,7 +198,7 @@ Real findMaxU::run() const
     }
   }
   Real quantities[4] = {U,V,u,v};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX, sim.chi->getWorldComm());
   U = quantities[0];
   V = quantities[1];
   u = quantities[2];

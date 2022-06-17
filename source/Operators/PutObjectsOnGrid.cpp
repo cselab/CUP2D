@@ -177,7 +177,7 @@ void PutObjectsOnGrid::putObjectsOnGrid()
       com[1] += OBLOCK[i]->COM_x;
       com[2] += OBLOCK[i]->COM_y;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
     shape->M = com[0];
     shape->centerOfMass[0] += com[1]/com[0];
     shape->centerOfMass[1] += com[2]/com[0];

@@ -253,7 +253,7 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
     }
   }
   Real quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   PM = quantities[0]; 
   PJ = quantities[1]; 
   PX = quantities[2]; 
@@ -628,7 +628,7 @@ void PressureSingle::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getWorldComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -695,7 +695,7 @@ void PressureSingle::preventCollidingObstacles() const
         if (iForced || jForced)
         {
             std::cout << "[CUP2D] WARNING: Forced objects not supported for collision." << std::endl;
-            // MPI_Abort(sim.chi->getCartComm(),1);
+            // MPI_Abort(sim.chi->getWorldComm(),1);
         }
 
         Real ho1[3];

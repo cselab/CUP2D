@@ -97,7 +97,7 @@ class ComputeLHS : public Operator
        for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
          mean += h2 * X(ix,iy).s;
       }
-      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getCartComm());
+      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getWorldComm());
       if (index != -1)
       {
        ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;

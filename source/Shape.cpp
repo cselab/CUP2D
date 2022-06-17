@@ -157,7 +157,7 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
     }
   }
   Real quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   _x = quantities[0];
   _y = quantities[1];
   _m = quantities[2];
@@ -282,7 +282,7 @@ void Shape::computeForces()
   quantities[16] = thrust     ;
   quantities[17] = defPowerBnd;
   quantities[18] = defPower   ;
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   circulation = quantities[ 0];
   perimeter   = quantities[ 1];
   forcex      = quantities[ 2];
@@ -327,15 +327,15 @@ void Shape::computeForces()
     std::stringstream ssF;
     ssF<<sim.path2file<<"/surface_"<<obstacleID <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".csv";
     MPI_File_delete(ssF.str().c_str(), MPI_INFO_NULL); // delete the file if it exists
-    MPI_File_open(sim.chi->getCartComm(), ssF.str().c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &surface_file);
-    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getCartComm());
+    MPI_File_open(sim.chi->getWorldComm(), ssF.str().c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &surface_file);
+    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getWorldComm());
     MPI_File_write_at_all(surface_file, offset, st.data(), st.size(), MPI_CHAR, MPI_STATUS_IGNORE);
     MPI_File_close(&surface_file);
   }
 
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
-  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getCartComm());
+  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
   if(not sim.muteAll && sim.rank == 0)
   {
     std::stringstream ssF, ssP;

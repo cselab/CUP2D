@@ -37,17 +37,17 @@ void SimulationData::allocateGrid()
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
   
-  chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  chi  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vel  = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vOld = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pres = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmp  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pold = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   // For RL SGS learning
   if( smagorinskyCoeff != 0 )
-    Cs = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+    Cs = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
@@ -72,42 +72,42 @@ void SimulationData::allocateGrid()
 void SimulationData::dumpChi(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real>(*chi, time, "chi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPres(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*pres, time, "pres_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real>(*pres, time, "pres_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*pold, time, "pold_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real>(*pold, time, "pold_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpTmp(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*tmp, time, "tmp_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real>(*tmp, time, "tmp_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpVel(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real,  VectorGrid, VectorLab>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpVold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real, VectorGrid, VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpCs(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*(Cs), time,"Cs_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real>(*(Cs), time,"Cs_" + ss.str(), path4serialization);
 }
 
 
