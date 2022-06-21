@@ -85,7 +85,8 @@ struct SimulationData
 
   // Smagorinsky Model
   Real smagorinskyCoeff;
-
+  
+  
   // Flag for initial conditions
   std::string ic;
 
@@ -126,9 +127,12 @@ struct SimulationData
   ScalarGrid * pold = nullptr;
   ScalarGrid * Cs   = nullptr;
 
-  // vector containing obstacles
+  // vector containing rigid obstacles
   std::vector<std::shared_ptr<Shape>> shapes;
-
+  // vector containing elastic obstacles
+  std::vector<std::shared_ptr<Shape>> Eshapes;
+  // vector of invm grid for each elastic shape
+  std::vector<std::shared_ptr<VectorGrid>> invms;
   // simulation time
   Real time = 0;
 
@@ -158,7 +162,8 @@ struct SimulationData
   bool bCollision = false;
 
   void addShape(std::shared_ptr<Shape> shape);
-
+  void addEShape(std::shared_ptr<Shape> Eshape);
+  void allocateinvm();
   void allocateGrid();
   void resetAll();
   bool bDump();

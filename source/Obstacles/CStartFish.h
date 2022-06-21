@@ -22,7 +22,7 @@ public:
     void resetAll() override;
     CStartFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
     void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-
+    void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
     // member functions for state/reward
     std::vector<Real> stateEscape() const;
     std::vector<Real> stateSequentialEscape() const;

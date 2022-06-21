@@ -89,7 +89,7 @@ CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I$(BUILDDIR)/../Cubism/include/ -
 
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
-		PressureSingle.o PutObjectsOnGrid.o advInvm.o advDiff.o ComputeForces.o\
+		PressureSingle.o PutObjectsOnGrid.o PutSoftObjectsOnGrid.o advInvm.o advDiff.o ComputeForces.o\
 		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \

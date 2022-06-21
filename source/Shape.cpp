@@ -202,7 +202,7 @@ void Shape::removeMoments(const std::vector<BlockInfo>& vInfo)
         pos->udef[iy][ix][1] -= I.v +I.a*p[0];
     }
   }
-};
+}
 
 void Shape::diagnostics()
 {
@@ -377,7 +377,7 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   bDumpSurface(p("-dumpSurf").asInt(0)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
   bBreakSymmetry(p("-bBreakSymmetry").asBool(false))
-  {}
+  {std::cout<<"test here"<<std::endl;}
 
 Shape::~Shape()
 {

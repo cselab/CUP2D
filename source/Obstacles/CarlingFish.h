@@ -15,6 +15,7 @@ class CarlingFish: public Fish
   CarlingFish(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
   void resetAll() override;
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
 };
 
 class AmplitudeFish : public FishData

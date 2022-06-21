@@ -22,7 +22,8 @@ class Waterturbine : public Shape
   }
   
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   Real getCharLength() const override
   {
     return semiAxis[0] >= semiAxis[1] ? 2*semiAxis[0] : 2*semiAxis[1];

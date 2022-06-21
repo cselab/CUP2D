@@ -37,7 +37,7 @@ class Shape
   const bool bDumpSurface;
   const Real timeForced;
   const bool bBreakSymmetry;
-
+  
   Real M = 0;
   Real J = 0;
   Real u = forcedu; // in lab frame, not sim frame
@@ -108,7 +108,9 @@ class Shape
   virtual Real getMaxVel() const;
 
   virtual void create(const std::vector<cubism::BlockInfo>& vInfo) = 0;
-
+  virtual void create(const std::vector<cubism::BlockInfo>& vInfo,bool write)=0;
+  virtual void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal)=0;
+  
   virtual void updateVelocity(Real dt);
   virtual void updatePosition(Real dt);
 

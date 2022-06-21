@@ -106,15 +106,16 @@ void FillBlocks_Ellipse::operator()(const BlockInfo& I,
   }
 }
 void FillBlocks_ElasticDisk::operator()(const BlockInfo& I,
+                                        const VectorBlock& invmB,
                                         ScalarBlock& B,
-                                      ObstacleBlock& O) const
+                                        ObstacleBlock& O) const
 {
     //retrieve sdf
     for(int iy=0; iy<ObstacleBlock::sizeY; iy++)
     for(int ix=0; ix<ObstacleBlock::sizeX; ix++)
     {
-      if(O.invm[iy][ix][0]==0&&O.invm[iy][ix][1]==0) continue;
-      Real p[2]={O.invm[iy][ix][0]-center[0],O.invm[iy][ix][1]-center[1]};
+      if(invmB(ix,iy).u[0]==0&&invmB(ix,iy).u[1]==0) continue;
+      Real p[2]={invmB(ix,iy).u[0]-center[0],invmB(ix,iy).u[1]-center[1]};
       const Real dist = distanceToDisk(p[0], p[1]);
       if( dist > O.dist[iy][ix] ) {
         O.dist[iy][ix] = dist;
@@ -123,7 +124,7 @@ void FillBlocks_ElasticDisk::operator()(const BlockInfo& I,
       }
     }
 }
-void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info,Real signal) const{
+void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info) {
   // use fast marching method to reinitialize signed distance
   /*
   ==========================================================================
@@ -142,17 +143,17 @@ void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info,Real signal) 
   for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
 	for (int ix = 0; ix < ScalarBlock::sizeX; ++ix)
   {
-    if(lab(ix,iy)>0) continue;
+    if(lab(ix,iy).s>0) continue;
     Real Ux,Uy;
     const Real h = info.h;
     // Outter boundary
-    if (lab(ix-1,iy)==signal) Ux=lab(ix+1,iy);
-    else if (lab(ix+1,iy)==signal) Ux=lab(ix-1,iy);
-    else Ux=std::max(lab(ix-1,iy),lab(ix+1,iy));
+    if (lab(ix-1,iy).s==signal) Ux=lab(ix+1,iy).s;
+    else if (lab(ix+1,iy).s==signal) Ux=lab(ix-1,iy).s;
+    else Ux=std::max(lab(ix-1,iy).s,lab(ix+1,iy).s);
 
-    if (lab(ix,iy-1)==signal) Uy=lab(ix,iy+1);
-    else if (lab(ix,iy+1)==signal) Uy=lab(ix,iy-1);
-    else Uy=std::max(lab(ix,iy-1),lab(ix,iy+1));
+    if (lab(ix,iy-1).s==signal) Uy=lab(ix,iy+1).s;
+    else if (lab(ix,iy+1).s==signal) Uy=lab(ix,iy-1).s;
+    else Uy=std::max(lab(ix,iy-1).s,lab(ix,iy+1).s);
     //inner boundary
     if(Ux>0&&Uy>0) 
     {
@@ -165,11 +166,11 @@ void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info,Real signal) 
       maxy=std::max(maxy,p[1]);
       continue;
     }
-    if(abs(Ux-Uy)<=h) 
-      lab(ix,iy)=0.5*(Ux+Uy+std::sqrt((Ux+Uy)*(Ux+Uy)-2*(Ux*Ux+Uy*Uy-h*h)))
+    if(std::abs(Ux-Uy)<=h) 
+      lab(ix,iy).s=0.5*(Ux+Uy-std::sqrt((Ux+Uy)*(Ux+Uy)-2*(Ux*Ux+Uy*Uy-h*h)));
     else
-      lab(ix,iy)=std::max(Ux-h,Uy-h)
-    sdf[iy][ix]=lab(ix,iy);
+      lab(ix,iy).s=std::max(Ux-h,Uy-h);
+    sdf[iy][ix]=lab(ix,iy).s;
   }
   
   

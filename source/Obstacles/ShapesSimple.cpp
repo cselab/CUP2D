@@ -95,9 +95,36 @@ void Ellipse::create(const std::vector<BlockInfo>& vInfo)
       }
   }
 }
-void ElasticDisk::create(const std::vector<BlockInfo>& vInfo,Real signal)
+void ElasticDisk2::create(const std::vector<BlockInfo>& vInfo,bool write)
 {
-  // precondition: setvInfo to a positive number
+  // This create function has the same utility of create for rigid shapes
+  // Place it in StartObstacles and PutObjectsOnGrid
+  const Real h = sim.getH();
+  for(auto & entry : obstacleBlocks) delete entry;
+  obstacleBlocks.clear();
+  obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
+  #pragma omp parallel
+  {
+    
+    FillBlocks_Ellipse kernel(semiAxis[0], semiAxis[1], h, pos, 0, rhoS);
+
+    #pragma omp for schedule(dynamic, 1)
+    for(size_t i=0; i<vInfo.size(); i++)
+      if(kernel.is_touching(vInfo[i]))
+      {
+        assert(obstacleBlocks[vInfo[i].blockID] == nullptr);
+        obstacleBlocks[vInfo[i].blockID] = new ObstacleBlock;
+        if(write)
+        {
+          ScalarBlock& b = *(ScalarBlock*)vInfo[i].ptrBlock;
+          kernel(vInfo[i],b, *obstacleBlocks[vInfo[i].blockID]);
+        }
+      }
+  }
+}
+void ElasticDisk2::Ecreate(const std::vector<BlockInfo>& vInfo,const int signal)
+{
+  // precondition: setvInfo to a positive number: signal
   const Real h = sim.getH();
   // a) define kernel
   FillBlocks_ElasticDisk kernel(radius,center,h,rhoS);
@@ -106,32 +133,39 @@ void ElasticDisk::create(const std::vector<BlockInfo>& vInfo,Real signal)
   {
     if (obstacleBlocks[vInfo[i].blockID]==nullptr) continue;
     ScalarBlock& b = *(ScalarBlock*)vInfo[i].ptrBlock;
-    kernel(vInfo[i], b, *obstacleBlocks[vInfo[i].blockID]);
+    const VectorBlock& invmb=*(VectorBlock*)localinvmInfo[i].ptrBlock;
+    kernel(vInfo[i],invmb, b, *obstacleBlocks[vInfo[i].blockID]);
   }
   // c) reinitialize sdf (warning: vInfo is the info of sim.tmp)
-  FastMarching kernel2(sim,obstacleBlocks);
-  for(size_t=0;t<10;t++)  cubism::compute<ScalarLab>(kernel2,sim.tmp,sim.tmp,signal);
+  FastMarching kernel2(sim,obstacleBlocks,signal);
+  for(size_t t=0;t<10;t++)  cubism::compute<ScalarLab>(kernel2,sim.tmp);
   // d) use kernel.istouching to reconstruct obstacleblock
-  kernel.setextent(0.5*(kernel2.maxx-kernel2.minx),0.5*(kernel2.maxy-kernel2.miny),0.5*(kernel2.maxx+kernel2.minx),0.5*(kernel2.maxy+kernel2.miny));
-  for(size_t i=0; i<vInfo.size(); i++)
+  pos[0]=0.5*(kernel2.maxx+kernel2.minx);
+  pos[1]=0.5*(kernel2.maxy+kernel2.miny);
+  semiAxis[0]=0.5*(kernel2.maxx-kernel2.minx);
+  semiAxis[1]=0.5*(kernel2.maxy-kernel2.miny);
+  //kernel.setextent(semiAxis[0],semiAxis[1],pos[0],pos[1]);
+  /*for(size_t i=0; i<vInfo.size(); i++)
   {
+    //clear obstacleBlock (keep invm and sdf)
+    if (obstacleBlocks[vInfo[i].blockID] != nullptr) 
+      obstacleBlocks[vInfo[i].blockID].clear(False);
     if(kernel.is_touching(vInfo[i]))
     {
+      //construct new obstacleBlock
       if (obstacleBlocks[vInfo[i].blockID] == nullptr)
-      {
         obstacleBlocks[vInfo[i].blockID] = new ObstacleBlock;
-        ScalarBlock& b = *(ScalarBlock*)vInfo[i].ptrBlock;
-      }
     }
     else
     {
+      //delete unnecessary obstacleBlock
       if (obstacleBlocks[vInfo[i].blockID] != nullptr)
       {
         delete obstacleblock[vInfo[i].blockID];
         obstacleblock[vInfo[i].blockID]=nullptr;
       }
     }
-  }
+  }*/
 }
 void Rectangle::create(const std::vector<BlockInfo>& vInfo)
 {

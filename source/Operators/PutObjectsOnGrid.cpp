@@ -176,15 +176,39 @@ void PutObjectsOnGrid::putObjectsOnGrid()
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
-    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
-    ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
+    //( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
+    //( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
     ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
   }
 
   // 2) Compute signed dist function and udef
   for(const auto& shape : sim.shapes)
     shape->create(tmpInfo);
-
+  bool write=false;
+  if(sim.time==0) write=true;
+  for(const auto& Eshape:sim.Eshapes){
+    Eshape->create(tmpInfo,write); //forbid writing to tmpInfo except in the initial time step
+    //copy dist to obstacleblocks
+    if(write==false)
+    {
+      const std::vector<BlockInfo>& localinvmInfo = sim.invms[Eshape->obstacleID]->getBlocksInfo();
+      std::vector<ObstacleBlock*>& OBLOCK = Eshape->obstacleBlocks;
+      #pragma omp parallel for
+		  for (size_t i = 0; i < Nblocks; i++)
+		  {
+        if(OBLOCK[chiInfo[i].blockID]==nullptr) continue;
+        VectorBlock & __restrict__ INVM =*(VectorBlock*)localinvmInfo[i].ptrBlock;
+        ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
+        CHI_MAT & __restrict__ X = OBLOCK[chiInfo[i].blockID]->chi;
+        for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+        for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
+        {
+          if(INVM(ix,iy).u[0]==0&&INVM(ix,iy).u[1]==0) continue;
+          X[iy][ix]=CHI(ix,iy).s;  
+        }
+      }
+    }
+  }
   // 3) Compute chi and shape center of mass
   const PutChiOnGrid K(sim);
   cubism::compute<ScalarLab>(K,sim.tmp);

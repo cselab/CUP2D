@@ -7,6 +7,7 @@
 #pragma once
 
 #include "../Shape.h"
+#include "../Definitions.h"
 
 class Disk : public Shape
 {
@@ -32,6 +33,8 @@ class Disk : public Shape
   Real getCharMass() const override { return M_PI * radius * radius; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   void updateVelocity(Real dt) override;
 };
 
@@ -59,6 +62,8 @@ class HalfDisk : public Shape
   Real getCharMass() const override { return M_PI * radius * radius / 2; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   void updateVelocity(Real dt) override;
 };
 
@@ -91,19 +96,36 @@ class Ellipse : public Shape
   Real getCharMass() const override { return M_PI * semiAxis[1] * semiAxis[0]; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
 };
-class ElasticDisk:public Shape
-{
-  protected:
-   const Real semiAxis[2];
-   const Real radius;
-   const Real G=1.0;
+class ElasticDisk:public Shape{
   public:
-    ElasticDisk(SimulationData&s, cubism::ArgumentParser&p,Real C[2]):
-    Shape(s,p,C),G(p("-G").asDouble(1.0)),radius( p("-radius").asDouble(0.1) ){}
-    void create(const std::vector<cubism::BlockInfo>& vInfo) override;//construct obstacleBlock and retrive sdf
-    bool istouching()
-}
+  ElasticDisk(SimulationData&s, cubism::ArgumentParser&p, Real C[2]):
+  Shape(s,p,C){std::cout<<"construct success"<<std::endl;}
+  Real getCharLength() const override {return 0;}
+  void create(const std::vector<cubism::BlockInfo>& vInfo) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,const int signal) override {}
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
+};
+class ElasticDisk2:public Shape{
+  protected:
+   Real semiAxis[2],pos[2];
+   const Real radius;
+   const Real G;
+   const std::vector<cubism::BlockInfo>& localinvmInfo=sim.invms[obstacleID]->getBlocksInfo();
+  
+  public:
+  ElasticDisk2(SimulationData&s, cubism::ArgumentParser&p, Real C[2]) :
+    Shape(s,p,C),radius( p("-radius").asDouble(0.1) ),G(p("-G").asDouble(1)),
+    semiAxis{p("-radius").asDouble(0.1),p("-radius").asDouble(0.1)},pos{C[0],C[1]}
+    {std::cout<<"construct success"<<std::endl;}
+  Real getCharLength() const override {return 0;}
+  void create(const std::vector<cubism::BlockInfo>& vInfo) override {}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,const int signal) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override;
+  //bool istouching();
+};
 class Rectangle : public Shape
 {
  protected:
@@ -120,5 +142,7 @@ class Rectangle : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
+  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override{}
+  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
 };
 

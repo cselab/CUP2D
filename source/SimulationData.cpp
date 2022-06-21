@@ -18,6 +18,11 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shapes.push_back(std::move(shape));
 }
 
+void SimulationData::addEShape(std::shared_ptr<Shape> Eshape){
+  Eshape->obstacleID=(unsigned)Eshapes.size();
+  Eshapes.push_back(std::move(Eshape));
+  allocateinvm();
+}
 void SimulationData::resetAll()
 {
   for(const auto& shape : shapes) shape->resetAll();
@@ -29,7 +34,15 @@ void SimulationData::resetAll()
   _bDump = false;
   bCollision = false;
 }
-
+void SimulationData::allocateinvm()
+{
+  ScalarLab dummy;
+  const bool xperiodic = dummy.is_xperiodic();
+  const bool yperiodic = dummy.is_yperiodic();
+  const bool zperiodic = dummy.is_zperiodic();
+  VectorGrid * localinvm = new VectorGrid(1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  invms.push_back(std::move(std::shared_ptr<VectorGrid>{localinvm}));
+}
 void SimulationData::allocateGrid()
 {
   ScalarLab dummy;

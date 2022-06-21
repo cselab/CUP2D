@@ -22,8 +22,8 @@ PSOLVER="iterative"
 # Re=100'000 <-> NU=0.0000004; Re=1'000'000 <-> NU=0.00000004
 NU=${NU:-0.00004}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 0.025 -nu $NU -tend 10. -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1 -poissonSolver $PSOLVER"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 0.025 -nu $NU -tend 10. -muteAll 0 -verbose 1 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1 -poissonSolver $PSOLVER"
 OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0
-disk radius=$RADIUS xpos=$XPOS2 bForced=1 xvel=-$XVEL tAccel=0"
+ElasticDisk radius=$RADIUS xpos=$XPOS2 bForced=0 tAccel=0"
 
 source launchCommon.sh

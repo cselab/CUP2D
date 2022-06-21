@@ -11,6 +11,7 @@
 #include "Operators/Helpers.h"
 #include "Operators/PressureSingle.h"
 #include "Operators/PutObjectsOnGrid.h"
+#include "Operators/PutSoftObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advInvm.h"
 #include "Operators/advDiff.h"
@@ -111,6 +112,7 @@ void Simulation::insertOperatorAfter(
 void Simulation::init()
 {
   // parse field variables
+  
   if ( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
@@ -139,6 +141,7 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
   pipeline.push_back(std::make_shared<advInvm>(sim));
+  pipeline.push_back(std::make_shared<PutSoftObjectsOnGrid>(sim));
   if( sim.smagorinskyCoeff == 0 )
     pipeline.push_back(std::make_shared<advDiff>(sim));
   else
@@ -166,24 +169,31 @@ void Simulation::initinvm()
   const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
   #pragma omp parallel for
-  for (size_t i=0; i < invmInfo.size(); i++)
+  for(const auto& shape:sim.Eshapes)
   {
-    //VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
-	  VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
-	  ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;
-	  //ScalarBlock& CHI = *(ScalarBlock*) chiInfo[i].ptrBlock;
-	  for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-    for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
-    {
-      // Define inverse map only inside solids
-      if(CHI(ix,iy).s>0)
+    const std::vector<BlockInfo>& localinvmInfo = sim.invms[shape->obstacleID]->getBlocksInfo();
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    for (size_t i=0; i < invmInfo.size(); i++){
+      if (OBLOCK[localinvmInfo[i].blockID] == nullptr) continue;
+      VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
+      VectorBlock& LOCALINVM= *(VectorBlock*) localinvmInfo[i].ptrBlock;
+      ObstacleBlock& o = * OBLOCK[localinvmInfo[i].blockID];
+      CHI_MAT & __restrict__ X = o.chi;
+      const CHI_MAT & __restrict__ sdf = o.dist;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        Real p[2];
-        invmInfo[i].pos(p, ix, iy);
-        INVM(ix, iy).u[0] = p[0];
- 			  INVM(ix, iy).u[1] = p[1];
+        if(X[iy][ix]>0)
+        {
+          Real p[2];
+          invmInfo[i].pos(p, ix, iy);
+          INVM(ix, iy).u[0] = p[0];
+ 			    INVM(ix, iy).u[1] = p[1];
+          LOCALINVM(ix,iy).u[0]=p[0];
+          LOCALINVM(ix,iy).u[1]=p[1];
+        }
       }
-    } 
+    }
   }
 }
 void Simulation::parseRuntime()
@@ -253,6 +263,9 @@ void Simulation::parseRuntime()
   sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
   sim.bDumpCs = parser("-dumpCs").asInt(0);
 
+  /*// Elastic Model
+  sim.elastic = parser("-elastic").asBool(false);*/
+
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
 
@@ -308,41 +321,49 @@ void Simulation::createShapes()
         ffparser("-xpos").asDouble(.5*sim.extents[0]),
         ffparser("-ypos").asDouble(.5*sim.extents[1])
       };
-      //ffparser.print_args();
+      ffparser.print_args();
       Shape* shape = nullptr;
-      if (objectName=="disk")
-        shape = new Disk(             sim, ffparser, center);
-      else if (objectName=="smartDisk")
-        shape = new SmartCylinder(    sim, ffparser, center);
-      else if (objectName=="halfDisk")
-        shape = new HalfDisk(         sim, ffparser, center);
-      else if (objectName=="ellipse")
-        shape = new Ellipse(          sim, ffparser, center);
-      else if (objectName=="rectangle")
-        shape = new Rectangle(        sim, ffparser, center);
-      else if (objectName=="stefanfish")
-        shape = new StefanFish(       sim, ffparser, center);
-      else if (objectName=="cstartfish")
-        shape = new CStartFish(       sim, ffparser, center);
-      else if (objectName=="zebrafish")
+      if (objectName=="ElasticDisk"){
+        std::cout<<"receive elastic"<<std::endl;
+        shape = new ElasticDisk(      sim, ffparser, center);
+        std::cout<<"did I reach here"<<std::endl;
+        //sim.addEShape(std::shared_ptr<Shape>{shape});
+      }
+      else{
+        if (objectName=="disk")
+          shape = new Disk(             sim, ffparser, center);
+        else if (objectName=="smartDisk")
+          shape = new SmartCylinder(    sim, ffparser, center);
+        else if (objectName=="halfDisk")
+          shape = new HalfDisk(         sim, ffparser, center);
+        else if (objectName=="ellipse")
+          shape = new Ellipse(          sim, ffparser, center);
+        else if (objectName=="rectangle")
+          shape = new Rectangle(        sim, ffparser, center);
+        else if (objectName=="stefanfish")
+          shape = new StefanFish(       sim, ffparser, center);
+        else if (objectName=="cstartfish")
+          shape = new CStartFish(       sim, ffparser, center);
+        else if (objectName=="zebrafish")
           shape = new ZebraFish(      sim, ffparser, center);
-      else if (objectName=="neurokinematicfish")
+        else if (objectName=="neurokinematicfish")
           shape = new NeuroKinematicFish(      sim, ffparser, center);
-      else if (objectName=="carlingfish")
-        shape = new CarlingFish(      sim, ffparser, center);
-      else if ( objectName=="NACA" )
-        shape = new Naca(             sim, ffparser, center);
-      else if (objectName=="windmill")
-        shape = new Windmill(         sim, ffparser, center);
-      else if (objectName=="teardrop")
-        shape = new Teardrop(         sim, ffparser, center);
-      else if (objectName=="waterturbine")
-        shape = new Waterturbine(     sim, ffparser, center);
-      else if (objectName=="experimentFish")
-        shape = new ExperimentFish(   sim, ffparser, center);
-      else
-        throw std::invalid_argument("unrecognized shape: " + objectName);
-      sim.addShape(std::shared_ptr<Shape>{shape});
+        else if (objectName=="carlingfish")
+          shape = new CarlingFish(      sim, ffparser, center);
+        else if ( objectName=="NACA" )
+          shape = new Naca(             sim, ffparser, center);
+        else if (objectName=="windmill")
+          shape = new Windmill(         sim, ffparser, center);
+        else if (objectName=="teardrop")
+          shape = new Teardrop(         sim, ffparser, center);
+        else if (objectName=="waterturbine")
+          shape = new Waterturbine(     sim, ffparser, center);
+        else if (objectName=="experimentFish")
+          shape = new ExperimentFish(   sim, ffparser, center);
+        else
+          throw std::invalid_argument("unrecognized shape: " + objectName);
+        sim.addShape(std::shared_ptr<Shape>{shape});
+      }
     }
   }
 

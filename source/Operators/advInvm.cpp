@@ -137,7 +137,7 @@ static inline Real dINVMY_adv(const VectorLab&INVM, const Real V[2], const Real 
 
 struct KernelAdvect
 {
-	KernelAdvect(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy,const int shapeid_) : sim(s), coef(c):shapeid(shapeid_)
+	KernelAdvect(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy,const int shapeid_) : sim(s), coef(c),shapeid(shapeid_)
 	{
 		uinf[0] = uinfx;
 		uinf[1] = uinfy;
@@ -149,16 +149,16 @@ struct KernelAdvect
 	const StencilInfo stencil{ -3, -3, 0, 4, 4, 1, true, {0,1} };
 	const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
 	const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-	const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+	//const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
 	void operator()(VectorLab& lab, const BlockInfo& info) const
 	{
-		std::vector<ObstacleBlock*>& OBLOCK = sim.shapes[shapeid]->obstacleBlocks;
+		std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
 		if(OBLOCK[info.blockID]==nullptr) return;
 		const Real h = info.h;
 		const Real afac = -sim.dt*h;
 		VectorBlock & __restrict__ TMP = *(VectorBlock*)tmpVInfo[info.blockID].ptrBlock;
 		VectorBlock & __restrict__ V = *(VectorBlock*)velInfo[info.blockID].ptrBlock;
-		ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[info.blockID].ptrBlock;
+		//ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[info.blockID].ptrBlock;
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
@@ -177,28 +177,30 @@ struct Kernelextrapolate
 	const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0,1}};
 	const int radius,shapeid;
 	const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
-	void operator()(VectorLab& lab, ScalarLab& taglab,const BlockInfo& info) const
+	void operator()(VectorLab& lab,const BlockInfo& info) const
 	{
 		VectorBlock & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;TMPV.clear();
-		std::vector<ObstacleBlock*>& OBLOCK = sim.shapes[shapeid]->obstacleBlocks;
+		std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
 		if(OBLOCK[info.blockID]==nullptr) return;
-		UDEFMAT & __restrict__ Oinvm = OBLOCK[info.blockID].invm;
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 		for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 		{
 			//decide point (ix,iy) is a point adjacent to the valid inverse map
-			if (taglab(ix,iy).s==shapeid) {TMPV(ix, iy).u[0]=lab(ix,iy).u[0];TMPV(ix, iy).u[1]=lab(ix,iy).u[1];continue;}
-			if (   taglab(ix-1,iy).s!=shapeid
-				&& taglab(ix+1,iy).s!=shapeid
-				&& taglab(ix,iy-1).s!=shapeid
-				&& taglab(ix,iy+1).s!=shapeid) continue;
+			if (lab(ix,iy).u[0]!=0||lab(ix,iy).u[1]!=0) {TMPV(ix, iy).u[0]=lab(ix,iy).u[0];TMPV(ix, iy).u[1]=lab(ix,iy).u[1];continue;}
+			if(
+				   lab(ix-1,iy).u[0]==0 && lab(ix-1,iy).u[1]==0
+				&& lab(ix+1,iy).u[0]==0 && lab(ix+1,iy).u[1]==0
+				&& lab(ix,iy-1).u[0]==0 && lab(ix,iy-1).u[1]==0
+				&& lab(ix,iy+1).u[0]==0 && lab(ix,iy+1).u[1]==0
+			)
+			continue;
 			//collect points with known inverse map value within the radius 
 			std::vector<Real> bufA((2*radius+1)*(2*radius+1)*3);
 			std::vector<Real> bufb((2 * radius + 1)*(2 * radius + 1)*2);
 			int num_ngbs = 0;
 			for (int i = -radius; i <= radius; i++) 
 			for (int j = -radius; j <= radius; j++) {
-				if (taglab(ix + i, iy + j).s == shapeid) {
+				if (lab(ix + i, iy + j).u[0] != 0||lab(ix+i,iy+j).u[1]!=0) {
 					bufA[num_ngbs * 3] = Real(i);
 					bufA[num_ngbs * 3 + 1] = Real(j);
 					bufA[num_ngbs * 3 + 2] = 1.0;
@@ -208,20 +210,17 @@ struct Kernelextrapolate
 				}
 			}
 			//assemble least square matrix Ax=b
-			Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> A(bufA.data(), num_ngbs, 3);
-			Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> b(bufb.data(), num_ngbs, 2);
+			//Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> A(bufA.data(), num_ngbs, 3);
+			//Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> b(bufb.data(), num_ngbs, 2);
 			//solve a,b,c in inv_m(x,y)=ax+by+c
-			Eigen::Matrix<Real, 3, 2> x =  (A.transpose() * A).ldlt().solve(A.transpose() * b);
+			//Eigen::Matrix<Real, 3, 2> x =  (A.transpose() * A).ldlt().solve(A.transpose() * b);
 			//update the inverse map at (ix,iy)
-			TMPV(ix, iy).u[0] = x(2, 0);
-			TMPV(ix, iy).u[1] = x(2, 1);
-			Oinvm[iy][ix][0]=x(2,0);
-			Oinvm[iy][ix][1]=x(2,1);
+			//TMPV(ix, iy).u[0] = x(2, 0);
+			//TMPV(ix, iy).u[1] = x(2, 1);
 			}
-			taglab(ix,iy).s=shapeid;
 	}
 };
-void advInvm::testextrapolate()
+/*void advInvm::testextrapolate()
 {
 	for(auto shape:sim.shapes){
 		std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
@@ -237,39 +236,41 @@ void advInvm::testextrapolate()
 				}
 			}
 	}
-}
+}*/
 void advInvm::advect(const Real dt)
 {
 	const size_t Nblocks = velInfo.size();
 	const Real UINF[2] = { sim.uinfx, sim.uinfy };
-	for (size_t shapeid=0;shapeid<sim.shapes.size();shapeid++) {
+	for (size_t shapeid=0;shapeid<sim.Eshapes.size();shapeid++) {
 		/********************************************************************/
 		//put invm of the shape to the global grid
-		std::vector<ObstacleBlock*>& OBLOCK = sim.shapes[shapeid]->obstacleBlocks;
-		#pragma omp parallel for
+		std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
+		const std::vector<BlockInfo>& localinvmInfo = sim.invms[shapeid]->getBlocksInfo();
+		/*#pragma omp parallel for
 		for (size_t i = 0; i < Nblocks; i++)
 		{
 			if(OBLOCK[invmInfo[i].blockID]=nullptr) continue;
-			const UDEFMAT & __restrict__ Oinvm = OBLOCK[invmInfo[i].blockID].invm;
+
+			const VectorBlock & __restrict__ LOCALINVM = *(VectorBlock*)localinvmInfo[i].ptrBlock;
 			VectorBlock & __restrict__ INVM = *(VectorBlock*)invmInfo[i].ptrBlock;
 			for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
-				if(Oinvm[iy][ix][0]!=0.0||Oinvm[iy][ix][1]!=0.0){
-					INVM(ix, iy).u[0] = Oinvm[iy][ix][0];
-					INVM(ix, iy).u[1] = Oinvm[iy][ix][1];
+				if(LOCALINVM(ix,iy).u[0]!=0.0||LOCALINVM(ix,iy).u[1]!=0.0){
+					INVM(ix, iy).u[0] = LOCALINVM(ix,iy).u[0];
+					INVM(ix, iy).u[1] = LOCALINVM(ix,iy).u[1];
 				}
 			}
-		}
+		}*/
 		/********************************************************************/
 		//invm1=invm0+dt*RHS(invm0)
 		KernelAdvect Step1(sim,1, UINF[0], UINF[1],shapeid);
-		cubism::compute<VectorLab>(Step1, sim.invm, sim.tmpV);
-		// compute invm1 and save it in vold
+		cubism::compute<VectorLab>(Step1, sim.invms[shapeid].get(), sim.tmpV);
+		// compute invm1 and save it in tmpV1
 		#pragma omp parallel for
 		for (size_t i = 0; i < Nblocks; i++)
 		{
-			const VectorBlock & __restrict__ INVM0 = *(VectorBlock*)invmInfo[i].ptrBlock;
+			const VectorBlock & __restrict__ INVM0 = *(VectorBlock*)localinvmInfo[i].ptrBlock;
 			VectorBlock & __restrict__ INVM1 = *(VectorBlock*)tmpV1Info[i].ptrBlock;
 			const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 			const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
@@ -282,13 +283,13 @@ void advInvm::advect(const Real dt)
 		}
 		/********************************************************************/
 		//invm2=0.75*invm0+0.25*invm1+0.25*dt*RHS(invm1)
-		KernelAdvect Step2(sim, 0.25, UINF[0], UINF[1]);
+		KernelAdvect Step2(sim, 0.25, UINF[0], UINF[1],shapeid);
 		cubism::compute<VectorLab>(Step2, sim.tmpV1, sim.tmpV);
-		//compute invm2 and save it in uDef
+		//compute invm2 and save it in tmpV2
 		#pragma omp parallel for
 		for (size_t i = 0; i < Nblocks; i++)
 		{
-			VectorBlock & __restrict__ INVM0 = *(VectorBlock*)invmInfo[i].ptrBlock;
+			VectorBlock & __restrict__ INVM0 = *(VectorBlock*)localinvmInfo[i].ptrBlock;
 			const VectorBlock & __restrict__ INVM1 = *(VectorBlock*)tmpV1Info[i].ptrBlock;
 			VectorBlock & __restrict__ INVM2 = *(VectorBlock*)tmpV2Info[i].ptrBlock;
 			const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
@@ -301,16 +302,15 @@ void advInvm::advect(const Real dt)
 		}
 		/********************************************************************/
 		//invm3=1/3*invm0+2/3*invm2+2/3*dt*RHS(invm2)
-		KernelAdvect Step3(sim, 2.0/3.0, UINF[0], UINF[1]);
+		KernelAdvect Step3(sim, 2.0/3.0, UINF[0], UINF[1],shapeid);
 		cubism::compute<VectorLab>(Step3, sim.tmpV2, sim.tmpV);
 		//compute invm2 and save it in invm
 		#pragma omp parallel for
 		for (size_t i = 0; i < Nblocks; i++)
 		{
-			( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);//clear tmp for next step;
-			std::vector<ObstacleBlock*>& OBLOCK = sim.shapes[shapeid]->obstacleBlocks;
-			const UDEFMAT & __restrict__ X = OBLOCK[invmInfo[i].blockID].chi;
-			VectorBlock & __restrict__ INVM = *(VectorBlock*)invmInfo[i].ptrBlock;
+			//( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);//clear tmp for next step;
+			const CHI_MAT & __restrict__ X = OBLOCK[localinvmInfo[i].blockID]->chi;
+			VectorBlock & __restrict__ INVM = *(VectorBlock*)localinvmInfo[i].ptrBlock;
 			VectorBlock & __restrict__ INVM2 = *(VectorBlock*)tmpV2Info[i].ptrBlock;
 			const VectorBlock & __restrict__ tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 			const Real ih2 = 1.0 / (velInfo[i].h*velInfo[i].h);
@@ -329,11 +329,12 @@ void advInvm::advect(const Real dt)
 }
 void advInvm::extrapolate(const int layers)
 {
+	const size_t Nblocks = velInfo.size();
 	/*******************************************************************/
 	//copy INVM to TMPV1
 	//record points belongs to shape[i] with i on tmp
-	for (size_t shapeid=0;shapeid<sim.shapes.size();shapeid++) {
-		auto shape=sim.shapes[shapeid];
+	/*for (size_t shapeid=0;shapeid<sim.Eshapes.size();shapeid++) {
+		auto shape=sim.Eshapes[shapeid];
 		const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
 		#pragma omp parallel for
 		for (size_t i = 0; i < Nblocks; i++){
@@ -357,23 +358,24 @@ void advInvm::extrapolate(const int layers)
 				TMPV1(ix,iy).u[1]=INVM(ix,iy).u[1];
 			}
 		}
-	}
+	}*/
 	/********************************************************************/
-	//extrapolate fixed layers and store in ObstacleBlock for each shape
-	for(size_t id=0;id<sim.shapes.size();id++){
+	//extrapolate fixed layers and store in invm of each shape
+	for(size_t id=0;id<sim.Eshapes.size();id++){
+		const std::vector<BlockInfo>& localinvmInfo = sim.invms[id]->getBlocksInfo();
 		Kernelextrapolate extrapolate(sim,4,id);
 		for(int t=0;t<layers;t++){
-			cubism::compute<VectorLab>(extrapolate,sim.tmpV1,sim.tmp,sim.tmpV);
+			cubism::compute<VectorLab>(extrapolate,sim.invms[id].get(),sim.tmpV);
 			#pragma omp parallel for
 			for (size_t i = 0; i < Nblocks; i++){
-				const std::vector<ObstacleBlock*>& OBLOCK = sim.shapes[id]->obstacleBlocks;
+				const std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[id]->obstacleBlocks;
 				if(OBLOCK[invmInfo[i].blockID]==nullptr) continue;
-				VectorBlock & __restrict__ TMPV1 =*(VectorBlock*)tmpV1Info[i].ptrBlock;
+				VectorBlock & __restrict__ INVM =*(VectorBlock*)localinvmInfo[i].ptrBlock;
 				VectorBlock & __restrict__ TMPV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
 				for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
             	for (int ix = 0; ix < VectorBlock::sizeX; ++ix){
-					TMPV1(ix,iy).u[0]=TMPV(ix,iy).u[0];
-					TMPV1(ix,iy).u[1]=TMPV(ix,iy).u[1];	
+					INVM(ix,iy).u[0]=TMPV(ix,iy).u[0];
+					INVM(ix,iy).u[1]=TMPV(ix,iy).u[1];	
 				}
 			}
 		}
@@ -384,6 +386,5 @@ void advInvm::operator()(const Real dt)
 	sim.startProfiler("advDiff");
 	advect(dt);
 	extrapolate(5);
-	testextrapolate()
 	sim.stopProfiler();
 }

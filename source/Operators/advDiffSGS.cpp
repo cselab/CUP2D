@@ -147,7 +147,7 @@ struct KernelAdvectDiffuseSGS
   Real uinf [2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
-  std::vector<cubism::BlockInfo>& CsInfo = sim.Cs->getBlocksInfo();;
+  std::vector<cubism::BlockInfo>& CsInfo = sim.Cs->getBlocksInfo();
 
   void operator()(VectorLab& lab, const BlockInfo& info) const
   {
