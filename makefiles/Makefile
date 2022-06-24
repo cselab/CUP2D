@@ -98,7 +98,7 @@ ifeq ("$(gpu)", "true")
 	LIBS += -lcudart -lcublas -lcusparse
   
   ifeq ("$(profile)", "true")
-    CPPFLAGS += -DBICGSTAB_PROFILER
+    NVCCFLAGS += -DBICGSTAB_PROFILER
   endif
 else
   CPPFLAGS += -Wno-unknown-pragmas
