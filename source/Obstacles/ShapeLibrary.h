@@ -122,7 +122,8 @@ struct FillBlocks_ElasticDisk
 };
 struct FastMarching
 { 
-  FastMarching(const SimulationData & s,const std::vector<ObstacleBlock*> & o,const int signal_): sim(s),OBLOCK(o),signal(signal_){}
+  FastMarching(const SimulationData & s,const std::vector<ObstacleBlock*> & o,const int signal_)
+  : sim(s),OBLOCK(o),signal(signal_){}
   const SimulationData & sim;
   const int signal;
   Real minx=2147483647,maxx=-2147483647,miny=2147483647,maxy=-2147483647;

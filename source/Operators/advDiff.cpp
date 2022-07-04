@@ -239,10 +239,12 @@ void advDiff::operator()(const Real dt)
   /********************************************************************/
   // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
+  std::cout<<"first step\n";
   KernelAdvectDiffuse Step1(sim,0.5,UINF[0],UINF[1]) ;
   cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
 
   //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+  std::cout<<"second step\n";
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {

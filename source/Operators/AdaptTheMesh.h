@@ -13,6 +13,7 @@ class AdaptTheMesh : public Operator
  public:
   ScalarAMR * tmp_amr;
   ScalarAMR * chi_amr;
+  ScalarAMR * Echi_amr;
   ScalarAMR * pres_amr;
   ScalarAMR * pold_amr;
   VectorAMR * vel_amr;
@@ -22,11 +23,13 @@ class AdaptTheMesh : public Operator
   VectorAMR * tmpV2_amr;
   VectorAMR * uDef_amr;
   VectorAMR * invm_amr;
+  std::vector<std::shared_ptr<VectorAMR>> invms_amr;
 
   AdaptTheMesh(SimulationData& s) : Operator(s)
   {
     tmp_amr  = new ScalarAMR(*sim.tmp ,sim.Rtol,sim.Ctol);
     chi_amr  = new ScalarAMR(*sim.chi ,sim.Rtol,sim.Ctol);
+    Echi_amr  = new ScalarAMR(*sim.Echi ,sim.Rtol,sim.Ctol);
     pres_amr = new ScalarAMR(*sim.pres,sim.Rtol,sim.Ctol);
     pold_amr = new ScalarAMR(*sim.pold,sim.Rtol,sim.Ctol);
     vel_amr  = new VectorAMR(*sim.vel ,sim.Rtol,sim.Ctol);
@@ -36,12 +39,17 @@ class AdaptTheMesh : public Operator
     tmpV1_amr = new VectorAMR(*sim.tmpV1,sim.Rtol,sim.Ctol);
     tmpV2_amr = new VectorAMR(*sim.tmpV2,sim.Rtol,sim.Ctol);
     uDef_amr = new VectorAMR(*sim.uDef,sim.Rtol,sim.Ctol);
+    for(size_t t=0;t<s.invms.size();t++){
+      VectorAMR * Linvm_amr=new VectorAMR(*sim.invms[t],sim.Rtol,sim.Ctol);
+      invms_amr.push_back(std::move(std::shared_ptr<VectorAMR>{Linvm_amr}));
+    }
   }
 
   ~AdaptTheMesh()
   {
     delete tmp_amr;
     delete chi_amr;
+    delete Echi_amr;
     delete pres_amr;
     delete pold_amr;
     delete vel_amr;

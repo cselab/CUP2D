@@ -9,6 +9,7 @@ class PutSoftObjectsOnGrid : public Operator
     const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
     const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
     const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+    const std::vector<cubism::BlockInfo>& EchiInfo   = sim.Echi->getBlocksInfo();
     const std::vector<cubism::BlockInfo>& invmInfo  = sim.invm->getBlockInfo();
     public:
     using Operator::Operator;

@@ -13,6 +13,7 @@ using namespace cubism;
 void IC::operator()(const Real dt)
 {
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& EchiInfo  = sim.Echi->getBlocksInfo();
   const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   const std::vector<BlockInfo>& invmInfo = sim.invm->getBlocksInfo();
@@ -31,6 +32,7 @@ void IC::operator()(const Real dt)
       VectorBlock& VEL = *(VectorBlock*)  velInfo[i].ptrBlock;  VEL.clear();
       VectorBlock& UDEF= *(VectorBlock*) uDefInfo[i].ptrBlock; UDEF.clear();
       ScalarBlock& CHI = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+      ScalarBlock& ECHI = *(ScalarBlock*)  EchiInfo[i].ptrBlock;  ECHI.clear();
       ScalarBlock& PRES= *(ScalarBlock*) presInfo[i].ptrBlock; PRES.clear();
       VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock; INVM.clear();
       ScalarBlock& POLD= *(ScalarBlock*) poldInfo[i].ptrBlock; POLD.clear();
@@ -39,6 +41,10 @@ void IC::operator()(const Real dt)
       VectorBlock& TMPV1= *(VectorBlock*) tmpV1Info[i].ptrBlock; TMPV1.clear();
       VectorBlock& TMPV2= *(VectorBlock*) tmpV2Info[i].ptrBlock; TMPV2.clear();
       VectorBlock& VOLD= *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
+      for(size_t t=0;t<sim.invms.size();t++) {
+        VectorBlock& LINVM=*(VectorBlock*) sim.invms[t]->getBlocksInfo()[i].ptrBlock;
+        LINVM.clear();
+      }
       ScalarBlock& CS  = *(ScalarBlock*)   CsInfo[i].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix)

@@ -96,7 +96,8 @@ void Shape::updatePosition(Real dt)
   centerOfMass[1] += dt * ( v + sim.uinfy );
   labCenterOfMass[0] += dt * u;
   labCenterOfMass[1] += dt * v;
-
+  std::cout<<"velocity in lab frame"<<u<<","<<v<<std::endl;
+  std::cout<<"velocity in sim frame"<<u+sim.uinfx<<","<<v+sim.uinfy<<std::endl;
   orientation += dt*omega;
   orientation = orientation> M_PI ? orientation-2*M_PI : orientation;
   orientation = orientation<-M_PI ? orientation+2*M_PI : orientation;

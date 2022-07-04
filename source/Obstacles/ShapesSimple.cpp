@@ -95,11 +95,12 @@ void Ellipse::create(const std::vector<BlockInfo>& vInfo)
       }
   }
 }
-void ElasticDisk2::create(const std::vector<BlockInfo>& vInfo,bool write)
+void ElasticDisk::create(const std::vector<BlockInfo>& vInfo,bool write)
 {
   // This create function has the same utility of create for rigid shapes
   // Place it in StartObstacles and PutObjectsOnGrid
   const Real h = sim.getH();
+  //const std::vector<cubism::BlockInfo>& localinvmInfo=sim.invms[obstacleID]->getBlocksInfo();
   for(auto & entry : obstacleBlocks) delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock*> (vInfo.size(), nullptr);
@@ -122,9 +123,10 @@ void ElasticDisk2::create(const std::vector<BlockInfo>& vInfo,bool write)
       }
   }
 }
-void ElasticDisk2::Ecreate(const std::vector<BlockInfo>& vInfo,const int signal)
+void ElasticDisk::Ecreate(const std::vector<BlockInfo>& vInfo,const int signal)
 {
   // precondition: setvInfo to a positive number: signal
+  const std::vector<cubism::BlockInfo>& localinvmInfo=sim.invms[obstacleID]->getBlocksInfo();
   const Real h = sim.getH();
   // a) define kernel
   FillBlocks_ElasticDisk kernel(radius,center,h,rhoS);

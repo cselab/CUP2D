@@ -149,6 +149,7 @@ AMRSolver::AMRSolver(SimulationData& s):sim(s),Get_LHS(s)
 
 void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 {
+  std::cout<<&input<<"/"<<&sim.tmp<<"\n"<<&output<<"/"<<&sim.pres<<"\n";
   if (input != sim.tmp || output != sim.pres)
     throw std::invalid_argument("AMRSolver hardcoded to sim.tmp and sim.pres for now");
 

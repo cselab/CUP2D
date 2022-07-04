@@ -10,9 +10,10 @@ struct PutChiOnGrid
   const SimulationData & sim;
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& EchiInfo = sim.Echi->getBlocksInfo();
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
-    for(const auto& shape : sim.shapes)
+    for(const auto& shape : sim.Eshapes)
     {
       const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
       if(OBLOCK[info.blockID] == nullptr) continue; //obst not in block
@@ -25,6 +26,7 @@ struct PutChiOnGrid
       o.COM_y = 0;
       o.Mass  = 0;
       auto & __restrict__ CHI  = *(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
+      auto & __restrict__ ECHI  = *(ScalarBlock*) EchiInfo[info.blockID].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; iy++)
       for(int ix=0; ix<ScalarBlock::sizeX; ix++)
       {
@@ -54,6 +56,7 @@ struct PutChiOnGrid
         }
         #endif
         CHI(ix,iy).s = std::max(CHI(ix,iy).s,X[iy][ix]);
+        ECHI(ix,iy).s = std::max(ECHI(ix,iy).s,X[iy][ix]);
         if(X[iy][ix] > 0)
         {
           Real p[2];
@@ -83,12 +86,17 @@ void PutSoftObjectsOnGrid::putSoftObjectsOnGrid()
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
-    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
+    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+    for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
+    {
+      if(ECHI(ix,iy).s==CHI(ix,iy).s) CHI(ix,iy).s==0;
+    }
+    ( (ScalarBlock*)  EchiInfo[i].ptrBlock )->clear();
     ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(signal);
   }
 
   // 2) Compute signed dist function (only valid in the region with valid inverse map value)
-  for(const auto& shape : sim.shapes)
+  for(const auto& shape : sim.Eshapes)
     shape->create(tmpInfo,signal);
   // 3) compute chi based on signed dist function
   const PutChiOnGrid K(sim);

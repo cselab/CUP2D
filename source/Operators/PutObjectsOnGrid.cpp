@@ -47,13 +47,15 @@ struct ComputeSurfaceNormals
 
 struct PutChiOnGrid
 {
-  PutChiOnGrid(const SimulationData & s) : sim(s) {}
+  PutChiOnGrid(const SimulationData & s,const bool e) : sim(s),elastic(e) {}
   const SimulationData & sim;
+  const bool elastic;
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& EchiInfo = sim.Echi->getBlocksInfo();
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
-    for(const auto& shape : sim.shapes)
+    for(const auto& shape : (elastic?sim.Eshapes:sim.shapes))
     {
       const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
       if(OBLOCK[info.blockID] == nullptr) continue; //obst not in block
@@ -65,7 +67,7 @@ struct PutChiOnGrid
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass  = 0;
-      auto & __restrict__ CHI  = *(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
+      auto & __restrict__ CHI  = elastic?*(ScalarBlock*) EchiInfo[info.blockID].ptrBlock:*(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
       for(int iy=0; iy<ScalarBlock::sizeY; iy++)
       for(int ix=0; ix<ScalarBlock::sizeX; ix++)
       {
@@ -176,42 +178,33 @@ void PutObjectsOnGrid::putObjectsOnGrid()
   #pragma omp parallel for
   for (size_t i=0; i < Nblocks; i++)
   {
-    //( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
-    //( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
+    ( (ScalarBlock*)  chiInfo[i].ptrBlock )->clear();
+    ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(-1);
     ( (VectorBlock*) uDefInfo[i].ptrBlock )->clear();
   }
-
   // 2) Compute signed dist function and udef
-  for(const auto& shape : sim.shapes)
-    shape->create(tmpInfo);
-  bool write=false;
-  if(sim.time==0) write=true;
-  for(const auto& Eshape:sim.Eshapes){
-    Eshape->create(tmpInfo,write); //forbid writing to tmpInfo except in the initial time step
-    //copy dist to obstacleblocks
-    if(write==false)
-    {
-      const std::vector<BlockInfo>& localinvmInfo = sim.invms[Eshape->obstacleID]->getBlocksInfo();
-      std::vector<ObstacleBlock*>& OBLOCK = Eshape->obstacleBlocks;
-      #pragma omp parallel for
-		  for (size_t i = 0; i < Nblocks; i++)
-		  {
-        if(OBLOCK[chiInfo[i].blockID]==nullptr) continue;
-        VectorBlock & __restrict__ INVM =*(VectorBlock*)localinvmInfo[i].ptrBlock;
-        ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
-        CHI_MAT & __restrict__ X = OBLOCK[chiInfo[i].blockID]->chi;
-        for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
-        {
-          if(INVM(ix,iy).u[0]==0&&INVM(ix,iy).u[1]==0) continue;
-          X[iy][ix]=CHI(ix,iy).s;  
-        }
-      }
+  // 2.a) for elastic objects
+  if(sim.time==0){
+    for (const auto& Eshape:sim.Eshapes) Eshape->create(tmpInfo,true);
+    if(sim.Eshapes.size()!=0){
+    const PutChiOnGrid K(sim,true);
+    cubism::compute<ScalarLab>(K,sim.tmp);
     }
   }
+  for (size_t i=0;i<Nblocks;i++)
+  {
+    ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ ECHI = *(ScalarBlock*)EchiInfo[i].ptrBlock;
+    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+    for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
+      CHI(ix,iy).s=ECHI(ix,iy).s;
+  }
+  // 2.b) for rigid objects 
+  for(const auto& shape : sim.shapes)
+    shape->create(tmpInfo);
   // 3) Compute chi and shape center of mass
-  const PutChiOnGrid K(sim);
-  cubism::compute<ScalarLab>(K,sim.tmp);
+  const PutChiOnGrid L(sim,false);
+  cubism::compute<ScalarLab>(L,sim.tmp);
   const ComputeSurfaceNormals K1(sim);
   compute<ComputeSurfaceNormals,ScalarGrid,ScalarLab,ScalarGrid,ScalarLab>(K1,*sim.chi,*sim.tmp);
   for(const auto& shape : sim.shapes)

@@ -152,6 +152,7 @@ struct KernelAdvect
 	//const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
 	void operator()(VectorLab& lab, const BlockInfo& info) const
 	{
+		//std::cout<<info.blockID<<std::endl;
 		std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
 		if(OBLOCK[info.blockID]==nullptr) return;
 		const Real h = info.h;
@@ -159,6 +160,7 @@ struct KernelAdvect
 		VectorBlock & __restrict__ TMP = *(VectorBlock*)tmpVInfo[info.blockID].ptrBlock;
 		VectorBlock & __restrict__ V = *(VectorBlock*)velInfo[info.blockID].ptrBlock;
 		//ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[info.blockID].ptrBlock;
+		//std::cout<<"-------------------"<<std::endl;
 		for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
 			for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
 			{
@@ -166,6 +168,7 @@ struct KernelAdvect
 				TMP(ix, iy).u[0] = coef * dINVMX_adv(lab, V0, uinf, afac, ix, iy);
 				TMP(ix, iy).u[1] = coef * dINVMY_adv(lab, V0, uinf, afac, ix, iy);
 			}
+		//std::cout<<"finish==========================\n";
 	}
 };
 
@@ -242,6 +245,7 @@ void advInvm::advect(const Real dt)
 	const size_t Nblocks = velInfo.size();
 	const Real UINF[2] = { sim.uinfx, sim.uinfy };
 	for (size_t shapeid=0;shapeid<sim.Eshapes.size();shapeid++) {
+		std::cout<<"sh"<<std::endl;
 		/********************************************************************/
 		//put invm of the shape to the global grid
 		std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
@@ -383,8 +387,12 @@ void advInvm::extrapolate(const int layers)
 }
 void advInvm::operator()(const Real dt)
 {
-	sim.startProfiler("advDiff");
+	sim.startProfiler("advInvm");
+	if(sim.verbose)
+		std::cout << "--[CUP2D] start advect \n";
 	advect(dt);
+	if(sim.verbose)
+		std::cout << "--[CUP2D] start extrapolate \n";
 	extrapolate(5);
 	sim.stopProfiler();
 }

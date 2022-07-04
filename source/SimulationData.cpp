@@ -51,6 +51,7 @@ void SimulationData::allocateGrid()
   const bool zperiodic = dummy.is_zperiodic();
   
   chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  Echi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
@@ -89,6 +90,16 @@ void SimulationData::dumpChi(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
+}
+void SimulationData::dumpEChiDebug(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI2<StreamerScalar,Real, ScalarGrid,ScalarLab>(*Echi, time, "Echi_" + ss.str(),path4serialization);
+}
+void SimulationData::dumpEChi(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*Echi, time, "Echi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPres(std::string name)
 {
@@ -156,6 +167,7 @@ SimulationData::~SimulationData()
   #endif
   if(vel not_eq nullptr) delete vel;
   if(chi not_eq nullptr) delete chi;
+  if(Echi not_eq nullptr) delete Echi;
   if(uDef not_eq nullptr) delete uDef;
   if(pres not_eq nullptr) delete pres;
   if(pold not_eq nullptr) delete pold;
@@ -215,6 +227,7 @@ void SimulationData::dumpAll(std::string name)
   K1(0);
   dumpTmp (name); //dump vorticity
   dumpChi (name);
+  dumpEChi (name);
   dumpVel (name);
   dumpPres(name);
   dumpInvm(name);

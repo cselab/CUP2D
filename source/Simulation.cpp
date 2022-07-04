@@ -152,7 +152,6 @@ void Simulation::init()
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
-
   if( sim.rank == 0 && sim.verbose )
   {
     std::cout << "[CUP2D] Operator ordering:\n";
@@ -174,6 +173,7 @@ void Simulation::initinvm()
     const std::vector<BlockInfo>& localinvmInfo = sim.invms[shape->obstacleID]->getBlocksInfo();
     const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
     for (size_t i=0; i < invmInfo.size(); i++){
+      //std::cout<<i<<"th block"<<std::endl;
       if (OBLOCK[localinvmInfo[i].blockID] == nullptr) continue;
       VectorBlock& INVM= *(VectorBlock*) invmInfo[i].ptrBlock;
       VectorBlock& LOCALINVM= *(VectorBlock*) localinvmInfo[i].ptrBlock;
@@ -324,10 +324,8 @@ void Simulation::createShapes()
       ffparser.print_args();
       Shape* shape = nullptr;
       if (objectName=="ElasticDisk"){
-        std::cout<<"receive elastic"<<std::endl;
         shape = new ElasticDisk(      sim, ffparser, center);
-        std::cout<<"did I reach here"<<std::endl;
-        //sim.addEShape(std::shared_ptr<Shape>{shape});
+        sim.addEShape(std::shared_ptr<Shape>{shape});
       }
       else{
         if (objectName=="disk")

@@ -16,6 +16,7 @@ protected:
   const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& EchiInfo   = sim.Echi->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
 
   void putChiOnGrid(Shape * const shape) const;

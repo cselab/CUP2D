@@ -400,7 +400,9 @@ struct KernelComputeForces
 void ComputeForces::operator()(const Real dt)
 {
   sim.startProfiler("ComputeForces");
+  std::cout<<"before compute forces\n";
   KernelComputeForces K(sim);
+  std::cout<<"start compute forces\n";
   compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
 
   // finalize partial sums

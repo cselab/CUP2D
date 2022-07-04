@@ -99,6 +99,7 @@ void AdaptTheMesh::adapt()
 
   tmp_amr ->Tag();
   chi_amr ->TagLike(tmpInfo);
+  Echi_amr->TagLike(tmpInfo);
   invm_amr->TagLike(tmpInfo);
   pres_amr->TagLike(tmpInfo);
   pold_amr->TagLike(tmpInfo);
@@ -108,18 +109,21 @@ void AdaptTheMesh::adapt()
   tmpV1_amr->TagLike(tmpInfo);
   tmpV2_amr->TagLike(tmpInfo);
   uDef_amr->TagLike(tmpInfo);
+  for(auto Linvm_amr:invms_amr) Linvm_amr->TagLike(tmpInfo);
 
   tmp_amr ->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
   chi_amr ->Adapt(sim.time, false, false);
+  Echi_amr->Adapt(sim.time,false,false);
   vel_amr ->Adapt(sim.time, false, false);
   vOld_amr->Adapt(sim.time, false, false);
   pres_amr->Adapt(sim.time, false, false);
   pold_amr->Adapt(sim.time, false, false);
   invm_amr->Adapt(sim.time, false, false);
-  tmpV_amr->Adapt(sim.time, false, true);
-  tmpV1_amr->Adapt(sim.time,false,true);
-  tmpV2_amr->Adapt(sim.time,false,true);
-  uDef_amr->Adapt(sim.time, false, true);
+  tmpV_amr->Adapt(sim.time, false, false);
+  tmpV1_amr->Adapt(sim.time,false,false);
+  tmpV2_amr->Adapt(sim.time,false,false);
+  uDef_amr->Adapt(sim.time, false, false);
+  for(auto Linvm_amr:invms_amr) Linvm_amr->Adapt(sim.time,false,false);
 
   sim.stopProfiler();
 }

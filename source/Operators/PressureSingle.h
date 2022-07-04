@@ -16,7 +16,7 @@ class PressureSingle : public Operator
 {
 protected:
   const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
-
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
   std::shared_ptr<PoissonSolver> pressureSolver;
 
   void preventCollidingObstacles() const;

@@ -115,6 +115,7 @@ struct SimulationData
 
   // declare grids
   ScalarGrid * chi  = nullptr;
+  ScalarGrid * Echi =nullptr;//specifically for elastic objects
   VectorGrid * vel  = nullptr;
   VectorGrid * vOld = nullptr;
   ScalarGrid * pres = nullptr;
@@ -202,6 +203,8 @@ struct SimulationData
   void readRestartFiles();
 
   void dumpChi  (std::string name);
+  void dumpEChi (std::string name);
+  void dumpEChiDebug (std::string name);
   void dumpPres (std::string name);
   void dumpTmp  (std::string name);
   void dumpVel  (std::string name);
