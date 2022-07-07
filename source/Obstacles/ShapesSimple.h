@@ -102,18 +102,18 @@ class Ellipse : public Shape
 class ElasticDisk:public Shape{
   protected:
    Real semiAxis[2],pos[2];
-   const Real radius;
+   const Real radius,r2;
    const Real G;
   public:
   ElasticDisk(SimulationData&s, cubism::ArgumentParser&p, Real C[2]) :
     Shape(s,p,C),radius( p("-radius").asDouble(0.1) ),G(p("-G").asDouble(1)),
-    semiAxis{p("-radius").asDouble(0.1),p("-radius").asDouble(0.1)},pos{C[0],C[1]}
-    {std::cout<<"construct success"<<std::endl;}
+    semiAxis{p("-radius").asDouble(0.1),p("-radius").asDouble(0.1)},pos{C[0],C[1]},r2{radius*radius}
+    {}
   Real getCharLength() const override {return 0;}
   void create(const std::vector<cubism::BlockInfo>& vInfo) override {}
   void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,const int signal) override;
   void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override;
-  //bool istouching();
+  bool isinside(const Real x, const Real y) override;
 };
 class Rectangle : public Shape
 {

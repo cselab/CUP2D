@@ -191,6 +191,9 @@ void PutObjectsOnGrid::putObjectsOnGrid()
     cubism::compute<ScalarLab>(K,sim.tmp);
     }
   }
+  else    
+    for (const auto& Eshape:sim.Eshapes) Eshape->create(tmpInfo,false);
+  // copy elastic chi to chi grid
   for (size_t i=0;i<Nblocks;i++)
   {
     ScalarBlock & __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
@@ -231,4 +234,8 @@ void PutObjectsOnGrid::putObjectsOnGrid()
     shape->removeMoments(chiInfo);
     putObjectVelOnGrid(shape.get());
   }
+  if(sim.step==86)
+  sim.dumpChiDebug("pipelineends");
+  if(sim.step==86)
+  sim.dumpinvmDebug("pipelineends");
 }

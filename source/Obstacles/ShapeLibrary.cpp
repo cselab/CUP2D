@@ -117,11 +117,9 @@ void FillBlocks_ElasticDisk::operator()(const BlockInfo& I,
       if(invmB(ix,iy).u[0]==0&&invmB(ix,iy).u[1]==0) continue;
       Real p[2]={invmB(ix,iy).u[0]-center[0],invmB(ix,iy).u[1]-center[1]};
       const Real dist = distanceToDisk(p[0], p[1]);
-      if( dist > O.dist[iy][ix] ) {
-        O.dist[iy][ix] = dist;
-        B(ix,iy).s = std::max( B(ix,iy).s, dist );
-        O.rho[iy][ix] = rhoS;
-      }
+      O.dist[iy][ix] = dist;
+      B(ix,iy).s=dist;
+      O.rho[iy][ix] = rhoS;
     }
 }
 void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info) {
@@ -155,7 +153,7 @@ void FastMarching::operator()(ScalarLab& lab,const BlockInfo& info) {
     else if (lab(ix,iy+1).s==signal) Uy=lab(ix,iy-1).s;
     else Uy=std::max(lab(ix,iy-1).s,lab(ix,iy+1).s);
     //inner boundary
-    if(Ux>0&&Uy>0) 
+    if(Ux>0||Uy>0) 
     {
       //update bounding box
       Real p[2];

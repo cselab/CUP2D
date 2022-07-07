@@ -204,7 +204,11 @@ struct SimulationData
 
   void dumpChi  (std::string name);
   void dumpEChi (std::string name);
+  void dumpChiDebug (std::string name);
+  void dumpSinvmDebug (std::string name);
   void dumpEChiDebug (std::string name);
+  void dumptmpDebug(std::string name);
+  void dumpinvmDebug (std::string name);
   void dumpPres (std::string name);
   void dumpTmp  (std::string name);
   void dumpVel  (std::string name);

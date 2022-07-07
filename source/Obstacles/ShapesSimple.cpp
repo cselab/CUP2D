@@ -95,6 +95,10 @@ void Ellipse::create(const std::vector<BlockInfo>& vInfo)
       }
   }
 }
+bool ElasticDisk::isinside(const Real x, const Real y){
+  if((x-center[0])*(x-center[0])+(y-center[1])*(y-center[1])<=r2) return true;
+  return false;
+}
 void ElasticDisk::create(const std::vector<BlockInfo>& vInfo,bool write)
 {
   // This create function has the same utility of create for rigid shapes
@@ -138,6 +142,7 @@ void ElasticDisk::Ecreate(const std::vector<BlockInfo>& vInfo,const int signal)
     const VectorBlock& invmb=*(VectorBlock*)localinvmInfo[i].ptrBlock;
     kernel(vInfo[i],invmb, b, *obstacleBlocks[vInfo[i].blockID]);
   }
+  //sim.dumptmpDebug("beforereinit");
   // c) reinitialize sdf (warning: vInfo is the info of sim.tmp)
   FastMarching kernel2(sim,obstacleBlocks,signal);
   for(size_t t=0;t<10;t++)  cubism::compute<ScalarLab>(kernel2,sim.tmp);

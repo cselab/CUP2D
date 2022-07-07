@@ -31,7 +31,7 @@ struct FillBlocks_Cylinder
   };
 
   FillBlocks_Cylinder(Real R, Real h, Real C[2], Real rho) :
-    radius(R), safety(5*h), rhoS(rho), pos{(Real)C[0], (Real)C[1]} {}
+    radius(R), safety(10*h), rhoS(rho), pos{(Real)C[0], (Real)C[1]} {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
       return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
@@ -82,7 +82,7 @@ struct FillBlocks_Ellipse
   };
 
   FillBlocks_Ellipse(const Real _e0, const Real _e1, const Real h,
-    const Real C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(5*h),
+    const Real C[2], Real ang, Real rho): e0(_e0), e1(_e1), safety(10*h),
     pos{(Real)C[0], (Real)C[1]}, angle(ang), rhoS(rho) {}
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {
@@ -102,14 +102,14 @@ struct FillBlocks_ElasticDisk
   };
 
   FillBlocks_ElasticDisk(const Real r, const Real IC[2], const Real h, Real rho)
-  : radius(r),center{(Real)IC[0],(Real)IC[1]}, safety(5*h),
+  : radius(r),center{(Real)IC[0],(Real)IC[1]}, safety(10*h),
     pos{(Real)IC[0], (Real)IC[1]},e0(r),e1(r), rhoS(rho) {}
 
   inline bool is_touching(const cubism::BlockInfo& INFO) const {
     return _is_touching(INFO, bbox, safety);
   }
   inline Real distanceToDisk(const Real x, const Real y) const {
-      return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
+    return radius - std::sqrt(x*x+y*y); // pos inside, neg outside
   }
   /*inline void setextents(const Real e0_,const Real e1_,const Real pos_[2]){
     e0=e0_;e1=e1_;pos[0]=pos_[0];pos[1]=pos_[1];

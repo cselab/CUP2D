@@ -91,10 +91,34 @@ void SimulationData::dumpChi(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
 }
+void SimulationData::dumpChiDebug(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI2<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "debugchi_" + ss.str(),path4serialization);
+}
 void SimulationData::dumpEChiDebug(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real, ScalarGrid,ScalarLab>(*Echi, time, "Echi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerScalar,Real, ScalarGrid,ScalarLab>(*Echi, time, "debugEchi_" + ss.str(),path4serialization);
+}
+void SimulationData::dumptmpDebug(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI2<StreamerScalar,Real, ScalarGrid,ScalarLab>(*tmp, time, "debugtmp_" + ss.str(),path4serialization);
+}
+void SimulationData::dumpSinvmDebug (std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI2<StreamerVector, Real,  VectorGrid, VectorLab>(*invm, time, "debugSinvm_" + ss.str(),path4serialization);
+}
+void SimulationData::dumpinvmDebug(std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  for (size_t shapeid=0;shapeid<Eshapes.size();shapeid++)
+  {
+  ss<<shapeid;
+  DumpHDF5_MPI2<StreamerVector, Real,  VectorGrid, VectorLab>(*invms[shapeid].get(), time, "debuginvm_" + ss.str(),path4serialization);
+  }
 }
 void SimulationData::dumpEChi(std::string name)
 {
@@ -230,7 +254,7 @@ void SimulationData::dumpAll(std::string name)
   dumpEChi (name);
   dumpVel (name);
   dumpPres(name);
-  dumpInvm(name);
+  dumpinvmDebug(name);
   dumpTmpV1(name);//dump extrapolated invm
   //dumpPold(name);
   //dumpUdef(name);

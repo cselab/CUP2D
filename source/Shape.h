@@ -182,7 +182,7 @@ class Shape
   Integrals integrateObstBlock(const std::vector<cubism::BlockInfo>& vInfo);
 
   virtual void removeMoments(const std::vector<cubism::BlockInfo>& vInfo);
-
+  virtual bool isinside(const Real x, const Real y) {return true;}
   virtual void updateLabVelocity( int mSum[2], Real uSum[2] );
 
   void penalize();

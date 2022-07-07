@@ -9,6 +9,48 @@
 #include <Cubism/AMR_MeshAdaptation.h>
 
 using namespace cubism;
+namespace cubism {
+
+template <typename Lab1,typename Lab2, typename Kernel, typename TGrid1, typename TGrid2>
+void compute2(Kernel &&kernel, TGrid1 *g, TGrid2 *f)
+{
+   	cubism::SynchronizerMPI_AMR<typename TGrid1::Real,TGrid1>& Synch1 = *(g->sync(kernel));
+	cubism::SynchronizerMPI_AMR<typename TGrid2::Real,TGrid2>& Synch2 = *(f->sync(kernel));
+    std::vector<cubism::BlockInfo*> *inner1 = &Synch1.avail_inner();
+	std::vector<cubism::BlockInfo*> *inner2 = &Synch2.avail_inner();
+    std::vector<cubism::BlockInfo*> *halo1 = &Synch1.avail_halo();
+	std::vector<cubism::BlockInfo*> *halo2 = &Synch2.avail_halo();
+    #pragma omp parallel
+    {
+        Lab1 lab1;
+        lab1.prepare(*g, Synch1);
+
+		Lab2 lab2;
+		lab2.prepare(*f,Synch2);
+
+        #pragma omp for nowait
+		for(size_t i=0;i<inner1->size();i++){
+			const cubism::BlockInfo *I1=inner1->at(i);
+			const cubism::BlockInfo *I2=inner2->at(i);
+			lab1.load(*I1,0);
+			lab2.load(*I2,0);
+			kernel(lab1,*I1,lab2,*I2);
+		}
+
+        #pragma omp barrier
+
+        #pragma omp for nowait
+        for (size_t i=0;i<halo1->size();i++)
+        {
+          const cubism::BlockInfo *I1=halo1->at(i);
+		  const cubism::BlockInfo *I2=halo2->at(i);
+		  lab1.load(*I1, 0);
+		  lab2.load(*I2, 0);
+          kernel(lab1, *I1,lab2,*I2);
+        }
+    }
+}
+}
 
 struct GradChiOnTmp
 {
@@ -17,9 +59,10 @@ struct GradChiOnTmp
   //const StencilInfo stencil{-2, -2, 0, 3, 3, 1, true, {0}};
   const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
-  void operator()(ScalarLab & lab, const BlockInfo& info) const
+  void operator()(VectorLab & invmlab, const BlockInfo& info,ScalarLab & chilab,const BlockInfo& info2) const
   {
     auto& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    //auto& __restrict__ INVM = *(VectorBlock*) invmInfo[info.blockID].ptrBlock;
     if (sim.Qcriterion)
       for(int y=0; y<VectorBlock::sizeY; ++y)
       for(int x=0; x<VectorBlock::sizeX; ++x)
@@ -27,7 +70,8 @@ struct GradChiOnTmp
 
     //Loop over block and halo cells and set TMP(0,0) to a value which will cause mesh refinement
     //if any of the cells have:
-    // 1. chi > 0 (if bAdaptChiGradient=false)
+    // ============ new condition: chi<0.9 and (chi>0 or invm!=0) ===============
+    // 1. chi > 0 (if bAdaptChpiGradient=false)
     // 2. chi > 0 and chi < 0.9 (if bAdaptChiGradient=true)
     // Option 2 is equivalent to grad(chi) != 0
     //const int offset = (info.level == sim.tmp->getlevelMax()-1) ? 2 : 1;
@@ -36,15 +80,16 @@ struct GradChiOnTmp
     for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
     for(int x=-offset; x<VectorBlock::sizeX+offset; ++x)
     {
-      lab(x,y).s = std::min(lab(x,y).s,(Real)1.0);
-      lab(x,y).s = std::max(lab(x,y).s,(Real)0.0);
-      if (lab(x,y).s > 0.0 && lab(x,y).s < threshold)
+      
+      if (chilab(x,y).s<threshold && (chilab(x,y).s>0||invmlab(x,y).u[0]!=0||invmlab(x,y).u[1]!=0))
+      //if (lab(x,y).s > 0.0 && lab(x,y).s < threshold)
       {
         TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2  ).s = 2*sim.Rtol;
         TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2-1).s = 2*sim.Rtol;
         TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2  ).s = 2*sim.Rtol;
         TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2-1).s = 2*sim.Rtol;
-        break;
+        //std::cout<<info.blockID<<" "<<"\n";
+        return;
       }
     }
 /*
@@ -95,7 +140,7 @@ void AdaptTheMesh::adapt()
 
   // compute grad(chi) and if it's >0 set tmp = infinity
   GradChiOnTmp K2(sim);
-  cubism::compute<ScalarLab>(K2,sim.chi);
+  compute2<VectorLab,ScalarLab>(K2,sim.invm,sim.chi);
 
   tmp_amr ->Tag();
   chi_amr ->TagLike(tmpInfo);

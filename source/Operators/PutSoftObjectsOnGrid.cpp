@@ -5,11 +5,11 @@ using namespace cubism;
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
-struct PutChiOnGrid
+struct PutChiOnGrid2
 {
-  PutChiOnGrid(const SimulationData & s,const bool e) : sim(s),elastic(e) {}
+  PutChiOnGrid2(const SimulationData & s) : sim(s){}
   const SimulationData & sim;
-  const bool elastic;
+  //const bool elastic;
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
 
   const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
@@ -58,8 +58,8 @@ struct PutChiOnGrid
           X[iy][ix] = (gradIX*gradUX + gradIY*gradUY)/ gradUSq;
         }
         #endif
-        CHI(ix,iy).s = std::max(CHI(ix,iy).s,X[iy][ix]);
         ECHI(ix,iy).s = std::max(ECHI(ix,iy).s,X[iy][ix]);
+        CHI(ix,iy).s = std::max(CHI(ix,iy).s,ECHI(ix,iy).s);
         if(X[iy][ix] > 0)
         {
           Real p[2];
@@ -100,13 +100,18 @@ void PutSoftObjectsOnGrid::putSoftObjectsOnGrid()
     ( (ScalarBlock*)  EchiInfo[i].ptrBlock )->clear();
     ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->set(signal);
   }
+  //sim.dumpEChiDebug("afterclean");
+  //sim.dumpChiDebug("afterclean");
   // 2) Compute signed dist function (only valid in the region with valid inverse map value)
-  if(sim.verbose) std::cout<<"--[CUP2D] compute signed dist function\n"; 
   for(const auto& shape : sim.Eshapes)
     shape->Ecreate(tmpInfo,signal);
+  if(sim.step==86)
+  sim.dumptmpDebug("create");
   // 3) compute chi based on signed dist function
-  if(sim.verbose) std::cout<<"--[CUP2D] compute chi\n"; 
-  const PutChiOnGrid K(sim,true);
-  if(sim.verbose) std::cout<<"--[CUP2D] start compute chi\n"; 
+  const PutChiOnGrid2 K(sim);
   cubism::compute<ScalarLab>(K,sim.tmp);
+  if(sim.step==86)
+  sim.dumpEChiDebug("afterchi");
+  if(sim.step==86)
+  sim.dumpChiDebug("afterchi");
 }
