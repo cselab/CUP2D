@@ -61,7 +61,6 @@ static inline Real weno5_minus(const Real um2, const Real um1, const Real u, con
   const Real f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
   return (w1*f1+w3*f3)+w2*f2;
 }
-
 static inline Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
                                             const Real u  ,
                                             const Real up1, const Real up2, const Real up3)
@@ -80,7 +79,83 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   }
   return (fp-fm);
 }
-
+static inline void GradChi(const ScalarLab&CHI,const int ix,const int iy,const Real h, Real& Gchi[2])
+{
+  const Real i2h=1.0/h/2.0;
+  Gchi[0]=(CHI(ix+1,iy).s-CHI(ix-1,iy).s)*i2h;
+  Gchi[1]=(CHI(ix,iy+1).s-CHI(ix,iy-1).s)*i2h;
+}
+static inline void SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real& stress[4])
+{
+  const Real i2h=1.0/h/2.0;
+  const Real up1x=INVM(ix+1,iy).u[0];
+  const Real um1x=INVM(ix-1,iy).u[0];
+  const Real up1y=INVM(ix,iy+1).u[0];
+  const Real um1y=INVM(ix,iy-1).u[0];
+  
+  const Real vp1x=INVM(ix+1,iy).u[1];
+  const Real vm1x=INVM(ix-1,iy).u[1];
+  const Real vp1y=INVM(ix,iy+1).u[1];
+  const Real vm1y=INVM(ix,iy-1).u[1];
+  
+  const Real dudx=(up1x-um1x)*i2h;
+  const Real dudy=(up1y-um1y)*i2h;
+  const Real dvdx=(vp1x-vm1x)*i2h;
+  const Real dvdy=(vp1y-vm1y)*i2h;
+  Real denominator=(dvdy*dudx-dudy*dvdx)*(dvdy*dudx-dudy*dvdx);
+  if (std::fabs(denominator)<1e-7) std::cout<<"warning======irreversible F\n";
+  denominator=1.0/denominator;
+  stress[0]=( dudy*dudy+dvdy*dvdy)*denominator;
+  stress[1]=(-dudy*dudx-dvdy*dvdx)*denominator;
+  stress[2]=(-dudy*dudx-dvdx*dvdy)*denominator;
+  stress[3]=( dudx*dudx+dvdx*dvdx)*denominator;
+}
+static inline void DivSolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real &divS[2])
+{
+  const Real ih2=1.0/h/h;
+  const Real i2h=1.0/h/2.0;
+  const Real u=INVM(ix,iy).u[0];
+  const Real up1x=INVM(ix+1,iy).u[0];
+  const Real up1xp1y=INVM(ix+1,iy+1).u[0];
+  const Real um1x=INVM(ix-1,iy).u[0];
+  const Real up1xm1y=INVM(ix+1,iy-1).u[0];
+  const Real up1y=INVM(ix,iy+1).u[0];
+  const Real um1xp1y=INVM(ix-1,iy+1).u[0];
+  const Real um1y=INVM(ix,iy-1).u[0];
+  const Real um1xm1y=INVM(ix-1,iy-1).u[0];
+  
+  const Real v=INVM(ix,iy).u[1];
+  const Real vp1x=INVM(ix+1,iy).u[1];
+  const Real vp1xp1y=INVM(ix+1,iy+1).u[1];
+  const Real vm1x=INVM(ix-1,iy).u[1];
+  const Real vp1xm1y=INVM(ix+1,iy-1).u[1];
+  const Real vp1y=INVM(ix,iy+1).u[1];
+  const Real vm1xp1y=INVM(ix-1,iy+1).u[1];
+  const Real vm1y=INVM(ix,iy-1).u[1];
+  const Real vm1xm1y=INVM(ix-1,iy-1).u[1];
+  
+  const Real d2udx2=(up1x+um1x-2*u)*ih2;
+  const Real d2udy2=(up1y+um1y-2*u)*ih2;
+  const Real d2vdx2=(vp1x+vm1x-2*v)*ih2;
+  const Real d2vdy2=(vp1y+vm1y-2*v)*ih2;
+  const Real d2udxdy=(up1xp1y+um1xm1y-up1xm1y-um1xp1y)*ih2/4.0;
+  const Real d2vdxdy=(vp1xp1y+vm1xm1y-vp1xm1y-vm1xp1y)*ih2/4.0;
+  const Real dudx=(up1x-um1x)*i2h;
+  const Real dudy=(up1y-um1y)*i2h;
+  const Real dvdx=(vp1x-vm1x)*i2h;
+  const Real dvdy=(vp1y-vm1y)*i2h;
+  Real denominator2=(dvdy*dudx-dudy*dvdx)*(dvdy*dudx-dudy*dvdx),denominator3=(dvdy*dudx-dudy*dvdx)*denominator2;
+  const Real a0=2*(dudy*dudx+dvdy*dvdx),
+             a1=d2vdy2*dudx-d2udy2*dvdx+dvdy*d2udxdy-dudy*d2vdxdy,
+             a2=dudx*dudx+dvdx*dvdx-dudy*dudy-dvdy*dvdy,
+             a3=-dvdx*d2udxdy+dudx*d2vdxdy+dvdy*d2udx2-dudy*d2vdx2,
+             b0=d2udx2+d2udy2,
+             b1=d2vdx2+d2vdy2;
+  if (std::fabs(denominator)<1e-7) std::cout<<"warning======irreversible F\n";
+  denominator2=1.0/denominator2;denominator3=1.0/denominator3;
+  divS[0]=-(dudx*b0+dvdx*b1)*denominator2+a0*a1*denominator3+a2*a3*denominator3;
+  divS[1]=-(dudy*b0+dvdy*b1)*denominator2-a2*a1*denominator3+a0*a3*denominator3;
+}
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
   const Real u    = V(ix,iy).u[0];

@@ -234,8 +234,4 @@ void PutObjectsOnGrid::putObjectsOnGrid()
     shape->removeMoments(chiInfo);
     putObjectVelOnGrid(shape.get());
   }
-  if(sim.step==86)
-  sim.dumpChiDebug("pipelineends");
-  if(sim.step==86)
-  sim.dumpinvmDebug("pipelineends");
 }
