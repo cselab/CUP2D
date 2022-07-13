@@ -18,11 +18,6 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shapes.push_back(std::move(shape));
 }
 
-void SimulationData::addEShape(std::shared_ptr<Shape> Eshape){
-  Eshape->obstacleID=(unsigned)Eshapes.size();
-  Eshapes.push_back(std::move(Eshape));
-  allocateinvm();
-}
 void SimulationData::resetAll()
 {
   for(const auto& shape : shapes) shape->resetAll();
@@ -34,15 +29,7 @@ void SimulationData::resetAll()
   _bDump = false;
   bCollision = false;
 }
-void SimulationData::allocateinvm()
-{
-  ScalarLab dummy;
-  const bool xperiodic = dummy.is_xperiodic();
-  const bool yperiodic = dummy.is_yperiodic();
-  const bool zperiodic = dummy.is_zperiodic();
-  VectorGrid * localinvm = new VectorGrid(1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  invms.push_back(std::move(std::shared_ptr<VectorGrid>{localinvm}));
-}
+
 void SimulationData::allocateGrid()
 {
   ScalarLab dummy;
@@ -51,20 +38,16 @@ void SimulationData::allocateGrid()
   const bool zperiodic = dummy.is_zperiodic();
   
   chi  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  Echi  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   vel  = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   vOld = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pres = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  invm = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmpV = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV1 = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV2 = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   tmp  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  uDef = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
   pold = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   // For RL SGS learning
-  Cs = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  if( smagorinskyCoeff != 0 )
+    Cs = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
@@ -91,40 +74,6 @@ void SimulationData::dumpChi(std::string name)
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
   DumpHDF5_MPI<StreamerScalar,Real>(*chi, time, "chi_" + ss.str(),path4serialization);
 }
-void SimulationData::dumpChiDebug(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*chi, time, "debugchi_" + ss.str(),path4serialization);
-}
-void SimulationData::dumpEChiDebug(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*Echi, time, "debugEchi_" + ss.str(),path4serialization);
-}
-void SimulationData::dumptmpDebug(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*tmp, time, "debugtmp_" + ss.str(),path4serialization);
-}
-void SimulationData::dumpSinvmDebug (std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerVector, Real>(*invm, time, "debugSinvm_" + ss.str(),path4serialization);
-}
-void SimulationData::dumpinvmDebug(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  for (size_t shapeid=0;shapeid<Eshapes.size();shapeid++)
-  {
-  ss<<shapeid;
-  DumpHDF5_MPI2<StreamerVector, Real>(*invms[shapeid].get(), time, "debuginvm_" + ss.str(),path4serialization);
-  }
-}
-void SimulationData::dumpEChi(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*Echi, time, "Echi_" + ss.str(),path4serialization);
-}
 void SimulationData::dumpPres(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
@@ -143,32 +92,17 @@ void SimulationData::dumpTmp(std::string name)
 void SimulationData::dumpVel(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vel), time,"vel_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpInvm(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(invm), time,"invm_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpVold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpTmpV1(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV1), time,"tmpV1_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpUdef(std::string name)
-{
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector,Real>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpCs(std::string name)
 {
@@ -186,22 +120,15 @@ SimulationData::SimulationData() = default;
 
 SimulationData::~SimulationData()
 {
-  #ifndef SMARTIES_APP
-    delete profiler;
-  #endif
-  if(vel not_eq nullptr) delete vel;
-  if(chi not_eq nullptr) delete chi;
-  if(Echi not_eq nullptr) delete Echi;
-  if(uDef not_eq nullptr) delete uDef;
+  delete profiler;
+  if(vel  not_eq nullptr) delete vel;
+  if(chi  not_eq nullptr) delete chi;
   if(pres not_eq nullptr) delete pres;
   if(pold not_eq nullptr) delete pold;
   if(vOld not_eq nullptr) delete vOld;
-  if(invm not_eq nullptr) delete invm;
   if(tmpV not_eq nullptr) delete tmpV;
-  if(tmpV1 not_eq nullptr) delete tmpV1;
-  if(tmpV2 not_eq nullptr) delete tmpV2;
-  if(tmp not_eq nullptr) delete tmp;
-  if(Cs not_eq nullptr) delete Cs;
+  if(tmp  not_eq nullptr) delete tmp;
+  if(Cs   not_eq nullptr) delete Cs;
 }
 
 bool SimulationData::bOver() const
@@ -251,13 +178,9 @@ void SimulationData::dumpAll(std::string name)
   K1(0);
   dumpTmp (name); //dump vorticity
   dumpChi (name);
-  dumpEChi (name);
   dumpVel (name);
   dumpPres(name);
-  dumpinvmDebug(name);
-  dumpTmpV1(name);//dump extrapolated invm
   //dumpPold(name);
-  //dumpUdef(name);
   //dumpTmpV(name);
   //dumpVold(name);
   if( bDumpCs )
@@ -267,9 +190,9 @@ void SimulationData::dumpAll(std::string name)
 
 void SimulationData::writeRestartFiles()
 {
-  if (rank != 0) return;
 
   // write restart file for field
+  if (rank == 0)
   {
      std::stringstream ssR;
      ssR << path4serialization + "/field.restart";
@@ -280,18 +203,31 @@ void SimulationData::writeRestartFiles()
         fflush(0); abort();
      }
      assert(fField != NULL);
-     fprintf(fField, "time: %20.20e\n",  time);
+     fprintf(fField, "time: %20.20e\n",  (double)time);
      fprintf(fField, "stepid: %d\n",     step);
-     fprintf(fField, "uinfx: %20.20e\n", uinfx);
-     fprintf(fField, "uinfy: %20.20e\n", uinfy);
-     fprintf(fField, "dt: %20.20e\n", dt);
+     fprintf(fField, "uinfx: %20.20e\n", (double)uinfx);
+     fprintf(fField, "uinfy: %20.20e\n", (double)uinfy);
+     fprintf(fField, "dt: %20.20e\n",    (double)dt);
      fclose(fField);
   }
 
   // write restart file for shapes
   {
-     for(std::shared_ptr<Shape> shape : shapes)
+     int size;
+     MPI_Comm_size(comm,&size);
+     const size_t tasks = shapes.size();
+     size_t my_share = tasks / size;
+     if (tasks % size != 0 && rank == size - 1) //last rank gets what's left
      {
+       my_share += tasks % size;
+     }
+     const size_t my_start = rank * (tasks/ size);
+     const size_t my_end   = my_start + my_share;
+
+#pragma omp parallel for schedule(static,1)
+     for(size_t j = my_start ; j < my_end ; j++)
+     {
+	auto & shape = shapes[j];
         std::stringstream ssR;
         ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
         FILE * fShape = fopen(ssR.str().c_str(), "w");
@@ -317,17 +253,22 @@ void SimulationData::readRestartFiles()
   assert(fField != NULL);
   if (rank == 0 && verbose) printf("Reading %s...\n", "field.restart");
   bool ret = true;
-  ret = ret && 1==fscanf(fField, "time: %le\n",   &time);
+  double in_time, in_uinfx, in_uinfy, in_dt;
+  ret = ret && 1==fscanf(fField, "time: %le\n",   &in_time);
   ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
-  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &uinfx);
-  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &uinfy);
-  ret = ret && 1==fscanf(fField, "dt: %le\n",  &dt);
+  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &in_uinfx);
+  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &in_uinfy);
+  ret = ret && 1==fscanf(fField, "dt: %le\n",     &in_dt);
+  time  = (Real) in_time ;
+  uinfx = (Real) in_uinfx;
+  uinfy = (Real) in_uinfy;
+  dt    = (Real) in_dt   ;
   fclose(fField);
   if( (not ret) || step<0 || time<0) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
   }
-  if (rank == 0 && verbose) printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n", time, step, uinfx, uinfy);
+  if (rank == 0 && verbose) printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n", (double)time, step, (double)uinfx, (double)uinfy);
   nextDumpTime = time + dumpTime;
 
   // read restart file for shapes

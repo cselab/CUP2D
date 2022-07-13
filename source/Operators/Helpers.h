@@ -136,7 +136,7 @@ class computeVorticity : public Operator
     }
     Real buffer[2] = {maxv,minv};
     Real recvbuf[2];
-    MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getCartComm());
+    MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getWorldComm());
     recvbuf[1]=-recvbuf[1];
     if (sim.rank == 0 && !sim.muteAll)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
