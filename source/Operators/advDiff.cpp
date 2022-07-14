@@ -80,6 +80,7 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   }
   return (fp-fm);
 }
+
 static inline void SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real& stress[4])
 {
   const Real i2h=1.0/h/2.0;
