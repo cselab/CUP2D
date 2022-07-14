@@ -61,6 +61,7 @@ static inline Real weno5_minus(const Real um2, const Real um1, const Real u, con
   const Real f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
   return (w1*f1+w3*f3)+w2*f2;
 }
+
 static inline Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
                                             const Real u  ,
                                             const Real up1, const Real up2, const Real up3)

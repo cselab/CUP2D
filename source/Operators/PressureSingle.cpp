@@ -781,6 +781,7 @@ void PressureSingle::operator()(const Real dt)
   for(size_t i=0;i<Nblocks;i++){
     ((ScalarBlock*) tmpInfo[i].ptrBlock)->clear();    
   }
+  std::cout<<"step1\n";
   // update velocity of obstacle
   for(const auto& shape : sim.shapes) {
     integrateMomenta(shape.get());
@@ -788,8 +789,10 @@ void PressureSingle::operator()(const Real dt)
   }
   // take care if two obstacles collide
   preventCollidingObstacles();
+  std::cout<<"step2\n";
   // apply penalization force
   penalize(dt);
+  std::cout<<"step3\n";
   // compute pressure RHS
   updatePressureRHS K(sim);
   compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.uDef,true,sim.tmp);
@@ -801,6 +804,7 @@ void PressureSingle::operator()(const Real dt)
   
   const size_t size_of_correction = sim.GuessDpDt ? Nblocks*VectorBlock::sizeY*VectorBlock::sizeX : 1;
   std::vector<Real> correction (size_of_correction,0.0);
+  std::cout<<"step4\n";
   //initial guess etc.
   if (sim.GuessDpDt && sim.step > 10)
   {
@@ -835,6 +839,7 @@ void PressureSingle::operator()(const Real dt)
       }
     }
   }
+  std::cout<<"step5\n";
   updatePressureRHS1 K1(sim);
   cubism::compute<ScalarLab>(K1,sim.pold,sim.tmp);
   if (sim.GuessDpDt && sim.step > 10)
@@ -851,8 +856,11 @@ void PressureSingle::operator()(const Real dt)
       }
     }
   }
+  std::cout<<"step5.5\n";
   if (sim.tmp!= sim.tmp || sim.pres != sim.pres) std::cout<<"wierd\n";
+  std::cout<<&sim.tmp<<"\n"<<&sim.pres<<"\n";
   pressureSolver->solve(sim.tmp, sim.pres);
+  std::cout<<"step5.8\n";
   if (sim.GuessDpDt && sim.step > 10)
   {
     #pragma omp parallel for
@@ -882,6 +890,7 @@ void PressureSingle::operator()(const Real dt)
       }
     }
   }
+  std::cout<<"step6\n";
   // apply pressure correction
   pressureCorrection(dt);
 
