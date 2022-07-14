@@ -79,12 +79,7 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   }
   return (fp-fm);
 }
-static inline void GradChi(const ScalarLab&CHI,const int ix,const int iy,const Real h, Real& Gchi[2])
-{
-  const Real i2h=1.0/h/2.0;
-  Gchi[0]=(CHI(ix+1,iy).s-CHI(ix-1,iy).s)*i2h;
-  Gchi[1]=(CHI(ix,iy+1).s-CHI(ix,iy-1).s)*i2h;
-}
+
 static inline void SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real& stress[4])
 {
   const Real i2h=1.0/h/2.0;
