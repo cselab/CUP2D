@@ -81,6 +81,7 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   return (fp-fm);
 }
 
+<<<<<<< HEAD
 static inline void SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real& stress[4])
 {
   const Real i2h=1.0/h/2.0;
@@ -152,6 +153,8 @@ static inline void DivSolidDstress(const VectorLab&INVM,const int ix,const int i
   divS[0]=-(dudx*b0+dvdx*b1)*denominator2+a0*a1*denominator3+a2*a3*denominator3;
   divS[1]=-(dudy*b0+dvdy*b1)*denominator2-a2*a1*denominator3+a0*a3*denominator3;
 }
+=======
+>>>>>>> parent of 828bf73... interaction v1
 static inline Real dU_adv_dif(const VectorLab&V, const Real uinf[2], const Real advF, const Real difF, const int ix, const int iy)
 {
   const Real u    = V(ix,iy).u[0];
