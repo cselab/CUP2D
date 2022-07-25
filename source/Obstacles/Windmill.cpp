@@ -23,7 +23,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
-    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3));
 
     // center of ellipse 2 wrt to center of windmill,at T=0
     double center_orig2[2] = {0, smajax/(2*std::cos(M_PI/6))};
@@ -31,7 +31,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
-    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3));
 
     // center of ellipse 3 wrt to center of windmill,at T=0
     double center_orig3[2] = {-smajax/2, -(smajax/2)*std::tan(M_PI/6)};
@@ -39,37 +39,37 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
     double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
-    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation);
     */
 
     //// symmetrical ellipse
 
-    double frac = 0.55;
-    double d = smajax * (1.0 - 2.0*frac/3.0);
+    Real frac = 0.55;
+    Real d = smajax * (1.0 - 2.0*frac/3.0);
 
     // center of ellipse 1 wrt to center of windmill,at T=0, bottom one
-    double center_orig1[2] = {d * std::sin(M_PI/6), -d * std::cos(M_PI/6)};
+    Real center_orig1[2] = {d * std::sin(M_PI/6), -d * std::cos(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    double center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
+    Real center1[2] = {center[0] + std::cos(orientation) * center_orig1[0] - std::sin(orientation)* center_orig1[1], 
                          center[1] + std::sin(orientation) * center_orig1[0] + std::cos(orientation) * center_orig1[1]};
 
-    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel1(smajax, sminax, h, center1, (orientation + 2*M_PI / 3));
 
     // center of ellipse 2 wrt to center of windmill,at T=0, top one
-    double center_orig2[2] = {d * std::sin(M_PI/6), +d * std::cos(M_PI/6)};
+    Real center_orig2[2] = {d * std::sin(M_PI/6), +d * std::cos(M_PI/6)};
     // center of ellipse 1 wrt to origin
-    double center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
+    Real center2[2] = {center[0] + std::cos(orientation) * center_orig2[0] - std::sin(orientation)* center_orig2[1], 
                          center[1] + std::sin(orientation) * center_orig2[0] + std::cos(orientation) * center_orig2[1]};
 
-    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3), rhoS);
+    FillBlocks_Ellipse kernel2(smajax, sminax, h, center2, (orientation + M_PI / 3));
 
     // center of ellipse 3 wrt to center of windmill,at T=0, horizontal one
-    double center_orig3[2] = {-d, 0};
+    Real center_orig3[2] = {-d, 0};
     // center of ellipse 1 wrt to origin
-    double center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
+    Real center3[2] = {center[0] + std::cos(orientation) * center_orig3[0] - std::sin(orientation)* center_orig3[1], 
                          center[1] + std::sin(orientation) * center_orig3[0] + std::cos(orientation) * center_orig3[1]};
 
-    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation, rhoS);
+    FillBlocks_Ellipse kernel3(smajax, sminax, h, center3, orientation);
 
 
     // fill blocks for the three ellipses
@@ -104,7 +104,7 @@ void Windmill::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
-void Windmill::updateVelocity(double dt)
+void Windmill::updateVelocity(Real dt)
 {
   // simulation.cpp file was changed so that it would land on multiples of time_step
   // update velocity is called before update step so only need to define the prev_dt here
@@ -119,21 +119,21 @@ void Windmill::updateVelocity(double dt)
 
 }
 
-double Windmill::omega_over_time(double time)
+Real Windmill::omega_over_time(Real time)
 {
-  double frequency = 0.5;
-  double signal = (ang_accel / (2 * M_PI * frequency)) * (1 - cos(2*M_PI*frequency * time));
+  Real frequency = 0.5;
+  Real signal = (ang_accel / (2 * M_PI * frequency)) * (1 - cos(2*M_PI*frequency * time));
   return signal;
 }
 
-void Windmill::updatePosition(double dt)
+void Windmill::updatePosition(Real dt)
 {
   if ( (std::floor((1/time_step) * (sim.time)) - std::floor((1/time_step) * (sim.time - prev_dt)) != 0)) // every .05 seconds print velocity profile
   {
     if (sim.rank == 0) print_vel_profile(avg_profile);
 
     // reset avg_profile to zero for next time step
-    avg_profile = std::vector<double> (32, 0.0);
+    avg_profile = std::vector<Real> (32, 0.0);
     // temp_torque = torque_over_time(sim.time);
     // omega = omega + temp_torque * time_step / penalJ;
   }
@@ -153,7 +153,7 @@ void Windmill::printRewards(Real r_flow)
   fout.flush();
 }
 
-void Windmill::printActions(double value)
+void Windmill::printActions(Real value)
 {
   std::stringstream ssF;
   ssF<<sim.path2file<<"/action_"<<obstacleID<<".dat";
@@ -163,7 +163,7 @@ void Windmill::printActions(double value)
   fout.flush();
 }
 
-void Windmill::act( double action )
+void Windmill::act( Real action )
 {
   // the action is the angular acceleration
   action_ang_accel = action;
@@ -173,7 +173,7 @@ void Windmill::act( double action )
 double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof)
 {
 
-  double r_flow = 0.0;
+  Real r_flow = 0.0;
 
   for(int i=0; i < 32; ++i)
   {
@@ -188,16 +188,16 @@ double Windmill::reward(std::vector<double> target_profile, std::vector<double> 
   return r_flow;
 }
 
-void Windmill::update_avg_vel_profile(double dt)
+void Windmill::update_avg_vel_profile(Real dt)
 {
-  std::vector<double> vel = vel_profile();
+  std::vector<Real> vel = vel_profile();
   for (size_t k(0); k < vel.size(); ++k)
   {
     avg_profile[k] += vel[k] * dt / time_step;
   }
 }
 
-void Windmill::print_vel_profile(std::vector<double> vel_profile)
+void Windmill::print_vel_profile(std::vector<Real> vel_profile)
 {
 
   if(not sim.muteAll)
@@ -218,17 +218,17 @@ void Windmill::print_vel_profile(std::vector<double> vel_profile)
   }
 }
 
-std::vector<double> Windmill::vel_profile()
+std::vector<Real> Windmill::vel_profile()
 {
   // We take a region of size 0.7 * 0.0875, which cuts 4 vertical blocks in half along a vertical line
   // we choose to split these 4 blocks in the vertical dimension into 32 intervals
   // each one of the 32 intervals has a height of 0.7/32 = 0.021875
   // we average the velocity in each of the 32 intervals
 
-  std::vector<double> vel_avg(32, 0.0);
-  std::vector<double> region_area(32, 0.0);
+  std::vector<Real> vel_avg(32, 0.0);
+  std::vector<Real> region_area(32, 0.0);
 
-  double height = 0.021875;
+  Real height = 0.021875;
 
 
   // the sim.vel blocks info is split over multiple mpi processes, need to work with mpi
@@ -242,7 +242,7 @@ std::vector<double> Windmill::vel_profile()
     // get pointer on block
     const VectorBlock& b = * (const VectorBlock*) velInfo[t].ptrBlock;
     // loop over all the points
-    double da = velInfo[t].h * velInfo[t].h;
+    Real da = velInfo[t].h * velInfo[t].h;
 
     for(size_t i=0; i < b.sizeX; ++i)
       {
@@ -262,13 +262,13 @@ std::vector<double> Windmill::vel_profile()
 
 
   // collects the sum over all the components of the velocity profile into the vector vel_avg
-  MPI_Allreduce(MPI_IN_PLACE, &vel_avg[0], 32, MPI_DOUBLE, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &vel_avg[0], 32, MPI_Real, MPI_SUM, sim.comm);
 
   // collects the sum over all the region areas in order to perform the averaging correctly
-  MPI_Allreduce(MPI_IN_PLACE, &region_area[0], 32, MPI_DOUBLE, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &region_area[0], 32, MPI_Real, MPI_SUM, sim.comm);
 
 
-  std::vector<double> vel_profile(32, 0.0);
+  std::vector<Real> vel_profile(32, 0.0);
 
   // divide each vel_avg by the corresponding area
   for (int k = 0; k < 32; ++k)
@@ -279,12 +279,12 @@ std::vector<double> Windmill::vel_profile()
   return vel_profile;
 }
 
-int Windmill::numRegion(const std::array<Real, 2> point, double height) const
+int Windmill::numRegion(const std::array<Real, 2> point, Real height) const
 {
   // returns 0 if outside of the box
   std::array<Real, 2> lower_left = {x_start, y_start};
   std::array<Real, 2> upper_right = {x_end, y_end};
-  double rel_pos_height = point[1] - lower_left[1];
+  Real rel_pos_height = point[1] - lower_left[1];
   //std::array<Real, 2> rel_pos = {point[0] - lower_left[0], point[1] - lower_left[1]};
   int num = 0;
 
@@ -304,17 +304,17 @@ int Windmill::numRegion(const std::array<Real, 2> point, double height) const
 }
 
 // set initial conditions of the agent
-void Windmill::setInitialConditions(double init_angle)
+void Windmill::setInitialConditions(Real init_angle)
 {
   // Intial fixed condition of angle and angular velocity
   
   printf("[Korali] Initial Conditions:\n");
-  printf("[Korali] orientation: %f\n", init_angle);
+  printf("[Korali] orientation: %f\n", (double)init_angle);
 
   setOrientation(init_angle);
 }
 
-double Windmill::getAngularVelocity()
+Real Windmill::getAngularVelocity()
 {
   return omega;
 }

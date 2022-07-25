@@ -113,14 +113,14 @@ struct SimulationData
   cubism::Profiler * profiler = new cubism::Profiler();
 
   // declare grids
-  ScalarGrid * chi   = nullptr;
-  VectorGrid * vel   = nullptr;
-  VectorGrid * vOld  = nullptr;
-  ScalarGrid * pres  = nullptr;
-  VectorGrid * tmpV  = nullptr;
-  ScalarGrid * tmp   = nullptr;
-  VectorGrid * uDef  = nullptr;
-  ScalarGrid * pold  = nullptr;
+  ScalarGrid * chi  = nullptr;
+  VectorGrid * vel  = nullptr;
+  VectorGrid * vOld = nullptr;
+  ScalarGrid * pres = nullptr;
+  VectorGrid * tmpV = nullptr;
+  ScalarGrid * tmp  = nullptr;
+  ScalarGrid * pold = nullptr;
+  ScalarGrid * Cs   = nullptr;
 
   // vector containing obstacles
   std::vector<std::shared_ptr<Shape>> shapes;
@@ -148,9 +148,11 @@ struct SimulationData
   // bools specifying whether we dump or not
   bool _bDump = false;
   bool DumpUniform = false;
+  bool bDumpCs = false;
 
   // bool for detecting collisions
   bool bCollision = false;
+  std::vector<int> bCollisionID;
 
   void addShape(std::shared_ptr<Shape> shape);
 
@@ -191,13 +193,14 @@ struct SimulationData
   void writeRestartFiles();
   void readRestartFiles();
 
-  void dumpChi   (std::string name);
-  void dumpPres  (std::string name);
-  void dumpTmp   (std::string name);
-  void dumpVel   (std::string name);
-  void dumpUdef  (std::string name);
-  void dumpVold  (std::string name);
-  void dumpPold  (std::string name);
-  void dumpTmpV  (std::string name);
-  void dumpAll   (std::string name);
+  void dumpChi  (std::string name);
+  void dumpPres (std::string name);
+  void dumpTmp  (std::string name);
+  void dumpVel  (std::string name);
+  void dumpUdef (std::string name);
+  void dumpVold (std::string name);
+  void dumpPold (std::string name);
+  void dumpTmpV (std::string name);
+  void dumpCs   (std::string name);
+  void dumpAll  (std::string name);
 };

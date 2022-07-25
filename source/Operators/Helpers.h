@@ -7,6 +7,8 @@
 #pragma once
 
 #include "../Operator.h"
+#include "../Shape.h"
+#include "../ObstacleBlock.h"
 #include "Cubism/FluxCorrection.h"
 
 class findMaxU
@@ -122,8 +124,16 @@ class computeVorticity : public Operator
   {
     const KernelVorticity mykernel(sim);
     cubism::compute<VectorLab>(mykernel,sim.vel);
+
+    if (!sim.muteAll)
+      reportVorticity();
+  }
+
+  void reportVorticity() const
+  {
     Real maxv = -1e10;
     Real minv = -1e10;
+    #pragma omp parallel for reduction(max:minv,maxv)
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
@@ -136,9 +146,9 @@ class computeVorticity : public Operator
     }
     Real buffer[2] = {maxv,minv};
     Real recvbuf[2];
-    MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getCartComm());
+    MPI_Reduce(buffer,recvbuf, 2, MPI_Real, MPI_MAX, 0, sim.chi->getWorldComm());
     recvbuf[1]=-recvbuf[1];
-    if (sim.rank == 0 && !sim.muteAll)
+    if (sim.rank == 0)
       std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1] << " max(omega)+min(omega)=" << recvbuf[0]+recvbuf[1] << std::endl;
   }
 
@@ -266,7 +276,7 @@ class computeDivergence : public Operator
     }
     Real sendbuf[2]={total,abs};
     Real recvbuf[2];
-    MPI_Reduce(sendbuf, recvbuf, 2, MPI_Real, MPI_SUM, 0, sim.chi->getCartComm());
+    MPI_Reduce(sendbuf, recvbuf, 2, MPI_Real, MPI_SUM, 0, sim.chi->getWorldComm());
     if (sim.rank == 0)
     {
       ofstream myfile;

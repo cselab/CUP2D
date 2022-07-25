@@ -27,10 +27,7 @@ struct ObstacleBlock
 
   // bulk quantities:
   Real  chi[sizeY][sizeX];
-  Real  chiX[sizeY][sizeX];
-  Real  chiY[sizeY][sizeX];
   Real dist[sizeY][sizeX];
-  Real  rho[sizeY][sizeX];
   Real udef[sizeY][sizeX][2];
 
   //surface quantities:
@@ -92,20 +89,20 @@ struct ObstacleBlock
     }
     surface.clear();
 
-    if (x_s     not_eq nullptr){delete[] x_s    ; x_s     = nullptr;}
-    if (y_s     not_eq nullptr){delete[] y_s    ; y_s     = nullptr;}
-    if (p_s     not_eq nullptr){delete[] p_s    ; p_s     = nullptr;}
-    if (u_s     not_eq nullptr){delete[] u_s    ; u_s     = nullptr;}
-    if (v_s     not_eq nullptr){delete[] v_s    ; v_s     = nullptr;}
-    if (nx_s    not_eq nullptr){delete[] nx_s   ; nx_s    = nullptr;}
-    if (ny_s    not_eq nullptr){delete[] ny_s   ; ny_s    = nullptr;}
-    if (omega_s not_eq nullptr){delete[] omega_s; omega_s = nullptr;}
-    if (uDef_s  not_eq nullptr){delete[] uDef_s ; uDef_s  = nullptr;}
-    if (vDef_s  not_eq nullptr){delete[] vDef_s ; vDef_s  = nullptr;}
-    if (fX_s    not_eq nullptr){delete[] fX_s   ; fX_s    = nullptr;}
-    if (fY_s    not_eq nullptr){delete[] fY_s   ; fY_s    = nullptr;}
-    if (fXv_s   not_eq nullptr){delete[] fXv_s  ; fXv_s   = nullptr;}
-    if (fYv_s   not_eq nullptr){delete[] fYv_s  ; fYv_s   = nullptr;}
+    if (x_s     not_eq nullptr){free(x_s)    ; x_s     = nullptr;}
+    if (y_s     not_eq nullptr){free(y_s)    ; y_s     = nullptr;}
+    if (p_s     not_eq nullptr){free(p_s)    ; p_s     = nullptr;}
+    if (u_s     not_eq nullptr){free(u_s)    ; u_s     = nullptr;}
+    if (v_s     not_eq nullptr){free(v_s)    ; v_s     = nullptr;}
+    if (nx_s    not_eq nullptr){free(nx_s)   ; nx_s    = nullptr;}
+    if (ny_s    not_eq nullptr){free(ny_s)   ; ny_s    = nullptr;}
+    if (omega_s not_eq nullptr){free(omega_s); omega_s = nullptr;}
+    if (uDef_s  not_eq nullptr){free(uDef_s) ; uDef_s  = nullptr;}
+    if (vDef_s  not_eq nullptr){free(vDef_s) ; vDef_s  = nullptr;}
+    if (fX_s    not_eq nullptr){free(fX_s)   ; fX_s    = nullptr;}
+    if (fY_s    not_eq nullptr){free(fY_s)   ; fY_s    = nullptr;}
+    if (fXv_s   not_eq nullptr){free(fXv_s)  ; fXv_s   = nullptr;}
+    if (fYv_s   not_eq nullptr){free(fYv_s)  ; fYv_s   = nullptr;}
   }
 
   void clear()
@@ -113,7 +110,6 @@ struct ObstacleBlock
     clear_surface();
     std::fill(dist[0], dist[0] + sizeX * sizeY, -1);
     std::fill(chi [0], chi [0] + sizeX * sizeY,  0);
-    memset(rho, 0, sizeof(Real)*sizeX*sizeY);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*2);
   }
 
@@ -133,20 +129,20 @@ struct ObstacleBlock
   {
     filled = true;
     assert(surface.size() == n_surfPoints);
-    x_s     = new Real[n_surfPoints];
-    y_s     = new Real[n_surfPoints];
-    p_s     = new Real[n_surfPoints];
-    u_s     = new Real[n_surfPoints];
-    v_s     = new Real[n_surfPoints];
-    nx_s    = new Real[n_surfPoints];
-    ny_s    = new Real[n_surfPoints];
-    omega_s = new Real[n_surfPoints];
-    uDef_s  = new Real[n_surfPoints];
-    vDef_s  = new Real[n_surfPoints];
-    fX_s    = new Real[n_surfPoints];
-    fY_s    = new Real[n_surfPoints];
-    fXv_s   = new Real[n_surfPoints];
-    fYv_s   = new Real[n_surfPoints];
+    x_s     = (Real *)calloc(n_surfPoints, sizeof(Real));
+    y_s     = (Real *)calloc(n_surfPoints, sizeof(Real));
+    p_s     = (Real *)calloc(n_surfPoints, sizeof(Real));
+    u_s     = (Real *)calloc(n_surfPoints, sizeof(Real));
+    v_s     = (Real *)calloc(n_surfPoints, sizeof(Real));
+    nx_s    = (Real *)calloc(n_surfPoints, sizeof(Real));
+    ny_s    = (Real *)calloc(n_surfPoints, sizeof(Real));
+    omega_s = (Real *)calloc(n_surfPoints, sizeof(Real));
+    uDef_s  = (Real *)calloc(n_surfPoints, sizeof(Real));
+    vDef_s  = (Real *)calloc(n_surfPoints, sizeof(Real));
+    fX_s    = (Real *)calloc(n_surfPoints, sizeof(Real));
+    fY_s    = (Real *)calloc(n_surfPoints, sizeof(Real));
+    fXv_s   = (Real *)calloc(n_surfPoints, sizeof(Real));
+    fYv_s   = (Real *)calloc(n_surfPoints, sizeof(Real));
   }
 
   void fill_stringstream(std::stringstream & s)

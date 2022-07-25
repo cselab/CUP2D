@@ -15,25 +15,25 @@ class Windmill : public Shape
 
   // keeps track of the of the average veloctiy profile between two rl time steps
   // weighted by the time step of the sim
-  std::vector<double> avg_profile = vector<double>(32, 0.0);
+  std::vector<Real> avg_profile = vector<Real>(32, 0.0);
 
 
-  double time_step = 0.05;
-  double ang_accel;
-  double action_ang_accel = 0.;
-  double temp_torque = 0;
-  double prev_dt = 0;
+  Real time_step = 0.05;
+  Real ang_accel;
+  Real action_ang_accel = 0.;
+  Real temp_torque = 0;
+  Real prev_dt = 0;
 
 
   // domain for velocity profile
-  double x_start = 0.35;
-  double x_end = x_start + 0.0875;
-  double y_start = 0.35;
-  double y_end = 1.05;
+  Real x_start = 0.35;
+  Real x_end = x_start + 0.0875;
+  Real y_start = 0.35;
+  Real y_end = 1.05;
 
  public:
 
-  Windmill(SimulationData& s, cubism::ArgumentParser& p, double C[2]):
+  Windmill(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
     ang_accel = forcedomega;
@@ -49,23 +49,23 @@ class Windmill : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void updateVelocity(double dt) override;
-  double omega_over_time(double time);
-  void updatePosition(double dt) override;
+  void updateVelocity(Real dt) override;
+  Real omega_over_time(Real time);
+  void updatePosition(Real dt) override;
 
   void printRewards(Real r_flow);
-  void printActions(double value);
+  void printActions(Real value);
   
   void act( double action );
   double reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof);
 
-  void update_avg_vel_profile(double dt);
-  void print_vel_profile(std::vector<double> vel_profile);
+  void update_avg_vel_profile(Real dt);
+  void print_vel_profile(std::vector<Real> vel_profile);
 
-  std::vector<double> vel_profile();
-  int numRegion(const std::array<Real, 2> point, double height) const;
-  void setInitialConditions(double init_angle);
-  double getAngularVelocity();
+  std::vector<Real> vel_profile();
+  int numRegion(const std::array<Real, 2> point, Real height) const;
+  void setInitialConditions(Real init_angle);
+  Real getAngularVelocity();
 
   Real getCharLength() const override
   {

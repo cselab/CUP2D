@@ -137,17 +137,17 @@ static inline std::array<Real,2> d_adv_dif(const VectorLab&V, const Real uinf[2]
 
 struct KernelAdvectDiffuseSGS
 {
-  KernelAdvectDiffuseSGS(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy, const Real _C) : sim(s), coef(c), C(_C)
+  KernelAdvectDiffuseSGS(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy) : sim(s), coef(c)
   {
     uinf[0] = uinfx;
     uinf[1] = uinfy;
   }
   const SimulationData & sim;
   const Real coef;
-  const Real C;
   Real uinf [2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0,1}};
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  std::vector<cubism::BlockInfo>& CsInfo = sim.Cs->getBlocksInfo();;
 
   void operator()(VectorLab& lab, const BlockInfo& info) const
   {
@@ -155,10 +155,12 @@ struct KernelAdvectDiffuseSGS
     const Real dfac = sim.nu*sim.dt;
     const Real afac = -sim.dt*h;
     VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
+    ScalarBlock & __restrict__ CS  = *(ScalarBlock*) CsInfo[info.blockID].ptrBlock;;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      const std::array<Real,2> dUV_adv_dif = d_adv_dif(lab,uinf,afac,dfac,ix,iy,h,sim.dt,C);
+      const Real C = CS(ix,iy).s;
+      const std::array<Real,2> dUV_adv_dif = d_adv_dif(lab,uinf,afac,dfac,ix,iy,h,sim.dt, C);
       TMP(ix,iy).u[0] = coef*dUV_adv_dif[0];
       TMP(ix,iy).u[1] = coef*dUV_adv_dif[1];
     }
@@ -222,7 +224,6 @@ void advDiffSGS::operator()(const Real dt)
   sim.startProfiler("advDiffSGS");
   const size_t Nblocks = velInfo.size();
   const Real UINF[2]= {sim.uinfx, sim.uinfy};
-  const Real C = sim.smagorinskyCoeff;
 
   //1.Save u^{n} to dataOld
   #pragma omp parallel for
@@ -241,7 +242,7 @@ void advDiffSGS::operator()(const Real dt)
   /********************************************************************/
   // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
   //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuseSGS Step1(sim,0.5,UINF[0],UINF[1],C) ;
+  KernelAdvectDiffuseSGS Step1(sim,0.5,UINF[0],UINF[1]) ;
   cubism::compute<VectorLab>(Step1,sim.vel,sim.tmpV);
 
   //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
@@ -264,7 +265,7 @@ void advDiffSGS::operator()(const Real dt)
   /********************************************************************/
   // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
-  KernelAdvectDiffuseSGS Step2(sim,1.0,UINF[0],UINF[1],C) ;
+  KernelAdvectDiffuseSGS Step2(sim,1.0,UINF[0],UINF[1]) ;
   cubism::compute<VectorLab>(Step2,sim.vel,sim.tmpV);
   //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   #pragma omp parallel for

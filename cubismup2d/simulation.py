@@ -52,6 +52,10 @@ class _FieldsProxy:
     def pOld(self):
         return self.data.pOld
 
+    @property
+    def Cs(self):
+        return self.data.Cs
+
 
 class Simulation(libcup2d._Simulation):
     def __init__(
@@ -73,9 +77,14 @@ class Simulation(libcup2d._Simulation):
             serialization_dir: Optional[str] = None,
             verbose: bool = True,
             mute_all: bool = False,
-            ic: str = "",
-            Cs: float = 0.0,
+            ic: str = '',
+            BCx: str = 'freespace',
+            BCy: str = 'freespace',
+            smagorinskyCoeff: float = 0.0,
+            dumpCs: bool = False,
             bForcing: bool = False,
+            forcingC: float = 4.0,
+            forcingW: float = 4.0,
             cuda: bool = False,
             comm: Optional['mpi4py.MPI.Intracomm'] = None,
             argv: List[str] = []):
@@ -130,8 +139,13 @@ class Simulation(libcup2d._Simulation):
             '-verbose', verbose,
             '-muteAll', mute_all,
             '-ic', ic,
-            '-Cs', Cs,
+            '-BC_x', BCx,
+            '-BC_y', BCy,
+            '-smagorinskyCoeff', smagorinskyCoeff,
+            '-dumpCs', dumpCs,
             '-bForcing', bForcing,
+            '-forcingCoefficient', forcingC,
+            '-forcingWavenumber', forcingW,
             *(['-poissonSolver', 'cuda_iterative'] if cuda else []),
             *argv,
         ]

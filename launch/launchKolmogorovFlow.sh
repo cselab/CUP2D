@@ -11,6 +11,6 @@ PT=${PT:-1e-10}
 PTR=${PTR:-0}
 NU=${NU:-0.05}
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 0 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 1 -nu $NU -tend 0 -muteAll 0 -verbose 1 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1 -bForcing 1 -forcingCoefficient 4 -forcingWavenumber 4 -ic random"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 0 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 1 -nu $NU -tend 0 -muteAll 0 -verbose 1 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1 -bForcing 1 -forcingCoefficient 4 -forcingWavenumber 4 -ic random -smagorinskyCoeff 0.0"
 
 source launchCommon.sh

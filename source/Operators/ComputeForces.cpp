@@ -81,6 +81,10 @@ struct KernelComputeForces
           {
             if ((int)abs(kk*dx_a) > 3 || (int)abs(kk*dy_a) > 3) break; //3 means we moved too far
             if (chi(x,y).s <3e-1 && found >= 1) break;
+
+	    if (ix + kk*dx_a + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx_a -1 < small) break;
+            if (iy + kk*dy_a + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy_a -1 < small) break;
+
             x  = ix + kk*dx_a; 
             y  = iy + kk*dy_a;
             if (chi(x,y).s < 1e-3 ) found ++;
@@ -357,10 +361,10 @@ struct KernelComputeForces
         O->omega_s[k] = (DvDx - DuDy)/info.h;
         O->uDef_s [k] = O->udef[iy][ix][0];
         O->vDef_s [k] = O->udef[iy][ix][1];
-        O->fX_s   [k] = fXT;
-        O->fY_s   [k] = fYT;
-        O->fXv_s  [k] = fXV;
-        O->fYv_s  [k] = fYV;
+        O->fX_s   [k] = -P(ix,iy).s * dx + NUoH*DuDx*dx + NUoH*DuDy*dy;//scale by 1/h
+        O->fY_s   [k] = -P(ix,iy).s * dy + NUoH*DvDx*dx + NUoH*DvDy*dy;//scale by 1/h
+        O->fXv_s  [k] = NUoH*DuDx*dx + NUoH*DuDy*dy;//scale by 1/h
+        O->fYv_s  [k] = NUoH*DvDx*dx + NUoH*DvDy*dy;//scale by 1/h
 
         //perimeter:
         O->perimeter += std::sqrt(normX*normX + normY*normY);
@@ -401,7 +405,7 @@ void ComputeForces::operator()(const Real dt)
 {
   sim.startProfiler("ComputeForces");
   KernelComputeForces K(sim);
-  compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
+  cubism::compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
 
   // finalize partial sums
   for (const auto& shape : sim.shapes)

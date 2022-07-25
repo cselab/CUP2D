@@ -100,43 +100,43 @@ void convert_to_float(std::string filename, std::string gridname)
   const int NCHANNELS =  (vertices.size() == amr.size()*ptsPerElement*dimension) ? 1 : 3;
   blocks /= NCHANNELS;
 
-  std::vector<float> data_c    ;//(amr.size()/C/C,0.0);
-  std::vector<float> vertices_c;//(vertices.size()/C/C,0.0);
+  std::vector<float> data_c    ;
+  std::vector<float> vertices_c;
   data_c.reserve(amr.size()/4);
   vertices_c.reserve(vertices.size()/4);
   for (size_t i = 0 ; i < blocks ; i++)
   {
     int C=1;
-    if (levels[i] == 10) C = 4;
-    if (levels[i] ==  9) C = 2;
+    //if (levels[i] == 10) C = 4;
     for (int y = 0 ; y < ny ; y+=C)
     for (int x = 0 ; x < nx ; x+=C)
     {
+      float element [NCHANNELS] = {0.0};
+      float magnitude = 0;
       for (int j = 0 ; j < NCHANNELS; j++)
       {
-	//data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] = 0.0;
-	float element = 0.0;
         for (int yl = y; yl < y+C; yl++)
         for (int xl = x; xl < x+C; xl++)
         {
-          //data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
-          element += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
+          element[j] += (float)amr[(i*nx*ny+yl*nx+xl)*NCHANNELS+j];
         }
-        //data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] /= (C*C);
-        element /= (C*C);
-	data_c.push_back(element);
+        element[j] /= (C*C);
+        magnitude += element[j]*element[j];
       }
+
+      if (magnitude < 1e-2) continue;
+
+      for (int j = 0 ; j < NCHANNELS; j++)
+        data_c.push_back(element[j]);
 
       const int bbase00 = (i*ny*nx+ y     *nx+x    )*ptsPerElement*dimension;
       const int bbase10 = (i*ny*nx+ y     *nx+x+C-1)*ptsPerElement*dimension;
       const int bbase01 = (i*ny*nx+(y+C-1)*nx+x    )*ptsPerElement*dimension;
       const int bbase11 = (i*ny*nx+(y+C-1)*nx+x+C-1)*ptsPerElement*dimension;
-
       const int offset00 = 0;
       const int offset10 = 3*dimension;
       const int offset11 = 2*dimension;
       const int offset01 =  dimension;
-
       const float xm00 = vertices[bbase00+offset00  ];
       const float ym00 = vertices[bbase00+offset00+1];
       const float xm10 = vertices[bbase10+offset10  ];
@@ -145,16 +145,6 @@ void convert_to_float(std::string filename, std::string gridname)
       const float ym01 = vertices[bbase01+offset01+1];
       const float xm11 = vertices[bbase11+offset11  ];
       const float ym11 = vertices[bbase11+offset11+1];
-      //const int bbasef = (i*ny/C*nx/C+y/C*nx/C+x/C)*ptsPerElement*dimension;
-      //vertices_c[bbasef              ]=xm00;
-      //vertices_c[bbasef            +1]=ym00;
-      //vertices_c[bbasef+  dimension  ]=xm10;
-      //vertices_c[bbasef+  dimension+1]=ym10;
-      //vertices_c[bbasef+2*dimension  ]=xm11;
-      //vertices_c[bbasef+2*dimension+1]=ym11;
-      //vertices_c[bbasef+3*dimension  ]=xm01;
-      //vertices_c[bbasef+3*dimension+1]=ym01;  
-
       vertices_c.push_back(xm00);
       vertices_c.push_back(ym00);
       vertices_c.push_back(xm10);
@@ -319,6 +309,8 @@ int main(int argc, char **argv)
       if ( s.back() != 's' && s.back() != 'm' && g != "grid")
       {
         filenames.push_back(p.path().stem().string());
+        //uncomment for old format:
+        //gridnames.push_back(p.path().stem().string());
       }
       
       if ( g  == "grid" )

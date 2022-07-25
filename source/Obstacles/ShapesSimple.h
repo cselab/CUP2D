@@ -69,7 +69,7 @@ class Ellipse : public Shape
   //Characteristic scales:
   const Real majax = std::max(semiAxis[0], semiAxis[1]);
   const Real minax = std::min(semiAxis[0], semiAxis[1]);
-  const Real velscale = std::sqrt((rhoS/1-1)*9.81*minax);
+  const Real velscale = std::sqrt(9.81*minax);
   const Real lengthscale = majax, timescale = majax/velscale;
   //const Real torquescale = M_PI/8*pow((a*a-b*b)*velscale,2)/a/b;
   const Real torquescale = M_PI*majax*majax*velscale*velscale;

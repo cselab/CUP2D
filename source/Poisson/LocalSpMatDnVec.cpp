@@ -5,8 +5,8 @@
 #include "LocalSpMatDnVec.h"
 #include "BiCGSTAB.cuh"
 
-LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv) 
-  : m_comm_(m_comm)
+LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint, const std::vector<double>& P_inv) 
+  : m_comm_(m_comm), BLEN_(BLEN)
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -21,14 +21,15 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vec
   send_offset_.reserve(comm_size_); 
   send_sz_.reserve(comm_size_); 
 
-  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, P_inv);
+  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, bMeanConstraint, P_inv);
 }
 
 LocalSpMatDnVec::~LocalSpMatDnVec() {}
 
-void LocalSpMatDnVec::reserve(const int &N)
+void LocalSpMatDnVec::reserve(const int N)
 {
   m_ = N;
+  bMeanRow_ = -1; // init at default value after refinement
 
   // Clear previous contents and reserve excess memory
   for (size_t i(0); i < bd_recv_set_.size(); i++)
@@ -43,9 +44,10 @@ void LocalSpMatDnVec::reserve(const int &N)
 
   x_.resize(N);
   b_.resize(N);
+  h2_.resize(N/BLEN_);
 }
 
-void LocalSpMatDnVec::cooPushBackVal(const double &val, const long long &row, const long long &col)
+void LocalSpMatDnVec::cooPushBackVal(const double val, const long long row, const long long col)
 {
   loc_cooValA_.push_back(val);  
   loc_cooRowA_long_.push_back(row);

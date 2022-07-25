@@ -10,8 +10,6 @@
 
 using namespace cubism;
 
-//bool TperiodPID = false;
-
 void StefanFish::resetAll() {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
@@ -25,25 +23,55 @@ void StefanFish::saveRestart( FILE * f ) {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
-  cFish->curvatureScheduler.save("curvatureScheduler"+ ss.str() + ".restart");
-  cFish->rlBendingScheduler.save("rlBendingScheduler"+ ss.str() + ".restart");
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  {
+     std::ofstream savestream;
+     savestream.setf(std::ios::scientific);
+     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
+     savestream.open(filename);
+     {
+       const auto & c = cFish->curvatureScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+       const auto & c = cFish->periodScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+      const auto & c = cFish->rlBendingScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     savestream.close();
+  }
 
   //Save these numbers for PID controller and other stuff. Maybe not all of them are needed
   //but we don't care, it's only a few numbers.
-  fprintf(f, "curv_PID_fac: %20.20e\n", cFish->curv_PID_fac);
-  fprintf(f, "curv_PID_dif: %20.20e\n", cFish->curv_PID_dif);
-  fprintf(f, "avgDeltaY   : %20.20e\n", cFish->avgDeltaY   );
-  fprintf(f, "avgDangle   : %20.20e\n", cFish->avgDangle   );
-  fprintf(f, "avgAngVel   : %20.20e\n", cFish->avgAngVel   );
-  fprintf(f, "lastTact    : %20.20e\n", cFish->lastTact    );
-  fprintf(f, "lastCurv    : %20.20e\n", cFish->lastCurv    );
-  fprintf(f, "oldrCurv    : %20.20e\n", cFish->oldrCurv    );
-  fprintf(f, "periodPIDval: %20.20e\n", cFish->periodPIDval);
-  fprintf(f, "periodPIDdif: %20.20e\n", cFish->periodPIDdif);
-  fprintf(f, "time0       : %20.20e\n", cFish->time0       );
-  fprintf(f, "timeshift   : %20.20e\n", cFish->timeshift   );
-  fprintf(f, "lastTime    : %20.20e\n", cFish->lastTime    );
-  fprintf(f, "lastAvel    : %20.20e\n", cFish->lastAvel    );
+  fprintf(f, "curv_PID_fac: %20.20e\n", (double)cFish->curv_PID_fac);
+  fprintf(f, "curv_PID_dif: %20.20e\n", (double)cFish->curv_PID_dif);
+  fprintf(f, "avgDeltaY   : %20.20e\n", (double)cFish->avgDeltaY   );
+  fprintf(f, "avgDangle   : %20.20e\n", (double)cFish->avgDangle   );
+  fprintf(f, "avgAngVel   : %20.20e\n", (double)cFish->avgAngVel   );
+  fprintf(f, "lastTact    : %20.20e\n", (double)cFish->lastTact    );
+  fprintf(f, "lastCurv    : %20.20e\n", (double)cFish->lastCurv    );
+  fprintf(f, "oldrCurv    : %20.20e\n", (double)cFish->oldrCurv    );
+  fprintf(f, "periodPIDval: %20.20e\n", (double)cFish->periodPIDval);
+  fprintf(f, "periodPIDdif: %20.20e\n", (double)cFish->periodPIDdif);
+  fprintf(f, "time0       : %20.20e\n", (double)cFish->time0       );
+  fprintf(f, "timeshift   : %20.20e\n", (double)cFish->timeshift   );
+  fprintf(f, "lastTime    : %20.20e\n", (double)cFish->lastTime    );
+  fprintf(f, "lastAvel    : %20.20e\n", (double)cFish->lastAvel    );
 }
 
 void StefanFish::loadRestart( FILE * f ) {
@@ -52,24 +80,59 @@ void StefanFish::loadRestart( FILE * f ) {
   CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
   std::stringstream ss;
   ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
-  cFish->curvatureScheduler.restart("curvatureScheduler"+ ss.str() + ".restart");
-  cFish->rlBendingScheduler.restart("rlBendingScheduler"+ ss.str() + ".restart");
+  std::ifstream restartstream;
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  restartstream.open(filename);
+  {
+     auto & c = cFish->curvatureScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->periodScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->rlBendingScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  restartstream.close();
 
   bool ret = true;
-  ret = ret && 1==fscanf(f, "curv_PID_fac: %le\n", &cFish->curv_PID_fac);
-  ret = ret && 1==fscanf(f, "curv_PID_dif: %le\n", &cFish->curv_PID_dif);
-  ret = ret && 1==fscanf(f, "avgDeltaY   : %le\n", &cFish->avgDeltaY   );
-  ret = ret && 1==fscanf(f, "avgDangle   : %le\n", &cFish->avgDangle   );
-  ret = ret && 1==fscanf(f, "avgAngVel   : %le\n", &cFish->avgAngVel   );
-  ret = ret && 1==fscanf(f, "lastTact    : %le\n", &cFish->lastTact    );
-  ret = ret && 1==fscanf(f, "lastCurv    : %le\n", &cFish->lastCurv    );
-  ret = ret && 1==fscanf(f, "oldrCurv    : %le\n", &cFish->oldrCurv    );
-  ret = ret && 1==fscanf(f, "periodPIDval: %le\n", &cFish->periodPIDval);
-  ret = ret && 1==fscanf(f, "periodPIDdif: %le\n", &cFish->periodPIDdif);
-  ret = ret && 1==fscanf(f, "time0       : %le\n", &cFish->time0       );
-  ret = ret && 1==fscanf(f, "timeshift   : %le\n", &cFish->timeshift   );
-  ret = ret && 1==fscanf(f, "lastTime    : %le\n", &cFish->lastTime    );
-  ret = ret && 1==fscanf(f, "lastAvel    : %le\n", &cFish->lastAvel    );
+  double in_curv_PID_fac, in_curv_PID_dif, in_avgDeltaY, in_avgDangle, in_avgAngVel, in_lastTact, in_lastCurv, in_oldrCurv, in_periodPIDval, in_periodPIDdif, in_time0, in_timeshift, in_lastTime, in_lastAvel; 
+  ret = ret && 1==fscanf(f, "curv_PID_fac: %le\n", &in_curv_PID_fac);
+  ret = ret && 1==fscanf(f, "curv_PID_dif: %le\n", &in_curv_PID_dif);
+  ret = ret && 1==fscanf(f, "avgDeltaY   : %le\n", &in_avgDeltaY   );
+  ret = ret && 1==fscanf(f, "avgDangle   : %le\n", &in_avgDangle   );
+  ret = ret && 1==fscanf(f, "avgAngVel   : %le\n", &in_avgAngVel   );
+  ret = ret && 1==fscanf(f, "lastTact    : %le\n", &in_lastTact    );
+  ret = ret && 1==fscanf(f, "lastCurv    : %le\n", &in_lastCurv    );
+  ret = ret && 1==fscanf(f, "oldrCurv    : %le\n", &in_oldrCurv    );
+  ret = ret && 1==fscanf(f, "periodPIDval: %le\n", &in_periodPIDval);
+  ret = ret && 1==fscanf(f, "periodPIDdif: %le\n", &in_periodPIDdif);
+  ret = ret && 1==fscanf(f, "time0       : %le\n", &in_time0       );
+  ret = ret && 1==fscanf(f, "timeshift   : %le\n", &in_timeshift   );
+  ret = ret && 1==fscanf(f, "lastTime    : %le\n", &in_lastTime    );
+  ret = ret && 1==fscanf(f, "lastAvel    : %le\n", &in_lastAvel    );
+  cFish->curv_PID_fac = (Real) in_curv_PID_fac;
+  cFish->curv_PID_dif = (Real) in_curv_PID_dif;
+  cFish->avgDeltaY    = (Real) in_avgDeltaY   ;
+  cFish->avgDangle    = (Real) in_avgDangle   ;
+  cFish->avgAngVel    = (Real) in_avgAngVel   ;
+  cFish->lastTact     = (Real) in_lastTact    ;
+  cFish->lastCurv     = (Real) in_lastCurv    ;
+  cFish->oldrCurv     = (Real) in_oldrCurv    ;
+  cFish->periodPIDval = (Real) in_periodPIDval;
+  cFish->periodPIDdif = (Real) in_periodPIDdif;
+  cFish->time0        = (Real) in_time0       ;
+  cFish->timeshift    = (Real) in_timeshift   ;
+  cFish->lastTime     = (Real) in_lastTime    ;
+  cFish->lastAvel     = (Real) in_lastAvel    ;
   if( (not ret) ) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
@@ -244,7 +307,8 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 Real StefanFish::getLearnTPeriod() const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  return cFish->periodPIDval;
+  //return cFish->periodPIDval;
+  return cFish->next_period;
 }
 
 Real StefanFish::getPhase(const Real t) const
@@ -261,7 +325,7 @@ Real StefanFish::getPhase(const Real t) const
 std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
 {
   const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
-  std::vector<Real> S(10,0);
+  std::vector<Real> S(16,0);
   S[0] = ( center[0] - origin[0] )/ length;
   S[1] = ( center[1] - origin[1] )/ length;
   S[2] = getOrientation();
@@ -273,173 +337,195 @@ std::vector<Real> StefanFish::state( const std::vector<double>& origin ) const
   S[8] = cFish->lastCurv;
   S[9] = cFish->oldrCurv;
 
-  #ifndef STEFANS_SENSORS_STATE
-    return S;
-  #else
-    S.resize(16);
+  //Shear stress computation at three sensors
+  //******************************************
+  // Get fish skin
+  const auto &DU = myFish->upperSkin;
+  const auto &DL = myFish->lowerSkin;
 
-    // Get velInfo
-    const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  // index for sensors on the side of head
+  int iHeadSide = 0;
+  for(int i=0; i<myFish->Nm-1; ++i)
+    if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
+      iHeadSide = i;
+  assert(iHeadSide>0);
 
-    // Get fish skin
-    const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
+  //sensor locations
+  const std::array<Real,2> locFront = {DU.xSurf[0]       , DU.ySurf[0]       };
+  const std::array<Real,2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
+  const std::array<Real,2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
 
-    //// Sensor Signal on Front of Fish ////
-    ////////////////////////////////////////
+  //compute shear stress force (x,y) components
+  std::array<Real,2> shearFront = getShear( locFront );
+  std::array<Real,2> shearUpper = getShear( locLower );
+  std::array<Real,2> shearLower = getShear( locUpper );
 
-    // get front-point
-    const std::array<Real,2> pFront = {DU.xSurf[0], DU.ySurf[0]};
+  //normal vectors at sensor locations (these vectors already have unit length)
+  // first point of the two skins is the same normal should be almost the same: take the mean
+  const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
+  const std::array<Real,2> norUpper = { DU.normXSurf[iHeadSide], DU.normYSurf[iHeadSide]};
+  const std::array<Real,2> norLower = { DL.normXSurf[iHeadSide], DL.normYSurf[iHeadSide]};
 
-    // first point of the two skins is the same
-    // normal should be almost the same: take the mean
-    const std::array<Real,2> normalFront = { (DU.normXSurf[0] + DL.normXSurf[0]) / 2,
-                                             (DU.normYSurf[0] + DL.normYSurf[0]) / 2 };
+  //tangent vectors at sensor locations (these vectors already have unit length)
+  //signs alternate so that both upper and lower tangent vectors point towards fish tail
+  const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
+  const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
+  const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
 
-    // compute shear stress
-    std::array<Real,2> tipShear = getShear( pFront, normalFront, velInfo );
+  // project three stresses to normal and tangent directions
+  const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
+  const double shearUpper_n = shearUpper[0]*norUpper[0]+shearUpper[1]*norUpper[1];
+  const double shearLower_n = shearLower[0]*norLower[0]+shearLower[1]*norLower[1];
+  const double shearFront_t = shearFront[0]*tanFront[0]+shearFront[1]*tanFront[1];
+  const double shearUpper_t = shearUpper[0]*tanUpper[0]+shearUpper[1]*tanUpper[1];
+  const double shearLower_t = shearLower[0]*tanLower[0]+shearLower[1]*tanLower[1];
 
-    //// Sensor Signal on Side of Fish ////
-    ///////////////////////////////////////
+  // put non-dimensional results into state into state
+  S[10] = shearFront_n * Tperiod / length;
+  S[11] = shearFront_t * Tperiod / length;
+  S[12] = shearLower_n * Tperiod / length;
+  S[13] = shearLower_t * Tperiod / length;
+  S[14] = shearUpper_n * Tperiod / length;
+  S[15] = shearUpper_t * Tperiod / length;
 
-    std::array<Real,2> lowShear, topShear;
+  return S;
+}
 
-    // get index for sensors on the side of head
-    int iHeadSide = 0;
-    for(int i=0; i<myFish->Nm-1; ++i)
-      if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
-        iHeadSide = i;
-    assert(iHeadSide>0);
 
-    for(int a = 0; a<2; ++a)
-    {
-      // distinguish upper and lower skin
-      const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
+std::vector<Real> StefanFish::state3D() const
+{
+  const CurvatureFish* const cFish = dynamic_cast<CurvatureFish*>( myFish );
+  std::vector<Real> S(25);
+  S[0 ] = center[0];
+  S[1 ] = center[1];
+  S[2 ] = 1.0;
+  
+  //convert angle to quaternion
+  S[3 ] = cos(0.5*getOrientation());
+  S[4 ] = 0.0;
+  S[5 ] = 0.0;
+  S[6 ] = sin(0.5*getOrientation());
 
-      // get point
-      const std::array<Real,2> pSide = { D.midX[iHeadSide], D.midY[iHeadSide] };
+  S[7 ] = getPhase( sim.time );
 
-      // get normal to surface
-      const std::array<Real,2> normSide = { D.normXSurf[iHeadSide], D.normYSurf[iHeadSide] };
+  S[8 ] = getU() * Tperiod / length;
+  S[9 ] = getV() * Tperiod / length;
+  S[10] = 0.0;
 
-      // compute shear stress
-      std::array<Real,2> sideShear = getShear( pSide, normSide, velInfo );
+  S[11] = 0.0;
+  S[12] = 0.0;
+  S[13] = getW() * Tperiod;
 
-      // now figure out how to rotate it along the fish skin for consistency:
-      const Real dX = D.xSurf[iHeadSide+1] - D.xSurf[iHeadSide];
-      const Real dY = D.ySurf[iHeadSide+1] - D.ySurf[iHeadSide];
-      const Real proj = dX * normSide[0] - dY * normSide[1];
-      const Real tangX = proj>0?  normSide[0] : -normSide[0]; // s.t. tang points from head
-      const Real tangY = proj>0? -normSide[1] :  normSide[1]; // to tail, normal outward
-      (a==0? topShear[0] : lowShear[0]) = sideShear[0] * normSide[0] + sideShear[1] * normSide[1];
-      (a==0? topShear[1] : lowShear[1]) = sideShear[0] * tangX + sideShear[1] * tangY;
-    }
+  S[14] = cFish->lastCurv;
+  S[15] = cFish->oldrCurv;
 
-    // put non-dimensional results into state into state
-    S[10] = tipShear[0] * Tperiod / length;
-    S[11] = tipShear[1] * Tperiod / length;
-    S[12] = lowShear[0] * Tperiod / length;
-    S[13] = lowShear[1] * Tperiod / length;
-    S[14] = topShear[0] * Tperiod / length;
-    S[15] = topShear[1] * Tperiod / length;
-    // printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n", S[10],S[11], S[12],S[13], S[14],S[15]);
-    // fflush(0);
+  //Shear stress computation at three sensors
+  //******************************************
+  // Get fish skin
+  const auto &DU = myFish->upperSkin;
+  const auto &DL = myFish->lowerSkin;
+
+  // index for sensors on the side of head
+  int iHeadSide = 0;
+  for(int i=0; i<myFish->Nm-1; ++i)
+    if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
+      iHeadSide = i;
+  assert(iHeadSide>0);
+
+  //sensor locations
+  const std::array<Real,2> locFront = {DU.xSurf[0]       , DU.ySurf[0]       };
+  const std::array<Real,2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
+  const std::array<Real,2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
+
+  //compute shear stress force (x,y) components
+  std::array<Real,2> shearFront = getShear( locFront );
+  std::array<Real,2> shearUpper = getShear( locLower );
+  std::array<Real,2> shearLower = getShear( locUpper );
+  S[16] = shearFront[0]* Tperiod / length;
+  S[17] = shearFront[1]* Tperiod / length;
+  S[18] = 0.0;
+  S[19] = shearLower[0]* Tperiod / length;
+  S[20] = shearLower[1]* Tperiod / length;
+  S[21] = 0.0;
+  S[22] = shearUpper[0]* Tperiod / length;
+  S[23] = shearUpper[1]* Tperiod / length;
+  S[24] = 0.0;
+  #if 0
+  //normal vectors at sensor locations (these vectors already have unit length)
+  // first point of the two skins is the same normal should be almost the same: take the mean
+  const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
+  const std::array<Real,2> norUpper = { DU.normXSurf[iHeadSide], DU.normYSurf[iHeadSide]};
+  const std::array<Real,2> norLower = { DL.normXSurf[iHeadSide], DL.normYSurf[iHeadSide]};
+
+  //tangent vectors at sensor locations (these vectors already have unit length)
+  //signs alternate so that both upper and lower tangent vectors point towards fish tail
+  const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
+  const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
+  const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
+
+  // project three stresses to normal and tangent directions
+  const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
+  const double shearUpper_n = shearUpper[0]*norUpper[0]+shearUpper[1]*norUpper[1];
+  const double shearLower_n = shearLower[0]*norLower[0]+shearLower[1]*norLower[1];
+  const double shearFront_t = shearFront[0]*tanFront[0]+shearFront[1]*tanFront[1];
+  const double shearUpper_t = shearUpper[0]*tanUpper[0]+shearUpper[1]*tanUpper[1];
+  const double shearLower_t = shearLower[0]*tanLower[0]+shearLower[1]*tanLower[1];
+
+  // put non-dimensional results into state into state
+  S[10] = shearFront_n * Tperiod / length;
+  S[11] = shearFront_t * Tperiod / length;
+  S[12] = shearLower_n * Tperiod / length;
+  S[13] = shearLower_t * Tperiod / length;
+  S[14] = shearUpper_n * Tperiod / length;
+  S[15] = shearUpper_t * Tperiod / length;
   #endif
 
-  #ifndef STEFANS_NEIGHBOUR_STATE
-    return S;
-  #else 
-    S.resize(22);
-
-    // Get all shapes in simulaton
-    const auto& shapes = sim.shapes;
-    const size_t N = shapes.size();
-
-    // Compute distance vector pointing from agent to neighbours
-    std::vector<std::vector<Real>> distanceVector(N, std::vector<Real>(2));
-    std::vector<std::pair<Real, size_t>> distances(N);
-    for( size_t i = 0; i<N; i++ )
-    {
-      const double distX = shapes[i]->center[0] - center[0];
-      const double distY = shapes[i]->center[1] - center[1];
-      distanceVector[i][0] = distX;
-      distanceVector[i][1] = distY;
-      distances[i].first = std::sqrt( distX*distX + distY*distY );
-      distances[i].second = i; 
-    }
-
-    // Only add distance vector for (first) three neighbours to state
-    std::sort( distances.begin(), distances.end() );
-    for( size_t i = 0; i<3; i++ )
-    {
-      // Ignore first entry, which will be the distance to itself
-      S[16+2*i]   = distanceVector[distances[i+1].second][0];
-      S[16+2*i+1] = distanceVector[distances[i+1].second][1];
-    }
-
-    return S;
-  #endif
+  return S;
 }
 
 /* helpers to compute sensor information */
 
 // function that finds block id of block containing pos (x,y)
-ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
+ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos) const
 {
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
   for(size_t i=0; i<velInfo.size(); ++i)
   {
-    // get gridspacing in block
-    const Real h = velInfo[i].h;
-
-    // compute lower left corner of block
-    std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
-    for(int j=0; j<2; ++j)
-      MIN[j] -= 0.5 * h; // pos returns cell centers
-
-    // compute top right corner of block
+    // compute lower left and top right corners of block (+- 0.5 h because pos returns cell centers)
+    std::array<Real,2> MIN = velInfo[i].pos<Real>(0                   , 0                   );
     std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
-    for(int j=0; j<2; ++j)
-      MAX[j] += 0.5 * h; // pos returns cell centers
+    MIN[0] -= 0.5 * velInfo[i].h;
+    MIN[1] -= 0.5 * velInfo[i].h;
+    MAX[0] += 0.5 * velInfo[i].h;
+    MAX[1] += 0.5 * velInfo[i].h;
 
     // check whether point is inside block
     if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
     {
-      // point lies inside this block
       return i;
     }
   }
-  // rank does not contain point
-  return -1;
-};
-
-// function that gives indice of point in block
-std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const
-{
-  const int indx = (int) std::round((pos[0] - org[0])*invh);
-  const int indy = (int) std::round((pos[1] - org[1])*invh);
-  const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
-  const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
-  return std::array<int, 2>{{ix, iy}};
+  return -1; // rank does not contain point
 };
 
 // returns shear at given surface location
-std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const
+std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf) const
 {
-  // Buffer to broadcast velcities and gridspacing
-  Real velocityH[3] = {0.0, 0.0, 0.0};
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo(); 
 
-  // 1. Compute surface velocity on surface
-  // get blockId of surface
-  ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
-
-  // get surface velocity if block containing point found
+  Real myF[2] = {0,0};
+  
+  // Get blockId of block that contains point pSurf.
+  ssize_t blockIdSurf = holdingBlockID(pSurf);
   char error = false;
-  if( blockIdSurf >= 0 ) {
-    // get block
-    const auto& skinBinfo = velInfo[blockIdSurf];
+  if( blockIdSurf >= 0 )
+  {
+    const auto & skinBinfo = velInfo[blockIdSurf];
 
     // check whether obstacle block exists
-    if(obstacleBlocks[blockIdSurf] == nullptr ){
-      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n", sim.rank, blockIdSurf, pSurf[0], pSurf[1], blockIdSurf, obstacleBlocks.size());
+    if(obstacleBlocks[blockIdSurf] == nullptr )
+    {
+      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n", sim.rank, blockIdSurf, (double)pSurf[0], (double)pSurf[1], blockIdSurf, obstacleBlocks.size());
       const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
       const auto& chiBlock = chiInfo[blockIdSurf];
       ScalarBlock & __restrict__ CHI = *(ScalarBlock*) chiBlock.ptrBlock;
@@ -447,105 +533,63 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const s
       for( size_t j = 0; j<ScalarBlock::sizeY; j++)
       {
         const auto pos = chiBlock.pos<Real>(i, j);
-        printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, pos[0], pos[1], CHI(i,j).s);
+        printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, (double)pos[0], (double)pos[1], (double)CHI(i,j).s);
       }
       fflush(0);
       error = true;
-      // abort();
     }
-    else{
-      // get origin of block
-      const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
-
-      // get gridspacing on this block
-      velocityH[2] = velInfo[blockIdSurf].h;
-
-      // get index of point in block
-      const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
-
-      // get deformation velocity
-      const Real udefX = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
-      const Real udefY = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
-
-      // compute velocity of skin point
-      velocityH[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udefX;
-      velocityH[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udefY;
+    else
+    {
+      Real dmin = 1e10;
+      ObstacleBlock * const O = obstacleBlocks[blockIdSurf];
+      for(size_t k = 0; k < O->n_surfPoints; ++k)
+      {
+        const int ix = O->surface[k]->ix;
+        const int iy = O->surface[k]->iy;
+        const std::array<Real,2> p = skinBinfo.pos<Real>(ix, iy);
+        const Real d = (p[0]-pSurf[0])*(p[0]-pSurf[0])+(p[1]-pSurf[1])*(p[1]-pSurf[1]);
+        if (d < dmin)
+        {
+          dmin = d;
+          myF[0] = O->fXv_s[k];
+          myF[1] = O->fYv_s[k];
+        }
+      }
     }
   }
+  MPI_Allreduce(MPI_IN_PLACE, myF, 2, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
 
   // DEBUG purposes
   #if 1
-  MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getCartComm());
-  if( sim.rank == 0 && blockIdSurf == -1 )
-  {
-    printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
-    fflush(0);
-    abort();
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR, sim.chi->getCartComm());
-  if( error )
-  {
-    sim.dumpAll("failed");
-    abort();
-  }
+    MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getWorldComm());
+    if( sim.rank == 0 && blockIdSurf == -1 )
+    {
+      printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
+      fflush(0);
+      abort();
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR, sim.chi->getWorldComm());
+    if( error )
+    {
+      sim.dumpAll("failed");
+      abort();
+    }
   #endif
 
-  // Allreduce to Bcast surface velocity
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
-
-  // Assign skin velocities and grid-spacing
-  const Real uSkin = velocityH[0];
-  const Real vSkin = velocityH[1];
-  const Real h     = velocityH[2];
-  const Real invh = 1/h;
-
-  // Reset buffer to 0
-  velocityH[0] = 0.0; velocityH[1] = 0.0; velocityH[2] = 0.0;
-
-  // 2. Compute flow velocity away from surface
-  // compute point on lifted surface
-  const std::array<Real,2> pLiftedSurf = { pSurf[0] + h * normSurf[0],
-                                           pSurf[1] + h * normSurf[1] };
-
-  // get blockId of lifted surface
-  const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
-
-  // get surface velocity if block containing point found
-  if( blockIdLifted >= 0 ) {
-    // get block
-    const auto& liftedBinfo = velInfo[blockIdLifted];
-
-    // get origin of block
-    const std::array<Real,2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
-
-    // get inverse gridspacing in block
-    const Real invhLifted = 1/velInfo[blockIdLifted].h;
-
-    // get index for sensor
-    const std::array<int,2> iSens = safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);
-
-    // get velocity field at point
-    const VectorBlock& b = * (const VectorBlock*) liftedBinfo.ptrBlock;
-    velocityH[0] = b(iSens[0], iSens[1]).u[0];
-    velocityH[1] = b(iSens[0], iSens[1]).u[1];
-  }
-
-  // Allreduce to Bcast flow velocity
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getCartComm());
-
-  // Assign lifted skin velocities
-  const Real uLifted = velocityH[0];
-  const Real vLifted = velocityH[1];
-
   // return shear
-  return std::array<Real, 2>{{(uLifted - uSkin) * invh,
-                              (vLifted - vSkin) * invh }};
-
+  return std::array<Real, 2>{{myF[0],myF[1]}};
 };
 
 void CurvatureFish::computeMidline(const Real t, const Real dt)
 {
+  periodScheduler.transition(t,transition_start,transition_start+transition_duration,current_period,next_period);
+  periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
+  if (transition_start < t && t < transition_start+transition_duration)//timeshift also rampedup
+  {
+	  timeshift = (t - time0)/periodPIDval + timeshift;
+	  time0 = t;
+  }
+
   // define interpolation points on midline
   const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).15*length,
     (Real).4*length, (Real).65*length, (Real).9*length, length
@@ -572,7 +616,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
   rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS, rB, vB);
 
   // next term takes into account the derivative of periodPIDval in darg:
-  const Real diffT = TperiodPID? 1 - (t-time0)*periodPIDdif/periodPIDval : 1;
+  const Real diffT = 1 - (t-time0)*periodPIDdif/periodPIDval;
   // time derivative of arg:
   const Real darg = 2*M_PI/periodPIDval * diffT;
   const Real arg0 = 2*M_PI*((t-time0)/periodPIDval +timeshift) +M_PI*phaseShift;

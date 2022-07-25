@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <cuda_runtime.h>
+#include <cub/cub.cuh>
 
 #include "BiCGSTAB.cuh"
 
@@ -8,8 +9,9 @@ BiCGSTABSolver::BiCGSTABSolver(
     MPI_Comm m_comm,
     LocalSpMatDnVec& LocalLS,
     const int BLEN, 
+    const bool bMeanConstraint,
     const std::vector<double>& P_inv)
-  : m_comm_(m_comm), BLEN_(BLEN), LocalLS_(LocalLS), prof_(m_comm)
+  : m_comm_(m_comm), BLEN_(BLEN), bMeanConstraint_(bMeanConstraint), LocalLS_(LocalLS), prof_(m_comm)
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -126,6 +128,13 @@ void BiCGSTABSolver::freeLast()
       checkCudaErrors(cusparseDestroySpMat(spDescrBdA_));
       checkCudaErrors(cusparseDestroyDnVec(spDescrBdZ_));
     }
+    if (bMeanConstraint_)
+    {
+      checkCudaErrors(cudaFree(d_h2_));
+      checkCudaErrors(cudaFree(d_red_));
+      checkCudaErrors(cudaFree(d_red_res_));
+      checkCudaErrors(cudaFree(d_red_temp_storage_));
+    }
   }
   dirty_ = true;
 }
@@ -141,6 +150,8 @@ void BiCGSTABSolver::updateAll()
   loc_nnz_ = LocalLS_.loc_nnz_ ;
   bd_nnz_ = LocalLS_.bd_nnz_ ;
   send_buff_sz_ = LocalLS_.send_pack_idx_.size();
+  const int Nblocks = m_ / BLEN_;
+  bMeanRow_ = LocalLS_.bMeanRow_;
   
   // Allocate device memory for local linear system
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
@@ -155,6 +166,17 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&d_nu_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_t_,  m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_z_,  hd_m_ * sizeof(double)));
+  if (bMeanConstraint_)
+  {
+    checkCudaErrors(cudaMalloc(&d_h2_, Nblocks * sizeof(double)));
+    checkCudaErrors(cudaMalloc(&d_red_, m_ * sizeof(double)));
+    checkCudaErrors(cudaMalloc(&d_red_res_, sizeof(double)));
+    // Allocate temporary storage for reductions
+    d_red_temp_storage_ = NULL;
+    red_temp_storage_bytes_ = 0;
+    cub::DeviceReduce::Sum<double*, double*>(d_red_temp_storage_, red_temp_storage_bytes_, d_red_, d_red_res_, m_, solver_stream_);
+    checkCudaErrors(cudaMalloc(&d_red_temp_storage_, red_temp_storage_bytes_));
+  }
   if (comm_size_ > 1)
   {
     checkCudaErrors(cudaMalloc(&d_send_pack_idx_, send_buff_sz_ * sizeof(int)));
@@ -178,6 +200,8 @@ void BiCGSTABSolver::updateAll()
     checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_.bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_.bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   }
+  if (bMeanConstraint_)
+    checkCudaErrors(cudaMemcpyAsync(d_h2_, LocalLS_.h2_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
 
   // Create descriptors for variables that will pass through cuSPARSE
@@ -272,6 +296,12 @@ __global__ void set_rho(BiCGSTABScalars* coeffs)
   coeffs->rho_prev = coeffs->rho_curr;
 }
 
+__global__ void blockDscal(const int m, const int BLEN, const double* __restrict__ const alpha, double* __restrict__ const x)
+{
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
+    x[i] = alpha[i/BLEN] * x[i];
+}
+
 __global__ void send_buff_pack(
     int buff_sz, 
     const int* const pack_idx, 
@@ -358,6 +388,24 @@ void BiCGSTABSolver::hd_cusparseSpMV(
           CUSPARSE_MV_ALG_DEFAULT, 
           bdSpMVBuff_)); 
     prof_.stopProfiler("HaloSpMV", solver_stream_);
+  }
+
+  if (bMeanConstraint_)
+  {
+    // Copy result to reduction buffer and scale by h_i^2
+    checkCudaErrors(cudaMemcpyAsync(d_red_, d_op_hd, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
+    blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_h2_, d_red_);
+    checkCudaErrors(cudaGetLastError());
+
+    cub::DeviceReduce::Sum<double*, double*>(d_red_temp_storage_, red_temp_storage_bytes_, d_red_, d_red_res_, m_, solver_stream_);
+
+    double h_red_res;
+    checkCudaErrors(cudaMemcpyAsync(&h_red_res, d_red_res_, sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    MPI_Allreduce(MPI_IN_PLACE, &h_red_res, 1, MPI_DOUBLE, MPI_SUM, m_comm_);
+    
+    if (bMeanRow_ >= 0)
+      checkCudaErrors(cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   }
 }
 

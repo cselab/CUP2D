@@ -16,17 +16,17 @@ class SpRowInfo
     // neirank_cols_[i] holds {rank of non-local col, idx of non-local col}
     std::vector<std::pair<int,long long>> neirank_cols_;
 
-    SpRowInfo(const int &rank, const long long &row_idx, const int &neirank_max) : rank_(rank), idx_(row_idx) 
+    SpRowInfo(const int rank, const long long row_idx, const int neirank_max) : rank_(rank), idx_(row_idx) 
     { 
       neirank_cols_.reserve(neirank_max); 
     }
     ~SpRowInfo() = default;
 
-    void mapColVal(const long long &col_idx, const double &val) 
+    void mapColVal(const long long col_idx, const double val) 
     { 
       loc_colval_[col_idx] += val; 
     }
-    void mapColVal(const int &rank, const long long &col_idx, const double &val) 
+    void mapColVal(const int rank, const long long col_idx, const double val) 
     {
       if (rank == rank_)
         mapColVal(col_idx, val);
@@ -44,13 +44,13 @@ class BiCGSTABSolver;
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv); 
+    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint, const std::vector<double>& P_inv); 
     ~LocalSpMatDnVec();
 
     // Reserve space for linear system
-    void reserve(const int &N);
+    void reserve(const int N);
     // Push back value to COO matrix, up to user to insure ordering of row and column elements
-    void cooPushBackVal(const double &val, const long long &row, const long long &col);
+    void cooPushBackVal(const double val, const long long row, const long long col);
     // Push back row to COO matrix, up to user to ensure ordering of rows
     void cooPushBackRow(const SpRowInfo &row);
     // Make the distributed linear system for solver
@@ -68,9 +68,11 @@ class LocalSpMatDnVec
       const double max_rel_error,
       const int max_restarts); 
 
+    void set_bMeanRow(int bMeanRow) { bMeanRow_ = bMeanRow; }
     // Modifiable references for x and b for setting and getting initial conditions/solution
     std::vector<double>& get_x() { return x_; }
     std::vector<double>& get_b() { return b_; }
+    std::vector<double>& get_h2() { return h2_; }
 
     // Expose private variables to friendly solver
     friend class BiCGSTABSolver;
@@ -79,11 +81,13 @@ class LocalSpMatDnVec
     int rank_;
     MPI_Comm m_comm_;
     int comm_size_; 
+    const int BLEN_; // number of cells in a block
 
     int m_;
     int halo_;
     int loc_nnz_;
     int bd_nnz_;
+    int bMeanRow_;
 
     // Local rows of linear system + dense vecs
     std::vector<double> loc_cooValA_;
@@ -91,6 +95,7 @@ class LocalSpMatDnVec
     std::vector<long long> loc_cooColA_long_;
     std::vector<double> x_;
     std::vector<double> b_;
+    std::vector<double> h2_;
 
     // Non-local rows with columns belonging to halo using rank-local indexing
     std::vector<double> bd_cooValA_;

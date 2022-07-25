@@ -23,7 +23,7 @@ struct GradChiOnTmp
     if (sim.Qcriterion)
       for(int y=0; y<VectorBlock::sizeY; ++y)
       for(int x=0; x<VectorBlock::sizeX; ++x)
-        TMP(x,y).s = max(TMP(x,y).s,0.0);//compress if Q<0
+        TMP(x,y).s = max(TMP(x,y).s,(Real)0.0);//compress if Q<0
 
     //Loop over block and halo cells and set TMP(0,0) to a value which will cause mesh refinement
     //if any of the cells have:
@@ -104,7 +104,8 @@ void AdaptTheMesh::adapt()
   vel_amr ->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
-  uDef_amr->TagLike(tmpInfo);
+  if( sim.smagorinskyCoeff != 0 )
+    Cs_amr->TagLike(tmpInfo);
 
   tmp_amr ->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
   chi_amr ->Adapt(sim.time, false, false);
@@ -113,7 +114,8 @@ void AdaptTheMesh::adapt()
   pres_amr->Adapt(sim.time, false, false);
   pold_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
-  uDef_amr->Adapt(sim.time, false, true);
+  if( sim.smagorinskyCoeff != 0 )
+    Cs_amr->Adapt(sim.time, false, true);
 
   sim.stopProfiler();
 }

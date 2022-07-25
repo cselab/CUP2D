@@ -136,6 +136,8 @@ void Simulation::init()
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
+  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   if( sim.smagorinskyCoeff == 0 )
     pipeline.push_back(std::make_shared<advDiff>(sim));
   else
@@ -144,8 +146,6 @@ void Simulation::init()
     pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
-  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
 
   if( sim.rank == 0 && sim.verbose )
   {
@@ -222,7 +222,8 @@ void Simulation::parseRuntime()
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
 
   // Smagorinsky Model
-  sim.smagorinskyCoeff = parser("-Cs").asDouble(0);
+  sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
+  sim.bDumpCs = parser("-dumpCs").asInt(0);
 
   // Flag for initial condition
   sim.ic = parser("-ic").asString("");
@@ -236,7 +237,7 @@ void Simulation::parseRuntime()
   // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
-  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(1e-4);
+  sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
@@ -428,7 +429,7 @@ Real Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const Real dtDiffusion = 0.25*h*h/(sim.nu+0.125*h*sim.uMax_measured);
+    const Real dtDiffusion = 0.25*h*h/(sim.nu+0.25*h*sim.uMax_measured);
     const Real dtAdvection = h / ( sim.uMax_measured + 1e-8 );
     
     //non-constant timestep introduces a source term = (1-dt_new/dt_old) \nabla^2 P_{old}

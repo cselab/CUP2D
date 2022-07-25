@@ -225,7 +225,6 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
     const Real hsq = velInfo[i].h*velInfo[i].h;
 
     if(OBLOCK[velInfo[i].blockID] == nullptr) continue;
-    const CHI_MAT & __restrict__ rho = OBLOCK[velInfo[i].blockID]->rho;
     const CHI_MAT & __restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
     const UDEFMAT & __restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
     #ifndef EXPL_INTEGRATE_MOM
@@ -240,10 +239,10 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
         VEL(ix,iy).u[0] - udef[iy][ix][0], VEL(ix,iy).u[1] - udef[iy][ix][1]
       };
       #ifdef EXPL_INTEGRATE_MOM
-        const Real F = hsq * rho[iy][ix] * chi[iy][ix];
+        const Real F = hsq * chi[iy][ix];
       #else
         const Real Xlamdt = chi[iy][ix] * lambdt;
-        const Real F = hsq * rho[iy][ix] * Xlamdt / (1 + Xlamdt);
+        const Real F = hsq * Xlamdt / (1 + Xlamdt);
       #endif
       Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
       PM += F;
@@ -254,7 +253,7 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
     }
   }
   Real quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   PM = quantities[0]; 
   PJ = quantities[1]; 
   PX = quantities[2]; 
@@ -457,6 +456,7 @@ void PressureSingle::preventCollidingObstacles() const
     const auto& shapes = sim.shapes;
     const auto & infos  = sim.chi->getBlocksInfo();
     const size_t N = shapes.size();
+    sim.bCollisionID.clear();
 
     struct CollisionInfo // hitter and hittee, symmetry but we do things twice
     {
@@ -628,7 +628,7 @@ void PressureSingle::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getWorldComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -684,13 +684,18 @@ void PressureSingle::preventCollidingObstacles() const
 
         // A collision happened!
         sim.bCollision = true;
+        #pragma omp critical
+        {
+            sim.bCollisionID.push_back(i);
+            sim.bCollisionID.push_back(j);
+        }
 
         const bool iForced = shapes[i]->bForced;
         const bool jForced = shapes[j]->bForced;
         if (iForced || jForced)
         {
             std::cout << "[CUP2D] WARNING: Forced objects not supported for collision." << std::endl;
-            // MPI_Abort(sim.chi->getCartComm(),1);
+            // MPI_Abort(sim.chi->getWorldComm(),1);
         }
 
         Real ho1[3];
@@ -790,8 +795,37 @@ void PressureSingle::operator()(const Real dt)
   penalize(dt);
 
   // compute pressure RHS
+  // first we put uDef to tmpV so that we can create a VectorLab to compute div(uDef)
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (VectorBlock*) tmpVInfo[i].ptrBlock )->clear();
+  }
+  for(const auto& shape : sim.shapes)
+  {
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      if(OBLOCK[tmpVInfo[i].blockID] == nullptr) continue; //obst not in block
+      const UDEFMAT & __restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      const CHI_MAT & __restrict__ chi  = OBLOCK[tmpVInfo[i].blockID]->chi;
+      auto & __restrict__ UDEF = *(VectorBlock*)tmpVInfo[i].ptrBlock; // dest
+      const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+         if( chi[iy][ix] < CHI(ix,iy).s) continue;
+         Real p[2]; tmpVInfo[i].pos(p, ix, iy);
+         UDEF(ix, iy).u[0] += udef[iy][ix][0];
+         UDEF(ix, iy).u[1] += udef[iy][ix][1];
+      }
+    }
+  }
   updatePressureRHS K(sim);
-  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.uDef,true,sim.tmp);
+  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.tmpV,true,sim.tmp);
 
 
   //Add p_old (+dp/dt) to RHS

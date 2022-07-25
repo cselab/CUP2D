@@ -71,7 +71,6 @@ endif()
 add_subdirectory("${ROOT_DIR}/Cubism")
 # TODO: Add prefix to _BS_ and DIMENSION macros.
 target_compile_definitions(Cubism PUBLIC CUBISM_ALIGNMENT=32)
-target_compile_definitions(Cubism PUBLIC CUBISM_USE_HDF)
 target_compile_definitions(Cubism PUBLIC CUBISM_USE_MAP)
 target_compile_definitions(Cubism PUBLIC DIMENSION=2)
 target_compile_definitions(Cubism PUBLIC _BS_=${CUP2D_BLOCK_SIZE})

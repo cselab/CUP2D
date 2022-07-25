@@ -14,7 +14,6 @@ using namespace cubism;
 //#define EXPL_INTEGRATE_MOM
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-Real Shape::getMinRhoS() const { return rhoS; }
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u*u + v*v); }
 
@@ -138,7 +137,6 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if(pos == nullptr) continue;
     const CHI_MAT & __restrict__ CHI = pos->chi;
-    const CHI_MAT & __restrict__ RHO = pos->rho;
     const UDEFMAT & __restrict__ UDEF = pos->udef;
     for(int iy=0; iy<ObstacleBlock::sizeY; ++iy)
     for(int ix=0; ix<ObstacleBlock::sizeX; ++ix)
@@ -146,20 +144,20 @@ Shape::Integrals Shape::integrateObstBlock(const std::vector<BlockInfo>& vInfo)
       if (CHI[iy][ix] <= 0) continue;
       Real p[2];
       vInfo[i].pos(p, ix, iy);
-      const Real rhochi = CHI[iy][ix] * RHO[iy][ix] * hsq;
+      const Real chi = CHI[iy][ix] * hsq;
       p[0] -= centerOfMass[0];
       p[1] -= centerOfMass[1];
-      _x += rhochi*p[0];
-      _y += rhochi*p[1];
-      _m += rhochi;
-      _j += rhochi*(p[0]*p[0] + p[1]*p[1]);
-      _u += rhochi*UDEF[iy][ix][0];
-      _v += rhochi*UDEF[iy][ix][1];
-      _a += rhochi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
+      _x += chi*p[0];
+      _y += chi*p[1];
+      _m += chi;
+      _j += chi*(p[0]*p[0] + p[1]*p[1]);
+      _u += chi*UDEF[iy][ix][0];
+      _v += chi*UDEF[iy][ix][1];
+      _a += chi*(p[0]*UDEF[iy][ix][1] - p[1]*UDEF[iy][ix][0]);
     }
   }
   Real quantities[7] = {_x,_y,_m,_j,_u,_v,_a};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   _x = quantities[0];
   _y = quantities[1];
   _m = quantities[2];
@@ -284,7 +282,7 @@ void Shape::computeForces()
   quantities[16] = thrust     ;
   quantities[17] = defPowerBnd;
   quantities[18] = defPower   ;
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM, sim.chi->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
   circulation = quantities[ 0];
   perimeter   = quantities[ 1];
   forcex      = quantities[ 2];
@@ -329,15 +327,15 @@ void Shape::computeForces()
     std::stringstream ssF;
     ssF<<sim.path2file<<"/surface_"<<obstacleID <<"_"<<std::setfill('0')<<std::setw(7)<<sim.step<<".csv";
     MPI_File_delete(ssF.str().c_str(), MPI_INFO_NULL); // delete the file if it exists
-    MPI_File_open(sim.chi->getCartComm(), ssF.str().c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &surface_file);
-    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getCartComm());
+    MPI_File_open(sim.chi->getWorldComm(), ssF.str().c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &surface_file);
+    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getWorldComm());
     MPI_File_write_at_all(surface_file, offset, st.data(), st.size(), MPI_CHAR, MPI_STATUS_IGNORE);
     MPI_File_close(&surface_file);
   }
 
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
-  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getCartComm());
+  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
   if(not sim.muteAll && sim.rank == 0)
   {
     std::stringstream ssF, ssP;
@@ -363,7 +361,6 @@ void Shape::computeForces()
 Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   sim(s), origC{C[0],C[1]}, origAng( p("-angle").asDouble(0)*M_PI/180 ),
   center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),
-  rhoS(      p("-rhoS").asDouble(1) ),
   bFixed(    p("-bFixed").asBool(false) ),
   bFixedx(   p("-bFixedx" ).asBool(bFixed) ),
   bFixedy(   p("-bFixedy" ).asBool(bFixed) ),
@@ -388,18 +385,18 @@ Shape::~Shape()
 //functions needed for restarting the simulation
 void Shape::saveRestart( FILE * f ) {
   assert(f != NULL);
-  fprintf(f, "x:     %20.20e\n", centerOfMass[0]   );
-  fprintf(f, "y:     %20.20e\n", centerOfMass[1]   );
-  fprintf(f, "xlab:  %20.20e\n", labCenterOfMass[0]);
-  fprintf(f, "ylab:  %20.20e\n", labCenterOfMass[1]);
-  fprintf(f, "u:     %20.20e\n", u                 );
-  fprintf(f, "v:     %20.20e\n", v                 );
-  fprintf(f, "omega: %20.20e\n", omega             );
-  fprintf(f, "orientation: %20.20e\n", orientation );
-  fprintf(f, "d_gm0: %20.20e\n", d_gm[0] );
-  fprintf(f, "d_gm1: %20.20e\n", d_gm[1] );
-  fprintf(f, "center0: %20.20e\n", center[0] );
-  fprintf(f, "center1: %20.20e\n", center[1] );
+  fprintf(f, "x:     %20.20e\n",        (double)centerOfMass[0]   );
+  fprintf(f, "y:     %20.20e\n",        (double)centerOfMass[1]   );
+  fprintf(f, "xlab:  %20.20e\n",        (double)labCenterOfMass[0]);
+  fprintf(f, "ylab:  %20.20e\n",        (double)labCenterOfMass[1]);
+  fprintf(f, "u:     %20.20e\n",        (double)u                 );
+  fprintf(f, "v:     %20.20e\n",        (double)v                 );
+  fprintf(f, "omega: %20.20e\n",        (double)omega             );
+  fprintf(f, "orientation: %20.20e\n",  (double)orientation       );
+  fprintf(f, "d_gm0: %20.20e\n",        (double)d_gm[0]           );
+  fprintf(f, "d_gm1: %20.20e\n",        (double)d_gm[1]           );
+  fprintf(f, "center0: %20.20e\n",      (double)center[0]         );
+  fprintf(f, "center1: %20.20e\n",      (double)center[1]         );
   //maybe center0,center1,d_gm0,d_gm1 are not all needed, but it's only four numbers so we might
   //as well dump them
 }
@@ -407,22 +404,35 @@ void Shape::saveRestart( FILE * f ) {
 void Shape::loadRestart( FILE * f ) {
   assert(f != NULL);
   bool ret = true;
-  ret = ret && 1==fscanf(f, "x:     %le\n", &centerOfMass[0]   );
-  ret = ret && 1==fscanf(f, "y:     %le\n", &centerOfMass[1]   );
-  ret = ret && 1==fscanf(f, "xlab:  %le\n", &labCenterOfMass[0]);
-  ret = ret && 1==fscanf(f, "ylab:  %le\n", &labCenterOfMass[1]);
-  ret = ret && 1==fscanf(f, "u:     %le\n", &u                 );
-  ret = ret && 1==fscanf(f, "v:     %le\n", &v                 );
-  ret = ret && 1==fscanf(f, "omega: %le\n", &omega             );
-  ret = ret && 1==fscanf(f, "orientation: %le\n", &orientation );
-  ret = ret && 1==fscanf(f, "d_gm0: %le\n", &d_gm[0] );
-  ret = ret && 1==fscanf(f, "d_gm1: %le\n", &d_gm[1] );
-  ret = ret && 1==fscanf(f, "center0: %le\n", &center[0] );
-  ret = ret && 1==fscanf(f, "center1: %le\n", &center[1] );
+  double in_centerOfMass0, in_centerOfMass1, in_labCenterOfMass0, in_labCenterOfMass1, in_u, in_v, in_omega, in_orientation, in_d_gm0, in_d_gm1, in_center0, in_center1;         
+  ret = ret && 1==fscanf(f, "x:     %le\n",       &in_centerOfMass0   );
+  ret = ret && 1==fscanf(f, "y:     %le\n",       &in_centerOfMass1   );
+  ret = ret && 1==fscanf(f, "xlab:  %le\n",       &in_labCenterOfMass0);
+  ret = ret && 1==fscanf(f, "ylab:  %le\n",       &in_labCenterOfMass1);
+  ret = ret && 1==fscanf(f, "u:     %le\n",       &in_u               );
+  ret = ret && 1==fscanf(f, "v:     %le\n",       &in_v               );
+  ret = ret && 1==fscanf(f, "omega: %le\n",       &in_omega           );
+  ret = ret && 1==fscanf(f, "orientation: %le\n", &in_orientation     );
+  ret = ret && 1==fscanf(f, "d_gm0: %le\n",       &in_d_gm0           );
+  ret = ret && 1==fscanf(f, "d_gm1: %le\n",       &in_d_gm1           );
+  ret = ret && 1==fscanf(f, "center0: %le\n",     &in_center0         );
+  ret = ret && 1==fscanf(f, "center1: %le\n",     &in_center1         );
   if( (not ret) ) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
   }
+  centerOfMass[0]    = in_centerOfMass0   ;
+  centerOfMass[1]    = in_centerOfMass1   ;
+  labCenterOfMass[0] = in_labCenterOfMass0;
+  labCenterOfMass[1] = in_labCenterOfMass1;
+  u                  = in_u               ;
+  v                  = in_v               ;
+  omega              = in_omega           ;
+  orientation        = in_orientation     ;
+  d_gm[0]            = in_d_gm0           ;
+  d_gm[1]            = in_d_gm1           ;
+  center[0]          = in_center0         ;
+  center[1]          = in_center1         ;
   if (sim.rank == 0)
-    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", centerOfMass[0], centerOfMass[1], labCenterOfMass[0], labCenterOfMass[1], u, v, omega);
+    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", (double)centerOfMass[0], (double)centerOfMass[1], (double)labCenterOfMass[0], (double)labCenterOfMass[1], (double)u, (double)v, (double)omega);
 }

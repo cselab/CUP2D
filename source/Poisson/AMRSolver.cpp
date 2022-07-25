@@ -154,7 +154,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
-  const MPI_Comm m_comm = sim.chi->getCartComm();
+  const MPI_Comm m_comm = sim.chi->getWorldComm();
   const int rank = sim.rank;
 
   // The bi-conjugate gradient method needs the following 8 arrays:

@@ -1,14 +1,9 @@
-hdf5 ?= true
 config ?= production
 precision ?= double
 bs ?= 8
 gpu ?= false
+openmp ?= false
 profile ?= false
-
-# SMALL HELPER FOR OSX USERS
-ifeq ($(shell uname -s), Darwin)
-  include make.macos
-endif
 
 # SET FLAGS FOR COMPILER
 ifneq ($(MPICXX),)
@@ -17,16 +12,66 @@ else
   ERROR += "MPICXX not set"
 endif
 
-# Determine compiler type and load corresponding flags
-ifeq ("$(shell $(CXX) --version | grep -ci 'llvm')", "1")
-compiler=llvm
-  include make.llvm.flags
-else ifeq ("$(shell $(CXX) --version | grep -ci 'icpc')", "1")
-  compiler=intel
-  include make.icc.flags
+ifneq ($(ERROR),)
+	$(error $(ERROR))
+endif
+
+# LOAD FLAGS -- GCC NEEDED
+CPPFLAGS+= -std=c++17 -Wall -g
+CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
+CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
+CPPFLAGS+= -Wno-float-equal
+CPPFLAGS+= -Wno-redundant-decls
+
+ifeq "$(openmp)" "true"
+	CPPFLAGS+= -fopenmp
+endif
+
+# FLAGS FOR EXTERNAL LIBRARIES
+LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
+
+# ADD LIBRARY PATHS IF GIVEN
+ifneq ($(HDF5_ROOT),)
+	LIBS     += -L$(HDF5_ROOT)/lib
+	CPPFLAGS += -I$(HDF5_ROOT)/include
+endif
+
+ifneq ($(GSL_ROOT),)
+	CPPFLAGS += -I$(GSL_ROOT)/include
+	LIBS += -L$(GSL_ROOT)/lib
+endif
+
+# ENABLE OPTIMIZATION/DEBUG FLAGS IF WISHED
+ifeq "$(findstring prod,$(config))" ""
+	CPPFLAGS+= -O0
+	ifeq "$(config)" "segf"
+		CPPFLAGS+= -fsanitize=address
+		LIBS+= -fsanitize=address -static-libasan
+	endif
+	ifeq "$(config)" "nans"
+		CPPFLAGS+= -fsanitize=undefined
+		LIBS+= -fsanitize=undefined
+	endif
 else
-  compiler=gnu
-  include make.gcc.flags
+	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
+	CPPFLAGS+= -ffast-math
+	# CPPFLAGS+= -DCUP2D_PRESERVE_SYMMETRY
+endif
+
+# USE MEMORY SAVING FOR MANY LEVEL RUNS
+usemap ?= true
+ifeq "$(usemap)" "true"
+  CPPFLAGS += -DCUBISM_USE_MAP
+endif
+
+# SET FLOATING POINT ACCURACY
+ifeq "$(precision)" "single"
+  CPPFLAGS += -D_FLOAT_PRECISION_
+else ifeq "$(precision)" "double"
+  CPPFLAGS += -D_DOUBLE_PRECISION_
+else ifeq "$(precision)" "long_double"
+  CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
 endif
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
@@ -45,46 +90,21 @@ OBJECTS = \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
 		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o
 
-ifeq "$(precision)" "single"
-  CPPFLAGS += -D_FLOAT_PRECISION_
-else ifeq "$(precision)" "double"
-  CPPFLAGS += -D_DOUBLE_PRECISION_
-else ifeq "$(precision)" "long_double"
-  CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
-endif
-
-usemap ?= true
-ifeq "$(usemap)" "true"
-  CPPFLAGS += -DCUBISM_USE_MAP
-endif
-
-# SET FLAGS FOR HDF5
-ifneq "$(hdf)" "false"
-ifneq ($(HDF5_ROOT),)
-LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
-CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
-else
-ERROR += "HDF5_ROOT not set"
-endif
-endif
-
+# ENABLE GPU SUPPORT
 ifeq ("$(gpu)", "true")
 	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON
+	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
 	NVCCFLAGS := -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
 	LIBS += -lcudart -lcublas -lcusparse
   
   ifeq ("$(profile)", "true")
-    CPPFLAGS += -DBICGSTAB_PROFILER
+    NVCCFLAGS += -DBICGSTAB_PROFILER
   endif
 else
   CPPFLAGS += -Wno-unknown-pragmas
 endif
 
-ifneq ($(ERROR),)
-$(error $(ERROR))
-endif
-
+# DEFINE COMPILATION TARGETS
 all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all;
 

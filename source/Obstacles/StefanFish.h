@@ -9,9 +9,6 @@
 #include "Fish.h"
 #include "FishData.h"
 
-#define STEFANS_SENSORS_STATE
-// #define STEFANS_NEIGHBOUR_STATE
-
 class StefanFish: public Fish
 {
   const bool bCorrectTrajectory;
@@ -27,13 +24,11 @@ class StefanFish: public Fish
 
   // member functions for state in RL
   std::vector<Real> state( const std::vector<double>& origin ) const;
+  std::vector<Real> state3D( ) const;
 
   // Helpers for state function
-  ssize_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
-
-  std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
-
-  std::array<Real, 2> getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const;
+  ssize_t holdingBlockID(const std::array<Real,2> pos) const;
+  std::array<Real, 2> getShear(const std::array<Real,2> pSurf) const;
   virtual void saveRestart( FILE * f ) override;
   virtual void loadRestart( FILE * f ) override;
 };
@@ -68,6 +63,13 @@ class CurvatureFish : public FishData
   Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
   // next scheduler is used for midline-bending control points for RL:
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+
+  // next scheduler is used to ramp-up the period
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period    = Tperiod;
+  Real next_period       = Tperiod;
+  Real transition_start  = 0.0;
+  Real transition_duration = 0.1*Tperiod;
 
  protected:
   Real * const rK;
@@ -104,6 +106,7 @@ class CurvatureFish : public FishData
     lastTime = 0;
     lastAvel = 0;
     curvatureScheduler.resetAll();
+    periodScheduler.resetAll();
     rlBendingScheduler.resetAll();
 
     FishData::resetAll();
@@ -147,19 +150,14 @@ class CurvatureFish : public FishData
     lastCurv = a[0]; // store action
 
     rlBendingScheduler.Turn(a[0], t_rlAction);
-    //printf("Turning by %g at time %g with period %g.\n",
-    //       a[0], t_current, t_rlAction);
 
     if (a.size()>1) // also modify the swimming period
     {
+      if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
       lastTact = a[1]; // store action
-      // this is arg of sinusoidal before change-of-Tp begins:
-      const Real lastArg = (t_rlAction - time0)/periodPIDval + timeshift;
-      // make sure change-of-Tp affects only body config for future times:
-      timeshift = lastArg; // add phase shift that accounts for current body shape
-      time0 = t_rlAction; // shift time axis of undulation
-      periodPIDval = Tperiod * (1 + a[1]); // actually change period
-      periodPIDdif = 0; // constant periodPIDval between infrequent actions
+      current_period = periodPIDval;
+      next_period = Tperiod * (1 + a[1]);
+      transition_start = t_rlAction;
     }
   }
 

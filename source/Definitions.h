@@ -43,8 +43,16 @@ using Real = long double;
 enum BCflag {freespace, periodic, wall};
 inline BCflag string2BCflag(const std::string &strFlag)
 {
-  if      (strFlag == "periodic" ) return periodic;
-  else if (strFlag == "freespace") return freespace;
+  if      (strFlag == "periodic" )
+  {
+    //printf("[CUP2D] Using periodic boundary conditions\n");
+    return periodic;
+  }
+  else if (strFlag == "freespace")
+  {
+    //printf("[CUP2D] Using freespace boundary conditions\n");
+    return freespace;
+  }
   else
   {
      fprintf(stderr,"BC not recognized %s\n",strFlag.c_str());
