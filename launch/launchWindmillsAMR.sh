@@ -5,7 +5,7 @@ LEVELS=${LEVELS:-4}
 RTOL=${RTOL:-0.1}
 CTOL=${CTOL:-0.01}
 EXTENT=${EXTENT:-1.4}
-CFL=${CFL:-0.22}
+CFL=${CFL:-0.4}
 # Defaults for Objects
 XPOS=${XPOS:-0.2}
 
@@ -21,6 +21,8 @@ MIAXIS=${MIAXIS:-0.0135}
 #NU=${NU:-0.0001215}
 NU=${NU:-0.000243}
 
+PSOLVER="cuda_iterative"
+
 #OVEL=${OVEL:-12.56} # 4hz
 #OVEL=${OVEL:-6.28} # 2hz
 #OVEL=${OVEL:-3.14} # 1hz
@@ -31,7 +33,7 @@ NU=${NU:-0.000243}
 
 # OVEL=${OVEL:-12}
 
-VEL=${VEL:-12.0}
+VEL=${VEL:-2.0}
 FACTOR=${FACTOR:--1.0} # varies between -1 and 1 in steps of 0.2
 TOP=$VEL
 BOTTOM=$(echo $VEL*$FACTOR | bc)
@@ -47,7 +49,7 @@ echo "Bottom is $BOTTOM"
 
 
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.0 -nu $NU -poissonTol 1.0e-3 -tend 200 -muteAll 0 -verbose 1 -poissonTolRel 0 -poissonSolver cuda_iterative"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.0 -nu $NU -poissonTol 1.0e-3 -tend 500 -muteAll 0 -verbose 1 -poissonTolRel 0 -poissonSolver cuda_iterative"
 ## two WINDMILLS, constant angular velocity of 4.0hz
 OBJECTS="windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS1 bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBlockAng=1 angvel=$TOP
 windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xvel=$XVEL tAccel=0 bBlockAng=1 angvel=$BOTTOM

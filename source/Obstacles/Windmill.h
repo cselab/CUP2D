@@ -23,6 +23,8 @@ class Windmill : public Shape
   Real action_ang_accel = 0.;
   Real temp_torque = 0;
   Real prev_dt = 0;
+  double action_ang_vel_max = 0.;
+  double action_freq = 0.;
 
 
   // domain for velocity profile
@@ -36,9 +38,9 @@ class Windmill : public Shape
   Windmill(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
   Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
   {
-    ang_accel = forcedomega;
+    action_ang_vel_max = forcedomega;
     omega = 0;
-    // set a random orientation
+    action_freq = 0.5;
     setInitialConditions(0);
   }
 
@@ -54,9 +56,9 @@ class Windmill : public Shape
   void updatePosition(Real dt) override;
 
   void printRewards(Real r_flow);
-  void printActions(Real value);
+  void printActions(double angvel, double freq);
   
-  void act( double action );
+  void act( std::vector<double> action);
   double reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof);
 
   void update_avg_vel_profile(Real dt);

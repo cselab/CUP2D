@@ -115,7 +115,8 @@ void Windmill::updateVelocity(Real dt)
   }
 
   // omega = omega_over_time(sim.time); // for the creation of the baseline
-  omega = omega + action_ang_accel * dt; // for RL
+  // omega = omega + action_ang_accel * dt; // for RL
+  omega = action_ang_vel_max *  (1-std::cos(2 * M_PI * action_freq * sim.time));
 
 }
 
@@ -153,21 +154,23 @@ void Windmill::printRewards(Real r_flow)
   fout.flush();
 }
 
-void Windmill::printActions(Real value)
+void Windmill::printActions(double angvel, double freq)
 {
   std::stringstream ssF;
   ssF<<sim.path2file<<"/action_"<<obstacleID<<".dat";
   std::stringstream & fout = logger.get_stream(ssF.str());
 
-  fout<<sim.time<<" "<<value<<std::endl;
+  fout<<sim.time<<" "<<angvel<<" "<<freq<<std::endl;
   fout.flush();
 }
 
-void Windmill::act( Real action )
+void Windmill::act(std::vector<double> action)
 {
-  // the action is the angular acceleration
-  action_ang_accel = action;
-  if (sim.rank == 0) printActions(action_ang_accel);
+  // the action is the tuple (max angular velocity, frequency)
+  // action_ang_accel = action;
+  action_ang_vel_max = action[0];
+  action_freq = action[1];
+  if (sim.rank == 0) printActions(action_ang_vel_max, action_freq);
 }
 
 double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof)
