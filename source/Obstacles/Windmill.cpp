@@ -120,13 +120,6 @@ void Windmill::updateVelocity(Real dt)
 
 }
 
-Real Windmill::omega_over_time(Real time)
-{
-  Real frequency = 0.5;
-  Real signal = (ang_accel / (2 * M_PI * frequency)) * (1 - cos(2*M_PI*frequency * time));
-  return signal;
-}
-
 void Windmill::updatePosition(Real dt)
 {
   if ( (std::floor((1/time_step) * (sim.time)) - std::floor((1/time_step) * (sim.time - prev_dt)) != 0)) // every .05 seconds print velocity profile
@@ -134,7 +127,7 @@ void Windmill::updatePosition(Real dt)
     if (sim.rank == 0) print_vel_profile(avg_profile);
 
     // reset avg_profile to zero for next time step
-    avg_profile = std::vector<Real> (32, 0.0);
+    avg_profile = std::vector<std::vector<Real>> (2, std::vector<Real>(numberRegions, 0.0));
     // temp_torque = torque_over_time(sim.time);
     // omega = omega + temp_torque * time_step / penalJ;
   }
@@ -176,60 +169,63 @@ void Windmill::act(std::vector<double> action)
 double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof)
 {
 
-  Real r_flow = 0.0;
-
-  for(int i=0; i < 32; ++i)
-  {
-    // used to be r_flow += std::sqrt( (true_profile[i]-curr_profile[i])*(true_profile[i]-curr_profile[i]) );
-    r_flow += std::abs(profile_t_1[i] - target_profile[i]) - std::abs(profile_t_[i] - target_profile[i]);
-  }
-
-  r_flow /= norm_prof;
-
-  if (sim.rank == 0) printRewards(r_flow);
-  
-  return r_flow;
 }
 
 void Windmill::update_avg_vel_profile(Real dt)
 {
-  std::vector<Real> vel = vel_profile();
-  for (size_t k(0); k < vel.size(); ++k)
+  std::vector<std::vector<Real>> vel = vel_profile();
+  for (size_t k(0); k < vel[0].size(); ++k)
   {
-    avg_profile[k] += vel[k] * dt / time_step;
+    avg_profile[0][k] += vel[0][k] * dt / time_step;
+    avg_profile[1][k] += vel[1][k] * dt / time_step;
   }
 }
 
-void Windmill::print_vel_profile(std::vector<Real> vel_profile)
+void Windmill::print_vel_profile(std::vector<std::vector<Real>> vel_profile)
 {
 
   if(not sim.muteAll)
   {
     std::stringstream ssF;
-    ssF<<sim.path2file<<"/velocity_profile_"<<obstacleID<<".dat";
+    ssF<<sim.path2file<<"/x_velocity_profile_"<<obstacleID<<".dat";
     std::stringstream & fout = logger.get_stream(ssF.str());
     fout<<sim.time;
 
-    for (size_t k = 0; k < vel_profile.size(); ++k)
+    for (size_t k = 0; k < vel_profile[0].size(); ++k)
     {
       // need to normalize profile by the time step
-      fout<<" "<<vel_profile[k];
+      fout<<" "<<vel_profile[0][k];
     }
     fout<<std::endl;
     
     fout.flush();
+
+    std::stringstream ssF2;
+    ssF2<<sim.path2file<<"/y_velocity_profile_"<<obstacleID<<".dat";
+    std::stringstream & fout2 = logger.get_stream(ssF2.str());
+    fout2<<sim.time;
+
+    for (size_t k = 0; k < vel_profile[1].size(); ++k)
+    {
+      // need to normalize profile by the time step
+      fout2<<" "<<vel_profile[1][k];
+    }
+    fout2<<std::endl;
+    
+    fout2.flush();
   }
 }
 
-std::vector<Real> Windmill::vel_profile()
+std::vector<std::vector<Real>> Windmill::vel_profile()
 {
-  // We take a region of size 0.7 * 0.0875, which cuts 4 vertical blocks in half along a vertical line
-  // we choose to split these 4 blocks in the vertical dimension into 32 intervals
-  // each one of the 32 intervals has a height of 0.7/32 = 0.021875
+  // We take a region of size 0.35 * 0.0875, which cuts 2 vertical blocks in half along a vertical line
+  // we choose to split these 2 blocks in the vertical dimension into 16 intervals
+  // each one of the 16 intervals has a height of 0.35/16 = 0.021875
   // we average the velocity in each of the 32 intervals
 
-  std::vector<Real> vel_avg(32, 0.0);
-  std::vector<Real> region_area(32, 0.0);
+  std::vector<Real> vel_x_avg(numberRegions, 0.0);
+  std::vector<Real> vel_y_avg(numberRegions, 0.0);
+  std::vector<Real> region_area(numberRegions, 0.0);
 
   Real height = 0.021875;
 
@@ -256,8 +252,8 @@ std::vector<Real> Windmill::vel_profile()
           if (num)
           {
             region_area[num-1] += da;
-            vel_avg[num-1] += std::sqrt(b(i, j).u[0]*b(i, j).u[0] + b(i, j).u[1]*b(i, j).u[1]) * da; // norm velocity profile
-            //vel_avg[num-1] += b(i, j).u[0] * da; // velocity profile in x direction
+            vel_x_avg[num-1] += b(i, j).u[0] * da;
+            vel_y_avg[num-1] += b(i,j).u[1] * da;
           }
         }
       }
@@ -265,18 +261,21 @@ std::vector<Real> Windmill::vel_profile()
 
 
   // collects the sum over all the components of the velocity profile into the vector vel_avg
-  MPI_Allreduce(MPI_IN_PLACE, &vel_avg[0], 32, MPI_Real, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &vel_x_avg[0], numberRegions, MPI_Real, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &vel_y_avg[0], numberRegions, MPI_Real, MPI_SUM, sim.comm);
 
   // collects the sum over all the region areas in order to perform the averaging correctly
-  MPI_Allreduce(MPI_IN_PLACE, &region_area[0], 32, MPI_Real, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &region_area[0], numberRegions, MPI_Real, MPI_SUM, sim.comm);
 
 
-  std::vector<Real> vel_profile(32, 0.0);
+  // 2 x numberRegions vector
+  std::vector<std::vector<Real>> vel_profile(2, std::vector<Real> (numberRegions, 0.0));
 
   // divide each vel_avg by the corresponding area
-  for (int k = 0; k < 32; ++k)
+  for (int k = 0; k < numberRegions; ++k)
   {
-    vel_profile[k] = vel_avg[k]/region_area[k];
+    vel_profile[0][k] = vel_x_avg[k]/region_area[k];
+    vel_profile[1][k] = vel_y_avg[k]/region_area[k];
   }
 
   return vel_profile;
