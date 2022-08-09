@@ -116,7 +116,8 @@ void Windmill::updateVelocity(Real dt)
 
   // omega = omega_over_time(sim.time); // for the creation of the baseline
   // omega = omega + action_ang_accel * dt; // for RL
-  omega = action_ang_vel_max *  (1-std::cos(2 * M_PI * action_freq * sim.time));
+  //omega = action_ang_vel_max *  (1-std::cos(2 * M_PI * action_freq * sim.time));
+  omega = action_ang_vel_max * std::sin(2 * M_PI * action_freq * sim.time);
 
 }
 
@@ -127,6 +128,7 @@ void Windmill::updatePosition(Real dt)
     if (sim.rank == 0) print_vel_profile(avg_profile);
 
     // reset avg_profile to zero for next time step
+    //std::fill(&avg_profile[0][0], &avg_profile[1][numberRegions-1], 0.0);
     avg_profile = std::vector<std::vector<Real>> (2, std::vector<Real>(numberRegions, 0.0));
     // temp_torque = torque_over_time(sim.time);
     // omega = omega + temp_torque * time_step / penalJ;
@@ -174,7 +176,7 @@ double Windmill::reward(std::vector<double> target_profile, std::vector<double> 
 void Windmill::update_avg_vel_profile(Real dt)
 {
   std::vector<std::vector<Real>> vel = vel_profile();
-  for (size_t k(0); k < vel[0].size(); ++k)
+  for (size_t k(0); k < numberRegions; ++k)
   {
     avg_profile[0][k] += vel[0][k] * dt / time_step;
     avg_profile[1][k] += vel[1][k] * dt / time_step;
@@ -191,7 +193,7 @@ void Windmill::print_vel_profile(std::vector<std::vector<Real>> vel_profile)
     std::stringstream & fout = logger.get_stream(ssF.str());
     fout<<sim.time;
 
-    for (size_t k = 0; k < vel_profile[0].size(); ++k)
+    for (size_t k = 0; k < numberRegions; ++k)
     {
       // need to normalize profile by the time step
       fout<<" "<<vel_profile[0][k];
@@ -205,7 +207,7 @@ void Windmill::print_vel_profile(std::vector<std::vector<Real>> vel_profile)
     std::stringstream & fout2 = logger.get_stream(ssF2.str());
     fout2<<sim.time;
 
-    for (size_t k = 0; k < vel_profile[1].size(); ++k)
+    for (size_t k = 0; k < numberRegions; ++k)
     {
       // need to normalize profile by the time step
       fout2<<" "<<vel_profile[1][k];
@@ -269,7 +271,7 @@ std::vector<std::vector<Real>> Windmill::vel_profile()
 
 
   // 2 x numberRegions vector
-  std::vector<std::vector<Real>> vel_profile(2, std::vector<Real> (numberRegions, 0.0));
+  std::vector<std::vector<Real>> vel_profile = std::vector<std::vector<Real>>(2, std::vector<Real> (numberRegions, 0.0));
 
   // divide each vel_avg by the corresponding area
   for (int k = 0; k < numberRegions; ++k)

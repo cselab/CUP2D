@@ -12,7 +12,7 @@ class Windmill : public Shape
 
   // keeps track of the of the average veloctiy profile between two rl time steps
   // weighted by the time step of the sim
-  std::vector<std::vector<Real>> avg_profile = std::vector<std::vector<Real>>(2, std::vector<Real>(numberRegions, 0.0));
+  std::vector<std::vector<Real>> avg_profile;
 
 
   Real time_step = 0.05;
@@ -32,11 +32,11 @@ class Windmill : public Shape
  public:
 
   Windmill(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
-  Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
+  Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()},
+  action_ang_vel_max(p("-angvelmax").asDouble()), action_freq(p("-freq").asDouble())
   {
-    action_ang_vel_max = forcedomega;
     omega = 0;
-    action_freq = 0.5;
+    avg_profile = std::vector<std::vector<Real>> (2, std::vector<Real>(numberRegions, 0.0));
     setInitialConditions(0);
   }
 
