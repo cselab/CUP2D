@@ -34,64 +34,11 @@ NU=${NU:-0.000243}
 
 PSOLVER="cuda_iterative"
 
-#OVEL=${OVEL:-12.56} # 4hz
-#OVEL=${OVEL:-6.28} # 2hz
-#OVEL=${OVEL:-3.14} # 1hz
+TOP=${TOP:-3}
+BOT=${BOT:--2.8}
 
-## ovel is now actually the angular acceleration
-# divided by 2 * pi * f gives the max angular velocity
-# for 24, max ang vel is around 16
-
-# OVEL=${OVEL:-12}
-
-# VEL=${VEL:-2.0}
-# FACTOR=${FACTOR:--1.0} # varies between -1 and 1 in steps of 0.2
-# TOP=$VEL
-# BOTTOM=$(echo $VEL*$FACTOR | bc)
-
-# test diff cmaes results : time average between 35s and 60s (700 to 1200)
-    # sim
-    # a1 = 2
-    # a2 = -2
-    # k1 = 0.25
-    # k2 = 0.5
-
-    # cmaes
-    # a1 = 2.061
-    # a2 = 7.190
-    # k1 = -1.015
-    # k2 = 2.226
-
-    # testdiff2
-    # a1 = 2.348
-    # a2 = 7.520
-    # k1 = -0.9964
-    # k2 = 1.763
-
-    # testdiffx
-    # a1 = -2.171
-    # a2 = 5.645
-    # k1 = -2.77
-    # k2 = 2.482
-
-# quick diff : 
-    # sim
-    # a1 = 2
-    # a2 = -2
-    # k1 = 1
-    # k2 = 2
-
-    # cmaes # works very very well
-    # a1 = 2.187
-    # a2 = -5.366
-    # k1 = 2.141
-    # k2 = 3.663
-
-TOP=${TOP:-2.187}
-BOT=${BOT:--5.366}
-
-FREQ1=${FREQ1:-2.141}
-FREQ2=${FREQ2:-3.663}
+FREQ1=${FREQ1:-0.25}
+FREQ2=${FREQ2:-1.6}
 
 
 # echo "Vel is $VEL"
@@ -116,6 +63,10 @@ windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xv
 # OBJECTS="windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS1 bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBlockAng=0
 # windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xvel=$XVEL tAccel=0 bBlockAng=0
 # "
+
+
+echo "$OBJECTS"
+
 
 #-angvel changes angular velocity of object forcedOmega
 
