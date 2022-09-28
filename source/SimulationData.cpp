@@ -49,22 +49,25 @@ void SimulationData::allocateGrid()
   const bool xperiodic = dummy.is_xperiodic();
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
-  
-  chi  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  Echi  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  vel  = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  vOld = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  pres = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  invm = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV1 = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmpV2 = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  tmp  = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  uDef = new VectorGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-  pold = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
-
+  cout<<"1\n";
+  int* cat=new int[10];
+  cout<<"1\n";
+  chi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  cout<<"1\n";
+  Echi  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vel  = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  vOld = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pres = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  invm = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV1 = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmpV2 = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  tmp  = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  uDef = new VectorGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  pold = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  cout<<"1\n";
   // For RL SGS learning
-  Cs = new ScalarGrid (bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
+  Cs = new ScalarGrid (1,1,1,bpdx,bpdy,1,extent,levelStart,levelMax,comm,xperiodic,yperiodic,zperiodic);
 
   const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
 
@@ -84,32 +87,51 @@ void SimulationData::allocateGrid()
   int auxMax = pow(2,levelMax-1);
   minH = extents[0] / (auxMax*bpdx*VectorBlock::sizeX);
   maxH = extents[0] / (bpdx*VectorBlock::sizeX);
+  cout<<"1\n";
 }
-
+Real SimulationData::KineticEnergy()
+{
+  const std::vector<BlockInfo>& velInfo = vel->getBlocksInfo();
+  const size_t Nblock=velInfo.size();
+  Real KE=0;
+  for(size_t i=0;i<Nblock;i++){
+    const Real coef=velInfo[i].h*velInfo[i].h*0.5;
+    VectorBlock& __restrict__ VEL=*(VectorBlock*) velInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      KE+=coef*(VEL(ix,iy).u[0]*VEL(ix,iy).u[0]+VEL(ix,iy).u[1]*VEL(ix,iy).u[1]);
+  }
+  return KE;
+}
 void SimulationData::dumpChi(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*chi, time, "chi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real, ScalarGrid,ScalarLab>(*chi, time, "chi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpChiDebug(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*chi, time, "debugchi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerScalar,Real,ScalarGrid,ScalarLab>(*chi, time, "debugchi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpEChiDebug(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*Echi, time, "debugEchi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerScalar,Real,ScalarGrid,ScalarLab>(*Echi, time, "debugEchi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumptmpDebug(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerScalar,Real>(*tmp, time, "debugtmp_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerScalar,Real,ScalarGrid,ScalarLab>(*tmp, time, "debugtmp_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpSinvmDebug (std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI2<StreamerVector, Real>(*invm, time, "debugSinvm_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerVector, Real,VectorGrid,VectorLab>(*invm, time, "debugSinvm_" + ss.str(),path4serialization);
+}
+void SimulationData::dumpVelDebug (std::string name)
+{
+  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+  DumpHDF5_MPI2<StreamerVector, Real,VectorGrid,VectorLab>(*vel, time, "debugvel_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpinvmDebug(std::string name)
 {
@@ -117,63 +139,63 @@ void SimulationData::dumpinvmDebug(std::string name)
   for (size_t shapeid=0;shapeid<Eshapes.size();shapeid++)
   {
   ss<<shapeid;
-  DumpHDF5_MPI2<StreamerVector, Real>(*invms[shapeid].get(), time, "debuginvm_" + ss.str(),path4serialization);
+  DumpHDF5_MPI2<StreamerVector, Real,VectorGrid,VectorLab>(*invms[shapeid].get(), time, "debuginvm_" + ss.str(),path4serialization);
   }
 }
 void SimulationData::dumpEChi(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*Echi, time, "Echi_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real,ScalarGrid,ScalarLab>(*Echi, time, "Echi_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPres(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*pres, time, "pres_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real,ScalarGrid,ScalarLab>(*pres, time, "pres_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpPold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*pold, time, "pold_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real,ScalarGrid,ScalarLab>(*pold, time, "pold_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpTmp(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*tmp, time, "tmp_" + ss.str(),path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real,ScalarGrid,ScalarLab>(*tmp, time, "tmp_" + ss.str(),path4serialization);
 }
 void SimulationData::dumpVel(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vel), time,"vel_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(vel), time,"vel_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpInvm(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(invm), time,"invm_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(invm), time,"invm_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpVold(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(vOld), time,"vOld_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(tmpV), time,"tmpV_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmpV1(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV1), time,"tmpV1_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(tmpV1), time,"tmpV1_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpUdef(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerVector, Real,VectorGrid,VectorLab>(*(uDef), time,"uDef_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpCs(std::string name)
 {
   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5_MPI<StreamerScalar,Real>(*(Cs), time,"Cs_" + ss.str(), path4serialization);
+  DumpHDF5_MPI<StreamerScalar,Real,ScalarGrid,ScalarLab>(*(Cs), time,"Cs_" + ss.str(), path4serialization);
 }
 
 
@@ -251,11 +273,11 @@ void SimulationData::dumpAll(std::string name)
   K1(0);
   dumpTmp (name); //dump vorticity
   dumpChi (name);
-  dumpEChi (name);
+  //dumpEChi (name);
   dumpVel (name);
   dumpPres(name);
-  dumpinvmDebug(name);
-  dumpTmpV1(name);//dump extrapolated invm
+  //dumpinvmDebug(name);
+  //dumpTmpV1(name);//dump extrapolated invm
   //dumpPold(name);
   //dumpUdef(name);
   //dumpTmpV(name);

@@ -440,11 +440,6 @@ void advInvm::extrapolate(const int layers)
 		Kernelextrapolate extrapolate(sim,4,id);
 		for(int t=0;t<layers;t++){
 			cubism::compute<ScalarLab>(Mark,sim.tmp);
-			if(sim.step==87){
-			std::stringstream S;
-			S<< "mark"<< t<<"times";
-			sim.dumptmpDebug(S.str());
-			}
 			compute2<VectorLab,ScalarLab>(extrapolate,sim.invms[id].get(),sim.tmp);
 		}
 	}

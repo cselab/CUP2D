@@ -110,8 +110,9 @@ void PutSoftObjectsOnGrid::putSoftObjectsOnGrid()
   // 3) compute chi based on signed dist function
   const PutChiOnGrid2 K(sim);
   cubism::compute<ScalarLab>(K,sim.tmp);
-  if(sim.step==86)
-  sim.dumpEChiDebug("afterchi");
-  if(sim.step==86)
-  sim.dumpChiDebug("afterchi");
+  for(auto ES:sim.Eshapes) ES->StrainEnergy();
+  //if(sim.step==86)
+  //sim.dumpEChiDebug("afterchi");
+  //if(sim.step==86)
+  //sim.dumpChiDebug("afterchi");
 }

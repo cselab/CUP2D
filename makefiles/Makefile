@@ -22,7 +22,7 @@ $(error $(ERROR))
 endif
 
 # LOAD FLAGS -- GCC NEEDED
-CPPFLAGS+= -std=c++17 -Wall
+CPPFLAGS+= -g -std=c++17 -Wall
 CPPFLAGS+= -Wpedantic -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp

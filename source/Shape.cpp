@@ -363,7 +363,7 @@ void Shape::computeForces()
 
 Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   sim(s), origC{C[0],C[1]}, origAng( p("-angle").asDouble(0)*M_PI/180 ),
-  center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),
+  center{C[0],C[1]}, centerOfMass{C[0],C[1]}, orientation(origAng),G(p("-G").asDouble(1)),
   rhoS(      p("-rhoS").asDouble(1) ),
   bFixed(    p("-bFixed").asBool(false) ),
   bFixedx(   p("-bFixedx" ).asBool(bFixed) ),

@@ -99,6 +99,37 @@ bool ElasticDisk::isinside(const Real x, const Real y){
   if((x-center[0])*(x-center[0])+(y-center[1])*(y-center[1])<=r2) return true;
   return false;
 }
+struct ComputeSE
+{
+  ComputeSE(const SimulationData& s,const int shapeid_):sim(s),shapeid(shapeid_){}
+  const SimulationData& sim;
+  const int shapeid;
+  Real SE=0;
+  const StencilInfo stencil{-1, -1, 0, 2, 2, 1, true, {0,1}};
+  void operator()(const VectorLab& invmlab,const BlockInfo& info){
+    const std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
+    if(OBLOCK[info.blockID] == nullptr) return; //obst not in block
+    ObstacleBlock& o = * OBLOCK[info.blockID];
+    const CHI_MAT & __restrict__ X = o.chi;
+    const Real G=sim.Eshapes[shapeid]->G,h=info.h,h2=h*h;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      if(X[iy][ix]==0) continue;
+      const Real dudx=invmlab(ix+1,iy).u[0]-invmlab(ix-1,iy).u[0];
+      const Real dudy=invmlab(ix,iy+1).u[0]-invmlab(ix,iy-1).u[0];
+      const Real dvdx=invmlab(ix+1,iy).u[1]-invmlab(ix-1,iy).u[1];
+      const Real dvdy=invmlab(ix,iy+1).u[1]-invmlab(ix,iy-1).u[1];
+      //std::cout<<h<<"\n"<<dudx<<","<<dudy<<"\n"<<dvdx<<","<<dvdy<<"\n======="<<((dudx*dudx+dudy*dudy+dvdx*dvdx+dvdy*dvdy)/8.0-h2)<<"==========\n";
+      SE+=((dudx*dudx+dudy*dudy+dvdx*dvdx+dvdy*dvdy)/8.0-h2)*G;
+    }
+  }
+};
+void ElasticDisk::StrainEnergy() {
+  ComputeSE kernel(sim,obstacleID);
+  cubism::compute<VectorLab>(kernel,sim.invms[obstacleID].get());
+  SE=kernel.SE;
+}
 void ElasticDisk::create(const std::vector<BlockInfo>& vInfo,bool write)
 {
   // This create function has the same utility of create for rigid shapes

@@ -126,7 +126,9 @@ void AdaptTheMesh::adapt()
   sim.startProfiler("AdaptTheMesh");
 
   const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
-
+  #pragma omp parallel for
+  //for (size_t i=0; i < tmpInfo.size(); i++)
+   // ( (ScalarBlock*)  tmpInfo[i].ptrBlock )->clear();
   // compute vorticity (and use it as refinement criterion) and store it to tmp. 
   if (sim.Qcriterion)
   {
@@ -141,7 +143,7 @@ void AdaptTheMesh::adapt()
   // compute grad(chi) and if it's >0 set tmp = infinity
   GradChiOnTmp K2(sim);
   compute2<VectorLab,ScalarLab>(K2,sim.invm,sim.chi);
-
+  //sim.dumptmpDebug("tag");
   tmp_amr ->Tag();
   chi_amr ->TagLike(tmpInfo);
   Echi_amr->TagLike(tmpInfo);

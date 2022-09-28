@@ -51,6 +51,7 @@ public:
   void reset();
   void resetRL();
   void init();
+  void recordEngergy();
   void startObstacles();
   void initinvm();
   void simulate();

@@ -49,8 +49,6 @@ class Windmill : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
-  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   void updateVelocity(double dt) override;
   double omega_over_time(double time);
   void updatePosition(double dt) override;

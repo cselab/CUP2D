@@ -5,7 +5,8 @@
 //
 
 #include "Simulation.h"
-
+#include <fstream>
+#include <iostream>
 #include <Cubism/HDF5Dumper.h>
 
 #include "Operators/Helpers.h"
@@ -116,6 +117,7 @@ void Simulation::init()
   if ( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
+  std::cout<<"finish\n";
   // allocate the grid
   if( sim.rank == 0 && sim.verbose )
     std::cout << "[CUP2D] Allocating Grid..." << std::endl;
@@ -131,6 +133,12 @@ void Simulation::init()
   {
     randomIC ic(sim);
     ic(0);
+  }
+  else if(sim.ic=="TaylorGreen")
+  {
+    TaylorGreenIC ic(sim,0.05,1,1);
+    ic(0);
+    ic.initvel();
   }
   else
   {
@@ -158,7 +166,6 @@ void Simulation::init()
     for (size_t c=0; c<pipeline.size(); c++)
       std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
   }
-
   // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
   initinvm();
@@ -243,8 +250,8 @@ void Simulation::parseRuntime()
 
   // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
-  sim.endTime = parser("-tend").asDouble(0);
-
+  sim.endTime = parser("-tend").asDouble(0.25);
+  cout<<"=========================endtime"<<sim.endTime<<endl;
   // penalisation coefficient
   sim.lambda = parser("-lambda").asDouble(1e7);
 
@@ -424,7 +431,20 @@ void Simulation::startObstacles()
     initVel(0);
   }
 }
-
+void Simulation::recordEngergy(){
+  std::string filename=sim.path2file+"energy.txt";
+  std::fstream File;
+  File.open(filename,std::fstream::in | std::fstream::out | std::fstream::app);
+  if(!File){
+    File.open(filename,  std::fstream::in | std::fstream::out | std::fstream::trunc);
+    File<<"\n";
+    File.close();
+  }
+  Real SE=0;
+  for(auto Eshape:sim.Eshapes) SE+=Eshape->SE;
+  File<<std::setw(10)<<sim.time<<"   "<<std::setw(12)<<sim.KineticEnergy()<<","<<std::setw(12)<<SE<<std::endl;
+  File.close();
+}
 void Simulation::simulate() {
   if (sim.rank == 0 && !sim.muteAll)
     std::cout << kHorLine << "[CUP2D] Starting Simulation...\n" << std::flush;
@@ -436,11 +456,16 @@ void Simulation::simulate() {
     bool done = false;
 
     // Ignore the final time step if `dt` is way too small.
-    if (!done || dt > 2e-16)
+    if (!done || dt > 2e-16){
+      if(dt+sim.time>sim.endTime) {done=true;dt=sim.endTime-sim.time;}
       advance(dt);
+    }
+      
 
     if (!done)
       done = sim.bOver();
+
+    recordEngergy();
 
     if (sim.rank == 0 && sim.profilerFreq > 0 && sim.step % sim.profilerFreq == 0)
       sim.printResetProfiler();

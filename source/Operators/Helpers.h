@@ -51,7 +51,18 @@ class IC : public Operator
     return "IC";
   }
 };
-
+class TaylorGreenIC:public IC
+{
+  protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+  const Real Phi0,Lx,Ly;
+  public:
+  TaylorGreenIC(SimulationData& s,const Real Phi0_,const Real Lx_,const Real Ly_):IC(s),Phi0(Phi0_),Lx(Lx_),Ly(Ly_){}
+  void initvel() const;
+  std::string getName() {
+    return "TaylorGreenIC";
+  }
+};
 class gaussianIC : public Operator
 {
   protected:

@@ -33,8 +33,6 @@ class Disk : public Shape
   Real getCharMass() const override { return M_PI * radius * radius; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
-  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   void updateVelocity(Real dt) override;
 };
 
@@ -62,8 +60,6 @@ class HalfDisk : public Shape
   Real getCharMass() const override { return M_PI * radius * radius / 2; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
-  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
   void updateVelocity(Real dt) override;
 };
 
@@ -96,8 +92,6 @@ class Ellipse : public Shape
   Real getCharMass() const override { return M_PI * semiAxis[1] * semiAxis[0]; }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override {}
-  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
 };
 class ElasticDisk:public Shape{
   protected:
@@ -113,6 +107,7 @@ class ElasticDisk:public Shape{
   void create(const std::vector<cubism::BlockInfo>& vInfo) override {}
   void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,const int signal) override;
   void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override;
+  void StrainEnergy() ;
   bool isinside(const Real x, const Real y) override;
 };
 class Rectangle : public Shape
@@ -131,7 +126,5 @@ class Rectangle : public Shape
   }
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
-  void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) override{}
-  void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) override {}
 };
 

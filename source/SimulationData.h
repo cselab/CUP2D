@@ -201,11 +201,13 @@ struct SimulationData
 
   void writeRestartFiles();
   void readRestartFiles();
+  Real KineticEnergy();
 
   void dumpChi  (std::string name);
   void dumpEChi (std::string name);
   void dumpChiDebug (std::string name);
   void dumpSinvmDebug (std::string name);
+  void dumpVelDebug (std::string name);
   void dumpEChiDebug (std::string name);
   void dumptmpDebug(std::string name);
   void dumpinvmDebug (std::string name);

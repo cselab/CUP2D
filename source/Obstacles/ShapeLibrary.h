@@ -9,6 +9,7 @@
 #include "../Definitions.h"
 #include "../ObstacleBlock.h"
 #include "../SimulationData.h"
+
 inline bool _is_touching(
   const cubism::BlockInfo& INFO, const Real BBOX[2][2], const Real safety )
 {

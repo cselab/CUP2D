@@ -22,7 +22,8 @@ class Shape
   Real d_gm[2] = {0,0}; // distance of center of geometry to center of mass
   Real labCenterOfMass[2] = {0,0};
   Real orientation = origAng;
-
+  Real SE=0;
+  const Real G;
   const Real rhoS;
   const bool bFixed;
   const bool bFixedx;
@@ -106,10 +107,11 @@ class Shape
   }
   virtual Real getCharMass() const;
   virtual Real getMaxVel() const;
+  virtual void StrainEnergy() {}
 
   virtual void create(const std::vector<cubism::BlockInfo>& vInfo) = 0;
-  virtual void create(const std::vector<cubism::BlockInfo>& vInfo,bool write)=0;
-  virtual void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal)=0;
+  virtual void create(const std::vector<cubism::BlockInfo>& vInfo,bool write) {}
+  virtual void Ecreate(const std::vector<cubism::BlockInfo>& vInfo,int signal) {}
   
   virtual void updateVelocity(Real dt);
   virtual void updatePosition(Real dt);

@@ -8,8 +8,9 @@
 #include "Cubism/HDF5Dumper_MPI.h"
 #include <random>
 #include "../Shape.h"
+#include <math.h>
 using namespace cubism;
-
+#define _USE_MATH_DEFINES
 void IC::operator()(const Real dt)
 {
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
@@ -97,7 +98,22 @@ void IC::operator()(const Real dt)
     }
   }
 }
-
+void TaylorGreenIC::initvel() const
+{
+  const Real coef1=2*M_PI/Lx,coef2=2*M_PI/Ly;
+  for (size_t i=0; i < velInfo.size(); i++)
+  {
+    VectorBlock& VEL= *(VectorBlock*) velInfo[i].ptrBlock;
+    for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+    for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+    {
+      Real p[2];
+      velInfo[i].pos(p, ix, iy);
+      VEL(ix,iy).u[0]=Phi0*coef2*cos(coef2*p[1])*sin(coef1*p[0]);
+      VEL(ix,iy).u[1]=-Phi0*coef1*cos(coef1*p[0])*sin(coef2*p[1]);
+    }  
+  }
+}
 void randomIC::operator()(const Real dt)
 {
   const std::vector<BlockInfo>& chiInfo  = sim.chi->getBlocksInfo();
@@ -264,6 +280,7 @@ void ApplyObjVel::operator()(const Real dt)
   const size_t Nblocks = velInfo.size();
 
   const std::vector<BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+  const std::vector<BlockInfo>& EchiInfo   = sim.Echi->getBlocksInfo();
   const std::vector<BlockInfo>& uDefInfo  = sim.uDef->getBlocksInfo();
 
   #pragma omp parallel for schedule(static)
@@ -272,8 +289,10 @@ void ApplyObjVel::operator()(const Real dt)
     VectorBlock& UF = *(VectorBlock*)  velInfo[i].ptrBlock;
     VectorBlock& US = *(VectorBlock*) uDefInfo[i].ptrBlock;
     ScalarBlock& X  = *(ScalarBlock*)  chiInfo[i].ptrBlock;
+    ScalarBlock& EX  = *(ScalarBlock*)  EchiInfo[i].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+      if(EX(ix,iy).s!=0) continue;
      UF(ix,iy).u[0]= UF(ix,iy).u[0] *(1-X(ix,iy).s) +US(ix,iy).u[0] *X(ix,iy).s;
      UF(ix,iy).u[1]= UF(ix,iy).u[1] *(1-X(ix,iy).s) +US(ix,iy).u[1] *X(ix,iy).s;
     }

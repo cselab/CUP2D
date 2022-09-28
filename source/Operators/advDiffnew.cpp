@@ -5,7 +5,7 @@
 //
 
 #include "advDiff.h"
-#include "../Shape.h"
+
 using namespace cubism;
 namespace cubism {
 
@@ -120,7 +120,7 @@ static inline Real derivative(const Real U, const Real um3, const Real um2, cons
   }
   return (fp-fm);
 }
-static inline vector<Real> SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h)
+static inline void SolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real& stress[4])
 {
   const Real i2h=1.0/h/2.0;
   const Real up1x=INVM(ix+1,iy).u[0];
@@ -138,18 +138,15 @@ static inline vector<Real> SolidDstress(const VectorLab&INVM,const int ix,const 
   const Real dvdx=(vp1x-vm1x)*i2h;
   const Real dvdy=(vp1y-vm1y)*i2h;
   Real denominator=(dvdy*dudx-dudy*dvdx)*(dvdy*dudx-dudy*dvdx);
-  if (std::fabs(denominator)<1e-7) std::cout<<denominator<<"warning======irreversible F\n";
+  if (std::fabs(denominator)<1e-7) std::cout<<"warning======irreversible F\n";
   denominator=1.0/denominator;
-  vector<Real> stress(4);
   stress[0]=( dudy*dudy+dvdy*dvdy);
   stress[1]=(-dudy*dudx-dvdy*dvdx);
   stress[2]=(-dudy*dudx-dvdx*dvdy);
   stress[3]=( dudx*dudx+dvdx*dvdx);
   Real tr=0.5*(stress[0]+stress[3]);
-  stress[0]-=tr;
-  stress[3]-=tr;
-  //std::cout<<stress[0]<<","<<stress[1]<<"\n"<<stress[2]<<","<<stress[3]<<"\n===========\n";
-  return stress;
+  stress[0]-=0.5*tr;
+  stress[3]-=0.5*tr;
 }
 /*static inline void DivSolidDstress(const VectorLab&INVM,const int ix,const int iy,const Real h,Real &divS[2])
 {
@@ -267,13 +264,13 @@ struct FluidStress
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP1(ix,iy).u[0]=2*nu*i2h*(vellab(ix+1,iy).u[0]-vellab(ix-1,iy).u[0]);
-      TMP1(ix,iy).u[1]=nu*i2h*(vellab(ix,iy+1).u[0]-vellab(ix,iy-1).u[0]+vellab(ix+1,iy).u[1]-vellab(ix-1,iy).u[1]);
-      TMP2(ix,iy).u[0]=TMP1(ix,iy).u[1];
-      TMP2(ix,iy).u[1]=2*nu*i2h*(vellab(ix,iy+1).u[1]-vellab(ix,iy-1).u[1]);
+      TMP1(ix,iy).u[0]=(1-ECHI(ix,iy).s)*2*nu*i2h*(vellab(ix+1,iy).u[0]-vellab(ix-1,iy).u[0]);
+      TMP1(ix,iy).u[1]=(1-ECHI(ix,iy).s)*nu*i2h*(vellab(ix,iy+1).u[0]-vellab(ix,iy-1).u[0]+vellab(ix+1,iy).u[1]-vellab(ix-1,iy).u[1]);
+      TMP2(ix,iy).u[0]=(1-ECHI(ix,iy).s)*TMP1(ix,iy).u[1];
+      TMP2(ix,iy).u[1]=(1-ECHI(ix,iy).s)*2*nu*i2h*(vellab(ix,iy+1).u[1]-vellab(ix,iy-1).u[1]);
     }
   }
-};
+}
 struct SolidStress
 {
   SolidStress(const SimulationData& s, const int sid):sim(s),shapeid(sid){}
@@ -285,28 +282,24 @@ struct SolidStress
   const std::vector<cubism::BlockInfo>& EchiInfo  = sim.Echi->getBlocksInfo();
   void operator()(const VectorLab& invmlab,const BlockInfo& info){
     const std::vector<ObstacleBlock*>& OBLOCK = sim.Eshapes[shapeid]->obstacleBlocks;
-    if(OBLOCK[info.blockID] == nullptr) return; //obst not in block
+    if(OBLOCK[info.blockID] == nullptr) continue; //obst not in block
     ObstacleBlock& o = * OBLOCK[info.blockID];
-    const CHI_MAT & __restrict__ X = o.chi;
-    const Real G=sim.Eshapes[shapeid]->G;
+    CHI_MAT & __restrict__ X = o.chi;
+    const Real i2h=0.5/info.h,G=sim.Eshapes[shapeid]->G;
     VectorBlock& __restrict__ TMP1=*(VectorBlock*) tmpV1Info[info.blockID].ptrBlock;
     VectorBlock& __restrict__ TMP2=*(VectorBlock*) tmpV2Info[info.blockID].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      if(invmlab(ix,iy).u[0]==0||invmlab(ix,iy).u[1]==0) continue;
-      if(invmlab(ix+1,iy).u[0]==0||invmlab(ix+1,iy).u[1]==0||
-         invmlab(ix-1,iy).u[0]==0||invmlab(ix-1,iy).u[1]==0||
-         invmlab(ix,iy+1).u[0]==0||invmlab(ix,iy+1).u[1]==0||
-         invmlab(ix,iy-1).u[0]==0||invmlab(ix,iy-1).u[1]==0) continue;
-      vector<Real> stress=SolidDstress(invmlab,ix,iy,info.h);
+      Real stress[4];
+      SolidDstress(invmlab,ix,iy,info.h,stress);
       TMP1(ix,iy).u[0]+=stress[0]*G*X[iy][ix];
       TMP1(ix,iy).u[1]+=stress[1]*G*X[iy][ix];
       TMP2(ix,iy).u[0]+=stress[2]*G*X[iy][ix];
       TMP2(ix,iy).u[1]+=stress[3]*G*X[iy][ix];
     }
   }
-};
+}
 struct DivStress
 {
   DivStress(const SimulationData& s):sim(s){}
@@ -324,7 +317,7 @@ struct DivStress
       TMP(ix,iy).u[1]=sim.dt*i2h*(lab2(ix+1,iy).u[0]-lab2(ix-1,iy).u[0]+lab2(ix,iy+1).u[1]-lab2(ix,iy-1).u[1]);
     }
   }
-};
+}
 struct KernelAdvectDiffuse
 {
   KernelAdvectDiffuse(const SimulationData & s, const Real c, const Real uinfx, const Real uinfy) : sim(s),coef(c)
@@ -340,15 +333,15 @@ struct KernelAdvectDiffuse
 
   void operator()(VectorLab& lab, const BlockInfo& info) const
   {
-    const Real h = info.h,ih2=1.0/h/h;
+    const Real h = info.h;
     const Real dfac = sim.nu*sim.dt;
     const Real afac = -sim.dt*h;
     VectorBlock & __restrict__ TMP = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      TMP(ix,iy).u[0] = coef*(TMP(ix,iy).u[0]+ih2*dU_adv_dif(lab,uinf,afac,dfac,ix,iy));
-      TMP(ix,iy).u[1] = coef*(TMP(ix,iy).u[1]+ih2*dV_adv_dif(lab,uinf,afac,dfac,ix,iy));
+      TMP(ix,iy).u[0] = coef*(TMP(ix,iy).u[0]+dU_adv_dif(lab,uinf,afac,dfac,ix,iy));
+      TMP(ix,iy).u[1] = coef*(TMP(ix,iy).u[1]+dV_adv_dif(lab,uinf,afac,dfac,ix,iy));
     }
     BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
     VectorBlock::ElementType * faceXm = nullptr;
@@ -433,7 +426,7 @@ void advDiff::operator()(const Real dt)
   cubism::compute<VectorLab>(fs,sim.vel);
   for(auto shape:sim.Eshapes){
     SolidStress ss(sim,shape->obstacleID);
-    cubism::compute<VectorLab>(ss,sim.invms[shape->obstacleID].get());
+    cubism::compute<VectorLab>(ss,sim.invms[shape.obstacleID]);
   }
   DivStress Ds(sim);
   compute2<VectorLab,VectorLab>(Ds,sim.tmpV1,sim.tmpV2);
@@ -452,19 +445,19 @@ void advDiff::operator()(const Real dt)
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0];
-      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1];
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
     }
   }
   /********************************************************************/
-  //sim.dumpVelDebug("after1");
+
   /********************************************************************/
   // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
   //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
   cubism::compute<VectorLab>(fs,sim.vel);
   for(auto shape:sim.Eshapes){
     SolidStress ss(sim,shape->obstacleID);
-    cubism::compute<VectorLab>(ss,sim.invms[shape->obstacleID].get());
+    cubism::compute<VectorLab>(ss,sim.invms[shape.obstacleID]);
   }
   compute2<VectorLab,VectorLab>(Ds,sim.tmpV1,sim.tmpV2);
   KernelAdvectDiffuse Step2(sim,1.0,UINF[0],UINF[1]) ;
@@ -476,14 +469,15 @@ void advDiff::operator()(const Real dt)
     VectorBlock & __restrict__ V  = *(VectorBlock*)  velInfo[i].ptrBlock;
     const VectorBlock & __restrict__ Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
     const VectorBlock & __restrict__ tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    const Real ih2 = 1.0/(velInfo[i].h*velInfo[i].h);
     for(int iy=0; iy<VectorBlock::sizeY; ++iy)
     for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0];
-      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1];
+      V(ix,iy).u[0] = Vold(ix,iy).u[0] + tmpV(ix,iy).u[0]*ih2;
+      V(ix,iy).u[1] = Vold(ix,iy).u[1] + tmpV(ix,iy).u[1]*ih2;
     }
   }
   /********************************************************************/
-  //sim.dumpVelDebug("after2");
+
   sim.stopProfiler();
 }
