@@ -170,13 +170,15 @@ void Windmill::act(std::vector<double> action)
 
 double Windmill::reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof)
 {
-
+   std::cerr << "ERROR: no reward defined for Windmill::reward. Should you even be here?" << std::endl;
+   abort();
+   return -1; //to silence compilation warnings
 }
 
 void Windmill::update_avg_vel_profile(Real dt)
 {
   std::vector<std::vector<Real>> vel = vel_profile();
-  for (size_t k(0); k < numberRegions; ++k)
+  for (int k(0); k < numberRegions; ++k)
   {
     avg_profile[0][k] += vel[0][k] * dt / time_step;
     avg_profile[1][k] += vel[1][k] * dt / time_step;
@@ -193,7 +195,7 @@ void Windmill::print_vel_profile(std::vector<std::vector<Real>> vel_profile)
     std::stringstream & fout = logger.get_stream(ssF.str());
     fout<<sim.time;
 
-    for (size_t k = 0; k < numberRegions; ++k)
+    for (int k = 0; k < numberRegions; ++k)
     {
       // need to normalize profile by the time step
       fout<<" "<<vel_profile[0][k];
@@ -207,7 +209,7 @@ void Windmill::print_vel_profile(std::vector<std::vector<Real>> vel_profile)
     std::stringstream & fout2 = logger.get_stream(ssF2.str());
     fout2<<sim.time;
 
-    for (size_t k = 0; k < numberRegions; ++k)
+    for (int k = 0; k < numberRegions; ++k)
     {
       // need to normalize profile by the time step
       fout2<<" "<<vel_profile[1][k];
