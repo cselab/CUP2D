@@ -241,7 +241,7 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
       #ifdef EXPL_INTEGRATE_MOM
         const Real F = hsq * chi[iy][ix];
       #else
-        const Real Xlamdt = chi[iy][ix] * lambdt;
+        const Real Xlamdt = lambdt;//chi[iy][ix] * lambdt;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
       #endif
       Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
@@ -304,7 +304,8 @@ void PressureSingle::penalize(const Real dt) const
       p[0] -= Cx;
       p[1] -= Cy;
       #ifndef EXPL_INTEGRATE_MOM
-        const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        //const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        const Real alpha = 1/(1 + sim.lambda * dt);
       #else
         const Real alpha = 1 - X[iy][ix];
       #endif
