@@ -843,9 +843,9 @@ void PressureSingle::operator()(const Real dt)
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        const Real dpdt = (2.0*(PRES(ix,iy).s - POLD(ix,iy).s))/(sim.dt_old+ sim.dt_old2);
+        const Real dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
         const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
-        correction[index] = ((0.5*dpdt)*(sim.dt+sim.dt_old));
+        correction[index] = dpdt*sim.dt;
         POLD  (ix,iy).s = PRES (ix,iy).s + correction[index];
         PRES  (ix,iy).s = 0;
       }
