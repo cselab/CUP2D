@@ -225,6 +225,11 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     }
   }
   MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_MAX,m_comm);
+  {
+     Real quantities[3] = {rho,norm_1,norm_2};
+     MPI_Allreduce(MPI_IN_PLACE,&quantities,3,MPI_Real,MPI_SUM,m_comm);
+     rho = quantities[0]; norm_1 = quantities[1] ; norm_2 = quantities[2];
+  }
   const Real init_norm=norm;
   if (rank == 0 && !sim.muteAll)
     std::cout << "  [Poisson solver]: Initial norm: " << init_norm << std::endl;
