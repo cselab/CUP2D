@@ -9,36 +9,34 @@ class Windmill : public Shape
   const Real sminax = std::min(semiAxis[0], semiAxis[1]);
   //const Real windscale = std::sqrt(forcedu*forcedu+forcedv*forcedv);
   const Real lengthscale = getCharLength();
-  std::array<Real, 2> target = {0.7, 0.6};
-  std::array<Real, 2> dimensions = {0.1, 0.1};
-  Real energy = 0;
 
   // keeps track of the of the average veloctiy profile between two rl time steps
   // weighted by the time step of the sim
-  std::vector<Real> avg_profile = vector<Real>(32, 0.0);
+  std::vector<std::vector<Real>> avg_profile;
 
 
   Real time_step = 0.05;
-  Real ang_accel;
-  Real action_ang_accel = 0.;
-  Real temp_torque = 0;
   Real prev_dt = 0;
+  double action_ang_vel_max = 0.;
+  double action_freq = 0.;
 
 
   // domain for velocity profile
   Real x_start = 0.35;
   Real x_end = x_start + 0.0875;
-  Real y_start = 0.35;
-  Real y_end = 1.05;
+  Real y_start = 0.175;
+  Real y_end = 0.525;
+
+  int numberRegions = 16;
 
  public:
 
   Windmill(SimulationData& s, cubism::ArgumentParser& p, Real C[2]):
-  Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()}
+  Shape(s,p,C), semiAxis{(Real) p("-semiAxisX").asDouble(), (Real) p("-semiAxisY").asDouble()},
+  action_ang_vel_max(p("-angvelmax").asDouble()), action_freq(p("-freq").asDouble())
   {
-    ang_accel = forcedomega;
     omega = 0;
-    // set a random orientation
+    avg_profile = std::vector<std::vector<Real>> (2, std::vector<Real>(numberRegions, 0.0));
     setInitialConditions(0);
   }
 
@@ -50,19 +48,18 @@ class Windmill : public Shape
 
   void create(const std::vector<cubism::BlockInfo>& vInfo) override;
   void updateVelocity(Real dt) override;
-  Real omega_over_time(Real time);
   void updatePosition(Real dt) override;
 
   void printRewards(Real r_flow);
-  void printActions(Real value);
+  void printActions(double angvel, double freq);
   
-  void act( Real action );
-  Real reward(std::vector<Real> target_profile, std::vector<Real> profile_t_1, std::vector<Real> profile_t_);
+  void act( std::vector<double> action);
+  double reward(std::vector<double> target_profile, std::vector<double> profile_t_1, std::vector<double> profile_t_, double norm_prof);
 
   void update_avg_vel_profile(Real dt);
-  void print_vel_profile(std::vector<Real> vel_profile);
+  void print_vel_profile(std::vector<std::vector<Real>> vel_profile);
 
-  std::vector<Real> vel_profile();
+  std::vector<std::vector<Real>> vel_profile();
   int numRegion(const std::array<Real, 2> point, Real height) const;
   void setInitialConditions(Real init_angle);
   Real getAngularVelocity();

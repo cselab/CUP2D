@@ -241,7 +241,9 @@ void PressureSingle::integrateMomenta(Shape * const shape) const
       #ifdef EXPL_INTEGRATE_MOM
         const Real F = hsq * chi[iy][ix];
       #else
-        const Real Xlamdt = chi[iy][ix] * lambdt;
+        //const Real Xlamdt = chi[iy][ix] * lambdt;
+        //need to use unmollified version when H(x) appears in fractions
+        const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt:0.0;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
       #endif
       Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
@@ -304,7 +306,9 @@ void PressureSingle::penalize(const Real dt) const
       p[0] -= Cx;
       p[1] -= Cy;
       #ifndef EXPL_INTEGRATE_MOM
-        const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        //const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        //need to use unmollified version when H(x) appears in fractions
+        const Real alpha = X[iy][ix] > 0.5 ? 1/(1 + sim.lambda * dt) : 1;
       #else
         const Real alpha = 1 - X[iy][ix];
       #endif
@@ -495,24 +499,24 @@ void PressureSingle::preventCollidingObstacles() const
         const auto& iBlocks = shapes[i]->obstacleBlocks;
         const Real iU0      = shapes[i]->u;
         const Real iU1      = shapes[i]->v;
-        const Real iU2      = 0; //set to 0 for 2D
-        const Real iomega0  = 0; //set to 0 for 2D
-        const Real iomega1  = 0; //set to 0 for 2D
+        //const Real iU2      = 0; //set to 0 for 2D
+        //const Real iomega0  = 0; //set to 0 for 2D
+        //const Real iomega1  = 0; //set to 0 for 2D
         const Real iomega2  = shapes[i]->omega;
         const Real iCx      = shapes[i]->centerOfMass[0];
         const Real iCy      = shapes[i]->centerOfMass[1];
-        const Real iCz      = 0; //set to 0 for 2D
+        //const Real iCz      = 0; //set to 0 for 2D
 
         const auto& jBlocks = shapes[j]->obstacleBlocks;
         const Real jU0      = shapes[j]->u;
         const Real jU1      = shapes[j]->v;
-        const Real jU2      = 0; //set to 0 for 2D
-        const Real jomega0  = 0; //set to 0 for 2D
-        const Real jomega1  = 0; //set to 0 for 2D
+        //const Real jU2      = 0; //set to 0 for 2D
+        //const Real jomega0  = 0; //set to 0 for 2D
+        //const Real jomega1  = 0; //set to 0 for 2D
         const Real jomega2  = shapes[j]->omega;
         const Real jCx      = shapes[j]->centerOfMass[0];
         const Real jCy      = shapes[j]->centerOfMass[1];
-        const Real jCz      = 0; //set to 0 for 2D
+        //const Real jCz      = 0; //set to 0 for 2D
 
         assert(iBlocks.size() == jBlocks.size());
 
@@ -537,25 +541,21 @@ void PressureSingle::preventCollidingObstacles() const
 
                 const auto pos = infos[k].pos<Real>(ix, iy);
 
-                const Real iUr0 = iomega1* (pos[2] - iCz) - iomega2*(pos[1]-iCy);
-                const Real iUr1 = iomega2* (pos[0] - iCx) - iomega0*(pos[2]-iCz);
-                const Real iUr2 = iomega0* (pos[1] - iCy) - iomega1*(pos[0]-iCx);
+                const Real iUr0 = - iomega2*(pos[1]-iCy);
+                const Real iUr1 =   iomega2*(pos[0]-iCx);
                 coll.iM    += iChi[iy][ix];
                 coll.iPosX += iChi[iy][ix] * pos[0];
                 coll.iPosY += iChi[iy][ix] * pos[1];
                 coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
                 coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
-                coll.iMomZ += iChi[iy][ix] * (iU2 + iUr2);// + iUDEF[iy][ix][2]);//set to 0 for 2D
 
-                const Real jUr0 = jomega1* (pos[2] - jCz) - jomega2*(pos[1]-jCy);
-                const Real jUr1 = jomega2* (pos[0] - jCx) - jomega0*(pos[2]-jCz);
-                const Real jUr2 = jomega0* (pos[1] - jCy) - jomega1*(pos[0]-jCx);
+                const Real jUr0 = - jomega2*(pos[1]-jCy);
+                const Real jUr1 =   jomega2*(pos[0]-jCx);
                 coll.jM    += jChi[iy][ix];
                 coll.jPosX += jChi[iy][ix] * pos[0];
                 coll.jPosY += jChi[iy][ix] * pos[1];
                 coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
                 coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
-                coll.jMomZ += jChi[iy][ix] * (jU2 + jUr2);// + jUDEF[iy][ix][2]);//set to 0 for 2D
               
                 Real dSDFdx_i;
                 Real dSDFdx_j;
@@ -846,9 +846,9 @@ void PressureSingle::operator()(const Real dt)
       for(int iy=0; iy<VectorBlock::sizeY; ++iy)
       for(int ix=0; ix<VectorBlock::sizeX; ++ix)
       {
-        const Real dpdt = (2.0*(PRES(ix,iy).s - POLD(ix,iy).s))/(sim.dt_old+ sim.dt_old2);
+        const Real dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
         const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
-        correction[index] = ((0.5*dpdt)*(sim.dt+sim.dt_old))*.5;
+        correction[index] = dpdt*sim.dt;
         POLD  (ix,iy).s = PRES (ix,iy).s + correction[index];
         PRES  (ix,iy).s = 0;
       }
