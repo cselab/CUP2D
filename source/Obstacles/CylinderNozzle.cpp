@@ -65,7 +65,7 @@ void CylinderNozzle::create(const std::vector<BlockInfo>& vInfo)
 	  const double theta0 = idx * dtheta;
 
 	  const double phi = theta - theta0;
-          if ( std::fabs(phi) < 0.5*actuator_theta || (idx == 0 && std::fabs(phi+2*M_PI) < 0.5*actuator_theta))
+          if ( std::fabs(phi) < 0.5*actuator_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*actuator_theta))
           {
 	       const double ur = 0.01*actuators[idx]/r*cos(M_PI/actw*phi);
                UDEF[iy][ix][0] = ur * cos(theta);
@@ -143,7 +143,7 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
 
   if (sim.time < 0.1)
-    for (int  i = 0 ; i < S.size() ; i++)S[i]=0;
+    for (size_t i = 0 ; i < S.size() ; i++) S[i]=0;
 
   return S;
 }
