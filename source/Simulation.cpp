@@ -32,6 +32,7 @@
 #include "Obstacles/Teardrop.h"
 #include "Obstacles/Waterturbine.h"
 #include "Obstacles/ExperimentFish.h"
+#include "Obstacles/CylinderNozzle.h"
 
 #include <algorithm>
 #include <iterator>
@@ -284,6 +285,8 @@ void Simulation::createShapes()
       Shape* shape = nullptr;
       if (objectName=="disk")
         shape = new Disk(             sim, ffparser, center);
+      else if (objectName=="cylinderNozzle")
+        shape = new CylinderNozzle(   sim, ffparser, center);
       else if (objectName=="smartDisk")
         shape = new SmartCylinder(    sim, ffparser, center);
       else if (objectName=="halfDisk")
