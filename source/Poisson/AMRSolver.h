@@ -79,7 +79,7 @@ class ComputeLHS : public Operator
   {
     const LHSkernel K(sim);
     cubism::compute<ScalarLab>(K,sim.pres,sim.tmp);
-    if( sim.bMeanConstraint )
+    if( sim.bMeanConstraint > 0)
     {
       int index = -1;
       Real mean = 0.0;
@@ -97,19 +97,20 @@ class ComputeLHS : public Operator
          mean += h2 * X(ix,iy).s;
       }
       MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getWorldComm());
-      if (index != -1)
+      if (index != -1 && sim.bMeanConstraint == 1)
       {
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
         LHS(0,0).s = mean;
       }
-      //for (size_t i = 0 ; i < lhsInfo.size() ; i++)
-      //{
-      //   ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
-      //   const Real h2 = lhsInfo[i].h*lhsInfo[i].h;
-      //   for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
-      //   for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
-      //       LHS(ix,iy).s += mean * h2;
-      //}
+      else // bMeanConstraint == 2
+        for (size_t i = 0 ; i < lhsInfo.size() ; i++)
+        {
+           ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[i].ptrBlock;
+           const Real h2 = lhsInfo[i].h*lhsInfo[i].h;
+           for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+           for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+               LHS(ix,iy).s += mean * h2;
+        }
     }
   }
   std::string getName() { return "ComputeLHS"; }
