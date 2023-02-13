@@ -188,4 +188,11 @@ void PutObjectsOnGrid::putObjectsOnGrid()
   {
     shape->removeMoments(chiInfo);
   }
+
+  // 5) do anything else needed by some shapes
+  for(const auto& shape : sim.shapes)
+  {
+    shape->finalize();
+  }
+
 }
