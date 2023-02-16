@@ -73,6 +73,18 @@ bsub -J ${RUNNAME} -W 120:00 -n 128 "unset LSB_AFFINITY_HOSTFILE; mpirun -n 128 
 fi
 
 ###################################################################################################
+elif [ ${HOST:0:3} == 'uan' ] ; then
+
+BASEPATH="$SCRATCH/CUP2D"
+export OMP_NUM_THREADS=1
+export TASKS_PER_NODE=128
+FOLDERNAME=${BASEPATH}/${RUNNAME}
+mkdir -p ${FOLDERNAME}
+cp ../makefiles/simulation ${FOLDERNAME}
+
+source launchSbatch.sh
+
+###################################################################################################
 else
 
 BASEPATH="../runs/"

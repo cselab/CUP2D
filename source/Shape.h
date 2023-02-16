@@ -35,7 +35,10 @@ class Shape
   const Real forcedomega;
   const bool bDumpSurface;
   const Real timeForced;
-  const bool bBreakSymmetry;
+  const int breakSymmetryType;
+  const Real breakSymmetryStrength;
+  const Real breakSymmetryTime;
+  const Real breakSymmetryExponent;
 
   Real M = 0;
   Real J = 0;

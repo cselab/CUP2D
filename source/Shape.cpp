@@ -61,7 +61,7 @@ void Shape::updateVelocity(Real dt)
   if(not bForcedy  || sim.time > timeForced)  v     = gsl_vector_get(xgsl, 1);
   if(not bBlockang || sim.time > timeForced)  omega = gsl_vector_get(xgsl, 2);
 
-  if( bBreakSymmetry )
+  if( breakSymmetryType != 0 )
   {
     //if( sim.time > 1.0 && sim.time < 1.1 )
     //  omega =  u/getCharLength();
@@ -70,10 +70,50 @@ void Shape::updateVelocity(Real dt)
     //else
     //  omega = 0;
 
-    if( sim.time > 1.0 && sim.time < 2.0 )
-      v = 0.1*getCharLength()*std::sin(M_PI*(sim.time-2.0));
+    // if( sim.time > 1.0 && sim.time < 2.0 )
+    //   v = 0.1*getCharLength()*std::sin(M_PI*(sim.time-2.0));
+    // else
+    //   v = forcedv;
+
+    // Constants characterizing symmetry breaking
+    const double p = breakSymmetryExponent;
+    const double strength = breakSymmetryStrength;
+    const double tStart = breakSymmetryTime;
+    const double R = getCharLength() / 2.0; // 0.1 for current runs
+    const double charVel = std::abs(u);
+    const double tau = getCharLength() / charVel;
+
+    // Set magintude of disturbance
+    double V0 = 0.0;
+    if( breakSymmetryType == 1 ) // translational disturbance
+      V0 = strength * R;
+    if( breakSymmetryType == 2 ) // angular disturbance
+      V0 = strength;
+
+    // Rescale time
+    const double t = ( sim.time - tStart ) / tau;
+
+    // Compute disturbance
+    const double numerator = p*std::pow(t,p-1)*(std::pow(t,p)+std::pow(0.5-t,p)) - p*std::pow(t,p)*(std::pow(t,p-1)-std::pow(0.5-t,p-1));
+    const double denominator = std::pow( std::pow(t,p)+std::pow(0.5-t,p), 2);
+    const double disturbance =  V0 * numerator / denominator;
+
+    // Select type of disturbance
+    auto &V = breakSymmetryType == 1 ? v : omega;
+
+    // Apply symmetry breaking
+    if( (t >= 0.0) && (t < 0.5) )
+    {
+      V = disturbance;
+    }
+    else if( (t >= 0.5) && (t < 1.0) )
+    {
+      V = -disturbance;
+    }
     else
-      v = forcedv;
+    {
+      V = 0;
+    }
   }
 
   gsl_permutation_free(permgsl);
@@ -373,7 +413,10 @@ Shape::Shape( SimulationData& s, ArgumentParser& p, Real C[2] ) :
   forcedomega(-p("-angvel").asDouble(0)),
   bDumpSurface(p("-dumpSurf").asInt(0)),
   timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-  bBreakSymmetry(p("-bBreakSymmetry").asBool(false))
+  breakSymmetryType(p("-breakSymmetryType").asInt(0)), // 0 is no symmetry breaking
+  breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(1.0)),
+  breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)),
+  breakSymmetryExponent(p("-breakSymmetryExponent").asDouble(1.0))
   {}
 
 Shape::~Shape()
