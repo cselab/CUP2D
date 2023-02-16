@@ -126,10 +126,8 @@ Real CylinderNozzle::reward(const int agentID)
 std::vector<Real> CylinderNozzle::state(const int agentID)
 {
   std::vector<Real> S;
-  S.push_back(sim.time   );
-  S.push_back(forcex     );
-  S.push_back(forcey     );
   const int bins = actuators.size();
+
   const Real dtheta = 2.*M_PI / bins;
   std::vector<int>   n_s   (bins,0.0);
   std::vector<Real>  p_s   (bins,0.0);
@@ -166,9 +164,12 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
+  S.push_back(forcex);
+  S.push_back(forcey);
+  S.push_back(torque);
 
-  if (sim.time < 0.1)
-    for (size_t i = 0 ; i < S.size() ; i++) S[i]=0;
+  if (sim.rank ==0 )
+    for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
 
   return S;
 }
