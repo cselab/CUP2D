@@ -200,7 +200,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   {    
     ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) AxInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ zz = *(ScalarBlock*)  zInfo[i].ptrBlock;
-    if( sim.bMeanConstraint )
+    if( sim.bMeanConstraint == 1)
       if (isCorner(AxInfo[i])) rhs(0,0).s = 0.0;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)

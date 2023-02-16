@@ -29,6 +29,13 @@ class StefanFish: public Fish
   // Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,2> pos) const;
   std::array<Real, 2> getShear(const std::array<Real,2> pSurf) const;
+
+  // Old Helpers (here for backward compatibility)
+  ssize_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
+  std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
+  std::array<Real, 2> getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const;
+
+  // Helpers to restart simulation
   virtual void saveRestart( FILE * f ) override;
   virtual void loadRestart( FILE * f ) override;
 };

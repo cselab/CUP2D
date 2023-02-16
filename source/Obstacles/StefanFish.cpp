@@ -646,3 +646,167 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
    }
   #endif
 }
+
+/***** Old Helpers (here for backward compatibility) ******/
+
+// function that finds block id of block containing pos (x,y)
+ssize_t StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
+{
+  for(size_t i=0; i<velInfo.size(); ++i)
+  {
+    // get gridspacing in block
+    const Real h = velInfo[i].h;
+
+    // compute lower left corner of block
+    std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
+    for(int j=0; j<2; ++j)
+      MIN[j] -= 0.5 * h; // pos returns cell centers
+
+    // compute top right corner of block
+    std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
+    for(int j=0; j<2; ++j)
+      MAX[j] += 0.5 * h; // pos returns cell centers
+
+    // check whether point is inside block
+    if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
+    {
+      // point lies inside this block
+      return i;
+    }
+  }
+  // rank does not contain point
+  return -1;
+};
+
+// function that gives indice of point in block
+std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const
+{
+  const int indx = (int) std::round((pos[0] - org[0])*invh);
+  const int indy = (int) std::round((pos[1] - org[1])*invh);
+  const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
+  const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
+  return std::array<int, 2>{{ix, iy}};
+};
+
+// returns shear at given surface location
+std::array<Real, 2> StefanFish::getShear(const std::array<Real,2> pSurf, const std::array<Real,2> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const
+{
+  // Buffer to broadcast velcities and gridspacing
+  Real velocityH[3] = {0.0, 0.0, 0.0};
+
+  // 1. Compute surface velocity on surface
+  // get blockId of surface
+  ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
+
+  // get surface velocity if block containing point found
+  char error = false;
+  if( blockIdSurf >= 0 ) {
+    // get block
+    const auto& skinBinfo = velInfo[blockIdSurf];
+
+    // check whether obstacle block exists
+    if(obstacleBlocks[blockIdSurf] == nullptr ){
+      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n", sim.rank, blockIdSurf, pSurf[0], pSurf[1], blockIdSurf, obstacleBlocks.size());
+      const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+      const auto& chiBlock = chiInfo[blockIdSurf];
+      ScalarBlock & __restrict__ CHI = *(ScalarBlock*) chiBlock.ptrBlock;
+      for( size_t i = 0; i<ScalarBlock::sizeX; i++) 
+      for( size_t j = 0; j<ScalarBlock::sizeY; j++)
+      {
+        const auto pos = chiBlock.pos<Real>(i, j);
+        printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, pos[0], pos[1], CHI(i,j).s);
+      }
+      fflush(0);
+      error = true;
+      // abort();
+    }
+    else{
+      // get origin of block
+      const std::array<Real,2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
+
+      // get gridspacing on this block
+      velocityH[2] = velInfo[blockIdSurf].h;
+
+      // get index of point in block
+      const std::array<int,2> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
+
+      // get deformation velocity
+      const Real udefX = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
+      const Real udefY = obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
+
+      // compute velocity of skin point
+      velocityH[0] = u - omega * (pSurf[1]-centerOfMass[1]) + udefX;
+      velocityH[1] = v + omega * (pSurf[0]-centerOfMass[0]) + udefY;
+    }
+  }
+
+  // DEBUG purposes
+  #if 1
+  MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.chi->getWorldComm());
+  if( sim.rank == 0 && blockIdSurf == -1 )
+  {
+    printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
+    fflush(0);
+    abort();
+  }
+
+  MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR, sim.chi->getWorldComm());
+  if( error )
+  {
+    sim.dumpAll("failed");
+    abort();
+  }
+  #endif
+
+  // Allreduce to Bcast surface velocity
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
+
+  // Assign skin velocities and grid-spacing
+  const Real uSkin = velocityH[0];
+  const Real vSkin = velocityH[1];
+  const Real h     = velocityH[2];
+  const Real invh = 1/h;
+
+  // Reset buffer to 0
+  velocityH[0] = 0.0; velocityH[1] = 0.0; velocityH[2] = 0.0;
+
+  // 2. Compute flow velocity away from surface
+  // compute point on lifted surface
+  const std::array<Real,2> pLiftedSurf = { pSurf[0] + h * normSurf[0],
+                                           pSurf[1] + h * normSurf[1] };
+
+  // get blockId of lifted surface
+  const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
+
+  // get surface velocity if block containing point found
+  if( blockIdLifted >= 0 ) {
+    // get block
+    const auto& liftedBinfo = velInfo[blockIdLifted];
+
+    // get origin of block
+    const std::array<Real,2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
+
+    // get inverse gridspacing in block
+    const Real invhLifted = 1/velInfo[blockIdLifted].h;
+
+    // get index for sensor
+    const std::array<int,2> iSens = safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);
+
+    // get velocity field at point
+    const VectorBlock& b = * (const VectorBlock*) liftedBinfo.ptrBlock;
+    velocityH[0] = b(iSens[0], iSens[1]).u[0];
+    velocityH[1] = b(iSens[0], iSens[1]).u[1];
+  }
+
+  // Allreduce to Bcast flow velocity
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
+
+  // Assign lifted skin velocities
+  const Real uLifted = velocityH[0];
+  const Real vLifted = velocityH[1];
+
+  // return shear
+  return std::array<Real, 2>{{(uLifted - uSkin) * invh,
+                              (vLifted - vSkin) * invh }};
+
+};
