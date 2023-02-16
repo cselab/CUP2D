@@ -47,7 +47,7 @@ cp ../makefiles/simulation ${FOLDERNAME}
 # did we allocate a node?
 srun hostname &> /dev/null
 if [[ "$?" -gt "0" ]] ; then
-source launchSbatch.sh
+source launchSbatch.daint
 else
 cd ${FOLDERNAME}
 srun --nodes $SLURM_NNODES --ntasks-per-node=$TASKS_PER_NODE --cpus-per-task=$OMP_NUM_THREADS --threads-per-core=1 simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
@@ -82,7 +82,7 @@ FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
 
-source launchSbatch.sh
+source launchSbatch.lumi
 
 ###################################################################################################
 else
