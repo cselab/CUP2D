@@ -53,6 +53,11 @@ inline BCflag string2BCflag(const std::string &strFlag)
     //printf("[CUP2D] Using freespace boundary conditions\n");
     return freespace;
   }
+  else if (strFlag == "wall")
+  {
+    //printf("[CUP2D] Using freespace boundary conditions\n");
+    return wall;
+  }
   else
   {
      fprintf(stderr,"BC not recognized %s\n",strFlag.c_str());
@@ -78,7 +83,7 @@ public:
   virtual bool is_zperiodic() override{ return false; }
 
   // Apply bc on face of direction dir and side side (0 or 1):
-  template<int dir, int side> void applyBCface(bool coarse=false)
+  template<int dir, int side> void applyBCface(bool wall, bool coarse=false)
   {
 
     const int A = 1 - dir;
@@ -93,15 +98,23 @@ public:
       e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX +  stenEnd[0]-1;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY +  stenEnd[1]-1;
 
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
-      {
-        const int x = ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0];
-        const int y = ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1];
-        //cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
-      }
+      if (!wall)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          const int x = ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0];
+          const int y = ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1];
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
+        }
+      else
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          const int x = ( dir==0? (side==0? 0: sizeX-1):ix ) - stenBeg[0];
+          const int y = ( dir==1? (side==0? 0: sizeY-1):iy ) - stenBeg[1];
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
+        }
     }
     else
     {
@@ -125,45 +138,55 @@ public:
       e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2 +  stenEnd[0]-1;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2 +  stenEnd[1]-1;
 
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
-      {
-        const int x = ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0];
-        const int y = ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1];
-        //cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
-      }
+      if (!wall)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          const int x = ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0];
+          const int y = ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1];
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(1-A) = (-1.0)*cb->Access(x,y,0).member(1-A);
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0).member(A) = cb->Access(x,y,0).member(A);
+        }
+      else
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          const int x = ( dir==0? (side==0? 0: sizeX/2-1):ix ) - stenBeg[0];
+          const int y = ( dir==1? (side==0? 0: sizeY/2-1):iy ) - stenBeg[1];
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], 0) = (-1.0)*cb->Access(x,y,0);
+        }
     }
   }
 
   // Called by Cubism:
   void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
   {
+    const BCflag BCX = cubismBCX;
+    const BCflag BCY = cubismBCY;
     if (!coarse)
     {
       if (is_xperiodic() == false)
       {
-        if( info.index[0]==0 )           this->template applyBCface<0,0>();
-        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>();
+        if( info.index[0]==0 )           this->template applyBCface<0,0>(BCX == wall);
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(BCX == wall);
       }
       if (is_yperiodic() == false)
       {
-        if( info.index[1]==0 )           this->template applyBCface<1,0>();
-        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>();
+        if( info.index[1]==0 )           this->template applyBCface<1,0>(BCY == wall);
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(BCY == wall);
       }
     }
     else
     {
       if (is_xperiodic() == false)
       {
-        if( info.index[0]==0 )           this->template applyBCface<0,0>(coarse);
-        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(coarse);
+        if( info.index[0]==0 )           this->template applyBCface<0,0>(BCX == wall,coarse);
+        if( info.index[0]==this->NX-1 )  this->template applyBCface<0,1>(BCX == wall,coarse);
       }
       if (is_yperiodic() == false)
       {
-        if( info.index[1]==0 )           this->template applyBCface<1,0>(coarse);
-        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(coarse);
+        if( info.index[1]==0 )           this->template applyBCface<1,0>(BCY == wall,coarse);
+        if( info.index[1]==this->NY-1 )  this->template applyBCface<1,1>(BCY == wall,coarse);
       }
     }
   }
