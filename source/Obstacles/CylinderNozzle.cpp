@@ -34,7 +34,7 @@ void CylinderNozzle::create(const std::vector<BlockInfo>& vInfo)
 
 void CylinderNozzle::finalize()
 {
-  const Real transition_duration = 1.0;
+  const Real transition_duration = 0.1;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
     Real dummy;
@@ -87,13 +87,15 @@ void CylinderNozzle::finalize()
       if ( std::fabs(phi) < 0.5*actuator_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*actuator_theta))
       {
         const Real rr = pow(r,0.5);
-        const Real ur = 0.01*actuators[idx]/rr*cos(M_PI*phi/actuator_theta);
+        //const Real ur = 0.01*actuators[idx]/rr*cos(M_PI*phi/actuator_theta);
+        const Real ur = 0.005*actuators[idx]/rr*cos(M_PI*phi/actuator_theta);
         UDEF[iy][ix][0] = ur * cos(theta);
         UDEF[iy][ix][1] = ur * sin(theta);
       }
     }
   }
-  fx_integral += -std::fabs(forcex)*sim.dt;
+  const double cd = forcex / (0.5*u*u*2*radius);
+  fx_integral += -std::fabs(cd)*sim.dt;
 }
 
 void CylinderNozzle::act( std::vector<Real> action, const int agentID)
@@ -118,9 +120,15 @@ void CylinderNozzle::act( std::vector<Real> action, const int agentID)
 
 Real CylinderNozzle::reward(const int agentID)
 {
-  Real retval = fx_integral;
+  Real retval = fx_integral / 0.1; //0.1 is the action times
   fx_integral = 0;
-  return retval;
+  Real regularizer = 0.0;
+  for (size_t idx = 0 ; idx < actuators.size(); idx++)
+  {
+    regularizer += actuators[idx]*actuators[idx];
+  }
+  regularizer = pow(regularizer,0.5)/actuators.size(); //O(1)
+  return retval + 0.05*regularizer;
 }
 
 std::vector<Real> CylinderNozzle::state(const int agentID)
