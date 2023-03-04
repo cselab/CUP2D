@@ -5,8 +5,6 @@
 //
 
 #include "AdaptTheMesh.h"
-#include "Helpers.h"
-#include <Cubism/AMR_MeshAdaptation.h>
 
 using namespace cubism;
 
