@@ -9,8 +9,6 @@
 #include "../Operator.h"
 #include "Base.h"
 
-#include <Cubism/FluxCorrection.h>
-
 class ComputeLHS : public Operator
 {
   struct LHSkernel
