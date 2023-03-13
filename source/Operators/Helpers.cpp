@@ -53,7 +53,7 @@ void IC::operator()(const Real dt)
     sim.readRestartFiles();
 
     std::stringstream ss;
-    ss<<"avemaria_"<<std::setfill('0')<<std::setw(7)<<sim.step;
+    ss<<"_"<<std::setfill('0')<<std::setw(7)<<sim.step;
 
     //The only field that is needed for restarting is velocity. Chi is derived from the files we
     //read for obstacles. Here we also read pres so that the Poisson solver has the same

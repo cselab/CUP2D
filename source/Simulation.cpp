@@ -408,7 +408,7 @@ void Simulation::simulate() {
         if( sim.rank == 0 && sim.verbose )
           std::cout << "[CUP2D] dumping field...\n";
         sim.registerDump();
-        sim.dumpAll("avemaria_");
+        sim.dumpAll("_");
       }
       if (sim.rank == 0 && !sim.muteAll)
       {
@@ -478,7 +478,7 @@ void Simulation::advance(const Real dt)
     if( sim.rank == 0 && sim.verbose )
       std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
-    sim.dumpAll("avemaria_");
+    sim.dumpAll("_");
   }
 
   for (size_t c=0; c<pipeline.size(); c++) {
