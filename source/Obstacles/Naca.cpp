@@ -23,7 +23,7 @@ class NacaData : public FishData
   void computeMidline(const Real time, const Real dt) override
   {
     rX[0] = rY[0] = vX[0] = vY[0] = norX[0] = vNorX[0] = vNorY[0] = 0.0;
-    vNorY[0] = 1.0;
+    norY[0] = 1.0;
   
     #pragma omp parallel for schedule(static)
     for(int i=1; i<Nm; ++i)
