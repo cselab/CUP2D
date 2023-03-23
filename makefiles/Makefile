@@ -88,7 +88,8 @@ OBJECTS = \
 		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
 		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
 		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
-		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o CylinderNozzle.o
+		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o CylinderNozzle.o \
+		SmartNaca.o
 
 # ENABLE GPU SUPPORT
 ifeq ("$(gpu)", "true")

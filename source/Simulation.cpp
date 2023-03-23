@@ -28,6 +28,7 @@
 #include "Obstacles/NeuroKinematicFish.h"
 #include "Obstacles/SmartCylinder.h"
 #include "Obstacles/Naca.h"
+#include "Obstacles/SmartNaca.h"
 #include "Obstacles/Windmill.h"
 #include "Obstacles/Teardrop.h"
 #include "Obstacles/Waterturbine.h"
@@ -307,6 +308,8 @@ void Simulation::createShapes()
         shape = new CarlingFish(      sim, ffparser, center);
       else if ( objectName=="NACA" )
         shape = new Naca(             sim, ffparser, center);
+      else if ( objectName=="SmartNACA" )
+        shape = new SmartNaca(        sim, ffparser, center);
       else if (objectName=="windmill")
         shape = new Windmill(         sim, ffparser, center);
       else if (objectName=="teardrop")

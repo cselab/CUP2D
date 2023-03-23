@@ -81,8 +81,8 @@ void Naca::updateVelocity(Real dt)
   if( sim.time < tAccel )
   {
     // linear velocity (due to rotation-axis != CoM)
-    u = (sim.time/tAccel)*forcedu - fixedCenterDist*length*omega*std::sin(angle);
-    v = (sim.time/tAccel)*forcedv + fixedCenterDist*length*omega*std::cos(angle) + v_heave;
+    u = (1.0-sim.time/tAccel)*0.01*forcedu + (sim.time/tAccel)*forcedu - fixedCenterDist*length*omega*std::sin(angle);
+    v = (1.0-sim.time/tAccel)*0.01*forcedv + (sim.time/tAccel)*forcedv + fixedCenterDist*length*omega*std::cos(angle) + v_heave;
   }
   else
   {
@@ -100,13 +100,13 @@ void Naca::updateLabVelocity( int nSum[2], Real uSum[2] )
   if(bFixedx)
   {
    (nSum[0])++; 
-   if( sim.time < tAccel ) uSum[0] -= (sim.time/tAccel)*forcedu;
+   if( sim.time < tAccel ) uSum[0] -= (1.0-sim.time/tAccel)*0.01*forcedu + (sim.time/tAccel)*forcedu;
    else                    uSum[0] -=                   forcedu; 
   }
   if(bFixedy)
   {
    (nSum[1])++; 
-   if( sim.time < tAccel )uSum[1] -= (sim.time/tAccel)*forcedv + v_heave;
+   if( sim.time < tAccel )uSum[1] -= (1.0-sim.time/tAccel)*0.01*forcedv + (sim.time/tAccel)*forcedv + v_heave;
    else                   uSum[1] -=                   forcedv + v_heave; 
   }
 }
