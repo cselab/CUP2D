@@ -109,8 +109,9 @@ void SmartNaca::finalize()
         const Real nn = pow(nx*nx+ny*ny+1e-21,-0.5);
         nx *= nn;
         ny *= nn;
-        UDEF[iy][ix][0] = actuators[idx]*nx;
-        UDEF[iy][ix][1] = actuators[idx]*ny;
+        const double c = 1.0 - std::fabs(current_s - s0)/ (0.5*actuator_ds*length);
+        UDEF[iy][ix][0] = c*actuators[idx]*nx;
+        UDEF[iy][ix][1] = c*actuators[idx]*ny;
         ix_store.push_back(ix);
         iy_store.push_back(iy);
         id_store.push_back(info.blockID);
@@ -152,6 +153,7 @@ void SmartNaca::finalize()
   Real Qtot [2] = {mass_flux,surface};
   MPI_Allreduce(MPI_IN_PLACE,Qtot,2,MPI_Real,MPI_SUM,sim.comm);
   const Real uMean = Qtot[0]/Qtot[1];
+  //if (sim.rank == 0) std::cout << "Q=" << Qtot[0] << " " <<  Qtot[1] << std::endl;
 
   //Substract total mass flux (divided by surface) from actuator velocities
   #pragma omp parallel for
