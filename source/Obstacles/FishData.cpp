@@ -202,6 +202,7 @@ void FishData::computeSkinNormals(const Real theta_comp,
 
   for(int i=0; i<Nm; ++i) {
     _rotate2D(Rmatrix2D, rX[i], rY[i]);
+    _rotate2D(Rmatrix2D, norX[i], norY[i]);
     rX[i] += CoM_comp[0];
     rY[i] += CoM_comp[1];
   }
