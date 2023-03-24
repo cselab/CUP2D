@@ -124,7 +124,7 @@ void SmartNaca::finalize()
   //Compute surface and total mass flux
   Real surface   = 0.0;
   Real mass_flux = 0.0;
-  #pragma omp parallel for reduction{+: surface,mass_flux}
+  #pragma omp parallel for reduction(+: surface,mass_flux)
   for (const auto & info : sim.vel->getBlocksInfo())
   {
     if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
