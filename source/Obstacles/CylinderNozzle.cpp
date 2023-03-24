@@ -122,13 +122,14 @@ Real CylinderNozzle::reward(const int agentID)
 {
   Real retval = fx_integral / 0.1; //0.1 is the action times
   fx_integral = 0;
-  Real regularizer = 0.0;
+  Real regularizer_sum = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
-    regularizer += actuators[idx]*actuators[idx];
+    regularizer_sum += actuators[idx]*actuators[idx];
   }
-  regularizer = pow(regularizer,0.5)/actuators.size(); //O(1)
-  return retval + 0.05*regularizer;
+  regularizer_sum = pow(regularizer_sum,0.5)/actuators.size(); //O(1)
+  const double c = -regularizer;
+  return retval + c*regularizer_sum;
 }
 
 std::vector<Real> CylinderNozzle::state(const int agentID)

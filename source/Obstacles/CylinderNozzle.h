@@ -23,14 +23,18 @@ class CylinderNozzle : public Shape
   //int curr_idx = 0;
   std::vector < Schedulers::ParameterSchedulerScalar > actuatorSchedulers;
   Real t_change = 0;
+  const Real regularizer;
 
  public:
 
   CylinderNozzle(SimulationData& s, cubism::ArgumentParser& p, Real C[2] ) :
-  Shape(s,p,C), radius( p("-radius").asDouble(0.1) ), 
-		Nactuators ( p("-Nactuators").asInt(2)), actuator_theta ( p("-actuator_theta").asDouble(10.)*M_PI/180.)
+  Shape(s,p,C),
+  radius( p("-radius").asDouble(0.1) ), 
+  Nactuators ( p("-Nactuators").asInt(2)),
+  actuator_theta ( p("-actuator_theta").asDouble(10.)*M_PI/180.),
+  regularizer( p("-regularizer").asDouble(1.0))
   {
-	  actuators.resize(Nactuators,0.);
+    actuators.resize(Nactuators,0.);
     actuatorSchedulers.resize(Nactuators);
     actuators_prev_value.resize(Nactuators);
     actuators_next_value.resize(Nactuators);
