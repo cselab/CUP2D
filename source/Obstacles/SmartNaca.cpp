@@ -8,6 +8,13 @@
 
 using namespace cubism;
 
+static Real M6(const Real x)
+{
+  if      ( x < 0.5 ) return 0.5*(x+1.5)*(x+1.5)-1.5*(x+0.5)*(x+0.5);
+  else if ( x < 1.5 ) return 0.5*(1.5-x)*(1.5-x);
+  return 0.;
+}
+
 SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p, Real C[2]): Naca(s,p,C), Nactuators ( p("-Nactuators").asInt(2)),actuator_ds( p("-actuatords").asDouble(0.05)),thickness(p("-tRatio").asDouble(0.12))
 {
   actuators.resize(Nactuators,0.);
@@ -28,7 +35,7 @@ void SmartNaca::finalize()
   }
   #endif
 
-  const Real transition_duration = 0.1;
+  const Real transition_duration = 1.0;
   Real tot = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
@@ -38,7 +45,8 @@ void SmartNaca::finalize()
     tot += std::fabs(actuators[idx]);
   }
   const double cd = forcex / (0.5*u*u*thickness);
-  fx_integral += -std::fabs(cd)*sim.dt;
+  //fx_integral += -std::fabs(cd)*sim.dt;
+  fx_integral += -cd*sim.dt;
   if (tot < 1e-21) return;
 
   const Real * const rS = myFish->rS;
@@ -124,7 +132,7 @@ void SmartNaca::finalize()
   //Compute surface and total mass flux
   Real surface   = 0.0;
   Real mass_flux = 0.0;
-  #pragma omp parallel for reduction(+: surface,mass_flux)
+  #pragma omp parallel for reduction{+: surface,mass_flux}
   for (const auto & info : sim.vel->getBlocksInfo())
   {
     if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
@@ -202,6 +210,64 @@ Real SmartNaca::reward(const int agentID)
 
 std::vector<Real> SmartNaca::state(const int agentID)
 {
+   const int nx = 16;
+   const int ny = 8;
+   const double cx = centerOfMass[0];
+   const double cy = centerOfMass[1];
+   const double ex = length*2;
+   const double ey = length;
+   const double hx = ex / nx;
+   const double hy = ey / ny;
+
+   std::vector<double> ux (nx*ny);
+   std::vector<double> uy (nx*ny);
+   std::vector<double> pr (nx*ny);
+   std::vector<double> vol(nx*ny);
+
+   const auto & vInfo = sim.vel->getBlocksInfo();
+   const auto & pInfo = sim.pres->getBlocksInfo();
+   for(size_t i=0; i<vInfo.size(); i++)
+   {
+     const VectorBlock & V  = *(VectorBlock*) vInfo[i].ptrBlock;
+     const ScalarBlock & p  = *(ScalarBlock*) pInfo[i].ptrBlock;
+     for(int iy=0; iy<ScalarBlock::sizeY; iy++)
+     for(int ix=0; ix<ScalarBlock::sizeX; ix++)
+     {
+       double pp[2];
+       vInfo[i].pos(pp, ix, iy);
+       pp[0] -= cx;
+       pp[1] -= cy;
+       for (int jy = 0 ; jy < ny; jy ++)
+       for (int jx = 0 ; jx < nx; jx ++)
+       {
+            const double x = -0.5*ex + 0.5*hx + jx*hx;
+            const double y = -0.5*ey + 0.5*hy + jy*hy;
+            const double dx = std::fabs(x-pp[0])/hx;
+            const double dy = std::fabs(y-pp[1])/hy;
+            const double coef = M6(dx)*M6(dy);
+            const int idx = jx + jy*nx;
+            ux [idx]+=coef*V(ix,iy).u[0];
+            uy [idx]+=coef*V(ix,iy).u[1];
+            pr [idx]+=coef*p(ix,iy).s;
+            vol[idx]+=coef;
+       }
+     }
+   }
+   MPI_Allreduce(MPI_IN_PLACE,ux.data(),ux.size(),MPI_DOUBLE,MPI_SUM,sim.comm);
+   MPI_Allreduce(MPI_IN_PLACE,uy.data(),uy.size(),MPI_DOUBLE,MPI_SUM,sim.comm);
+   MPI_Allreduce(MPI_IN_PLACE,pr.data(),pr.size(),MPI_DOUBLE,MPI_SUM,sim.comm);
+   MPI_Allreduce(MPI_IN_PLACE,vol.data(),vol.size(),MPI_DOUBLE,MPI_SUM,sim.comm);
+
+   std::vector<double> S;
+   for (int idx = 0 ; idx < nx*ny; idx ++)
+   {
+      S.push_back(ux[idx]/(vol[idx]+1e-15));
+      S.push_back(uy[idx]/(vol[idx]+1e-15));
+      S.push_back(pr[idx]/(vol[idx]+1e-15));
+   }
+   return S;
+
+#if 0
   std::vector<Real> S;
   const int bins = 64;
 
@@ -249,4 +315,5 @@ std::vector<Real> SmartNaca::state(const int agentID)
     for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
 
   return S;
+#endif
 }
