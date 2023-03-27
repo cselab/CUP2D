@@ -197,7 +197,7 @@ void SmartNaca::act( std::vector<Real> action, const int agentID)
 
 Real SmartNaca::reward(const int agentID)
 {
-  Real retval = fx_integral / 0.1; //0.1 is the action times
+  Real retval = fx_integral; // divided by dt=1.0, the time between actions
   fx_integral = 0;
   Real regularizer = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
