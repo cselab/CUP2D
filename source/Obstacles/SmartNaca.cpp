@@ -22,7 +22,7 @@ struct GradScalarOnTmpV
     for(int x=0; x<ScalarBlock::sizeX; ++x)
     {
       TMPV(x,y).u[0] = ih * (lab(x+1,y).s-lab(x-1,y).s);
-      TMPV(x,y).u[1] = ih * (lab(x+1,y).s-lab(x-1,y).s);
+      TMPV(x,y).u[1] = ih * (lab(x,y+1).s-lab(x,y-1).s);
     }
   }
 };
