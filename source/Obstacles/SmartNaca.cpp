@@ -52,6 +52,8 @@ void SmartNaca::finalize()
     visited = true;
     std::vector<Real> q(actuators.size());
     for (int i = 0 ; i < (int)actuators.size(); i ++) q[i] = 0.25*(2*(i+1)%2-1);
+    q[0] =  0.5;
+    q[1] = -0.25;
     act(q,0);
   }
   #endif
@@ -120,9 +122,12 @@ void SmartNaca::finalize()
   std::vector<long long> id_store;
   std::vector<Real>      nx_store;
   std::vector<Real>      ny_store;
+  std::vector<Real>      cc_store;
+  std::vector<int>      idx_store;
   Real surface   = 0.0;
+  Real surface_c = 0.0;
   Real mass_flux = 0.0;
-  #pragma omp parallel for reduction(+: surface,mass_flux)
+  #pragma omp parallel for reduction(+: surface,surface_c,mass_flux)
   for (const auto & info : sim.vel->getBlocksInfo())
   {
     if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
@@ -188,21 +193,28 @@ void SmartNaca::finalize()
         const Real c = 1.0 - c0*c0;
         UDEF[iy][ix][0] = c*actuators[idx]*nx;
         UDEF[iy][ix][1] = c*actuators[idx]*ny;
-        ix_store.push_back(ix);
-        iy_store.push_back(iy);
-        id_store.push_back(info.blockID);
-        nx_store.push_back(nx);
-        ny_store.push_back(ny);
+        #pragma omp critical
+        {
+          ix_store.push_back(ix);
+          iy_store.push_back(iy);
+          id_store.push_back(info.blockID);
+          nx_store.push_back(nx);
+          ny_store.push_back(ny);
+          cc_store.push_back(c);
+          idx_store.push_back(idx);
+        }
         const Real fac = (dchidx*nx+dchidy*ny)*h2;
         mass_flux += fac*(c*actuators[idx]);
         surface   += fac;
+        surface_c += fac*c;
       }
     }
   }
 
-  Real Qtot [2] = {mass_flux,surface};
-  MPI_Allreduce(MPI_IN_PLACE,Qtot,2,MPI_Real,MPI_SUM,sim.comm);
+  Real Qtot [3] = {mass_flux,surface,surface_c};
+  MPI_Allreduce(MPI_IN_PLACE,Qtot,3,MPI_Real,MPI_SUM,sim.comm);
   const Real uMean = Qtot[0]/Qtot[1];
+  const Real q = Qtot[0]/Qtot[2];
 
   //Substract total mass flux (divided by surface) from actuator velocities
   #pragma omp parallel for
@@ -211,12 +223,14 @@ void SmartNaca::finalize()
     const long long blockID = id_store[idx];
     const int ix            = ix_store[idx];
     const int iy            = iy_store[idx];
+    const int idx_st        =idx_store[idx];
     const Real nx           = nx_store[idx];
     const Real ny           = ny_store[idx];
+    const Real c            = cc_store[idx];
     ObstacleBlock& o = * obstacleBlocks[blockID];
     auto & __restrict__ UDEF = o.udef;
-    UDEF[iy][ix][0] -= uMean*nx;
-    UDEF[iy][ix][1] -= uMean*ny;
+    UDEF[iy][ix][0] = c*(actuators[idx_st]-q)*nx;
+    UDEF[iy][ix][1] = c*(actuators[idx_st]-q)*ny;
   }
 }
 
