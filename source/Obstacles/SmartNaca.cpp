@@ -56,6 +56,7 @@ void SmartNaca::finalize()
   }
   #endif
 
+  //transition from one actuator value to the next
   const Real transition_duration = 1.0;
   Real tot = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
@@ -65,21 +66,29 @@ void SmartNaca::finalize()
     actuatorSchedulers[idx].gimmeValues(sim.time,actuators[idx],dummy);
     tot += std::fabs(actuators[idx]);
   }
+
+  //used for reward function
   const Real cd = forcex / (0.5*u*u*thickness);
   fx_integral += -cd*sim.dt; //-std::fabs(cd)*sim.dt;
 
+  //if actuators are zero don't do anything
   if (tot < 1e-21) return;
 
+  //Compute gradient of chi and of signed-distance-function here.
+  //Used later for the actuators
   const std::vector<cubism::BlockInfo>& tmpInfo  = sim.tmp ->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const size_t Nblocks = tmpVInfo.size();
   const int Ny = ScalarBlock::sizeY;
   const int Nx = ScalarBlock::sizeX;
 
+  //store grad(chi) in a vector and grad(SDF) in tmpV
   cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.chi);
   std::vector<double> gradChi(ScalarBlock::sizeY*ScalarBlock::sizeX*Nblocks*2);
+  #pragma omp parallel for
   for (size_t i = 0 ; i < Nblocks; i++)
   {
+    auto & __restrict__ TMP  = *(ScalarBlock*) tmpInfo [i].ptrBlock;
     auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
     for(int iy=0; iy<Ny; iy++)
     for(int ix=0; ix<Nx; ix++)
@@ -87,13 +96,8 @@ void SmartNaca::finalize()
       const size_t idx = i*Ny*Nx + iy*Nx + ix;
       gradChi[2*idx+0] = TMPV(ix,iy).u[0];
       gradChi[2*idx+1] = TMPV(ix,iy).u[1];
+      TMP(ix,iy).s = 0;
     }
-  }
-
-  for (size_t i = 0 ; i < Nblocks; i++)
-  {
-    auto & __restrict__ TMP = *(ScalarBlock*) tmpInfo[i].ptrBlock;
-    TMP.clear();
     if(obstacleBlocks[i] == nullptr) continue; //obst not in block
     ObstacleBlock& o = * obstacleBlocks[i];
     const auto & __restrict__ SDF  = o.dist;
