@@ -213,7 +213,7 @@ void SmartNaca::finalize()
 
   Real Qtot [3] = {mass_flux,surface,surface_c};
   MPI_Allreduce(MPI_IN_PLACE,Qtot,3,MPI_Real,MPI_SUM,sim.comm);
-  const Real uMean = Qtot[0]/Qtot[1];
+  //const Real uMean = Qtot[0]/Qtot[1];
   const Real q = Qtot[0]/Qtot[2];
 
   //Substract total mass flux (divided by surface) from actuator velocities
