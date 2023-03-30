@@ -7,6 +7,8 @@
 #pragma once
 
 #include "Fish.h"
+#include "../Utils/BufferedLogger.h"
+
 
 class Naca: public Fish
 {
@@ -38,5 +40,6 @@ class Naca: public Fish
  public:
   Naca(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
   void updateVelocity(Real dt) override;
+  void updatePosition(Real dt) override;
   void updateLabVelocity( int mSum[2], Real uSum[2] ) override;
 };
