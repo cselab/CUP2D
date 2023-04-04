@@ -22,6 +22,7 @@ class SmartNaca: public Naca
   std::vector < Schedulers::ParameterSchedulerScalar > actuatorSchedulers;
   Real t_change = 0;
   const Real thickness;
+  const Real regularizer;
 
  public:
   SmartNaca(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);

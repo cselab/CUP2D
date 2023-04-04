@@ -27,14 +27,14 @@ struct GradScalarOnTmpV
   }
 };
 
-static Real M6(const Real x)
-{
-  if      ( x < 0.5 ) return 0.5*(x+1.5)*(x+1.5)-1.5*(x+0.5)*(x+0.5);
-  else if ( x < 1.5 ) return 0.5*(1.5-x)*(1.5-x);
-  return 0.;
-}
+//static Real M6(const Real x)
+//{
+//  if      ( x < 0.5 ) return 0.5*(x+1.5)*(x+1.5)-1.5*(x+0.5)*(x+0.5);
+//  else if ( x < 1.5 ) return 0.5*(1.5-x)*(1.5-x);
+//  return 0.;
+//}
 
-SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p, Real C[2]): Naca(s,p,C), Nactuators ( p("-Nactuators").asInt(2)),actuator_ds( p("-actuatords").asDouble(0.05)),thickness(p("-tRatio").asDouble(0.12))
+SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p, Real C[2]): Naca(s,p,C), Nactuators ( p("-Nactuators").asInt(2)),actuator_ds( p("-actuatords").asDouble(0.05)),thickness(p("-tRatio").asDouble(0.12)), regularizer( p("-regularizer").asDouble(0.0))
 {
   actuators.resize(Nactuators,0.);
   actuatorSchedulers.resize(Nactuators);
@@ -254,17 +254,18 @@ Real SmartNaca::reward(const int agentID)
 {
   Real retval = fx_integral; // divided by dt=1.0, the time between actions
   fx_integral = 0;
-  Real regularizer = 0.0;
+  Real regularizer_sum = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
-    regularizer += actuators[idx]*actuators[idx];
+    regularizer_sum += actuators[idx]*actuators[idx];
   }
-  regularizer = pow(regularizer,0.5)/actuators.size();
-  return retval - 0.1*regularizer;
+  regularizer_sum = pow(regularizer_sum,0.5)/actuators.size();
+  return retval - regularizer*regularizer_sum;
 }
 
 std::vector<Real> SmartNaca::state(const int agentID)
 {
+  #if 0
    const int nx = 16;
    const int ny = 8;
    const double cx = centerOfMass[0];
@@ -321,54 +322,88 @@ std::vector<Real> SmartNaca::state(const int agentID)
       S.push_back(pr[idx]/(vol[idx]+1e-15));
    }
    return S;
+  #else
 
-#if 0
-  std::vector<Real> S;
-  const int bins = 64;
+    const Real * const rS = myFish->rS;
+    const Real * const rX = myFish->rX;
+    const Real * const rY = myFish->rY;
+    const Real * const norX = myFish->norX;
+    const Real * const norY = myFish->norY;
+    const Real * const width = myFish->width;
 
-  const Real dtheta = 2.*M_PI / bins;
-  std::vector<int>   n_s   (bins,0.0);
-  std::vector<Real>  p_s   (bins,0.0);
-  std::vector<Real> fX_s   (bins,0.0);
-  std::vector<Real> fY_s   (bins,0.0);
-  for(auto & block : obstacleBlocks) if(block not_eq nullptr)
-  {
-    for(size_t i=0; i<block->n_surfPoints; i++)
+    std::vector<Real> S;
+    const int bins = 16;
+    const Real bin_ds = 0.05;
+    std::vector<int>   n_s   (bins,0.0);
+    std::vector<Real>  p_s   (bins,0.0);
+    std::vector<Real> fX_s   (bins,0.0);
+    std::vector<Real> fY_s   (bins,0.0);
+    for(auto & block : obstacleBlocks) if(block not_eq nullptr)
     {
-      const Real x     = block->x_s[i] - origC[0];
-      const Real y     = block->y_s[i] - origC[1];
-      const Real ang   = atan2(y,x);
-      const Real theta = ang < 0 ? ang + 2*M_PI : ang;
-      const Real p     = block->p_s[i];
-      const Real fx    = block->fX_s[i];
-      const Real fy    = block->fY_s[i];
-      const int idx = theta / dtheta;
-      n_s [idx] ++;
-      p_s [idx] += p;
-      fX_s[idx] += fx;
-      fY_s[idx] += fy;
+      for(size_t i=0; i<block->n_surfPoints; i++)
+      {
+        const Real x = block->x_s[i];
+        const Real y = block->y_s[i];
+
+        //find closest surface point to analytical expression
+        int  ss_min = 0;
+        int  sign_min = 0;
+        Real dist_min = 1e10;
+        for (int ss = 0 ; ss < myFish->Nm; ss++)
+        {
+          Real Pp [2] = {rX[ss]+width[ss]*norX[ss],rY[ss]+width[ss]*norY[ss]};
+          Real Pm [2] = {rX[ss]-width[ss]*norX[ss],rY[ss]-width[ss]*norY[ss]};
+          const Real dp = pow(Pp[0]-x,2)+pow(Pp[1]-y,2);
+          const Real dm = pow(Pm[0]-x,2)+pow(Pm[1]-y,2);
+          if (dp < dist_min)
+          {
+            sign_min = 1;
+            dist_min = dp;
+            ss_min = ss;
+          }
+          if (dm < dist_min)
+          {
+            sign_min = -1;
+            dist_min = dm;
+            ss_min = ss;
+          }
+        }
+        const Real smax = rS[myFish->Nm-1]-rS[0];
+        const Real ds   = 2*smax/bins;
+        const Real current_s = rS[ss_min];
+        if (current_s < 0.01*length || current_s > 0.99*length) continue;
+
+        int idx = (current_s / ds); //this is the closest actuator
+        const Real s0 = 0.5*ds + idx * ds;
+        if (sign_min == -1) idx += bins/2;
+        if (std::fabs( current_s - s0 ) < 0.5*bin_ds*length)
+        {
+          const Real p  = block->p_s[i];
+          const Real fx = block->fX_s[i];
+          const Real fy = block->fY_s[i];
+          n_s [idx] ++;
+          p_s [idx] += p;
+          fX_s[idx] += fx;
+          fY_s[idx] += fy;
+        }
+      }
     }
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE,n_s.data(),n_s.size(),MPI_INT ,MPI_SUM,sim.comm);
-  for (int idx = 0 ; idx < bins; idx++)
-  {
-    p_s [idx] /= n_s[idx];
-    fX_s[idx] /= n_s[idx];
-    fY_s[idx] /= n_s[idx];
-  }
-
-  for (int idx = 0 ; idx < bins; idx++) S.push_back( p_s[idx]);
-  for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
-  for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
-  MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
-  S.push_back(forcex);
-  S.push_back(forcey);
-  S.push_back(torque);
-
-  if (sim.rank ==0 )
-    for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
-
-  return S;
-#endif
+    MPI_Allreduce(MPI_IN_PLACE,n_s.data(),n_s.size(),MPI_INT ,MPI_SUM,sim.comm);
+    for (int idx = 0 ; idx < bins; idx++)
+    {
+      if (n_s[idx] == 0) continue;
+      p_s [idx] /= n_s[idx];
+      fX_s[idx] /= n_s[idx];
+      fY_s[idx] /= n_s[idx];
+    }
+    for (int idx = 0 ; idx < bins; idx++) S.push_back( p_s[idx]);
+    for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
+    for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
+    MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
+    S.push_back(forcex);
+    S.push_back(forcey);
+    if (sim.rank ==0 )
+      for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
+    return S;
+  #endif
 }
