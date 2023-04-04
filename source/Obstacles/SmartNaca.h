@@ -13,7 +13,6 @@
 
 class SmartNaca: public Naca
 {
-  std::vector<Real> actuators;
   std::vector<Real> actuators_prev_value;
   std::vector<Real> actuators_next_value;
   const int Nactuators;
@@ -25,6 +24,7 @@ class SmartNaca: public Naca
   const Real regularizer;
 
  public:
+  std::vector<Real> actuators;
   SmartNaca(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
   void finalize() override;
   void act( std::vector<Real> action, const int agentID);

@@ -12,7 +12,6 @@
 class CylinderNozzle : public Shape
 {
   const Real radius;
-  std::vector<Real> actuators;
   std::vector<Real> actuators_prev_value;
   std::vector<Real> actuators_next_value;
   const int Nactuators;
@@ -26,7 +25,7 @@ class CylinderNozzle : public Shape
   const Real regularizer;
 
  public:
-
+  std::vector<Real> actuators;
   CylinderNozzle(SimulationData& s, cubism::ArgumentParser& p, Real C[2] ) :
   Shape(s,p,C),
   radius( p("-radius").asDouble(0.1) ), 
