@@ -237,18 +237,18 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   {
     Real temp0 = 0.0;
     Real temp1 = 0.0;
-    #pragma omp parallel for reduction (max:norm) reduction (+:temp0,temp1)
+    #pragma omp parallel for reduction (+:temp0,temp1,norm)
     for (size_t j=0; j < N; j++)
     {
       temp0 += r0[j]*r0[j];
       temp1 += r0[j]*w [j];
-      norm = std::max(norm,std::fabs(r[j]));
+      norm = r0[j]*r0[j];
     }
-    Real temporary[2] = {temp0,temp1};
-    MPI_Allreduce(MPI_IN_PLACE,temporary,2,MPI_Real,MPI_SUM,m_comm);
-    MPI_Allreduce(MPI_IN_PLACE,&norm    ,1,MPI_Real,MPI_MAX,m_comm);
+    Real temporary[3] = {temp0,temp1,norm};
+    MPI_Allreduce(MPI_IN_PLACE,temporary,3,MPI_Real,MPI_SUM,m_comm);
     alpha = temporary[0]/(temporary[1]+eps);
     r0r_prev = temporary[0];
+    norm = std::sqrt(temporary[2]);
     if (verbose) std::cout << "[Poisson solver]: initial error norm:" << norm << "\n";
   }
   const Real init_norm = norm;
@@ -302,7 +302,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 
     //(*12*) begin reduction (q,y),(y,y)
     MPI_Request request;
-    Real quantities[6];
+    Real quantities[7];
     quantities[0] = qy;
     quantities[1] = yy;
     MPI_Iallreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,m_comm,&request);
@@ -331,7 +331,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     norm_2 = 0.0;
     if (k%50 != 0)
     {
-      #pragma omp parallel for reduction (max:norm) reduction (+:r0r,r0w,r0s,r0z,norm_1,norm_2)
+      #pragma omp parallel for reduction (+:r0r,r0w,r0s,r0z,norm_1,norm_2,norm)
       for (size_t j=0; j < N; j++)
       {
         x   [j] = x   [j] + alpha *  phat[j] + omega * qhat[j] ;
@@ -342,7 +342,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         r0w += r0[j]*w[j];
         r0s += r0[j]*s[j];
         r0z += r0[j]*z[j];
-        norm = std::max(norm,std::fabs(r[j]));
+        norm = r[j]*r[j];
         norm_1 += r [j] * r [j];
         norm_2 += r0[j] * r0[j];
       }
@@ -364,14 +364,14 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
       }
       _preconditioner(r,rhat);
       _lhs(rhat,w);
-      #pragma omp parallel for reduction (max:norm) reduction (+:r0r,r0w,r0s,r0z,norm_1,norm_2)
+      #pragma omp parallel for reduction (+:r0r,r0w,r0s,r0z,norm_1,norm_2,norm)
       for (size_t j=0; j < N; j++)
       {
         r0r += r0[j]*r[j];
         r0w += r0[j]*w[j];
         r0s += r0[j]*s[j];
         r0z += r0[j]*z[j];
-        norm = std::max(norm,std::fabs(r[j]));
+        norm = r[j]*r[j];
         norm_1 += r [j] * r [j];
         norm_2 += r0[j] * r0[j];
       }
@@ -382,11 +382,10 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     quantities[3] = r0z;
     quantities[4] = norm_1;
     quantities[5] = norm_2;
+    quantities[6] = norm;
 
     //(*21*) begin reductions
-    MPI_Request request2;
-    MPI_Iallreduce(MPI_IN_PLACE,&quantities,6,MPI_Real,MPI_SUM,m_comm,&request );
-    MPI_Iallreduce(MPI_IN_PLACE,&norm      ,1,MPI_Real,MPI_MAX,m_comm,&request2);
+    MPI_Iallreduce(MPI_IN_PLACE,&quantities,7,MPI_Real,MPI_SUM,m_comm,&request );
 
     //(*22*) computation what = M^{-1}*w
     _preconditioner(w,what);
@@ -402,6 +401,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     r0z = quantities[3];
     norm_1 = quantities[4];
     norm_2 = quantities[5];
+    norm = std::sqrt(quantities[6]);
 
     //(*25*)
     beta   = alpha / (omega + eps)* r0r / (r0r_prev + eps);
@@ -413,7 +413,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     if (std::fabs(alphat) < 10*std::fabs(alpha)) alpha = alphat;
 
     r0r_prev = r0r;
-    MPI_Waitall(1,&request2,MPI_STATUSES_IGNORE);
     //Check if restart should be made. If so, current solution estimate is used as an initial
     //guess and solver starts again.
     serious_breakdown = r0r * r0r < 1e-16 * norm_1 * norm_2;
@@ -439,6 +438,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         temp0 += r0[j]*r0[j];
         temp1 += r0[j]*w [j];
       }
+      MPI_Request request2;
       Real temporary[2] = {temp0,temp1};
       MPI_Iallreduce(MPI_IN_PLACE, temporary,2,MPI_Real,MPI_SUM,m_comm,&request2);
     
