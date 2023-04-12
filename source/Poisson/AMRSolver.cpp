@@ -1,7 +1,9 @@
 //
 //  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2023 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
+//
+//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
 //
 
 #include "AMRSolver.h"
@@ -156,8 +158,8 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
 
   //Warning: 'input'  initially contains the RHS of the system!
   //Warning: 'output' initially contains the initial solution guess x0!
-  auto & AxInfo            = input ->getBlocksInfo(); //will store the LHS result
-  auto &  zInfo            = output->getBlocksInfo(); //will store the input 'x' when LHS is computed
+  const auto & AxInfo      = input ->getBlocksInfo(); //will store the LHS result
+  const auto &  zInfo      = output->getBlocksInfo(); //will store the input 'x' when LHS is computed
   const size_t Nblocks     = zInfo.size();            //total blocks of this rank
   const int BSX            = VectorBlock::sizeX;      //block size in x direction
   const int BSY            = VectorBlock::sizeY;      //block size in y direction
@@ -242,7 +244,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
     {
       temp0 += r0[j]*r0[j];
       temp1 += r0[j]*w [j];
-      norm = r0[j]*r0[j];
+      norm += r0[j]*r0[j];
     }
     Real temporary[3] = {temp0,temp1,norm};
     MPI_Allreduce(MPI_IN_PLACE,temporary,3,MPI_Real,MPI_SUM,m_comm);
@@ -289,7 +291,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
       _lhs(phat,s);
       _preconditioner(s,shat);
       _lhs(shat,z);
-      #pragma omp parallel for
+      #pragma omp parallel for reduction (+:qy,yy)
       for (size_t j=0; j < N; j++)
       {
         q   [j] = r   [j] - alpha*  s   [j];
@@ -342,7 +344,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         r0w += r0[j]*w[j];
         r0s += r0[j]*s[j];
         r0z += r0[j]*z[j];
-        norm = r[j]*r[j];
+        norm += r[j]*r[j];
         norm_1 += r [j] * r [j];
         norm_2 += r0[j] * r0[j];
       }
@@ -371,7 +373,7 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
         r0w += r0[j]*w[j];
         r0s += r0[j]*s[j];
         r0z += r0[j]*z[j];
-        norm = r[j]*r[j];
+        norm += r[j]*r[j];
         norm_1 += r [j] * r [j];
         norm_2 += r0[j] * r0[j];
       }
