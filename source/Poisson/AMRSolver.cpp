@@ -477,32 +477,14 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid * const output)
   }
 
   Real * solution = useXopt ? x_opt.data() : x.data();
-
-  Real avg = 0;
-  Real avg1 = 0;
-  #pragma omp parallel for reduction (+:avg,avg1)
-  for(size_t i=0; i< Nblocks; i++)
-  {
-    ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
-    const Real vv = zInfo[i].h*zInfo[i].h;
-    for(int iy=0; iy<BSY; iy++)
-    for(int ix=0; ix<BSX; ix++)
-    {
-      P(ix,iy).s = solution[i*BSX*BSY + iy*BSX + ix];
-      avg += P(ix,iy).s * vv;
-      avg1 += vv;
-    }
-  }
-  Real quantities[2] = {avg,avg1};
-  MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,m_comm);
-  avg = quantities[0]; avg1 = quantities[1] ;
-  avg = avg/avg1;
   #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {
     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
-      P(ix,iy).s -= avg;
+    {
+      P(ix,iy).s = solution[i*BSX*BSY + iy*BSX + ix];
+    }
   }
 }

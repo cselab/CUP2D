@@ -243,7 +243,6 @@ void Simulation::parseRuntime()
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
-  sim.GuessDpDt = parser("-GuessDpDt").asBool(false);
 
   // output parameters
   sim.profilerFreq = parser("-profilerFreq").asInt(0);

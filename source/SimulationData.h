@@ -96,7 +96,6 @@ struct SimulationData
   int maxPoissonRestarts; // maximal number of restarts of Poisson solver
   int maxPoissonIterations; // maximal number of iterations of Poisson solver
   int bMeanConstraint; // regularizing the poisson equation using the mean
-  bool GuessDpDt; // include DpDt in the initial guess
 
   // output setting
   int profilerFreq = 0;

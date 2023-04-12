@@ -832,90 +832,50 @@ void PressureSingle::operator()(const Real dt)
   const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
   
-  const size_t size_of_correction = sim.GuessDpDt ? Nblocks*VectorBlock::sizeY*VectorBlock::sizeX : 1;
-  std::vector<Real> correction (size_of_correction,0.0);
-
   //initial guess etc.
-  if (sim.GuessDpDt && sim.step > 10)
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
   {
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
+    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
-      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        const Real dpdt = (PRES(ix,iy).s - POLD(ix,iy).s)/sim.dt_old;
-        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
-        correction[index] = dpdt*sim.dt;
-        POLD  (ix,iy).s = PRES (ix,iy).s + correction[index];
-        PRES  (ix,iy).s = 0;
-      }
-    }
-  }
-  else
-  {
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        POLD  (ix,iy).s = PRES (ix,iy).s;
-        PRES  (ix,iy).s = 0;
-      }
+      POLD  (ix,iy).s = PRES (ix,iy).s;
+      PRES  (ix,iy).s = 0;
     }
   }
   updatePressureRHS1 K1(sim);
   cubism::compute<ScalarLab>(K1,sim.pold,sim.tmp);
-  if (sim.GuessDpDt && sim.step > 10)
-  {
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
-        POLD(ix,iy).s -= correction[index];
-      }
-    }
-  }
 
   pressureSolver->solve(sim.tmp, sim.pres);
 
-  if (sim.GuessDpDt && sim.step > 10)
+  Real avg = 0;
+  Real avg1 = 0;
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(size_t i=0; i< Nblocks; i++)
   {
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
+    ScalarBlock& P  = *(ScalarBlock*) presInfo[i].ptrBlock;
+    const Real vv = presInfo[i].h*presInfo[i].h;
+    for(int iy=0; iy<VectorBlock::sizeY; iy++)
+    for(int ix=0; ix<VectorBlock::sizeX; ix++)
     {
-      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        const int index = i*VectorBlock::sizeY*VectorBlock::sizeX+iy*VectorBlock::sizeX+ix;
-        PRES(ix,iy).s += POLD(ix,iy).s + correction[index];
-      }
+      avg += P(ix,iy).s * vv;
+      avg1 += vv;
     }
   }
-  else
+  Real quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,sim.comm);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for
+  for(size_t i=0; i< Nblocks; i++)
   {
-    #pragma omp parallel for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
-      ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
-      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
-      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
-      {
-        PRES(ix,iy).s += POLD(ix,iy).s;
-      }
-    }
+    ScalarBlock& P  = *(ScalarBlock*) presInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; iy++)
+    for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      P(ix,iy).s += POLD(ix,iy).s - avg;
   }
 
   // apply pressure correction
