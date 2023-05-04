@@ -33,7 +33,6 @@ using Real = long double;
 #include <Cubism/BlockLabMPI.h>
 #include <Cubism/StencilInfo.h>
 #include <Cubism/AMR_MeshAdaptation.h>
-#include <Cubism/AMR_MeshAdaptationMPI.h>
 #include <Cubism/Definitions.h>
 
 #ifndef _DIM_
@@ -69,14 +68,14 @@ inline BCflag string2BCflag(const std::string &strFlag)
 extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 
-template<typename BlockType, template<typename X> class allocator = std::allocator>
-class BlockLabDirichlet: public cubism::BlockLab<BlockType, allocator>
+template<typename TGrid, template<typename X> class allocator = std::allocator>
+class BlockLabDirichlet: public cubism::BlockLab<TGrid, allocator>
 {
 public:
-  using ElementType = typename BlockType::ElementType;
-  static constexpr int sizeX = BlockType::sizeX;
-  static constexpr int sizeY = BlockType::sizeY;
-  static constexpr int sizeZ = BlockType::sizeZ;
+  using ElementType = typename TGrid::BlockType::ElementType;
+  static constexpr int sizeX = TGrid::BlockType::sizeX;
+  static constexpr int sizeY = TGrid::BlockType::sizeY;
+  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
 
   virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
   virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
@@ -191,18 +190,18 @@ public:
     }
   }
 
-  BlockLabDirichlet(): cubism::BlockLab<BlockType,allocator>(){}
+  BlockLabDirichlet(): cubism::BlockLab<TGrid,allocator>(){}
   BlockLabDirichlet(const BlockLabDirichlet&) = delete;
   BlockLabDirichlet& operator=(const BlockLabDirichlet&) = delete;
 };
 
 
 
-template<typename BlockType, template<typename X> class allocator = std::allocator>
-class BlockLabNeumann: public cubism::BlockLabNeumann<BlockType, 2, allocator>
+template<typename TGrid, template<typename X> class allocator = std::allocator>
+class BlockLabNeumann: public cubism::BlockLabNeumann<TGrid, 2, allocator>
 {
 public:
-  using cubismLab = cubism::BlockLabNeumann<BlockType, 2, allocator>;
+  using cubismLab = cubism::BlockLabNeumann<TGrid, 2, allocator>;
   virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
   virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
   virtual bool is_zperiodic() override{ return false; }
@@ -230,7 +229,7 @@ using VectorBlock   = cubism::GridBlock<_BS_,2,VectorElement>;
 using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
 using VectorGrid    = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
 
-using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::allocator>,VectorGrid>;
-using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann  <ScalarBlock, std::allocator>,ScalarGrid>;
-using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
-using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
+using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid, std::allocator>>;
+using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann  <ScalarGrid, std::allocator>>;
+using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
+using VectorAMR = cubism::MeshAdaptation<VectorLab>;
