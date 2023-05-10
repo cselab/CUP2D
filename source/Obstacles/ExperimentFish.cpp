@@ -50,7 +50,7 @@ std::vector<std::vector<Real>> ExperimentDataFish::loadFile( const std::string p
     myfile.close();
   }
   else{
-    cout << "[ExperimentFish] Unable to open center of mass file " << path << std::endl;
+    std::cout << "[ExperimentFish] Unable to open center of mass file " << path << std::endl;
     fflush(0);
     abort();
   }
