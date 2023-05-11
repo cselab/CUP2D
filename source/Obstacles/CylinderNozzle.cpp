@@ -42,19 +42,11 @@ void CylinderNozzle::finalize()
     actuatorSchedulers[idx].gimmeValues(sim.time,actuators[idx],dummy);
   }
 
-  //if (sim.time >= t_action_taken[curr_idx])
-  //{
-  //  std::vector<Real> a (actuators.size());
-  //  for (size_t i = 0 ; i < actuators.size(); i++)
-  //    a[i] = action_taken[curr_idx*actuators.size()+i];
-  //  act(a,0);
-  //  curr_idx++;
-  //}
-
   const auto & vInfo = sim.vel->getBlocksInfo();
   const Real dtheta = 2*M_PI/Nactuators;
   const Real Cx = centerOfMass[0];
   const Real Cy = centerOfMass[1];
+  const Real Uact_max = ccoef * pow(u*u + v*v,0.5);
   for(size_t i=0; i<vInfo.size(); i++)
   {
     const auto & info = vInfo[i];
@@ -86,9 +78,8 @@ void CylinderNozzle::finalize()
       const Real phi = theta - theta0;
       if ( std::fabs(phi) < 0.5*actuator_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*actuator_theta))
       {
-        const Real rr = pow(r,0.5);
-        //const Real ur = 0.01*actuators[idx]/rr*cos(M_PI*phi/actuator_theta);
-        const Real ur = 0.005*actuators[idx]/rr*cos(M_PI*phi/actuator_theta);
+        const Real rr = radius / pow(r,0.5);
+        const Real ur = Uact_max*rr*actuators[idx]*cos(M_PI*phi/actuator_theta);
         UDEF[iy][ix][0] = ur * cos(theta);
         UDEF[iy][ix][1] = ur * sin(theta);
       }
@@ -138,10 +129,9 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   const int bins = 16;
   const Real bins_theta = 10*M_PI/180.0;
   const Real dtheta = 2.*M_PI / bins;
-  std::vector<int>   n_s   (bins,0.0);
-  std::vector<Real>  p_s   (bins,0.0);
-  std::vector<Real> fX_s   (bins,0.0);
-  std::vector<Real> fY_s   (bins,0.0);
+  std::vector<int>   n_s (bins,0.0);
+  std::vector<Real>  p_s (bins,0.0);
+  std::vector<Real>  o_s (bins,0.0);
   for(auto & block : obstacleBlocks) if(block not_eq nullptr)
   {
     for(size_t i=0; i<block->n_surfPoints; i++)
@@ -156,13 +146,11 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
       const Real phi = theta - theta0;
       if ( std::fabs(phi) < 0.5*bins_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*bins_theta))
       {
-        const Real p     = block->p_s[i];
-        const Real fx    = block->fX_s[i];
-        const Real fy    = block->fY_s[i];
-        n_s [idx] ++;
-        p_s [idx] += p;
-        fX_s[idx] += fx;
-        fY_s[idx] += fy;
+        const Real p = block->p_s[i];
+        const Real o = block->omega_s[i];
+        n_s[idx] ++;
+        p_s[idx] += p;
+        o_s[idx] += o;
       }
     }
   }
@@ -171,17 +159,18 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   for (int idx = 0 ; idx < bins; idx++)
   {
     if (n_s[idx] == 0) continue;
-    p_s [idx] /= n_s[idx];
-    fX_s[idx] /= n_s[idx];
-    fY_s[idx] /= n_s[idx];
+    p_s[idx] /= n_s[idx];
+    o_s[idx] /= n_s[idx];
   }
 
-  for (int idx = 0 ; idx < bins; idx++) S.push_back( p_s[idx]);
-  for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
-  for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
+  for (int idx = 0 ; idx < bins; idx++) S.push_back(p_s[idx]);
+  for (int idx = 0 ; idx < bins; idx++) S.push_back(o_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
   S.push_back(forcex);
   S.push_back(forcey);
+  const Real Re = std::fabs(u)*(2*radius)/sim.nu;
+  S.push_back(Re);
+  S.push_back(ccoef);
 
   if (sim.rank ==0 )
     for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
