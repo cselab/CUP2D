@@ -98,15 +98,31 @@ void CylinderNozzle::act( std::vector<Real> action, const int agentID)
     fflush(0);
     abort();
   }
-  Real Q = 0;
+
+  bool bounded = false;
+  while (bounded == false)
+  {
+      bounded = true;
+      Real Q = 0;
+      for (size_t i = 0 ; i < action.size() ; i ++)
+      {
+           Q += action[i];
+      }
+      Q /= action.size();
+      for (size_t i = 0 ; i < action.size() ; i ++)
+      {
+           action[i] -= Q;
+           if (std::fabs(action[i]) > 1.0) bounded = false;
+           action[i] = std::max(action[i],-1.0);
+           action[i] = std::min(action[i],+1.0);
+      }
+  }
+
   for (size_t i = 0 ; i < action.size() ; i ++)
   {
     actuators_prev_value[i] = actuators[i];
     actuators_next_value[i] = action   [i];
-    Q += action[i];
   }
-  Q /= actuators.size();
-  for (size_t i = 0 ; i < action.size() ; i ++) actuators_next_value[i] -= Q;
 }
 
 Real CylinderNozzle::reward(const int agentID)
