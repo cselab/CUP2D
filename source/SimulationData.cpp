@@ -171,8 +171,6 @@ void SimulationData::dumpAll(std::string name)
 {
   startProfiler("Dump");
 
-  writeRestartFiles();
-
   auto K1 = computeVorticity(*this);
   K1(0);
   dumpTmp (name); //dump vorticity
@@ -184,6 +182,9 @@ void SimulationData::dumpAll(std::string name)
   //dumpVold(name);
   if( bDumpCs )
     dumpCs(name);
+
+  writeRestartFiles();
+
   stopProfiler();
 }
 
