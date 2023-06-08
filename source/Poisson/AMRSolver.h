@@ -75,14 +75,13 @@ class ComputeLHS : public Operator
 
   void operator()(const Real dt)
   {
-    const LHSkernel K(sim);
-    cubism::compute<ScalarLab>(K,sim.pres,sim.tmp);
+    int index = -1;
+    Real mean = 0.0;
+    std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
+    const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
+    MPI_Request request;
     if( sim.bMeanConstraint > 0)
     {
-      int index = -1;
-      Real mean = 0.0;
-      std::vector<cubism::BlockInfo>& lhsInfo = sim.tmp->getBlocksInfo();
-      const std::vector<cubism::BlockInfo>& xInfo = sim.pres->getBlocksInfo();
       #pragma omp parallel for reduction(+:mean)
       for (size_t i = 0 ; i < lhsInfo.size() ; i++)
       {
@@ -94,7 +93,15 @@ class ComputeLHS : public Operator
        for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
          mean += h2 * X(ix,iy).s;
       }
-      MPI_Allreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getWorldComm());
+      MPI_Iallreduce(MPI_IN_PLACE,&mean,1,MPI_Real,MPI_SUM,sim.chi->getWorldComm(),&request);
+    }
+
+    const LHSkernel K(sim);
+    cubism::compute<ScalarLab>(K,sim.pres,sim.tmp);
+
+    if( sim.bMeanConstraint > 0)
+    {
+      MPI_Wait(&request,MPI_STATUS_IGNORE);
       if (index != -1 && sim.bMeanConstraint == 1)
       {
         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) lhsInfo[index].ptrBlock;
