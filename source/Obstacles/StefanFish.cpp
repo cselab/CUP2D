@@ -605,7 +605,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
 
   // transition curvature from 0 to target values
   #if 1 // ramp-up over Tperiod
-  const std::array<Real,6> curvatureZeros = std::array<Real, 6>();
+  const std::array<Real,6> curvatureZeros = {0.0};
   curvatureScheduler.transition(0,0,Tperiod,curvatureZeros ,curvatureValues);
   #else // no rampup for debug
   curvatureScheduler.transition(t,0,Tperiod,curvatureValues,curvatureValues);
