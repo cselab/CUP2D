@@ -1,36 +1,60 @@
-# Defaults for Options
-BPDX=${BPDX:-16}
-BPDY=${BPDY:-8}
-LEVELS=${LEVELS:-6}
-RTOL=${RTOL:-5}
-CTOL=${CTOL:-0.01}
-EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.45}
-DT=${DT:-0}
-PT=${PT:-1e-10}
-PTR=${PTR:-0}
-# Defaults for Objects
-XPOS=${XPOS:-1.0}
-XVEL=${XVEL:-0.2}
-RADIUS=${RADIUS:-0.1}
-PSOLVER="iterative"
-# PSOLVER="cuda_iterative"
-## to compare against "High-resolution simulations of the flow around an impulsively started cylinder using vortex methods" By P. KOUMOUTSAKOS AND A. LEONARD ##
-# Re=40 <-> NU=0.001; Re=200 <-> NU=0.0002; Re=550 <-> NU=0.00007272727273; Re=1000 <-> NU=0.00004; Re=3000 <-> NU=0.00001333333333; Re=9'500 <-> NU=0.000004210526316
-#############################################################################################
-# Re=10'000 <-> NU=0.000004; Re=100'000 <-> NU=0.0000004; Re=1'000'000 <-> NU=0.00000004
+#----------------------------------
+#Settings for cylinder
+#----------------------------------
+XPOS=${XPOS:-1.0}      #cylinder center (x-coordinate)
+XVEL=${XVEL:-0.2}      #cylinder velocity (x-component)
+RADIUS=${RADIUS:-0.1}  #cylinder radius
 
+#----------------------------------
+#Settings for pressure equation 
+#----------------------------------
+PSOLVER="iterative"       #CPU solver
+#PSOLVER="cuda_iterative" #GPU solver
+PT=${PT:-1e-10}           #absolute error tolerance
+PTR=${PTR:-0}             #relative error tolerance
 
-# Re = 1k
-# NU=${NU:-0.00004}
-# Re = 100
-# NU=${NU:-0.0004}
-# Re = 10k -> CHANGE LEVELS!
-# NU=${NU:-0.000004}
-T=${T:-1.0}
+#----------------------------------
+#Settings for simulation domain
+#----------------------------------
+EXTENT=${EXTENT:-4}    #length of largest side
+BPDX=${BPDX:-16}       #number of blocks in x-side, at refinement level = 0
+BPDY=${BPDY:-8}        #number of blocks in y-side, at refinement level = 0
+#
+# Coarsest possible mesh (at refinement level = 0) is a
+# (BPDX * BS) x (BPDY * BS) grid, where BS is the number 
+# of grid points per block (equal to 8, by default).
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 0.1 -nu $NU -tend 100. -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1 -poissonSolver $PSOLVER"
-OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0 breakSymmetryExponent=1.0 breakSymmetryStrength=0.5 breakSymmetryType=0 breakSymmetryTime=$T"
+#--------------------------------------
+#Settings for Adaptive Mesh Refinement
+#--------------------------------------
+RTOL=${RTOL:-5}                #grid is refined when curl(u) > Rtol (u: fluid velocity)
+CTOL=${CTOL:-0.01}             #grid is compressed when curl(u) < Ctol (u: fluid velocity)
+LEVELS=${LEVELS:-6}            #maximum number of refinement levels allowed
+LEVELSSTART=${LEVELSSTART:-4}  #at t=0 the grid is uniform and at this refinement level. Must be strictly less than LEVELS.
 
-# srun ../makefiles/simulation ${OPTIONS} -shapes "${OBJECTS}"
+#--------------------------------------
+#Other settings
+#--------------------------------------
+NU=${NU:-0.0004} #fluid viscosity
+#The Reynolds number is defined as Re = XVEL * 2 * RADIUS / NU and can be controlled by
+#modifying the values of NU. Here are some examples:
+# Re=40    <-> NU=0.001
+# Re=200   <-> NU=0.0002
+# Re=550   <-> NU=0.00007272727273
+# Re=1000  <-> NU=0.00004
+# Re=3000  <-> NU=0.00001333333333
+# Re=9'500 <-> NU=0.000004210526316
+T=${T:-1.0}  #at t=T we introduce a small disturbance in the cylinder's velocity. By doing so we break symmetric flow conditions and get vortex shedding.
+
+#--------------------------------------
+#Timestep and file saving
+#--------------------------------------
+TDUMP=${TDUMP:-0.1}   #Save files for t = i*TDUMP, i=0,1,...
+TEND=${TEND:-10.}     #Perform simulation until t=TEND
+CFL=${CFL:-0.45}      #Courant number: controls timestep size (should not exceed 1.0).
+VERBOSE=${VERBOSE:-0} #Set to 1 for more verbose screen output.
+
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart $LEVELSSTART -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump $TDUMP -nu $NU -tend $TEND -verbose $VERBOSE -poissonTol $PT -poissonTolRel $PTR -poissonSolver $PSOLVER"
+OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL breakSymmetryExponent=1.0 breakSymmetryStrength=0.5 breakSymmetryType=0 breakSymmetryTime=$T"
+
 source launchCommon.sh
