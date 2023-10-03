@@ -89,14 +89,15 @@ else
 
 BASEPATH="../runs/"
 NCPUSTR=`lscpu | grep "Core"`
-export OMP_NUM_THREADS=${NCPUSTR: -3}
+export OMP_NUM_THREADS=1
 echo "Setting nThreads to "${OMP_NUM_THREADS}
 FOLDERNAME=${BASEPATH}/${RUNNAME}
 mkdir -p ${FOLDERNAME}
 cp ../makefiles/simulation ${FOLDERNAME}
 cd ${FOLDERNAME}
 
-mpirun -n 1 ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
+PROCS=${NCPUSTR: -3}
+mpirun -n ${PROCS} ./simulation ${OPTIONS} -shapes "${OBJECTS}" | tee out.log
 
 fi
 

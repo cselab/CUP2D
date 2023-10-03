@@ -76,7 +76,8 @@ endif
 
 # SET VPATH FOR MAKE TO SEARCH FOR FILES
 BUILDDIR = .
-DIRS = $(sort $(dir $(wildcard ../source/*/)))
+#DIRS = $(sort $(dir $(wildcard ../source/*/)))
+DIRS = $(sort $(dir $(wildcard ../source/*) $(wildcard ../source/*/)))
 VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 # SET FLAGS FOR CUBISM
