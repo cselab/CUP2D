@@ -38,7 +38,6 @@ class Shape
   const int breakSymmetryType;
   const Real breakSymmetryStrength;
   const Real breakSymmetryTime;
-  const Real breakSymmetryExponent;
 
   Real M = 0;
   Real J = 0;

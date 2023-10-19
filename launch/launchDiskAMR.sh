@@ -5,6 +5,27 @@ XPOS=${XPOS:-1.0}      #cylinder center (x-coordinate)
 XVEL=${XVEL:-0.2}      #cylinder velocity (x-component)
 RADIUS=${RADIUS:-0.1}  #cylinder radius
 
+#------------------------------------------------
+#Settings for breaking symmetry for cylinder wake
+#------------------------------------------------
+BREAK_SYMMETRY_TYPE=${BREAK_SYMMETRY_TYPE:0}
+BREAK_SYMMETRY_STRENGTH=${BREAK_SYMMETRY_STRENGTH:0.0}
+BREAK_SYMMETRY_TIME=${BREAK_SYMMETRY_TIME:1.0}
+#
+# These parameters can introduce a perturbation in the 
+# cylinder's motion, in order to break symmetric conditions
+# in its wake.
+# 
+# * If BREAK_SYMMETRY_TYPE = 0, no perturbation is introduced.
+# * If BREAK_SYMMETRY_TYPE = 1, then we add an angular velocity
+#   for BREAK_SYMMETRY_TIME<t<t-BREAK_SYMMETRY_TIME+1, given from:
+#    omega(t) = BREAK_SYMMETRY_STRENGTH * |U| * D * sin(2*pi*(t-BREAK_SYMMETRY_TIME))
+#   where D is the cylinder diameter and U is the x-component of the cylinder velocity
+# * If BREAK_SYMMETRY_TYPE = 1, then we add a y velocity
+#   for BREAK_SYMMETRY_TIME<t<t-BREAK_SYMMETRY_TIME+1, given from:
+#    v(t) = BREAK_SYMMETRY_STRENGTH * |U| * sin(2*pi*(t-BREAK_SYMMETRY_TIME))
+#
+
 #----------------------------------
 #Settings for pressure equation 
 #----------------------------------
@@ -55,6 +76,6 @@ CFL=${CFL:-0.45}      #Courant number: controls timestep size (should not exceed
 VERBOSE=${VERBOSE:-0} #Set to 1 for more verbose screen output.
 
 OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart $LEVELSSTART -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump $TDUMP -nu $NU -tend $TEND -verbose $VERBOSE -poissonTol $PT -poissonTolRel $PTR -poissonSolver $PSOLVER"
-OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL breakSymmetryExponent=1.0 breakSymmetryStrength=0.5 breakSymmetryType=0 breakSymmetryTime=$T"
+OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL breakSymmetryStrength=$BREAK_SYMMETRY_STRENGTH breakSymmetryType=$BREAK_SYMMETRY_TYPE breakSymmetryTime=$BREAK_SYMMETRY_TIME"
 
 source launchCommon.sh
