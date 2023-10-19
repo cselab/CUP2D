@@ -71,7 +71,7 @@ LEVELSSTART=${LEVELSSTART:-4}  #at t=0 the grid is uniform and at this refinemen
 #--------------------------------------
 #Other settings
 #--------------------------------------
-NU=${NU:-0.0004} #fluid viscosity
+NU=${NU:-0.00001} #fluid viscosity
 #The Reynolds number is defined as Re = XVEL * LENGTH / NU and can be controlled by
 #modifying the values of NU.
 
