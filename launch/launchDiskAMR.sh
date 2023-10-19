@@ -8,9 +8,9 @@ RADIUS=${RADIUS:-0.1}  #cylinder radius
 #------------------------------------------------
 #Settings for breaking symmetry for cylinder wake
 #------------------------------------------------
-BREAK_SYMMETRY_TYPE=${BREAK_SYMMETRY_TYPE:0}
-BREAK_SYMMETRY_STRENGTH=${BREAK_SYMMETRY_STRENGTH:0.0}
-BREAK_SYMMETRY_TIME=${BREAK_SYMMETRY_TIME:1.0}
+BREAK_SYMMETRY_TYPE=${BREAK_SYMMETRY_TYPE:-0}
+BREAK_SYMMETRY_STRENGTH=${BREAK_SYMMETRY_STRENGTH:-0.0}
+BREAK_SYMMETRY_TIME=${BREAK_SYMMETRY_TIME:-1.0}
 #
 # These parameters can introduce a perturbation in the 
 # cylinder's motion, in order to break symmetric conditions
