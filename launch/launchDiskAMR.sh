@@ -65,7 +65,6 @@ NU=${NU:-0.0004} #fluid viscosity
 # Re=1000  <-> NU=0.00004
 # Re=3000  <-> NU=0.00001333333333
 # Re=9'500 <-> NU=0.000004210526316
-T=${T:-1.0}  #at t=T we introduce a small disturbance in the cylinder's velocity. By doing so we break symmetric flow conditions and get vortex shedding.
 
 #--------------------------------------
 #Timestep and file saving
