@@ -9,6 +9,7 @@
 #include "../Utils/BufferedLogger.h"
 using namespace cubism;
 
+//Create the cylinder object and put the chi function on the grid
 void CylinderNozzle::create(const std::vector<BlockInfo>& vInfo)
 {
   const Real h = sim.getH();
@@ -32,8 +33,11 @@ void CylinderNozzle::create(const std::vector<BlockInfo>& vInfo)
   }
 }
 
+//This is called after every timestep. It will impose the actuator velocities on the cylinder.
 void CylinderNozzle::finalize()
 {
+  //Step 1: Interpolate between previous values (actuators_prev_value) and next values (actuators_next_value)
+  //        in time, with a (hardcoded) transition duration of 0.1.
   const Real transition_duration = 0.1;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
@@ -42,56 +46,73 @@ void CylinderNozzle::finalize()
     actuatorSchedulers[idx].gimmeValues(sim.time,actuators[idx],dummy);
   }
 
+  //Step 2: For the current actuator values, loop over all grid points and impose actuation velocities.
+  const Real dtheta = 2*M_PI/Nactuators; //Interval between actuators
+  const Real Cx = centerOfMass[0]; //Cylinder center x-coordinate
+  const Real Cy = centerOfMass[1]; //Cylinder center y-coordinate
+  const Real Uact_max = ccoef * pow(u*u + v*v,0.5); //Max actuation velocity as fraction of total cylinder velocity
+
+  //Loop over blocks of the grid
   const auto & vInfo = sim.vel->getBlocksInfo();
-  const Real dtheta = 2*M_PI/Nactuators;
-  const Real Cx = centerOfMass[0];
-  const Real Cy = centerOfMass[1];
-  const Real Uact_max = ccoef * pow(u*u + v*v,0.5);
   for(size_t i=0; i<vInfo.size(); i++)
   {
     const auto & info = vInfo[i];
-    if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
-    ObstacleBlock& o = * obstacleBlocks[info.blockID];
-    UDEFMAT & __restrict__ UDEF = o.udef;
+    if(obstacleBlocks[info.blockID] == nullptr) continue; //if this block does not contain the cylinder, move to next block
 
+    //Get array with velocities that will be imposed (imposed actuation velocities will be put here)
+    UDEFMAT & __restrict__ UDEF = obstacleBlocks[info.blockID]->udef;
+
+    //Loop over grid points of each block
     for(int iy=0; iy<ScalarBlock::sizeY; iy++)
     for(int ix=0; ix<ScalarBlock::sizeX; ix++)
     {
+      //i. Set imposed velocities to zero.
       UDEF[iy][ix][0] = 0.0;
       UDEF[iy][ix][1] = 0.0;
+
+      //ii. Get position (x,y) of the current grid point and make cylinder center the origin of the coordinate system used.
       Real p[2];
       info.pos(p, ix, iy);
       const Real x = p[0]-Cx;
       const Real y = p[1]-Cy;
-      const Real r = x*x+y*y;
 
+      //iii. If the current point is more than 2h (h:local grid spacing) distance away from the cylinder surface, do nothing and check next point.
+      const Real r = x*x+y*y;
       if (r > (radius+2*info.h)*(radius+2*info.h) || r < (radius-2*info.h)*(radius-2*info.h)) continue;
 
+      //iv. Get polar angle of current point.
       Real theta = atan2(y,x);
       if (theta < 0) theta += 2.*M_PI;
 
+      //v. Find the index of the actuator that is closest to current point
       int idx = round(theta / dtheta); //this is the closest actuator
       if (idx == Nactuators) idx = 0;  //periodic around the cylinder
 
-      const Real theta0 = idx * dtheta;
-
-      const Real phi = theta - theta0;
+      //vi. If current point lies with the circular arc of the closest actuator, impose actuation velocity
+      const Real theta0 = idx * dtheta; //center of closest actuator
+      const Real phi = theta - theta0; //distance (angle) of current point from center of closest actuator
       if ( std::fabs(phi) < 0.5*actuator_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*actuator_theta))
       {
+	//point is within the actuator, impose x- and y-components of actuation velocity
         const Real rr = radius / pow(r,0.5);
-        const Real ur = Uact_max*rr*actuators[idx]*cos(M_PI*phi/actuator_theta);
-        UDEF[iy][ix][0] = ur * cos(theta);
-        UDEF[iy][ix][1] = ur * sin(theta);
+        const Real ur = Uact_max*rr*actuators[idx]*cos(M_PI*phi/actuator_theta); //actuation velocity magnitude
+        UDEF[iy][ix][0] = ur * cos(theta); //x-component, projected using cylinder normal vector n = [cos(theta),sin(theta)]
+        UDEF[iy][ix][1] = ur * sin(theta); //y-component, projected using cylinder normal vector n = [cos(theta),sin(theta)]
       }
     }
   }
+
+  //Step 3: keep track of the x-force integral
   const double cd = forcex / (0.5*u*u*2*radius);
   fx_integral += -std::fabs(cd)*sim.dt;
 }
 
+//Called whenever the actuation strengths need to be changed.
 void CylinderNozzle::act( std::vector<Real> action, const int agentID)
 {
-  t_change = sim.time;
+  t_change = sim.time; //keep track of the current time, which is when the smooth transition from current to new values will start.
+
+  //check for invalid inputs
   if(action.size() != actuators.size())
   {
     std::cerr << "action size needs to be equal to actuators\n";
@@ -99,16 +120,24 @@ void CylinderNozzle::act( std::vector<Real> action, const int agentID)
     abort();
   }
 
+  //The actuation velocities need to be bounded in [-ccoef*U,ccoef*U], where U:cylinder velocity
+  //and they need to have a total mass flux of zero (i.e.: surface integral of actuation velocity = 0)
+  //These conditions are equivalent to having actions that are bounded in [-1,+1] and
+  //that have a sum of zero; this is iteratively imposed in the following loop:
   bool bounded = false;
   while (bounded == false)
   {
       bounded = true;
+      //i. Compute current sum of actions
       Real Q = 0;
       for (size_t i = 0 ; i < action.size() ; i ++)
       {
            Q += action[i];
       }
       Q /= action.size();
+
+      //ii. Substract the computed sum (mean) from all actions and then force them to be in [-1,+1]
+      //    Keep doing this until convergence.
       for (size_t i = 0 ; i < action.size() ; i ++)
       {
            action[i] -= Q;
@@ -118,6 +147,8 @@ void CylinderNozzle::act( std::vector<Real> action, const int agentID)
       }
   }
 
+  // Now that the actions have zero mean and are bounded, set the previous and the next actuation values
+  // that will be used for the smooth transition (in 'finalize').
   for (size_t i = 0 ; i < action.size() ; i ++)
   {
     actuators_prev_value[i] = actuators[i];
@@ -125,6 +156,7 @@ void CylinderNozzle::act( std::vector<Real> action, const int agentID)
   }
 }
 
+//Computes the reward (for Reinforcement Learning) between actions
 Real CylinderNozzle::reward(const int agentID)
 {
   Real retval = fx_integral / 0.1; //0.1 is the action times
@@ -139,6 +171,7 @@ Real CylinderNozzle::reward(const int agentID)
   return retval + c*regularizer_sum;
 }
 
+//Computes the current state (for Reinforcement Learning)
 std::vector<Real> CylinderNozzle::state(const int agentID)
 {
   std::vector<Real> S;
@@ -148,6 +181,8 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   std::vector<int>   n_s (bins,0.0);
   std::vector<Real>  p_s (bins,0.0);
   std::vector<Real>  o_s (bins,0.0);
+
+  //Loop over all blocks that contain part of the cylinder
   for(auto & block : obstacleBlocks) if(block not_eq nullptr)
   {
     for(size_t i=0; i<block->n_surfPoints; i++)
@@ -160,6 +195,8 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
       if (idx == bins) idx = 0;  //periodic around the cylinder
       const Real theta0 = idx * dtheta;
       const Real phi = theta - theta0;
+
+      //add up each point's pressure (p) and vorticity (o) values
       if ( std::fabs(phi) < 0.5*bins_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*bins_theta))
       {
         const Real p = block->p_s[i];
@@ -182,6 +219,8 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   for (int idx = 0 ; idx < bins; idx++) S.push_back(p_s[idx]);
   for (int idx = 0 ; idx < bins; idx++) S.push_back(o_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
+
+  //add the forces, the Reynolds number and ccoef to the state
   S.push_back(forcex);
   S.push_back(forcey);
   const Real Re = std::fabs(u)*(2*radius)/sim.nu;
