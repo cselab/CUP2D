@@ -8,6 +8,7 @@
 
 using namespace cubism;
 
+//This function will compute the gradient of a scalar and save the result to the tmpV grid object.
 struct GradScalarOnTmpV
 {
   GradScalarOnTmpV(const SimulationData & s) : sim(s) {}
@@ -34,31 +35,61 @@ struct GradScalarOnTmpV
 //  return 0.;
 //}
 
-SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p, Real C[2]): Naca(s,p,C), Nactuators ( p("-Nactuators").asInt(2)),actuator_ds( p("-actuatords").asDouble(0.05)),thickness(p("-tRatio").asDouble(0.12)), regularizer( p("-regularizer").asDouble(0.0))
+//Class constructor with default values for some parameters.
+SmartNaca::SmartNaca(SimulationData& s, ArgumentParser& p, Real C[2]): 
+	Naca(s,p,C), 
+	Nactuators ( p("-Nactuators").asInt(2)),
+	actuator_ds( p("-actuatords").asDouble(0.05)),
+	thickness(p("-tRatio").asDouble(0.12)), 
+	regularizer( p("-regularizer").asDouble(0.0)),
+	value1(p("-value1").asDouble(0.0)), 
+	value2(p("-value2").asDouble(0.0)), 
+	value3(p("-value3").asDouble(0.0)), 
+	value4(p("-value4").asDouble(0.0))
 {
   actuators.resize(Nactuators,0.);
   actuatorSchedulers.resize(Nactuators);
   actuators_prev_value.resize(Nactuators);
   actuators_next_value.resize(Nactuators);
+  if (Nactuators == 4){
+	  act({value1,value2,value3,value4},0);
+  }
 }
+
+//
+//Called at every timestep, to impose the actuation velocities.
+//For each grid point, we do the following:
+// (A) Check if that grid point lies on the airfoil surface.
+// (B) If it does:
+// 	(i): Check if it lies inside an actuator.
+// 	(ii): It it does:
+// 		(a): Compute the local normal vector.
+// 		(b): Compute the actuation velocity magnitude
+// 		(c): Impose actuation velocity, based on normal vector direction and actuation velocity magnitude.
+//
+//
+//The computation of the normal vector uses the signed distance function (SDF).
+//The SDF is the distance of a point from the airfoil's surface, with the addition of a +- sign if the point
+//lies inside or outside of the airfoil.
+//The normal vector is equal to the gradient of the SDF: n = grad(SDF) and it is computed with the help of 'GradScalarOnTmpV'.
+//
+//The imposed actuation velocities are required to have a total mass flux of zero, so that no fluid is added/removed
+//from the simulation domain. To achieve this, we compute their total mass flux (i.e. surface integral of normal velocity)
+//and substract it from the current velocities.
+//The computation of the surface integral uses the SDF and the 'chi' scalar function.
+//The chi field is equal to 0 for grid points with a fluid and is equal to 1 for grid points with
+//an object (the airfoil); grid point on the airfoil surface have a chi value between 0 and 1.
+//
+//It can be shown that the surface integral of the normal velocity is equal to:
+//
+// Q = integral {normal_velocity dS } = integral { normal_velocity * (nx* dchi/dx + ny*dchi/dy) dA }
+//
+//where (nx,ny) is the normal vector and dA means we are taking the volume integral over the simulation domain.
+//
 
 void SmartNaca::finalize()
 {
-  //dummy actuator values for testing
-  #if 0
-  static bool visited = false;
-  if (sim.time > 2.0 && visited == false)
-  {
-    visited = true;
-    std::vector<Real> q(actuators.size());
-    for (int i = 0 ; i < (int)actuators.size(); i ++) q[i] = 0.25*(2*(i+1)%2-1);
-    q[0] =  0.5;
-    q[1] = -0.25;
-    act(q,0);
-  }
-  #endif
-
-  //transition from one actuator value to the next
+  //Smooth transition from one actuator value to the next
   const Real transition_duration = 1.0;
   Real tot = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
@@ -71,27 +102,30 @@ void SmartNaca::finalize()
 
   //used for reward function
   const Real cd = forcex / (0.5*u*u*thickness);
-  fx_integral += -cd*sim.dt; //-std::fabs(cd)*sim.dt;
+  fx_integral += -cd*sim.dt;
 
   //if actuators are zero don't do anything
   if (tot < 1e-21) return;
 
-  //Compute gradient of chi and of signed-distance-function here.
+  //Compute gradient of chi and of signed distance function here.
   //Used later for the actuators
+  //store grad(chi) in a vector and grad(SDF) in tmpV
   const std::vector<cubism::BlockInfo>& tmpInfo  = sim.tmp ->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.chi); //Compute grad(chi) and put it on 'tmpV'
   const size_t Nblocks = tmpVInfo.size();
   const int Ny = ScalarBlock::sizeY;
   const int Nx = ScalarBlock::sizeX;
-
-  //store grad(chi) in a vector and grad(SDF) in tmpV
-  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.chi);
   std::vector<double> gradChi(ScalarBlock::sizeY*ScalarBlock::sizeX*Nblocks*2);
+
+  //Loop over the blocks of the grid
   #pragma omp parallel for
   for (size_t i = 0 ; i < Nblocks; i++)
   {
     auto & __restrict__ TMP  = *(ScalarBlock*) tmpInfo [i].ptrBlock;
     auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+
+    //Loop over the grid points of each block and store grad(chi) from tmpV to the gradChi vector
     for(int iy=0; iy<Ny; iy++)
     for(int ix=0; ix<Nx; ix++)
     {
@@ -100,6 +134,9 @@ void SmartNaca::finalize()
       gradChi[2*idx+1] = TMPV(ix,iy).u[1];
       TMP(ix,iy).s = 0;
     }
+
+    //Check if the current block contains any part of the airfoil. If it does, place the (already known) SDF
+    //to the tmp grid
     if(obstacleBlocks[i] == nullptr) continue; //obst not in block
     ObstacleBlock& o = * obstacleBlocks[i];
     const auto & __restrict__ SDF  = o.dist;
@@ -109,14 +146,29 @@ void SmartNaca::finalize()
       TMP(ix,iy).s = SDF[iy][ix];
     }
   }
-  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.tmp);
 
-  const Real * const rS = myFish->rS;
-  const Real * const rX = myFish->rX;
-  const Real * const rY = myFish->rY;
-  const Real * const norX = myFish->norX;
-  const Real * const norY = myFish->norY;
-  const Real * const width = myFish->width;
+  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.tmp); //compute grad(SDF) and place it on tmpV
+
+  //The top part of the airfoil surface is defined as:
+  //
+  // Sx (s) = rX(s) + width(s) * norX(s) 
+  // Sy (s) = rY(s) + width(s) * norY(s) 
+  //
+  //The bottom part of the surface is defined as:
+  //
+  // Sx (s) = rX(s) - width(s) * norX(s) 
+  // Sy (s) = rY(s) - width(s) * norY(s) 
+  //
+  //where Sx and Sy are the x- and y-coordinates of each surface point and 's' is a scalar 
+  //that parametrizes the surface.
+  //The following arrays define the surface of the airfoil (which is disretized into 'Nm' points).
+  const Real * const rS = myFish->rS; // s parameter discrete values
+  const Real * const rX = myFish->rX; // rX parameter discrete values
+  const Real * const rY = myFish->rY; // rY parameter discrete values
+  const Real * const norX = myFish->norX; // norX parameter discrete values
+  const Real * const norY = myFish->norY; // norY parameter discrete values
+  const Real * const width = myFish->width; // width parameter discrete values
+
   std::vector<int>       ix_store;
   std::vector<int>       iy_store;
   std::vector<long long> id_store;
@@ -127,35 +179,53 @@ void SmartNaca::finalize()
   Real surface   = 0.0;
   Real surface_c = 0.0;
   Real mass_flux = 0.0;
+
+  //Loop over blocks of the grid.
   #pragma omp parallel for reduction(+: surface,surface_c,mass_flux)
   for (const auto & info : sim.vel->getBlocksInfo())
   {
-    if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
+
+    //If the current block does not contain part of the airfoil, do nothing
+    if(obstacleBlocks[info.blockID] == nullptr) continue;
+
+    //Get the SDF and the imposed velocity arrays for the current block
     ObstacleBlock& o = * obstacleBlocks[info.blockID];
     auto & __restrict__ UDEF = o.udef;
     const auto & __restrict__ SDF  = o.dist;
+
+    //Volume element dA used for integrals (info.h is the grid spacing of the current block)
     const Real h2 = info.h*info.h;
+
+    //Get the tmpV array for the current block (which currently contains the gradient of the SDF)
     auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
 
+    //Loop over grid points of current block.
     for(int iy=0; iy<ScalarBlock::sizeY; iy++)
     for(int ix=0; ix<ScalarBlock::sizeX; ix++)
     {
+      //If the SDF is greater than h, this means we are too far from the airfoil surface (defined from SDF=0),
+      //so we do nothing.
       if ( SDF[iy][ix] > info.h || SDF[iy][ix] < -info.h) continue;
+
+      //Set imposed velocities to zero.
       UDEF[iy][ix][0] = 0.0;
       UDEF[iy][ix][1] = 0.0;
+
+      //Get (x,y) coordinates of current grid point (ix,iy) and put them to p[2].
       Real p[2];
       info.pos(p, ix, iy);
 
-      //find closest surface point to analytical expression
+      //Find the point of the airfoil surface that is closese to this grid point (use analutical expression)
+      //Do so by looping over all 'Nm' discrete surface points.
       int  ss_min = 0;
       int  sign_min = 0;
       Real dist_min = 1e10;
       for (int ss = 0 ; ss < myFish->Nm; ss++)
       {
-        Real Pp [2] = {rX[ss]+width[ss]*norX[ss],rY[ss]+width[ss]*norY[ss]};
-        Real Pm [2] = {rX[ss]-width[ss]*norX[ss],rY[ss]-width[ss]*norY[ss]};
-        const Real dp = pow(Pp[0]-p[0],2)+pow(Pp[1]-p[1],2);
-        const Real dm = pow(Pm[0]-p[0],2)+pow(Pm[1]-p[1],2);
+        Real Pp [2] = {rX[ss]+width[ss]*norX[ss],rY[ss]+width[ss]*norY[ss]}; //top surface of airfoil
+        Real Pm [2] = {rX[ss]-width[ss]*norX[ss],rY[ss]-width[ss]*norY[ss]}; //bottom surface of airfoil
+        const Real dp = pow(Pp[0]-p[0],2)+pow(Pp[1]-p[1],2); //distance from top point
+        const Real dm = pow(Pm[0]-p[0],2)+pow(Pm[1]-p[1],2); //distance from bottom point
         if (dp < dist_min)
         {
           sign_min = 1;
@@ -170,15 +240,16 @@ void SmartNaca::finalize()
         }
       }
 
+      //Now that closest surface point is found, find the actuator index (idx) of the actuator that is closest to that point
       const Real smax = rS[myFish->Nm-1]-rS[0];
       const Real ds   = 2*smax/Nactuators;
       const Real current_s = rS[ss_min];
       if (current_s < 0.01*length || current_s > 0.99*length) continue;
-
       int idx = (current_s / ds); //this is the closest actuator
       const Real s0 = 0.5*ds + idx * ds;
       if (sign_min == -1) idx += Nactuators/2;
 
+      //If grid point is inside the closest actuator, impose actuation velocity
       if (std::fabs( current_s - s0 ) < 0.5*actuator_ds*length)
       {
         const size_t index = 2*(info.blockID*Ny*Nx+iy*Nx+ix);
@@ -216,7 +287,7 @@ void SmartNaca::finalize()
   //const Real uMean = Qtot[0]/Qtot[1];
   const Real q = Qtot[0]/Qtot[2];
 
-  //Substract total mass flux (divided by surface) from actuator velocities
+  //Substract total mass flux (divided by surface) from actuator velocities, in order to get zero total mass flux.
   #pragma omp parallel for
   for (size_t idx = 0 ; idx < id_store.size(); idx++)
   {
@@ -234,6 +305,7 @@ void SmartNaca::finalize()
   }
 }
 
+//Set new values for the actuation velocities
 void SmartNaca::act( std::vector<Real> action, const int agentID)
 {
   t_change = sim.time;
@@ -250,6 +322,7 @@ void SmartNaca::act( std::vector<Real> action, const int agentID)
   }
 }
 
+//Compute the RL reward.
 Real SmartNaca::reward(const int agentID)
 {
   Real retval = fx_integral; // divided by dt=1.0, the time between actions
@@ -263,6 +336,7 @@ Real SmartNaca::reward(const int agentID)
   return retval - regularizer*regularizer_sum;
 }
 
+//Compute the RL state.
 std::vector<Real> SmartNaca::state(const int agentID)
 {
   #if 0
