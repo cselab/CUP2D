@@ -605,7 +605,16 @@ void CurvatureFish::computeMidline(const Real t, const Real dt)
 
   // transition curvature from 0 to target values
   #if 1 // ramp-up over Tperiod
-  const std::array<Real,6> curvatureZeros = {0.0};
+  //Set 0.01*curvatureValues as initial values (not zeros).
+  //This prevents the Poisson solver from exploding in some cases, when starting from zero residuals.
+  const std::array<Real,6> curvatureZeros = {
+	  0.01*curvatureValues[0],
+	  0.01*curvatureValues[1],
+	  0.01*curvatureValues[2],
+	  0.01*curvatureValues[3],
+	  0.01*curvatureValues[4],
+	  0.01*curvatureValues[5],
+  };
   curvatureScheduler.transition(0,0,Tperiod,curvatureZeros ,curvatureValues);
   #else // no rampup for debug
   curvatureScheduler.transition(t,0,Tperiod,curvatureValues,curvatureValues);
