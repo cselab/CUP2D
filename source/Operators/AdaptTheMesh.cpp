@@ -45,7 +45,10 @@ struct GradChiOnTmp
         break;
       }
     }
-/*
+
+    #ifdef CUP2D_CYLINDER_REF
+    //Hardcoded refinement close the wall, for the high Re cylinder cases.
+    //Cylinder center is supposed to be at (1.0,1.0) and its radius is 0.1
     for(int y=0; y<VectorBlock::sizeY; ++y)
     for(int x=0; x<VectorBlock::sizeX; ++x)
     {
@@ -63,7 +66,7 @@ struct GradChiOnTmp
         break;
       }
     }
-*/
+    #endif
   }
 };
 

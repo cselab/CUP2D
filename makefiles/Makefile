@@ -6,6 +6,7 @@ openmp ?= false
 profile ?= false
 onetbb ?= false
 symmetry ?= false
+cylinder_ref ?= false
 
 # SET FLAGS FOR COMPILER
 ifneq ($(MPICXX),)
@@ -84,6 +85,10 @@ ifeq "$(symmetry)" "true"
 	CPPFLAGS += -DCUP2D_PRESERVE_SYMMETRY
 else ifneq "$(findstring prod,$(config))" ""
 	CPPFLAGS+= -ffast-math
+endif
+
+ifeq "$(cylinder_ref)" "true"
+	CPPFLAGS += -DCUP2D_CYLINDER_REF
 endif
 
 # SET FLAGS FOR CUBISM
