@@ -1,4 +1,4 @@
-../simulation \
+./simulation \
     -bpdx 3 \
     -bpdy 4 \
     -CFL 0.4 \
