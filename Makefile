@@ -4,43 +4,8 @@ bs ?= 8
 gpu ?= false
 openmp ?= false
 profile ?= false
-onetbb ?= false
 symmetry ?= false
 cylinder_ref ?= false
-
-CPPFLAGS+= -std=c++17 -Wall -g
-CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter
-CPPFLAGS+= -Wno-float-equal
-CPPFLAGS+= -Wno-redundant-decls
-
-ifeq "$(openmp)" "true"
-	CPPFLAGS+= -fopenmp
-endif
-
-LIBS+= -fopenmp
-
-ifeq "$(onetbb)" "true"
-	LIBS     += -L$(ONETBBROOT)/lib64 -ltbb
-	CPPFLAGS += -I$(ONETBBROOT)/include
-	CPPFLAGS += -DCUBISM_USE_ONETBB
-endif
-
-
-ifeq "$(findstring prod,$(config))" ""
-	CPPFLAGS+= -O0
-	ifeq "$(config)" "segf"
-		CPPFLAGS+= -fsanitize=address
-		LIBS+= -fsanitize=address -static-libasan
-	endif
-	ifeq "$(config)" "nans"
-		CPPFLAGS+= -fsanitize=undefined
-		LIBS+= -fsanitize=undefined
-	endif
-else
-	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
-endif
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
@@ -55,11 +20,9 @@ ifeq "$(symmetry)" "true"
 else ifneq "$(findstring prod,$(config))" ""
 	CPPFLAGS+= -ffast-math
 endif
-
 ifeq "$(cylinder_ref)" "true"
 	CPPFLAGS += -DCUP2D_CYLINDER_REF
 endif
-
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -ICubism/include -DDIMENSION=2
 OBJECTS = \
@@ -122,10 +85,5 @@ libcup.a: $(OBJECTS)
 
 %.o: %.cu
 	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
-%.d: %.cu
-	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c -MD $<
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
-%.d: %.cpp
-	$(CXX) $(CPPFLAGS) -c -MD $<
-
