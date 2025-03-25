@@ -26,7 +26,6 @@ Output files will be stored in the `output/` directory.
 ```
 mpiexec -n 4 sh launch/stefanfish.sh
 ```
-
 or
 
 ```
