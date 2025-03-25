@@ -23,6 +23,12 @@ For GPU
 make 'gpu = true' 'LINK = nvcc' 'CXX = mpicxx '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -Xcompiler -fopenmp '"`pkg-config --libs hdf5-openmpi gsl` -lcublas -lcusparse"
 ```
 
+or
+
+```
+make -j 'gpu = true' 'LINK = nvcc' 'CXX = mpicxx -Ofast -I/scratch/slitvinov/.grace/include -fopenmp' 'LIBS = -L/scratch/slitvinov/.grace/lib -lhdf5 -lgsl -lgslcblas -Wl,-R/scratch/slitvinov/.grace/lib'
+```
+
 Run an example with the following commands, starting from the `build` directory:
 ```
 cd ..
