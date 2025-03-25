@@ -63,13 +63,32 @@ endif
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -ICubism/include -DDIMENSION=2
 OBJECTS = \
-		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
-		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
-		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
-		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o CylinderNozzle.o \
-		SmartNaca.o
+Bindings/Simulation.cpp \
+Obstacles/CarlingFish.o \
+Obstacles/CStartFish.o \
+Obstacles/CylinderNozzle.o \
+Obstacles/ExperimentFish.o \
+Obstacles/FishData.o \
+Obstacles/Fish.o \
+Obstacles/Naca.o \
+Obstacles/NeuroKinematicFish.o \
+Obstacles/ShapeLibrary.o \
+Obstacles/ShapesSimple.o \
+Obstacles/SmartCylinder.o \
+Obstacles/SmartNaca.o \
+Obstacles/StefanFish.o \
+Obstacles/Teardrop.o \
+Obstacles/Waterturbine.o \
+Obstacles/Windmill.o \
+Obstacles/ZebraFish.o \
+Operators/ComputeForces.o \
+Operators/Forcing.o \
+Operators/Helpers.o \
+Operators/PressureSingle.o \
+Operators/PutObjectsOnGrid.o \
+Shape.o \
+SimulationData.o \
+Utils/BufferedLogger.o \
 
 NVCC ?= nvcc
 NVCCFLAGS ?= -code=sm_60 -arch=compute_60
