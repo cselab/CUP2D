@@ -42,7 +42,6 @@ else
 	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
 endif
 
-# SET FLOATING POINT ACCURACY
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
 else ifeq "$(precision)" "double"
@@ -50,11 +49,6 @@ else ifeq "$(precision)" "double"
 else ifeq "$(precision)" "long_double"
 	CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
 endif
-
-# SET VPATH FOR MAKE TO SEARCH FOR FILES
-BUILDDIR = .
-DIRS = $(sort $(dir $(wildcard ../source/*) $(wildcard ../source/*/)))
-VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 ifeq "$(symmetry)" "true"
 	CPPFLAGS += -DCUP2D_PRESERVE_SYMMETRY
@@ -66,10 +60,8 @@ ifeq "$(cylinder_ref)" "true"
 	CPPFLAGS += -DCUP2D_CYLINDER_REF
 endif
 
-# SET FLAGS FOR CUBISM
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -ICubism/include -DDIMENSION=2
-
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
 		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
@@ -79,9 +71,6 @@ OBJECTS = \
 		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o CylinderNozzle.o \
 		SmartNaca.o
 
-#################################################
-# CUDA
-#################################################
 NVCC ?= nvcc
 NVCCFLAGS ?= -code=sm_60 -arch=compute_60
 ifeq ("$(gpu)", "true")
@@ -96,25 +85,16 @@ else
   CPPFLAGS += -Wno-unknown-pragmas
 endif
 
-# DEFINE COMPILATION TARGETS
 all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT: all
-
-# COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
 debugRL: debugRL.o $(OBJECTS)
 	$(CXX) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
-# COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
 simulation: main.o $(OBJECTS)
 	$(CXX) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
-cup.cflags.txt:
-	echo '$(CPPFLAGS)' > cup.cflags.txt
-cup.libs.txt:
-	echo '$(LIBS)' > cup.libs.txt
 
-# COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
 	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
 %.d: %.cu
@@ -124,7 +104,6 @@ cup.libs.txt:
 %.d: %.cpp
 	$(CXX) $(CPPFLAGS) -c -MD $<
 
-# COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
 	rm -f debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 	rm -f *.o *.d
