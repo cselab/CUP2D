@@ -4,18 +4,12 @@ Incompressible Flow Solver for Complex Deformable Geometries in 2D.
 
 ## Dependencies
 
-CubismUP-2D has the following prerequisite libraries:
-
-- MPI, with the $MPICXX enviroment variable defined.
-- GSL, with the $GSL_ROOT environment variable defined.
-- HDF5, with the $HDF5_ROOT environment variable defined.
+CubismUP-2D depends on MPI, GSL, and HDF5.
 
 ## Compilation
 
-With the above dependencies installed and associated environment variables set the code can be compiled by
 ```
-cd makefiles
-make -j
+make 'CXX = mpicxx `pkg-config --cflags --libs hdf5-openmpi gsl`'
 ```
 
 Run an example with the following commands, starting from the `build` folder:

@@ -8,14 +8,6 @@ onetbb ?= false
 symmetry ?= false
 cylinder_ref ?= false
 
-# SET FLAGS FOR COMPILER
-ifneq ($(MPICXX),)
-	CXX=$(MPICXX)
-else
-	CXX=mpic++
-endif
-
-# LOAD FLAGS -- GCC NEEDED
 CPPFLAGS+= -std=c++17 -Wall -g
 CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
@@ -27,32 +19,15 @@ ifeq "$(openmp)" "true"
 	CPPFLAGS+= -fopenmp
 endif
 
-# FLAGS FOR EXTERNAL LIBRARIES
-LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
+LIBS+= -fopenmp
 
-# ADD LIBRARY PATHS IF GIVEN
-ifneq ($(HDF5_ROOT),)
-	LIBS     += -L$(HDF5_ROOT)/lib
-	CPPFLAGS += -I$(HDF5_ROOT)/include
-endif
-
-ifneq ($(GSL_ROOT),)
-	CPPFLAGS += -I$(GSL_ROOT)/include
-	LIBS += -L$(GSL_ROOT)/lib
-endif
-
-#################################################
-# oneTBB
-#################################################
 ifeq "$(onetbb)" "true"
 	LIBS     += -L$(ONETBBROOT)/lib64 -ltbb
 	CPPFLAGS += -I$(ONETBBROOT)/include
 	CPPFLAGS += -DCUBISM_USE_ONETBB
-	#LIBS     += -L/users/chatzima/my_installed_onetbb/lib64 -ltbb
-	#CPPFLAGS += -I/users/chatzima/my_installed_onetbb/include
 endif
 
-# ENABLE OPTIMIZATION/DEBUG FLAGS IF WISHED
+
 ifeq "$(findstring prod,$(config))" ""
 	CPPFLAGS+= -O0
 	ifeq "$(config)" "segf"
@@ -93,7 +68,7 @@ endif
 
 # SET FLAGS FOR CUBISM
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
-CPPFLAGS += -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+CPPFLAGS += -ICubism/include -DDIMENSION=2
 
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
