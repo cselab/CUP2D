@@ -23,4 +23,12 @@ Output files will be stored in the `output/` directory.
 
 ## Running
 
-To run a simulation go to the launch directory for some preset cases
+```
+mpiexec -n 4 sh launch/stefanfish.sh
+```
+
+or
+
+```
+mpiexec -n 4 sh launch/windmills.sh
+```
