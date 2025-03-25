@@ -184,8 +184,6 @@ int Windmill::numRegion(const std::array<Real, 2> point, Real height) const {
   return 0;
 }
 void Windmill::setInitialConditions(Real init_angle) {
-  printf("[Korali] Initial Conditions:\n");
-  printf("[Korali] orientation: %f\n", (double)init_angle);
   setOrientation(init_angle);
 }
 Real Windmill::getAngularVelocity() { return omega; }
