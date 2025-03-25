@@ -9,7 +9,7 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 ## Compilation
 
 ```
-make 'CXX = mpicxx '"`pkg-config --cflags --libs hdf5-openmpi gsl`"
+make 'CXX = mpicxx '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -fopenmp '"`pkg-config --libs hdf5-openmpi gsl`"
 ```
 
 Run an example with the following commands, starting from the `build` directory:

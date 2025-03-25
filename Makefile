@@ -63,7 +63,8 @@ endif
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -ICubism/include -DDIMENSION=2
 OBJECTS = \
-Bindings/Simulation.cpp \
+Simulation.o \
+Cubism/src/ArgumentParser.o \
 Obstacles/CarlingFish.o \
 Obstacles/CStartFish.o \
 Obstacles/CylinderNozzle.o \
@@ -81,11 +82,16 @@ Obstacles/Teardrop.o \
 Obstacles/Waterturbine.o \
 Obstacles/Windmill.o \
 Obstacles/ZebraFish.o \
+Operators/AdaptTheMesh.o \
+Operators/advDiff.o \
+Operators/advDiffSGS.o \
 Operators/ComputeForces.o \
 Operators/Forcing.o \
 Operators/Helpers.o \
 Operators/PressureSingle.o \
 Operators/PutObjectsOnGrid.o \
+Poisson/AMRSolver.o \
+Poisson/Base.o \
 Shape.o \
 SimulationData.o \
 Utils/BufferedLogger.o \
@@ -104,7 +110,7 @@ else
   CPPFLAGS += -Wno-unknown-pragmas
 endif
 
-all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
+all: debugRL simulation libcup.a
 .DEFAULT: all
 debugRL: debugRL.o $(OBJECTS)
 	$(CXX) debugRL.o $(OBJECTS) $(LIBS) -o $@
@@ -123,6 +129,3 @@ libcup.a: $(OBJECTS)
 %.d: %.cpp
 	$(CXX) $(CPPFLAGS) -c -MD $<
 
-clean:
-	rm -f debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
-	rm -f *.o *.d
