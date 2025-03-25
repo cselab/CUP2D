@@ -12,14 +12,14 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 make 'CXX = mpicxx '"`pkg-config --cflags --libs hdf5-openmpi gsl`"
 ```
 
-Run an example with the following commands, starting from the `build` folder:
+Run an example with the following commands, starting from the `build` directory:
 ```
 cd ..
 export PYTHONPATH=$(pwd):$(pwd)/build/:$PYTHONPATH
 cd cubismup2d/examples/
 ./rectangle_and_operator.py
 ```
-Output files will be stored in the `output/` folder.
+Output files will be stored in the `output/` directory.
 
 ## Running
 

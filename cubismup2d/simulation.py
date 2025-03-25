@@ -98,7 +98,7 @@ class Simulation(libcup2d._Simulation):
             cfl: (float) target CFL number for automatic dt
             dt: (float) manual time step (only if `cfl == 0.0`)
             ...
-            serialization_dir: folder containing HDF5 files,
+            serialization_dir: directory containing HDF5 files,
                                defaults to `os.path.join(output_dir, 'h5')`
             cuda: (bool) if True, use cuda_iterative Poisson solver
             argv: (list of strings) extra argv passed to CubismUP2D
