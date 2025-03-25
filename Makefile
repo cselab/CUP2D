@@ -1,7 +1,14 @@
-bs ?= 8
-gpu ?= false
-CPPFLAGS+= -D_DOUBLE_PRECISION_ -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
-CPPFLAGS += -ICubism/include -DDIMENSION=2
+bs = 8
+gpu = false
+NVCC = nvcc
+LINK = $(CXX)
+
+CPPFLAGS = \
+-D_BS_=$(bs) \
+-DCUBISM_ALIGNMENT=32 \
+-D_DOUBLE_PRECISION_ \
+-ICubism/include -DDIMENSION=2 \
+
 OBJECTS = \
 Simulation.o \
 Cubism/src/ArgumentParser.o \
@@ -36,24 +43,23 @@ Shape.o \
 SimulationData.o \
 Utils/BufferedLogger.o \
 
-NVCC ?= nvcc
-NVCCFLAGS ?= -code=sm_60 -arch=compute_60
 ifeq ("$(gpu)", "true")
-	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
-	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
-	LIBS += -lcudart -lcublas -lcusparse
-else
-  CPPFLAGS += -Wno-unknown-pragmas
+	CPPFLAGS += -DGPU_POISSON
+	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -DGPU_POISSON
+	OBJECTS += \
+Poisson/BiCGSTAB.o \
+Poisson/ExpAMRSolver.o \
+Poisson/LocalSpMatDnVec.o \
+
 endif
 
 all: debugRL simulation libcup.a
 .DEFAULT: all
 debugRL: debugRL.o $(OBJECTS)
-	$(CXX) debugRL.o $(OBJECTS) $(LIBS) -o $@
+	$(LINK) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
 simulation: main.o $(OBJECTS)
-	$(CXX) main.o $(OBJECTS) $(LIBS) -o $@
+	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 

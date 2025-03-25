@@ -219,7 +219,7 @@ void BiCGSTABSolver::updateAll()
         d_nil_, 
         spDescrNu_, 
         CUDA_R_64F, 
-        CUSPARSE_MV_ALG_DEFAULT, 
+	CUSPARSE_SPMV_ALG_DEFAULT,
         &locSpMVBuffSz_));
   checkCudaErrors(cudaMalloc(&locSpMVBuff_, locSpMVBuffSz_ * sizeof(char)));
   if (comm_size_ > 1)
@@ -235,7 +235,7 @@ void BiCGSTABSolver::updateAll()
           d_eye_, 
           spDescrNu_, 
           CUDA_R_64F, 
-          CUSPARSE_MV_ALG_DEFAULT, 
+          CUSPARSE_SPMV_ALG_DEFAULT,
           &bdSpMVBuffSz_));
     checkCudaErrors(cudaMalloc(&bdSpMVBuff_, bdSpMVBuffSz_ * sizeof(char)));
   }
@@ -346,7 +346,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
         d_nil_, 
         spDescrRes, 
         CUDA_R_64F, 
-        CUSPARSE_MV_ALG_DEFAULT, 
+        CUSPARSE_SPMV_ALG_DEFAULT,
         locSpMVBuff_)); 
   prof_.stopProfiler("KerSpMV", solver_stream_);
 
@@ -385,7 +385,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
           d_eye_, 
           spDescrRes, 
           CUDA_R_64F, 
-          CUSPARSE_MV_ALG_DEFAULT, 
+	  CUSPARSE_SPMV_ALG_DEFAULT,
           bdSpMVBuff_)); 
     prof_.stopProfiler("HaloSpMV", solver_stream_);
   }

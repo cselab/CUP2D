@@ -8,13 +8,19 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 
 ## Compilation
 
+For CPU
 ```
 make 'CXX = mpicxx '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -fopenmp '"`pkg-config --libs hdf5-openmpi gsl`"
 ```
 
 or
 ```
-make 'CXX = mpicxx -I/scratch/slitvinov/.grace/include -fopenmp' 'LIBS = -L/scratch/slitvinov/.grace/lib -lhdf5 -lgsl -lgslcblas -Wl,-R/scratch/slitvinov/.grace/lib'
+make 'CXX = mpicxx -Ofast -I/scratch/slitvinov/.grace/include -fopenmp' 'LIBS = -L/scratch/slitvinov/.grace/lib -lhdf5 -lgsl -lgslcblas -Wl,-R/scratch/slitvinov/.grace/lib'
+```
+
+For GPU
+```
+make 'gpu = true' 'LINK = nvcc' 'CXX = mpicxx '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -Xcompiler -fopenmp '"`pkg-config --libs hdf5-openmpi gsl` -lcublas -lcusparse"
 ```
 
 Run an example with the following commands, starting from the `build` directory:
