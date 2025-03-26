@@ -16,7 +16,9 @@ make "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
 
 or
 ```
-make 'CXX = mpicxx -fopenmp -Ofast -I/scratch/slitvinov/.grace/include -fopenmp' 'LIBS = -L/scratch/slitvinov/.grace/lib -lhdf5 -lgsl -lgslcblas -Wl,-R/scratch/slitvinov/.grace/lib'
+make \
+     "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 For GPU

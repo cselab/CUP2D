@@ -1,8 +1,6 @@
 gpu = false
 MPICXX = mpicxx
-LINK = $(MPICXX)
 NVCC = nvcc -ccbin='$(MPICXX)'
-
 FLAGS = \
 -D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
@@ -11,6 +9,8 @@ FLAGS = \
 -I. \
 
 ifeq ("$(gpu)", "true")
+	LINK = $(NVCC)
+	L = -Xcompiler -fopenmp $(LIBS) -lcublas -lcusparse
 	FLAGS += -DGPU_POISSON
 	NVCCFLAGS = -std=c++17 -O3 --use_fast_math
 	C = \
@@ -18,6 +18,9 @@ Poisson/BiCGSTAB.o \
 Poisson/ExpAMRSolver.o \
 Poisson/LocalSpMatDnVec.o \
 
+else
+	LINK = $(MPICXX)
+	L = $(LIBS) -fopenmp
 endif
 
 O = \
@@ -56,9 +59,9 @@ Utils/BufferedLogger.o \
 
 all: debugRL main libcup.a
 debugRL: debugRL.o $O $C
-	$(LINK) -o $@ debugRL.o $O $(LIBS)
+	$(LINK) -o $@ debugRL.o $O $C $L
 main: main.o $O $C
-	$(LINK) -o $@ main.o $O $(LIBS)
+	$(LINK) -o $@ main.o $O $C $L
 libcup.a: $O $C
 	ar rcs $@ $O $C
 %.o: %.cu
