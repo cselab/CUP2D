@@ -10,28 +10,28 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 
 For CPU
 ```
-make "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
+make "CXXFLAGS = -Ofast" \
+     "LIBS = `pkg-config --libs gsl`"
 ```
 
 or
 ```
-module load gcc openmpi hdf5 gsl
-make "CXXFLAGS = -Ofast" "LIBS = -lhdf5_hl -lhdf5 `gsl-config --libs`"
+module load gcc openmpi gsl
+make "CXXFLAGS = -Ofast" "LIBS = `gsl-config --libs`"
 ```
 
 For GPU
 ```
 make "gpu = true" \
-     "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
+     "CXXFLAGS = -Ofast" \
+     "LIBS = `pkg-config --libs gsl`"
 ```
 
 or
 
 ```
-module load gcc/12 openmpi hdf5 gsl cuda
-make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lhdf5_hl -lhdf5 `gsl-config --libs`"
+module load gcc/12 openmpi gsl cuda
+make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = `gsl-config --libs`"
 ```
 
 ## Running
