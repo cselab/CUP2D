@@ -1,4 +1,4 @@
-#include <algorithm> // std::sort
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -16,7 +16,7 @@ void convert_to_float(std::string filename, std::string gridname) {
   const int ptsPerElement = 4;
   const int nx = 8;
   const int ny = 8;
-  // const int C = 2;
+
   size_t blocks = 0;
 
   H5open();
@@ -49,7 +49,6 @@ void convert_to_float(std::string filename, std::string gridname) {
     H5Sclose(fspace_id);
   }
 
-  // read data
   std::vector<double> amr;
   {
     hid_t dataset_id, fspace_id;
@@ -105,7 +104,7 @@ void convert_to_float(std::string filename, std::string gridname) {
   vertices_c.reserve(vertices.size() / 4);
   for (size_t i = 0; i < blocks; i++) {
     int C = 1;
-    // if (levels[i] == 10) C = 4;
+
     for (int y = 0; y < ny; y += C)
       for (int x = 0; x < nx; x += C) {
         float element[NCHANNELS] = {0.0};
@@ -333,8 +332,6 @@ int main(int argc, char **argv) {
       g.resize(4);
       if (s.back() != 's' && s.back() != 'm' && g != "grid") {
         filenames.push_back(p.path().stem().string());
-        // uncomment for old format:
-        // gridnames.push_back(p.path().stem().string());
       }
 
       if (g == "grid") {

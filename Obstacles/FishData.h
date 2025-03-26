@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -40,40 +36,34 @@ struct FishSkin {
 
 struct FishData {
 public:
-  // Length and minimal gridspacing
   const Real length, h;
 
-  // Midline is discretized by more points in first fraction and last fraction:
   const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   const Real dSmid_tgt = h / std::sqrt(2);
   const Real dSrefine_tgt = 0.125 * h;
 
-  //// Nm should be divisible by 8, see Fish.cpp - 3)
-  // thus Nmid enforced to be divisible by 8
   const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
   const Real dSmid = length * fracMid / Nmid;
 
-  // thus Nend enforced to be divisible by 4
   const int Nend =
       (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
   const Real dSref = fracRefined * length * 2 / Nend - dSmid;
 
-  const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
+  const int Nm = Nmid + 2 * Nend + 1;
 
-  Real *const rS; // arclength discretization points
-  Real *const rX; // coordinates of midline discretization points
+  Real *const rS;
+  Real *const rX;
   Real *const rY;
-  Real *const vX; // midline discretization velocities
+  Real *const vX;
   Real *const vY;
-  Real *const norX; // normal vector to the midline discretization points
+  Real *const norX;
   Real *const norY;
   Real *const vNorX;
   Real *const vNorY;
   Real *const width;
 
-  Real linMom[2], area, J, angMom; // for diagnostics
-  // start and end indices in the arrays where the fish starts and ends (to
-  // ignore the extensions when interpolating the shapes)
+  Real linMom[2], area, J, angMom;
+
   FishSkin upperSkin = FishSkin(Nm);
   FishSkin lowerSkin = FishSkin(Nm);
   virtual void resetAll();
@@ -159,7 +149,7 @@ struct AreaSegment {
   const Real safe_distance;
   const std::pair<int, int> s_range;
   Real w[2], c[2];
-  // should be normalized and >=0:
+
   Real normalI[2] = {(Real)1, (Real)0};
   Real normalJ[2] = {(Real)0, (Real)1};
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
@@ -188,20 +178,19 @@ struct PutFishOnBlocks {
   }
   void changeVelocityToComputationalFrame(Real x[2]) const {
     const Real p[2] = {x[0], x[1]};
-    x[0] =
-        Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1]; // rotate (around CoM)
+    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
   template <typename T> void changeToComputationalFrame(T x[2]) const {
     const T p[2] = {x[0], x[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-    x[0] += position[0]; // translate
+    x[0] += position[0];
     x[1] += position[1];
   }
   template <typename T> void changeFromComputationalFrame(T x[2]) const {
     const T p[2] = {x[0] - (T)position[0], x[1] - (T)position[1]};
-    // rotate back around CoM
+
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }

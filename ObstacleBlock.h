@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -24,49 +20,42 @@ struct ObstacleBlock {
   static const int sizeX = _BS_;
   static const int sizeY = _BS_;
 
-  // bulk quantities:
   Real chi[sizeY][sizeX];
   Real dist[sizeY][sizeX];
   Real udef[sizeY][sizeX][2];
 
-  // surface quantities:
   size_t n_surfPoints = 0;
   bool filled = false;
   std::vector<surface_data *> surface;
 
-  // surface quantities of interest (only needed for post-processing
-  // computations)
-  Real *x_s = nullptr;     // x-coordinate
-  Real *y_s = nullptr;     // y-coordinate
-  Real *p_s = nullptr;     // pressure
-  Real *u_s = nullptr;     // u velocity
-  Real *v_s = nullptr;     // v velocity
-  Real *nx_s = nullptr;    // x-component of unit normal vector
-  Real *ny_s = nullptr;    // y-component of unit normal vector
-  Real *omega_s = nullptr; // vorticity
-  Real *uDef_s = nullptr;  // x-component of deformation velocity
-  Real *vDef_s = nullptr;  // y-component of deformation velocity
-  Real *fX_s = nullptr;    // x-component of total force
-  Real *fY_s = nullptr;    // y-component of total force
-  Real *fXv_s = nullptr;   // x-component of viscous force
-  Real *fYv_s = nullptr;   // y-component of viscous force
+  Real *x_s = nullptr;
+  Real *y_s = nullptr;
+  Real *p_s = nullptr;
+  Real *u_s = nullptr;
+  Real *v_s = nullptr;
+  Real *nx_s = nullptr;
+  Real *ny_s = nullptr;
+  Real *omega_s = nullptr;
+  Real *uDef_s = nullptr;
+  Real *vDef_s = nullptr;
+  Real *fX_s = nullptr;
+  Real *fY_s = nullptr;
+  Real *fXv_s = nullptr;
+  Real *fYv_s = nullptr;
 
-  // additive quantities:
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
   Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
        defPower = 0, defPowerBnd = 0;
   Real circulation = 0;
 
-  // auxiliary quantities for shape center of mass
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
 
   ObstacleBlock() {
     clear();
-    // rough estimate of surface cutting the block diagonally
-    // with 2 points needed on each side of surface
+
     surface.reserve(4 * _BS_);
   }
   ~ObstacleBlock() { clear_surface(); }
@@ -158,7 +147,7 @@ struct ObstacleBlock {
 
     if (delta > 0) {
       n_surfPoints++;
-      // multiply by cell area h^2 and by 0.5/h due to finite diff of gradHX
+
       const Real dchidx = -delta * gradUX, dchidy = -delta * gradUY;
       surface.push_back(new surface_data(ix, iy, dchidx, dchidy, delta));
     }

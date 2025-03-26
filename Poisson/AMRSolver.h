@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -100,7 +96,7 @@ public:
       if (index != -1 && sim.bMeanConstraint == 1) {
         ScalarBlock &__restrict__ LHS = *(ScalarBlock *)lhsInfo[index].ptrBlock;
         LHS(0, 0).s = mean;
-      } else // bMeanConstraint == 2
+      } else
         for (size_t i = 0; i < lhsInfo.size(); i++) {
           ScalarBlock &__restrict__ LHS = *(ScalarBlock *)lhsInfo[i].ptrBlock;
           const Real h2 = lhsInfo[i].h * lhsInfo[i].h;
@@ -130,7 +126,7 @@ public:
 
   void _preconditioner(const std::vector<Real> &input,
                        std::vector<Real> &output) {
-    auto &zInfo = sim.pres->getBlocksInfo(); // used for preconditioning
+    auto &zInfo = sim.pres->getBlocksInfo();
     const size_t Nblocks = zInfo.size();
     const int BSX = VectorBlock::sizeX;
     const int BSY = VectorBlock::sizeY;
@@ -145,8 +141,8 @@ public:
   }
 
   void _lhs(std::vector<Real> &input, std::vector<Real> &output) {
-    auto &zInfo = sim.pres->getBlocksInfo(); // used for preconditioning
-    auto &AxInfo = sim.tmp->getBlocksInfo(); // will store the LHS result
+    auto &zInfo = sim.pres->getBlocksInfo();
+    auto &AxInfo = sim.tmp->getBlocksInfo();
     const size_t Nblocks = zInfo.size();
     const int BSX = VectorBlock::sizeX;
     const int BSY = VectorBlock::sizeY;

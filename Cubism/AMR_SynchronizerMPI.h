@@ -5,9 +5,9 @@
 #include "PUPkernelsMPI.h"
 #include "StencilInfo.h"
 #include <algorithm>
-#include <iomanip> // std::setw
+#include <iomanip>
 #include <mpi.h>
-#include <numeric> // std::iota
+#include <numeric>
 #include <set>
 #include <sstream>
 #include <unordered_map>
@@ -15,10 +15,6 @@
 
 namespace cubism {
 
-/** \brief Auxiliary class for SynchronizerMPI_AMR; similar to std::vector
- * however, the stored data does not decrease in size, it can only increase (the
- * use of this class instead of std::vector in AMR_Synchronizer resulted in
- * faster performance). */
 template <typename T> class GrowingVector {
   size_t pos;
   size_t s;
@@ -74,20 +70,16 @@ public:
   ~GrowingVector() { v.clear(); }
 };
 
-/** \brief Auxiliary struct for SynchronizerMPI_AMR; describes how two adjacent
- * blocks touch.*/
 struct Interface {
-  BlockInfo *infos[2]; ///< the two blocks of the interface
-  int icode[2]; ///< Two integers from 0 to 26. Each integer can be decoded to a
-                ///< 3-digit number ABC. icode[0] = 1-10 (A=1,B=-1,C=0) means
-                ///< Block 1 is at the +x,-y side of Block 0.
-  bool CoarseStencil; ///< =true if the blocks need to exchange cells of their
-                      ///< parent blocks
-  bool ToBeKept; ///< false if this inteface is a subset of another inteface
-                 ///< that will be sent anyway
-  int dis;       ///< auxiliary variable
+  BlockInfo *infos[2];
+  int icode[2];
 
-  /// Class constructor
+  bool CoarseStencil;
+
+  bool ToBeKept;
+
+  int dis;
+
   Interface(BlockInfo &i0, BlockInfo &i1, const int a_icode0,
             const int a_icode1) {
     infos[0] = &i0;
@@ -113,28 +105,19 @@ struct Interface {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; similar to StencilInfo.
- * It is possible that the halo cells needed by two or more blocks overlap. To
- * avoid sending the same data twice, this struct has the option to keep track
- * of other MyRanges that are contained in it and do not need to be
- * sent/received.
- */
 struct MyRange {
-  std::vector<int>
-      removedIndices;  ///< keep track of all 'index' from other MyRange
-                       ///< instances that are contained in this one
-  int index;           ///< index of this instance of MyRange
-  int sx;              ///< stencil start in x-direction
-  int sy;              ///< stencil start in y-direction
-  int sz;              ///< stencil start in z-direction
-  int ex;              ///< stencil end in x-direction
-  int ey;              ///< stencil end in y-direction
-  int ez;              ///< stencil end in z-direction
-  bool needed{true};   ///< set to false if this MyRange is contained in another
-  bool avg_down{true}; ///< set to true if gridpoints of this MyRange will be
-                       ///< averaged down for coarse stencil interpolation
+  std::vector<int> removedIndices;
 
-  /// check if another MyRange is contained here
+  int index;
+  int sx;
+  int sy;
+  int sz;
+  int ex;
+  int ey;
+  int ez;
+  bool needed{true};
+  bool avg_down{true};
+
   bool contains(MyRange &r) const {
     if (avg_down != r.avg_down)
       return false;
@@ -144,7 +127,6 @@ struct MyRange {
            (sz <= r.sz && r.ez <= ez) && (Vr < V);
   }
 
-  /// keep track of indices of other MyRanges that are contained here
   void Remove(const MyRange &other) {
     size_t s = removedIndices.size();
     removedIndices.resize(s + other.removedIndices.size());
@@ -153,64 +135,47 @@ struct MyRange {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; Meta-data of buffers sent among
- * processes. Data is received in one contiguous buffer. This struct helps
- * unpack the buffer and put data in the correct locations.
- */
 struct UnPackInfo {
-  int offset;    ///< Offset in the buffer where the data related to this
-                 ///< UnPackInfo starts.
-  int lx;        ///< Total size of data in x-direction
-  int ly;        ///< Total size of data in y-direction
-  int lz;        ///< Total size of data in z-direction
-  int srcxstart; ///< Where in x-direction to start receiving data
-  int srcystart; ///< Where in y-direction to start receiving data
-  int srczstart; ///< Where in z-direction to start receiving data
+  int offset;
+
+  int lx;
+  int ly;
+  int lz;
+  int srcxstart;
+  int srcystart;
+  int srczstart;
   int LX;
   int LY;
-  int CoarseVersionOffset; ///< Offset in the buffer where the coarsened data
-                           ///< related to this UnPackInfo starts.
+  int CoarseVersionOffset;
+
   int CoarseVersionLX;
   int CoarseVersionLY;
-  int CoarseVersionsrcxstart; ///< Where in x-direction to start receiving
-                              ///< coarsened data
-  int CoarseVersionsrcystart; ///< Where in y-direction to start receiving
-                              ///< coarsened data
-  int CoarseVersionsrczstart; ///< Where in z-direction to start receiving
-                              ///< coarsened data
-  int level;                  ///< refinement level of data
-  int icode; ///< Integer from 0 to 26, can be decoded to a 3-digit number ABC.
-             ///< icode = 1-10 (A=1,B=-1,C=0) means Block 1 is at the +x,-y side
-             ///< of Block 0.
-  int rank;  ///< rank from which this data is received
-  int index_0;          ///< index of Block in x-direction that sent this data
-  int index_1;          ///< index of Block in y-direction that sent this data
-  int index_2;          ///< index of Block in z-direction that sent this data
-  long long IDreceiver; ///< unique blockID2 of receiver
+  int CoarseVersionsrcxstart;
+
+  int CoarseVersionsrcystart;
+
+  int CoarseVersionsrczstart;
+
+  int level;
+  int icode;
+
+  int rank;
+  int index_0;
+  int index_1;
+  int index_2;
+  long long IDreceiver;
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; keeps track of stencil and range
- * sizes that need to be sent/received. For a block in 3D, there are a total of
- * 26 possible directions that might require halo cells. There are also four
- * types of halo cells to exchange, based on the refinement level of the two
- *  neighboring blocks: 1)same level 2)coarse-fine 3)fine-coarse 4)same level
- * that also need to exchange averaged down data, in order to perform
- * coarse-fine interpolation for other blocks. This class creates 4 x 26
- * (actually 4 x 27) MyRange instances, based on a given StencilInfo.
- */
 struct StencilManager {
-  const StencilInfo stencil; ///< stencil to send/receive
-  const StencilInfo
-      Cstencil; ///< stencil used by BlockLab for coarse-fine interpolation
-  int nX;       ///< Block size if x-direction
-  int nY;       ///< Block size if y-direction
-  int nZ;       ///< Block size if z-direction
-  int sLength[3 * 27 * 3]; ///< Length of all possible stencils to send/receive
-  std::array<MyRange, 3 * 27>
-      AllStencils;      ///< All possible stencils to send/receive
-  MyRange Coarse_Range; ///< range for Cstencil
+  const StencilInfo stencil;
+  const StencilInfo Cstencil;
+  int nX;
+  int nY;
+  int nZ;
+  int sLength[3 * 27 * 3];
+  std::array<MyRange, 3 * 27> AllStencils;
+  MyRange Coarse_Range;
 
-  /// Class constructor
   StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
                  int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
@@ -225,8 +190,6 @@ struct StencilManager {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
 
-      // This also works for DIMENSION=2 and code[2]=0
-      // Same level sender and receiver
       MyRange &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
@@ -238,9 +201,6 @@ struct StencilManager {
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
 
-      // Fine sender, coarse receiver
-      // Fine sender just needs to send "double" the stencil, so that what it
-      // sends gets averaged down
       MyRange &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? nX + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? nY + 2 * stencil.sy : 0) : 0;
@@ -252,9 +212,6 @@ struct StencilManager {
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
 
-      // Coarse sender, fine receiver
-      // Coarse sender just needs to send "half" the stencil plus extra cells
-      // for coarse-fine interpolation
       MyRange &range2 = AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? nX / 2 + sC[0] : 0) : 0;
       range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
@@ -268,15 +225,12 @@ struct StencilManager {
     }
   }
 
-  /// Return stencil XxYxZ dimensions for Cstencil, based on integer icode
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
     L[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
 
-  /// Return stencil XxYxZ dimensions for Cstencil, based on integer icode and
-  /// refinement level of sender/receiver
   void DetermineStencilLength(const int level_sender, const int level_receiver,
                               const int icode, int *L) {
     if (level_sender == level_receiver) {
@@ -294,7 +248,6 @@ struct StencilManager {
     }
   }
 
-  /// Determine which stencil to send, based on interface type of two blocks
   MyRange &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
     if (CoarseVersion) {
       AllStencils[f.icode[1] + 2 * 27].needed = true;
@@ -383,8 +336,6 @@ struct StencilManager {
     }
   }
 
-  /// Fix MyRange classes that contain other MyRange classes, in order to avoid
-  /// sending the same data twice
   void __FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
                        int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
                        int &sx, int &sy, int &sz) {
@@ -406,8 +357,6 @@ struct StencilManager {
     }
   }
 
-  /// Fix MyRange classes that contain other MyRange classes, in order to avoid
-  /// sending the same data twice
   void __FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
                         int &sy, int &sz) {
     if (f.infos[0]->level != f.infos[1]->level ||
@@ -421,142 +370,75 @@ struct StencilManager {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; stored a number of halo blocks
- * that received their halo cells from a particular set of ranks.
- */
 struct HaloBlockGroup {
-  std::vector<BlockInfo *> myblocks; ///< Halo blocks for this group.
-  std::set<int> myranks;             ///< MPI ranks for this group.
-  bool ready =
-      false; ///< Check whether communication for this group has completed.
+  std::vector<BlockInfo *> myblocks;
+  std::set<int> myranks;
+  bool ready = false;
 };
 
-/**
- *  @brief Class responsible for halo cell exchange between different MPI
- * processes. This class works together with BlockLabMPI to fill the halo cells
- * needed for each GridBlock. To overlap communication and computation, it
- * distinguishes between 'inner' blocks and 'halo' blocks. Inner blocks do not
- * need halo cells from other MPI processes, so they can be immediately filled;
- * halo blocks are at the boundary of a rank and require cells owned by other
- * ranks. This class will initiate communication for halo blocks and will
- * provide an array with pointers to inner blocks. While waiting for
- * communication to complete, the user can operate on inner blocks, which allows
- * for communication-computation overlap.
- *
- *  An instance of this class is constructed by providing the StencilInfo (aka
- * the stencil) for a particular computation, in the class constructor. Then,
- * for a fixed mesh configuration, one call to '_Setup()' is required. This
- * identifies the boundaries of each rank, its neighbors and the types of
- * interfaces (faces/edges/corners) shared by two blocks that belong to two
- * different ranks. '_Setup()' will then have to be called again only when the
- * mesh changes (this call is done by the MeshAdaptation class).
- *
- *  To use this class and send/receive halo cells, the 'sync()' function needs
- * to be called. This initiates communication and MPI 'sends' and 'receives'.
- * Once called, the inner and halo blocks (with their halo cells) can be
- * accessed through 'avail_inner' and 'avail_halo'. Note that calling
- * 'avail_halo' will result in waiting time, for the communication of halo cells
- * to complete. Therefore, 'avail_inner' should be called first, while
- * communication is performed in the background. Once the inner blocks are
- * processed, 'avail_halo' should be used to process the outer/halo blocks.
- *
- *  @tparam Real: type of data to be sent/received (double/float etc.)
- *  @tparam TGrid: type of grid to operate on (should be GridMPI)
- */
 template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
-  MPI_Comm comm; ///< MPI communicator, same as the communicator from 'grid'
-  int rank;      ///< MPI process ID, same as the ID from 'grid'
-  int size;      ///< total number of processes, same as number from 'grid'
-  StencilInfo
-      stencil; ///< stencil associated with kernel (advection,diffusion etc.)
-  StencilInfo Cstencil; ///< stencil required to do coarse-fine interpolation
-  TGrid *grid;          ///< grid which owns blocks that need ghost cells
-  int nX;               ///< size of each block in x-direction
-  int nY;               ///< size of each block in y-direction
-  int nZ;               ///< size of each block in z-direction
-  MPI_Datatype MPIREAL; ///< MPI datatype matching template parameter 'Real'
+  MPI_Comm comm;
+  int rank;
+  int size;
+  StencilInfo stencil;
+  StencilInfo Cstencil;
+  TGrid *grid;
+  int nX;
+  int nY;
+  int nZ;
+  MPI_Datatype MPIREAL;
 
-  std::vector<BlockInfo *>
-      inner_blocks; ///< will contain inner blocks with loaded ghost cells
-  std::vector<BlockInfo *>
-      halo_blocks; ///< will contain outer blocks with loaded ghost cells
+  std::vector<BlockInfo *> inner_blocks;
+  std::vector<BlockInfo *> halo_blocks;
 
-  std::vector<GrowingVector<Real>>
-      send_buffer; ///< send_buffer[i] contains data to send to rank i
-  std::vector<GrowingVector<Real>>
-      recv_buffer; ///< recv_buffer[i] will receive data from rank i
+  std::vector<GrowingVector<Real>> send_buffer;
+  std::vector<GrowingVector<Real>> recv_buffer;
 
-  std::vector<MPI_Request>
-      requests; ///< requests for non-blocking sends/receives
+  std::vector<MPI_Request> requests;
 
-  std::vector<int> send_buffer_size; ///< sizes of send_buffer (communicated
-                                     ///< before actual data)
-  std::vector<int> recv_buffer_size; ///< sizes of recv_buffer (communicated
-                                     ///< before actual data)
+  std::vector<int> send_buffer_size;
 
-  std::set<int> Neighbors; ///< IDs of neighboring MPI processes
+  std::vector<int> recv_buffer_size;
 
-  GrowingVector<GrowingVector<UnPackInfo>>
-      myunpacks; ///< vector of vectors of UnPackInfos; unpacks[i] contains all
-                 ///< UnPackInfos needed for a block with halo_blockID=i
+  std::set<int> Neighbors;
+
+  GrowingVector<GrowingVector<UnPackInfo>> myunpacks;
 
   StencilManager SM;
 
-  const unsigned int
-      gptfloats; ///< number of Reals (doubles/float) each Element from Grid has
-  const int NC;  ///< number of components from each Element to send/receive
+  const unsigned int gptfloats;
+  const int NC;
 
-  /// meta-data for the parts of a particular block that will be sent to another
-  /// rank
   struct PackInfo {
-    Real *block; ///< Pointer to the first element of the block whose data will
-                 ///< be sent
-    Real *pack;  ///< Pointer to the buffer where the block's elements will be
-                 ///< copied
-    int sx; ///< Start of the block's subset that will be sent (in x-direction)
-    int sy; ///< Start of the block's subset that will be sent (in y-direction)
-    int sz; ///< Start of the block's subset that will be sent (in z-direction)
-    int ex; ///< End of the block's subset that will be sent (in x-direction)
-    int ey; ///< End of the block's subset that will be sent (in y-direction)
-    int ez; ///< End of the block's subset that will be sent (in z-direction)
+    Real *block;
+
+    Real *pack;
+
+    int sx;
+    int sy;
+    int sz;
+    int ex;
+    int ey;
+    int ez;
   };
-  std::vector<GrowingVector<PackInfo>>
-      send_packinfos; ///< vector of vectors of PackInfos; send_packinfos[i]
-                      ///< contains all the PackInfos to send to rank i
+  std::vector<GrowingVector<PackInfo>> send_packinfos;
 
-  std::vector<GrowingVector<Interface>>
-      send_interfaces; ///< vector of vectors of Interfaces; send_interfaces[i]
-                       ///< contains all the Interfaces this rank will send to
-                       ///< rank i
-  std::vector<GrowingVector<Interface>>
-      recv_interfaces; ///< vector of vectors of Interfaces; recv_interfaces[i]
-                       ///< contains all the Interfaces this rank will receive
-                       ///< from rank i
+  std::vector<GrowingVector<Interface>> send_interfaces;
 
-  std::vector<std::vector<int>>
-      ToBeAveragedDown; ///< vector of vectors of Interfaces that need to be
-                        ///< averaged down when sent
+  std::vector<GrowingVector<Interface>> recv_interfaces;
 
-  bool use_averages; ///< if true, fine blocks average down their cells to
-                     ///< provide halo cells for coarse blocks (2nd order
-                     ///< accurate). If false, they perform a 3rd-order accurate
-                     ///< interpolation instead (which is the accuracy needed to
-                     ///< compute 2nd derivatives).
+  std::vector<std::vector<int>> ToBeAveragedDown;
 
-  std::unordered_map<std::string, HaloBlockGroup>
-      mapofHaloBlockGroups; ///< Maps groups of ranks (encoded to strings) to
-                            ///< groups of halo blocks for communication.
+  bool use_averages;
 
-  std::unordered_map<int, MPI_Request *>
-      mapofrequests; ///< Maps each request for communication to an integer
+  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
 
-  /// Auxiliary struct used to avoid sending the same data twice
+  std::unordered_map<int, MPI_Request *> mapofrequests;
+
   struct DuplicatesManager {
-    /// Auxiliary struct to detect and remove duplicate Interfaces
-    struct cube // could be more efficient
-    {
-      GrowingVector<MyRange>
-          compass[27]; ///< All possible MyRange stencil that will be exchanged
+
+    struct cube {
+      GrowingVector<MyRange> compass[27];
 
       void clear() {
         for (int i = 0; i < 27; i++)
@@ -565,7 +447,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
 
       cube() {}
 
-      /// Returns the MyRange objects that will be kept
       std::vector<MyRange *> keepEl() {
         std::vector<MyRange *> retval;
         for (int i = 0; i < 27; i++)
@@ -576,7 +457,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         return retval;
       }
 
-      /// Will return the indices of the removed MyRange objects (in v)
       void __needed(std::vector<int> &v) {
         static constexpr std::array<int, 3> faces_and_edges[18] = {
             {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
@@ -639,15 +519,12 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     };
     cube C;
 
-    std::vector<int> offsets; ///< As the send buffer for each rank is being
-                              ///< filled, offset[i] is the current offset where
-                              ///< sent data is located in the send buffer.
-    std::vector<int>
-        offsets_recv; ///< As the send buffer for each rank is being filled,
-                      ///< offset[i] is the current offset where sent data is
-                      ///< located in the send buffer.
-    SynchronizerMPI_AMR *Synch_ptr; ///< pointer to the SynchronizerMPI_AMR for
-                                    ///< which to remove duplicate data
+    std::vector<int> offsets;
+
+    std::vector<int> offsets_recv;
+
+    SynchronizerMPI_AMR *Synch_ptr;
+
     std::vector<int> positions;
     std::vector<size_t> sizes;
 
@@ -659,19 +536,12 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       Synch_ptr = &Synch;
     }
 
-    /// Adds an element to 'positions[r]'
     void Add(const int r, const int index) {
       if (sizes[r] == 0)
         positions[r] = index;
       sizes[r]++;
     }
 
-    /**Remove duplicate data that will be sent to one rank.
-     * @param r: the rank where the data will be sent
-     * @param f: all the Interfaces between rank r and this rank
-     * @param total_size: eventual size of the send buffer to rank r, after
-     * duplicate Interfaces are removed.
-     */
     void RemoveDuplicates(const int r, std::vector<Interface> &f,
                           int &total_size) {
       if (sizes[r] == 0)
@@ -838,8 +708,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     }
   };
 
-  /// Check if blocks on the same refinement level need to exchange averaged
-  /// down cells that will be used for coarse-fine interpolation.
   bool UseCoarseStencil(const Interface &f) {
     BlockInfo &a = *f.infos[0];
     BlockInfo &b = *f.infos[1];
@@ -881,7 +749,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     return retval;
   }
 
-  /// Auxiliary function to average down data
   void AverageDownAndFill(Real *__restrict__ dst, const BlockInfo *const info,
                           const int code[3]) {
     const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
@@ -916,7 +783,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     }
   }
 
-  /// Auxiliary function to average down data
   void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
                            const int code[3]) {
     const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
@@ -965,7 +831,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     std::size_t firstNonZero = input.find_first_not_of('0');
     if (firstNonZero == std::string::npos)
     {
-      // The input consists only of zeros
+
       return "0";
     }
     return input.substr(firstNonZero);
@@ -983,7 +849,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   }
 #endif
 
-  /// Maps a set of integers to a string
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {
@@ -996,8 +861,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   }
 
 public:
-  /// Needs to be called whenever the grid changes because of
-  /// refinement/compression
   void _Setup() {
     Neighbors.clear();
     inner_blocks.clear();
@@ -1048,11 +911,6 @@ public:
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
-
-        // if (!stencil.tensorial && !Cstencil.tensorial &&
-        // abs(code[0])+abs(code[1])+abs(code[2])>1) continue; if
-        // (!stencil.tensorial && use_averages == false &&
-        // abs(code[0])+abs(code[1])+abs(code[2])>1) continue;
 
         const TreePosition &infoNeiTree =
             grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
@@ -1116,16 +974,12 @@ public:
               DM.Add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
 
-              if (abs(code[0]) + abs(code[1]) + abs(code[2]) ==
-                  1) // if filling a face need also two edges and a corner
-              {
-                const int d0 = abs(
-                    code[1] + 2 * code[2]); // =0 if |code[0]|=1, =1 if
-                                            // |code[1]|=1, =2 if |code[2]|=1
+              if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
+                const int d0 = abs(code[1] + 2 * code[2]);
+
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
 
-                // corner being filled
                 int code3[3];
                 code3[d0] = code[d0];
                 code3[d1] = -2 * (info.index[d1] % 2) + 1;
@@ -1133,7 +987,6 @@ public:
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
 
-                // edge in the d1 direction
                 int code4[3];
                 code4[d0] = code[d0];
                 code4[d1] = code3[d1];
@@ -1141,7 +994,6 @@ public:
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
 
-                // edge in the d2 direction
                 int code5[3];
                 code5[d0] = code[d0];
                 code5[d1] = 0;
@@ -1167,12 +1019,12 @@ public:
 
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
-          for (int B = 0; B <= 3; B += Bstep) // loop over blocks that make up
-                                              // face/edge/corner (4/2/1 blocks)
+          for (int B = 0; B <= 3; B += Bstep)
+
           {
             if (Bstep == 1 && B >= 2)
               continue;
@@ -1209,16 +1061,14 @@ public:
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
 
-              if (Bstep == 1) // if I'm filling a face then I'm also filling two
-                              // edges and a corner
+              if (Bstep == 1)
+
               {
-                const int d0 = abs(
-                    code[1] + 2 * code[2]); // =0 if |code[0]|=1, =1 if
-                                            // |code[1]|=1, =2 if |code[2]|=1
+                const int d0 = abs(code[1] + 2 * code[2]);
+
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
 
-                // corner being filled
                 int code3[3];
                 code3[d0] = -code[d0];
                 code3[d1] = -2 * (infoNeiFiner.index[d1] % 2) + 1;
@@ -1226,7 +1076,6 @@ public:
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
 
-                // edge in the d1 direction
                 int code4[3];
                 code4[d0] = -code[d0];
                 code4[d1] = code3[d1];
@@ -1234,7 +1083,6 @@ public:
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
 
-                // edge in the d2 direction
                 int code5[3];
                 code5[d0] = -code[d0];
                 code5[d1] = 0;
@@ -1264,7 +1112,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (isInner) {
         info.halo_block_id = -1;
@@ -1291,7 +1139,7 @@ public:
       }
       grid->getBlockInfoAll(info.level, info.Z).halo_block_id =
           info.halo_block_id;
-    } // i-loop
+    }
 
     myunpacks.resize(halo_blocks.size());
 
@@ -1339,8 +1187,7 @@ public:
             ToBeAveragedDown[r].push_back(i);
             ToBeAveragedDown[r].push_back(f.dis + V * NC);
           }
-        } else // receiver is coarser, so sender averages down data first
-        {
+        } else {
           ToBeAveragedDown[r].push_back(i);
           ToBeAveragedDown[r].push_back(f.dis);
         }
@@ -1349,7 +1196,7 @@ public:
 
     mapofHaloBlockGroups.clear();
     for (auto &info : halo_blocks) {
-      // 1. Find ranks from which 'info' wants to receive
+
       const int id = info->halo_block_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
@@ -1357,11 +1204,9 @@ public:
         const UnPackInfo &unpack = unpacks[jj];
         ranks.insert(unpack.rank);
       }
-      // 2. Encode the set of ranks to one number
+
       auto set_ID = EncodeSet(ranks);
 
-      // 3. Find that set and add 'info' to it. If set does not exist, create
-      // it.
       const auto retval = mapofHaloBlockGroups.find(set_ID);
       if (retval == mapofHaloBlockGroups.end()) {
         HaloBlockGroup temporary;
@@ -1374,7 +1219,6 @@ public:
     }
   }
 
-  // constructor
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid)
       : stencil(a_stencil), Cstencil(a_Cstencil),
@@ -1411,24 +1255,17 @@ public:
     }
   }
 
-  /// Returns vector of pointers to inner blocks.
   std::vector<BlockInfo *> &avail_inner() { return inner_blocks; }
 
-  /// Returns vector of pointers to halo blocks.
   std::vector<BlockInfo *> &avail_halo() {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     return halo_blocks;
   }
 
-  /// Returns vector of pointers to halo blocks without calling MPI_Wait
   std::vector<BlockInfo *> &avail_halo_nowait() { return halo_blocks; }
 
-  /// Empty vector that avail_next() returns if no halo block groups are
-  /// available
   std::vector<BlockInfo *> dummy_vector;
 
-  /// Returns the next available (in terms of completed communication) group of
-  /// halo blocks
   std::vector<BlockInfo *> &avail_next() {
     bool done = false;
     auto it = mapofHaloBlockGroups.begin();
@@ -1457,7 +1294,6 @@ public:
     return dummy_vector;
   }
 
-  /// Needs to be called to initiate communication and halo cells exchange.
   void sync() {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
@@ -1470,7 +1306,6 @@ public:
     requests.clear();
     requests.reserve(2 * size);
 
-    // Post receive requests first
     for (auto r : Neighbors)
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -1479,7 +1314,6 @@ public:
                   timestamp, comm, &requests.back());
       }
 
-    // Pack data
     for (int r = 0; r < size; r++)
       if (send_buffer_size[r] != 0) {
 #pragma omp parallel
@@ -1507,7 +1341,6 @@ public:
         }
       }
 
-    // Do the sends
     for (auto r : Neighbors)
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -1516,10 +1349,8 @@ public:
       }
   }
 
-  /// Get the StencilInfo of this Synchronizer
   const StencilInfo &getstencil() const { return stencil; }
 
-  /// Check whether communication for a particular block has compelted
   bool isready(const BlockInfo &info) {
     const int id = info.halo_block_id;
     if (id < 0)
@@ -1537,19 +1368,14 @@ public:
     return true;
   }
 
-  /// Used by BlockLabMPI, to get the data from the receive buffers owned by the
-  /// Synchronizer and put them in its working copy of a GridBlock plus its halo
-  /// cells.
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
-    // fetch received data for blocks that are neighbors with 'info' but are
-    // owned by another rank
+
     const int id = info.halo_block_id;
     if (id < 0)
       return;
 
-    // loop over all unpacks that correspond to block with this halo_block_id
     UnPackInfo *unpacks = myunpacks[id].data();
     for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
       const UnPackInfo &unpack = unpacks[jj];
@@ -1557,8 +1383,6 @@ public:
                            (unpack.icode / 9) % 3 - 1};
       const int otherrank = unpack.rank;
 
-      // Based on the current unpack's icode, regions starting from 's' and
-      // ending to 'e' of the current block will be filled with ghost cells.
       const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
                         code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
                         code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
@@ -1567,8 +1391,7 @@ public:
           code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
 
-      if (unpack.level == info.level) // same level neighbors
-      {
+      if (unpack.level == info.level) {
         Real *dst =
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
                           (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
@@ -1581,9 +1404,7 @@ public:
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
                          Length[0], Length[1], Length[2]);
 
-        if (unpack.CoarseVersionOffset >=
-            0) // same level neighbors exchange averaged down ghosts
-        {
+        if (unpack.CoarseVersionOffset >= 0) {
           const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
                                  (stencil.sz - 1) / 2 + Cstencil.sz};
@@ -1630,9 +1451,8 @@ public:
       } else {
         int B;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-          B = 0;                                                    // corner
-        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) // edge
-        {
+          B = 0;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
           int t;
           if (code[0] == 0)
             t = unpack.index_0 - 2 * info.index[0];

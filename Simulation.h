@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -24,8 +20,6 @@ public:
   Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
 
-  /// Find the first operator in the pipeline that matches the given type.
-  /// Returns `nullptr` if nothing was found.
   template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
@@ -35,11 +29,8 @@ public:
     return nullptr;
   }
 
-  /// Insert the operator at the end of the pipeline.
   void insertOperator(std::shared_ptr<Operator> op);
 
-  /// Insert an operator after the operator of the given name.
-  /// Throws an exception if the name is not found.
   void insertOperatorAfter(std::shared_ptr<Operator> op,
                            const std::string &name);
 

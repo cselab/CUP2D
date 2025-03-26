@@ -5,8 +5,6 @@
 
 namespace cubism {
 
-/** \brief Similar to BlockLab, but should be used with simulations that support
- * MPI.*/
 template <typename MyBlockLab> class BlockLabMPI : public MyBlockLab {
 public:
   using GridType = typename MyBlockLab::GridType;
@@ -19,8 +17,6 @@ private:
   SynchronizerMPIType *refSynchronizerMPI;
 
 public:
-  /// Same as 'prepare' from BlockLab. This will also create a
-  /// SynchronizerMPI_AMR for different MPI processes.
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) override {
@@ -29,8 +25,6 @@ public:
     MyBlockLab::prepare(grid, stencil);
   }
 
-  /// Same as 'load' from BlockLab. This will also fetch halo cells from
-  /// different MPI processes.
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) override {
     MyBlockLab::load(info, t, applybc);

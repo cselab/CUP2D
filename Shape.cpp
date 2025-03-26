@@ -1,17 +1,11 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Shape.h"
-// #include "OperatorComputeForces.h"
+
 #include "Utils/BufferedLogger.h"
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
 using namespace cubism;
-
-// #define EXPL_INTEGRATE_MOM
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
@@ -26,7 +20,7 @@ void Shape::updateVelocity(Real dt) {
   if (not bBlockang || sim.time > timeForced)
     omega = (fluidAngMom + dt * appliedTorque) / penalJ;
 #else
-  // A and b need to be declared as double (not Real)
+
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
                     {(double)-penalDY, (double)penalDX, (double)penalJ}};
@@ -72,11 +66,10 @@ void Shape::updateVelocity(Real dt) {
     const double charL = getCharLength();
     const double charV = std::abs(u);
 
-    // Set magintude of disturbance
-    if (breakSymmetryType == 1) { // add rotation
+    if (breakSymmetryType == 1) {
       omega = strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
     }
-    if (breakSymmetryType == 2) { // add translation
+    if (breakSymmetryType == 2) {
       v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
     }
   }
@@ -98,8 +91,7 @@ void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
 }
 
 void Shape::updatePosition(Real dt) {
-  // Remember, uinf is -ubox, therefore we sum it to u body to get
-  // velocity of shapre relative to the sim box
+
   centerOfMass[0] += dt * (u + sim.uinfx);
   centerOfMass[1] += dt * (v + sim.uinfy);
   labCenterOfMass[0] += dt * u;
@@ -117,7 +109,6 @@ void Shape::updatePosition(Real dt) {
   const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
 
-  // do not print/write for initial PutObjectOnGrid
   if (dt <= 0)
     return;
 
@@ -192,8 +183,6 @@ void Shape::removeMoments(const std::vector<BlockInfo> &vInfo) {
   M = I.m;
   J = I.j;
 
-  // with current center put shape on grid, with current shape on grid we
-  // updated the center of mass, now recompute the distance betweeen the two:
   const Real dCx = center[0] - centerOfMass[0];
   const Real dCy = center[1] - centerOfMass[1];
   d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
@@ -217,45 +206,10 @@ void Shape::removeMoments(const std::vector<BlockInfo> &vInfo) {
   }
 };
 
-void Shape::diagnostics() {
-  /*
-  const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const Real hsq = std::pow(vInfo[0].h, 2);
-  Real _a=0, _m=0, _x=0, _y=0, _t=0;
-  #pragma omp parallel for schedule(dynamic) reduction(+:_a,_m,_x,_y,_t)
-  for(size_t i=0; i<vInfo.size(); i++) {
-      const auto pos = obstacleBlocks[vInfo[i].blockID];
-      if(pos == nullptr) continue;
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        if (pos->chi[iy][ix] <= 0) continue;
-        const Real Xs = pos->chi[iy][ix] * hsq;
-        Real p[2];
-        vInfo[i].pos(p, ix, iy);
-        p[0] -= centerOfMass[0];
-        p[1] -= centerOfMass[1];
-        const Real*const udef = pos->udef[iy][ix];
-        const Real uDiff = b(ix,iy).u - (u -omega*p[1] +udef[0]);
-        const Real vDiff = b(ix,iy).v - (v +omega*p[0] +udef[1]);
-        _a += Xs;
-        _m += Xs;
-        _x += uDiff*Xs;
-        _y += vDiff*Xs;
-        _t += (p[0]*vDiff-p[1]*uDiff)*Xs;
-      }
-  }
-  area_penal   = _a;
-  mass_penal   = _m;
-  forcex_penal = _x * sim.lambda;
-  forcey_penal = _y * sim.lambda;
-  torque_penal = _t * sim.lambda;
-  */
-}
+void Shape::diagnostics() {}
 
 void Shape::computeForces() {
-  // additive quantities:
+
   perimeter = 0;
   forcex = 0;
   forcey = 0;
@@ -340,7 +294,6 @@ void Shape::computeForces() {
   defPowerBnd = quantities[17];
   defPower = quantities[18];
 
-  // derived quantities:
   Pthrust = thrust * std::sqrt(u * u + v * v);
   Pdrag = drag * std::sqrt(u * u + v * v);
   const Real denUnb = Pthrust - std::min(defPower, (Real)0);
@@ -365,8 +318,7 @@ void Shape::computeForces() {
     std::stringstream ssF;
     ssF << sim.path2file << "/surface_" << obstacleID << "_"
         << std::setfill('0') << std::setw(7) << sim.step << ".csv";
-    MPI_File_delete(ssF.str().c_str(),
-                    MPI_INFO_NULL); // delete the file if it exists
+    MPI_File_delete(ssF.str().c_str(), MPI_INFO_NULL);
     MPI_File_open(sim.chi->getWorldComm(), ssF.str().c_str(),
                   MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL,
                   &surface_file);
@@ -418,8 +370,7 @@ Shape::Shape(SimulationData &s, ArgumentParser &p, Real C[2])
       forcedomega(-p("-angvel").asDouble(0)),
       bDumpSurface(p("-dumpSurf").asInt(0)),
       timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      breakSymmetryType(
-          p("-breakSymmetryType").asInt(0)), // 0 is no symmetry breaking
+      breakSymmetryType(p("-breakSymmetryType").asInt(0)),
       breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
       breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {}
 
@@ -429,7 +380,6 @@ Shape::~Shape() {
   obstacleBlocks.clear();
 }
 
-// functions needed for restarting the simulation
 void Shape::saveRestart(FILE *f) {
   assert(f != NULL);
   fprintf(f, "x:     %20.20e\n", (double)centerOfMass[0]);
@@ -444,8 +394,6 @@ void Shape::saveRestart(FILE *f) {
   fprintf(f, "d_gm1: %20.20e\n", (double)d_gm[1]);
   fprintf(f, "center0: %20.20e\n", (double)center[0]);
   fprintf(f, "center1: %20.20e\n", (double)center[1]);
-  // maybe center0,center1,d_gm0,d_gm1 are not all needed, but it's only four
-  // numbers so we might as well dump them
 }
 
 void Shape::loadRestart(FILE *f) {

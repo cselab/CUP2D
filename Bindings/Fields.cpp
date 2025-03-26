@@ -4,9 +4,6 @@
 #include "../SimulationData.h"
 #include <pybind11/numpy.h>
 
-// Note: using "field" nomenclature instead of "grid" because "field" sounds
-// like it is carrying the data and "grid" only the metadata.
-
 using namespace pybind11::literals;
 
 namespace cubismup2d {
@@ -14,10 +11,6 @@ namespace {
 
 constexpr int BS = CUP2D_BLOCK_SIZE;
 
-/** Returns '<' if little-endian is used or '>' otherwise.
-
-    https://numpy.org/doc/stable/reference/arrays.interface.html#object.__array_interface__
-*/
 static char getEndiannessNumpy() {
   uint16_t x = (uint16_t)'<' | (uint16_t)((uint16_t)'>' << 16);
   char out[2];
@@ -25,7 +18,6 @@ static char getEndiannessNumpy() {
   return out[0];
 }
 
-/// Return numpy typestr for the type T.
 template <typename T> static std::string floatTypestr() {
   char str[8];
   str[0] = getEndiannessNumpy();
@@ -44,7 +36,6 @@ template <typename T> static std::string floatTypestr() {
   return str;
 }
 
-/// View to a block, ports its content to a numpy array.
 struct BlockView {
   cubism::BlockInfo *block;
   bool isVector;
@@ -62,8 +53,7 @@ struct BlockView {
 
   py::array_t<Real> toArray() const {
     using Vector = std::vector<ssize_t>;
-    // return py::array_t<Real>(isVector ? Shape{BS, BS, 2} : Shape{BS, BS},
-    //                          (Real *)block->ptrBlock);
+
     constexpr size_t size = sizeof(Real);
     return py::memoryview::from_buffer(
         (Real *)block->ptrBlock, isVector ? Vector{BS, BS, 2} : Vector{BS, BS},
@@ -73,7 +63,7 @@ struct BlockView {
 
   py::tuple cellRange(int level) const {
     assert(block->index[2] == 0);
-    // Use ssize_t because that's what py::slice uses anyway.
+
     const ssize_t ix0 = ScalarBlock::sizeX * block->index[0];
     const ssize_t ix1 = ScalarBlock::sizeX * (block->index[0] + 1);
     const ssize_t iy0 = ScalarBlock::sizeY * block->index[1];
@@ -92,7 +82,6 @@ struct BlockView {
   }
 };
 
-/// View of the block array of a grid.
 template <typename Grid> struct GridBlocksView {
   Grid *grid;
 
@@ -104,9 +93,8 @@ template <typename Grid> struct GridBlocksView {
   }
 };
 
-} // anonymous namespace
+} // namespace
 
-// Non-const only needed because of BlockLab in the interpolation.
 template <typename Grid>
 static py::array_t<Real> gridToUniform(Grid *grid, Real fillValue,
                                        bool interpolate) {
@@ -115,7 +103,7 @@ static py::array_t<Real> gridToUniform(Grid *grid, Real fillValue,
   static_assert(sizeof(T) == (kIsVector ? 2 : 1) * sizeof(Real), "");
 
   const auto numCells = grid->getMaxMostRefinedCells();
-  std::vector<ssize_t> shape(2 + kIsVector); // (y, x, [channels])
+  std::vector<ssize_t> shape(2 + kIsVector);
   shape[0] = numCells[1];
   shape[1] = numCells[0];
   if (kIsVector)
@@ -124,7 +112,6 @@ static py::array_t<Real> gridToUniform(Grid *grid, Real fillValue,
   py::array_t<Real> out(std::move(shape));
   T *const ptr = reinterpret_cast<T *>(out.mutable_data());
 
-  // On one rank, local grid covers the whole domain, so no need to fill.
   if (grid->world_size > 1) {
     Real *const p = reinterpret_cast<Real *>(ptr);
     for (ssize_t i = 0; i < out.size(); ++i)

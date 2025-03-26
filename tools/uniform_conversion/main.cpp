@@ -1,4 +1,4 @@
-#include <algorithm> // std::sort
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 struct BlockGroup {
   double h;
   int nx, ny, nz;
-  double ox, oy, oz; // origin
+  double ox, oy, oz;
   int level;
   int index[3];
 };
@@ -29,8 +29,7 @@ void decompose_1D(long long tasks, long long &my_start, long long &my_end) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   long long my_share = tasks / size;
-  if (tasks % size != 0 && rank == size - 1) // last rank gets what's left
-  {
+  if (tasks % size != 0 && rank == size - 1) {
     my_share += tasks % size;
   }
 
@@ -45,7 +44,6 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
 
   H5open();
 
-  // open amr raw data - every rank will read that
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
   file_id = H5Fopen((filename + "-groups.h5").c_str(), H5F_ACC_RDONLY, fapl_id);
@@ -54,7 +52,6 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
   dataset_origins = H5Dopen2(file_id, "origins", H5P_DEFAULT);
   dataset_indices = H5Dopen2(file_id, "indices", H5P_DEFAULT);
 
-  // Read size of input dataset and store it to dim
   hsize_t dim_origins;
   hsize_t dim_indices;
   fspace_origins = H5Dget_space(dataset_origins);
@@ -62,7 +59,6 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
   H5Sget_simple_extent_dims(fspace_origins, &dim_origins, NULL);
   H5Sget_simple_extent_dims(fspace_indices, &dim_indices, NULL);
 
-  // Allocate vector to read dataset
   std::vector<double> origins(dim_origins);
   std::vector<int> indices(dim_indices);
   H5Dread(dataset_origins, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -102,7 +98,7 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Collection\">\n";
-    // s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
+
     for (size_t i = 0; i < groups.size(); i++) {
       const BlockGroup &group = groups[i];
       const int nXX = group.nx;
@@ -146,7 +142,6 @@ std::vector<double> get_amr_dataset(std::string filename) {
 
   H5open();
 
-  // open amr raw data - every rank will read that
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
   file_id = H5Fopen((filename + ".h5").c_str(), H5F_ACC_RDONLY, fapl_id);
@@ -154,12 +149,10 @@ std::vector<double> get_amr_dataset(std::string filename) {
 
   dataset_id = H5Dopen2(file_id, "dset", H5P_DEFAULT);
 
-  // Read size of input dataset and store it to dim
   hsize_t dim;
   fspace_id = H5Dget_space(dataset_id);
   H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
 
-  // Allocate vector to read dataset
   std::vector<double> amr(dim);
   H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
           amr.data());
@@ -183,10 +176,7 @@ double M1D(double x) {
   if (s < 2.0)
     return 0.5 * (1.0 - s) * (2.0 - s) * (2.0 - s);
   return 0.0;
-// if      (s<1) return 1.0 - s*s*(15 + s*(35-63*s+25*s*s) ) /12.0;
-// else if (s<2) return -4.0 + s*( 18.75 + s*( -30.625 + s*(
-// (545.+ 25.0*s*s)/24.  -7.875*s ) ) ); else if (s<3) return 18.0 + s*( -38.25
-// + s*(31.875 + s*(  (-313. -5.0*s*s)/24.   +2.625*s) )   ); else return 0.0;
+
 #endif
 }
 double M6(double x, double y) { return M1D(x) * M1D(y); }
@@ -207,7 +197,6 @@ void convert_to_uniform(std::string filename, int tttt) {
               allGroups[i - 1].nx * allGroups[i - 1].ny * allGroups[i - 1].nz;
   }
 
-  // find min h, domain extent and maxLevel
   double minh = 1e6;
   int levelMax = -1;
   long long points[3] = {0, 0, 0};
@@ -236,14 +225,12 @@ void convert_to_uniform(std::string filename, int tttt) {
   MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_LONG_LONG, MPI_MAX,
                 MPI_COMM_WORLD);
 
-  // the uniform domain is decomposed in the x-direction only!
   decompose_1D(points[0], my_start, my_end);
   std::vector<float> uniform_grid((my_end - my_start) * points[1] * points[2]);
 
 #pragma omp parallel for
   for (size_t i = 0; i < allGroups.size(); i++) {
     const BlockGroup &group = allGroups[i];
-    // check if this group is within my part of the uniform domain
 
     const int aux = 1 << (levelMax - 1 - group.level);
     const long long start_x = group.index[0] * BS * aux;
@@ -287,7 +274,7 @@ void convert_to_uniform(std::string filename, int tttt) {
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
-    // s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
+
     s << "  <Grid GridType=\"Uniform\">\n";
     s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1
       << " " << points[1] / Cfactor + 1 << " " << points[0] / Cfactor + 1
@@ -325,7 +312,6 @@ void convert_to_uniform(std::string filename, int tttt) {
     out.close();
   }
 
-  // dump uniform grid
   {
 #if Cfactor > 1
     std::vector<float> uniform_grid_coarse(
@@ -342,7 +328,7 @@ void convert_to_uniform(std::string filename, int tttt) {
                             points[1] / Cfactor;
           const int base =
               x + y * (my_end - my_start) + z * (my_end - my_start) * points[1];
-          // for (int iz = 0 ; iz < Cfactor ; iz++)
+
           int iz = 0;
           for (int iy = 0; iy < Cfactor; iy++)
             for (int ix = 0; ix < Cfactor; ix++)
@@ -361,14 +347,6 @@ void convert_to_uniform(std::string filename, int tttt) {
                         H5P_DEFAULT, fapl_id);
     H5Pclose(fapl_id);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
-
-    // hsize_t chunk_dims[3];
-    // chunk_dims[0] = 8;
-    // chunk_dims[1] = 8;
-    // chunk_dims[2] = 8;
-    // hid_t memspace  = H5Screate_simple(3, chunk_dims, NULL);
-    // H5Pset_chunk(fapl_id, 3, chunk_dims);
-    // H5Sclose(memspace);
 
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
     hsize_t dims[3] = {(hsize_t)1, (hsize_t)points[1] / Cfactor,
@@ -403,7 +381,7 @@ void convert_to_uniform(std::string filename, int tttt) {
 
   return;
   {
-    // t is theta!
+
     const int Nt = 1024;
     const int Nr = 8192;
     const double t_min = 0.0;
@@ -460,7 +438,7 @@ void convert_to_uniform(std::string filename, int tttt) {
       s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
       s << "<Xdmf Version=\"2.0\">\n";
       s << "<Domain>\n";
-      // s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
+
       s << "  <Grid GridType=\"Uniform\">\n";
       s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1
         << " " << Nt + 1 << " " << Nr + 1 << "\"/>\n";
@@ -496,7 +474,6 @@ void convert_to_uniform(std::string filename, int tttt) {
       out.close();
     }
 
-    // Dump data
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 
     hsize_t count[3] = {1, Nt, Nr};

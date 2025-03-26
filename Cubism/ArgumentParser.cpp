@@ -12,9 +12,6 @@
 
 namespace cubism {
 
-///////////////////////////////////////////////////////////
-// Value
-///////////////////////////////////////////////////////////
 double Value::asDouble(double def) {
   if (content == "") {
     std::ostringstream sbuf;
@@ -60,9 +57,6 @@ std::ostream &operator<<(std::ostream &lhs, const Value &rhs) {
   return lhs;
 }
 
-///////////////////////////////////////////////////////////
-// CommandlineParser
-///////////////////////////////////////////////////////////
 static inline void _normalizeKey(std::string &key) {
   if (key[0] == '-')
     key.erase(0, 1);
@@ -97,27 +91,19 @@ bool CommandlineParser::check(std::string key) const {
 bool CommandlineParser::_isnumber(const std::string &s) const {
   char *end = NULL;
   strtod(s.c_str(), &end);
-  return end != s.c_str(); // only care if the number is numeric or not.  This
-                           // includes nan and inf
+  return end != s.c_str();
 }
 
 CommandlineParser::CommandlineParser(const int argc, char **argv)
     : iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true) {
-  // parse commandline <key> <value> pairs.  Key passed on the command
-  // line must start with a leading dash (-). For example:
-  // -mykey myvalue0 [myvalue1 ...]
+
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-') {
       std::string values = "";
       int itemCount = 0;
 
-      // check if the current key i is a list of values. If yes,
-      // concatenate them into a string
       for (int j = i + 1; j < argc; j++) {
-        // if the current value is numeric and (possibly) negative,
-        // do not interpret it as a key.
-        // XXX: [fabianw@mavt.ethz.ch; 2019-03-28] WARNING:
-        // This will treat -nan as a NUMBER and not as a KEY
+
         std::string sval(argv[j]);
         const bool leadingDash = (sval[0] == '-');
         const bool isNumeric = _isnumber(sval);
@@ -136,16 +122,14 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
         values = "true";
 
       std::string key(argv[i]);
-      key.erase(0, 1);   // remove leading '-'
-      if (key[0] == '+') // for key concatenation
-      {
+      key.erase(0, 1);
+      if (key[0] == '+') {
         key.erase(0, 1);
         if (!_existKey(key, mapArguments))
-          mapArguments[key] = Value(values); // skip leading white space
+          mapArguments[key] = Value(values);
         else
           mapArguments[key] += Value(values);
-      } else // regular key
-      {
+      } else {
         if (!_existKey(key, mapArguments))
           mapArguments[key] = Value(values);
       }
@@ -154,7 +138,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
     }
 
   mute();
-  // printf("found %ld arguments of %d\n",mapArguments.size(),argc);
 }
 
 void CommandlineParser::save_options(const std::string &path) {
@@ -183,9 +166,6 @@ void CommandlineParser::print_args() {
   }
 }
 
-///////////////////////////////////////////////////////////
-// ArgumentParser
-///////////////////////////////////////////////////////////
 void ArgumentParser::_ignoreComments(std::istream &stream,
                                      const char commentChar) {
   stream >> std::ws;
@@ -198,8 +178,7 @@ void ArgumentParser::_ignoreComments(std::istream &stream,
 }
 
 void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
-  // read (key value) pairs from input file, ignore comments
-  // beginning with commentStart
+
   _ignoreComments(stream, commentStart);
   while (!stream.eof()) {
     std::string line, key, val;
@@ -221,7 +200,7 @@ void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
 
     if (key[0] == '+') {
       key.erase(0, 1);
-      if (!_existKey(key, container)) // skip leading white space
+      if (!_existKey(key, container))
         container[key] = V;
       else
         container[key] += V;
@@ -240,8 +219,7 @@ void ArgumentParser::readFile(const std::string &filepath) {
     _parseFile(confFile, mapArguments);
     confFile.clear();
     confFile.seekg(0, std::ios::beg);
-    _parseFile(confFile,
-               myFMap); // we keep a reference for each separate file read
+    _parseFile(confFile, myFMap);
   }
   confFile.close();
 }
@@ -341,7 +319,6 @@ void ArgumentParser::print_args() {
                "~~~~~~~"
             << std::endl;
 
-  // command line given arguments
   if (!from_commandline.empty()) {
     std::cout << "* Command Line:" << std::endl;
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -359,7 +336,6 @@ void ArgumentParser::print_args() {
               << std::endl;
   }
 
-  // options read from input files
   if (!from_files.empty()) {
     for (FileMap::iterator itFile = from_files.begin();
          itFile != from_files.end(); itFile++) {
@@ -383,7 +359,6 @@ void ArgumentParser::print_args() {
     }
   }
 
-  // defaults defined in code
   if (!from_code.empty()) {
     std::cout << "* Defaults in Code:" << std::endl;
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

@@ -6,35 +6,16 @@
 
 namespace cubism {
 
-/**
- * @brief Auxiliary struct used to perform flux corrections at coarse-fine block
- * interfaces.
- *
- * This struct can save the fluxes passing though the six faces of one
- * GridBlock. Each BlockInfo owns a pointer to its own BlockCase. The pointer is
- * not a nullptr only if any of the six faces of the block have a neighboring
- * block at a different refinement level. When a stencil computation is
- * performed, each block can fill its own BlockCase with the fluxes passing
- * through its faces. Then, the FluxCorrection class will replace the coarse
- * fluxes with the sum of the fine fluxes, which ensures conservation of the
- * quantity whose flux we compute.
- *
- * @tparam BlockType The user-defined GridBlock
- * @tparam ElementType The type of elements stored by the user-defined GridBlock
- */
 template <typename BlockType,
           typename ElementType = typename BlockType::ElementType>
 struct BlockCase {
-  std::vector<std::vector<ElementType>>
-      m_pData;             ///< six vectors, one for each face
-  unsigned int m_vSize[3]; ///< sizes of the faces (in x,y and z)
-  bool storedFace[6]; ///< boolean variables, one for each face (=true if this
-                      ///< face needs flux corrections because it is at a
-                      ///< coarse-fine interface)
-  int level;          ///< refinement level of the associated block
-  long long Z;        ///< Z-order index of the associated block
+  std::vector<std::vector<ElementType>> m_pData;
+  unsigned int m_vSize[3];
+  bool storedFace[6];
 
-  /// Constructor.
+  int level;
+  long long Z;
+
   BlockCase(bool _storedFace[6], unsigned int nX, unsigned int nY,
             unsigned int nZ, int _level, long long _Z) {
     m_vSize[0] = nX;
@@ -54,7 +35,6 @@ struct BlockCase {
       int d1 = (d + 1) % 3;
       int d2 = (d + 2) % 3;
 
-      // assume everything is initialized to 0!!!!!!!!
       if (storedFace[2 * d])
         m_pData[2 * d].resize(m_vSize[d1] * m_vSize[d2]);
       if (storedFace[2 * d + 1])
@@ -67,36 +47,21 @@ struct BlockCase {
   ~BlockCase() {}
 };
 
-/**
- * @brief Performs flux corrections at coarse-fine block interfaces.
- *
- * This class can replace the coarse fluxes stored at BlockCases with the sum of
- * the fine fluxes (also stored at BlockCases). This ensures conservation of the
- * quantity whose flux we compute.
- *
- * @tparam TGrid The user-defined Grid/GridMPI
- * @tparam BlockType The user-defined GridBlock used by TGrid
- */
 template <typename TGrid> class FluxCorrection {
 public:
-  using GridType = TGrid; ///< should be a 'Grid', 'GridMPI' or derived class
+  using GridType = TGrid;
   typedef typename GridType::BlockType BlockType;
   typedef typename BlockType::ElementType ElementType;
   typedef typename ElementType::RealType Real;
   typedef BlockCase<BlockType> Case;
-  int rank{
-      0}; ///< MPI process ID (set to zero here, for a serial implementation)
+  int rank{0};
 
 protected:
-  std::map<std::array<long long, 2>, Case *>
-      MapOfCases; ///< map between BlockCases and BlockInfos (two integers:
-                  ///< refinement level and Z-order index)
-  TGrid *grid;    ///< grid for which we perform the flux corrections
-  std::vector<Case> Cases; ///< BlockCases owned by FluxCorrection; BlockInfos
-                           ///< have pointers to these (in needed)
+  std::map<std::array<long long, 2>, Case *> MapOfCases;
 
-  /// Perform flux correction for BlockInfo 'info' in the direction/face
-  /// specified by 'code'
+  TGrid *grid;
+  std::vector<Case> Cases;
+
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -116,9 +81,7 @@ protected:
     assert(CoarseCase.Z == info.Z);
     assert(CoarseCase.level == info.level);
 
-    for (int B = 0; B <= 1;
-         B++) // loop over fine blocks that make up coarse face
-    {
+    for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z = (*grid).getZforward(
           info.level + 1,
@@ -161,8 +124,6 @@ protected:
   }
 
 public:
-  /// Prepare the FluxCorrection class for a given 'grid' by allocating
-  /// BlockCases at each coarse-fine interface
   virtual void prepare(TGrid &_grid) {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -238,11 +199,8 @@ public:
       }
   }
 
-  /// Go over each coarse-fine interface and perform the flux corrections,
-  /// assuming the associated BlockCases have been filled with the fluxes by the
-  /// user
   virtual void FillBlockCases() {
-    // This assumes that the BlockCases have been filled by the user somehow...
+
     std::vector<BlockInfo> &B = (*grid).getBlocksInfo();
 
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
@@ -305,8 +263,7 @@ public:
               block(j, i2) += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
-          } else // if (d == 1)
-          {
+          } else {
             const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block(i2, j) += CoarseFace[i2];

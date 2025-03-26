@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -148,13 +144,10 @@ struct KernelQ {
       for (int x = 0; x < VectorBlock::sizeX; ++x) {
         const Real WZ = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                                (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
-        const Real D11 =
-            i2h * (lab(x + 1, y).u[0] - lab(x - 1, y).u[0]); // shear stresses
-        const Real D22 =
-            i2h * (lab(x, y + 1).u[1] - lab(x, y - 1).u[1]); // shear stresses
-        const Real D12 =
-            i2h * ((lab(x, y + 1).u[0] - lab(x, y - 1).u[0]) +
-                   (lab(x + 1, y).u[1] - lab(x - 1, y).u[1])); // shear stresses
+        const Real D11 = i2h * (lab(x + 1, y).u[0] - lab(x - 1, y).u[0]);
+        const Real D22 = i2h * (lab(x, y + 1).u[1] - lab(x, y - 1).u[1]);
+        const Real D12 = i2h * ((lab(x, y + 1).u[0] - lab(x, y - 1).u[0]) +
+                                (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
         const Real SS = D11 * D11 + D22 * D22 + 0.5 * (D12 * D12);
         TMP(x, y).s = 0.5 * (0.5 * (WZ * WZ) - SS);
       }

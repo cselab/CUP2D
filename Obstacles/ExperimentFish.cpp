@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "ExperimentFish.h"
 #include "FishData.h"
@@ -55,7 +51,7 @@ ExperimentDataFish::loadFile(const std::string path) {
 }
 
 void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
-  // define interpolation points on midline
+
   const std::array<Real, 6> midlinePoints = {
       (Real)0,           (Real).15 * length,
       (Real).4 * length, (Real).65 * length,
@@ -65,7 +61,7 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
     tNext += dtDataset;
     idxLast = idxNext;
     idxNext++;
-    // Only start moving the fish after timeStart has passed
+
     if (t >= timeStart) {
       u = (centerOfMassData[idxNext][0] - centerOfMassData[idxLast][0]) /
           dtDataset;
@@ -93,7 +89,7 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
     const Real dx = std::sqrt(ds * ds - dy * dy);
     assert(dx > 0);
     const Real dVy = vY[i] - vY[i - 1];
-    const Real dVx = -dy / dx * dVy; // ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
+    const Real dVx = -dy / dx * dVy;
 
     rX[i] = dx;
     vX[i] = dVx;

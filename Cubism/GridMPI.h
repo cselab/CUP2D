@@ -1,10 +1,4 @@
-/*
- *  GridMPI.h
- *
- *  Created by Michalis Chatzimanolakis
- *  Copyright 2020 ETH Zurich. All rights reserved.
- *
- */
+
 #pragma once
 
 #include <map>
@@ -27,8 +21,6 @@
 
 namespace cubism {
 
-/** Similar to Grid, but with functionalities for multiple MPI processes.
- */
 template <typename TGrid> class GridMPI : public TGrid {
 public:
   typedef typename TGrid::Real Real;
@@ -36,18 +28,15 @@ public:
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
 
-  // MPI related variables
-  size_t timestamp;   ///< used as message tag during communication
-  MPI_Comm worldcomm; ///< MPI communicator
-  int myrank;         ///< MPI process ID
-  int world_size;     ///< total number of MPI processes
+  size_t timestamp;
+  MPI_Comm worldcomm;
+  int myrank;
+  int world_size;
 
-  std::map<StencilInfo, SynchronizerMPIType *>
-      SynchronizerMPIs; ///< map of Syncronizers need for halo cell exchange
+  std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid>>> Corrector;
-  std::vector<BlockInfo *> boundary; ///< BlockInfos of adjacent ranks
+  std::vector<BlockInfo *> boundary;
 
-  /// Constructor, same as the one from Grid.
   GridMPI(const int nX, const int nY = 1, const int nZ = 1,
           const double a_maxextent = 1, const int a_levelStart = 0,
           const int a_levelMax = 1, const MPI_Comm comm = MPI_COMM_WORLD,
@@ -85,7 +74,6 @@ public:
     MPI_Barrier(worldcomm);
   }
 
-  /// Destructor.
   virtual ~GridMPI() override {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       delete it->second;
@@ -95,17 +83,12 @@ public:
     MPI_Barrier(worldcomm);
   }
 
-  /// Return pointer to block at level 'm' with Z-index 'n' or nullptr if this
-  /// block is not owned by this rank.
   virtual Block *avail(const int m, const long long n) override {
     return (TGrid::Tree(m, n).rank() == myrank)
                ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
 
-  /// Communicate the state (refine/compress/leave) of all blocks in the
-  /// boundaries of this rank; Used when the mesh is refined, to make sure we
-  /// all adjacent blocks do not differ by more than one refinement level.
   virtual void UpdateBoundary(bool clean = false) override {
     const auto blocksPerDim = TGrid::getMaxBlocks();
 
@@ -171,11 +154,11 @@ public:
             Neighbors.insert(infoNeiCoarserrank);
           }
         } else if (infoNeiTree.CheckFiner()) {
-          int Bstep = 1; // face
+          int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -199,7 +182,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (info.changed2 && info.state != Leave) {
         if (info.state == Refine)
@@ -258,8 +241,6 @@ public:
         }
   };
 
-  /// Called after grid refinement/compression, to update the Octree with the
-  /// new block states and rank ownership.
   void UpdateBlockInfoAll_States(bool UpdateIDs = false) {
     std::vector<int> myNeighbors = FindMyNeighbors();
 
@@ -310,15 +291,14 @@ public:
             break;
           }
         } else if (infoNeiTree.CheckFiner()) {
-          int Bstep = 1; // face
+          int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
-          for (int B = 0; B <= 3;
-               B += Bstep) // loop over blocks that make up face/edge/corner
-                           // (respectively 4,2 or 1 blocks)
+          for (int B = 0; B <= 3; B += Bstep)
+
           {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
@@ -339,7 +319,7 @@ public:
           myflag = true;
           break;
         }
-      } // icode = 0,...,26
+      }
 
       if (myflag) {
         myData.push_back(info.level);
@@ -416,7 +396,6 @@ public:
     }
   }
 
-  /// Returns a vector with the process IDs (ranks) or neighboring GridMPIs.
   std::vector<int> FindMyNeighbors() {
     std::vector<int> myNeighbors;
     double low[3] = {+1e20, +1e20, +1e20};
@@ -453,9 +432,6 @@ public:
     return myNeighbors;
   }
 
-  /// Check if a rectangle with bottom left point l1 and top right point h1
-  /// intersects with a rectangle with bottom left point l2 and top right point
-  /// h2; used when determining neighboring processes.
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
         (TGrid::maxextent / std::max(TGrid::NX * Block::sizeX,
@@ -492,14 +468,9 @@ public:
     return true;
   }
 
-  /** Returns a SynchronizerMPI_AMR for a given stencil of points.
-   *  Each stencil needed in the simulation has its own SynchronizerMPI_AMR. All
-   * Synchronizers are owned by GridMPI in a map between the stencils and them.
-   */
   SynchronizerMPIType *sync(const StencilInfo &stencil) {
     assert(stencil.isvalid());
 
-    // Hardcoded stencil for coarse-fine interpolation: +-1 points.
     StencilInfo Cstencil(-1, -1, DIMENSION == 3 ? -1 : 0, 2, 2,
                          DIMENSION == 3 ? 2 : 1, true, stencil.selcomponents);
 
@@ -522,8 +493,6 @@ public:
     return queryresult;
   }
 
-  /// same as Grid::initialize_blocks, with additional initialization for
-  /// Synchronizers needed for halo cell exchange between different processes.
   virtual void
   initialize_blocks(const std::vector<long long> &blocksZ,
                     const std::vector<short int> &blockslevel) override {
@@ -533,16 +502,12 @@ public:
       (*it->second)._Setup();
   }
 
-  /// Return the ID of this MPI process.
   virtual int rank() const override { return myrank; }
 
-  /// Returns a tag value that is used when sending/receiving data with MPI.
   size_t getTimeStamp() const { return timestamp; }
 
-  /// Return the MPI communicator of the simulation.
   MPI_Comm getWorldComm() const { return worldcomm; }
 
-  /// Return the total number of MPI processes.
   virtual int get_world_size() const override { return world_size; }
 };
 

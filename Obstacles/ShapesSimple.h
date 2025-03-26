@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -56,12 +52,12 @@ public:
 class Ellipse : public Shape {
 protected:
   const Real semiAxis[2];
-  // Characteristic scales:
+
   const Real majax = std::max(semiAxis[0], semiAxis[1]);
   const Real minax = std::min(semiAxis[0], semiAxis[1]);
   const Real velscale = std::sqrt(9.81 * minax);
   const Real lengthscale = majax, timescale = majax / velscale;
-  // const Real torquescale = M_PI/8*pow((a*a-b*b)*velscale,2)/a/b;
+
   const Real torquescale = M_PI * majax * majax * velscale * velscale;
 
   Real Torque = 0, old_Torque = 0, old_Dist = 100;

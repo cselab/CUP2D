@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -37,27 +33,27 @@ using Real = long double;
 
 #ifndef _DIM_
 #define _DIM_ 2
-#endif //_DIM_
+#endif
 
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
   if (strFlag == "periodic") {
-    // printf("[CUP2D] Using periodic boundary conditions\n");
+
     return periodic;
   } else if (strFlag == "freespace") {
-    // printf("[CUP2D] Using freespace boundary conditions\n");
+
     return freespace;
   } else if (strFlag == "wall") {
-    // printf("[CUP2D] Using freespace boundary conditions\n");
+
     return wall;
   } else {
     fprintf(stderr, "BC not recognized %s\n", strFlag.c_str());
     fflush(0);
     abort();
-    return periodic; // dummy
+    return periodic;
   }
 }
-// CAREFUL THESE ARE GLOBAL VARIABLES!
+
 extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 
@@ -74,7 +70,6 @@ public:
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
 
-  // Apply bc on face of direction dir and side side (0 or 1):
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
 
@@ -163,7 +158,6 @@ public:
     }
   }
 
-  // Called by Cubism:
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     const BCflag BCX = cubismBCX;
@@ -211,7 +205,6 @@ public:
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
 
-  // Called by Cubism:
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (is_xperiodic() == false) {

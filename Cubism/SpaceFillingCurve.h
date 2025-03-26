@@ -7,43 +7,23 @@
 
 namespace cubism {
 
-/**
- * @brief Hilbert Space-Filling Curve(SFC) in 3D.
- *
- * The Octree of GridBlocks of a simulation is traversed by an SFC.
- * Each node of the Octree (aka each GridBlock) is associated with
- * (i) a refinement level
- * (ii) indices (i,j,k) that indicate its coordinates in a uniform grid of the
- * same refinement level (iii) a Z-order index which is a unique integer along
- * an SFC that would traverse a uniform grid of the same refinement level (iv) a
- * unique integer (blockID_2). This class provides trasformations from each of
- * these attributes to the others.
- */
 class SpaceFillingCurve {
 protected:
-  int BX;         ///< number of blocks in the x-direction at the coarsest level
-  int BY;         ///< number of blocks in the y-direction at the coarsest level
-  int BZ;         ///< number of blocks in the z-direction at the coarsest level
-  int levelMax;   ///< maximum level allowed
-  bool isRegular; ///< true if BX,BY,BZ are powers of 2
-  int base_level; ///< minimum (starting) level (determined from BX,BY,BZ)
-  std::vector<std::vector<long long>>
-      Zsave; ///< option to save block indices instead of computing them every
-             ///< time
-  std::vector<std::vector<int>>
-      i_inverse; ///< option to save blocks i index instead of computing it
-                 ///< every time
-  std::vector<std::vector<int>>
-      j_inverse; ///< option to save blocks j index instead of computing it
-                 ///< every time
-  std::vector<std::vector<int>>
-      k_inverse; ///< option to save blocks k index instead of computing it
-                 ///< every time
+  int BX;
+  int BY;
+  int BZ;
+  int levelMax;
+  bool isRegular;
+  int base_level;
+  std::vector<std::vector<long long>> Zsave;
 
-  /// coordinates (i,j,k) to Z-index at given level b
-  long long AxestoTranspose(const int *X_in,
-                            int b) const // position, #bits, dimension
-  {
+  std::vector<std::vector<int>> i_inverse;
+
+  std::vector<std::vector<int>> j_inverse;
+
+  std::vector<std::vector<int>> k_inverse;
+
+  long long AxestoTranspose(const int *X_in, int b) const {
     if (b == 0) {
       assert(X_in[0] == 0);
       assert(X_in[1] == 0);
@@ -59,20 +39,18 @@ protected:
     int M = 1 << (b - 1), P, Q, t;
     int i;
 
-    // Inverse undo
     for (Q = M; Q > 1; Q >>= 1) {
       P = Q - 1;
       for (i = 0; i < n; i++)
         if (X[i] & Q)
-          X[0] ^= P; // invert
+          X[0] ^= P;
         else {
           t = (X[0] ^ X[i]) & P;
           X[0] ^= t;
           X[i] ^= t;
         }
-    } // exchange
+    }
 
-    // Gray encode
     for (i = 1; i < n; i++)
       X[i] ^= X[i - 1];
     t = 0;
@@ -99,10 +77,7 @@ protected:
     return retval;
   }
 
-  /// Z-index to coordinates (i,j,k) at given level b
-  void TransposetoAxes(long long index, long long *X,
-                       int b) const // position, #bits, dimension
-  {
+  void TransposetoAxes(long long index, long long *X, int b) const {
     const int n = 3;
 
     X[0] = 0;
@@ -132,31 +107,27 @@ protected:
     int N = 2 << (b - 1), P, Q, t;
     int i;
 
-    // Gray decode by H ^ (H/2)
     t = X[n - 1] >> 1;
     for (i = n - 1; i >= 1; i--)
       X[i] ^= X[i - 1];
     X[0] ^= t;
 
-    // Undo excess work
     for (Q = 2; Q != N; Q <<= 1) {
       P = Q - 1;
       for (i = n - 1; i >= 0; i--)
         if (X[i] & Q)
-          X[0] ^= P; // invert
+          X[0] ^= P;
         else {
           t = (X[0] ^ X[i]) & P;
           X[0] ^= t;
           X[i] ^= t;
         }
-    } // exchange
+    }
   }
 
 public:
-  /// Desctructor.
   SpaceFillingCurve() {};
 
-  /// Constructor.
   SpaceFillingCurve(int a_BX, int a_BY, int a_BZ, int lmax)
       : BX(a_BX), BY(a_BY), BZ(a_BZ), levelMax(lmax) {
     int n_max = std::max(std::max(BX, BY), BZ);
@@ -201,12 +172,11 @@ public:
         }
   }
 
-  /// space-filling curve (i,j,k) --> 1D index (given level l)
   long long forward(const int l, const int i, const int j, const int k) {
     const int aux = 1 << l;
 
     if (l >= levelMax)
-      return 0; //-1;
+      return 0;
     long long retval;
     if (!isRegular) {
       const int I = i / aux;
@@ -223,7 +193,6 @@ public:
     return retval;
   }
 
-  /// space-filling curve Z-index --> (i,j,k) (given level l)
   void inverse(long long Z, int l, int &i, int &j, int &k) {
     if (isRegular) {
       long long X[3] = {0, 0, 0};
@@ -246,25 +215,20 @@ public:
     return;
   }
 
-  /// space-filling curve (i,j,k) --> 1D index (at level 0)
   long long IJK_to_index(int I, int J, int K) {
-    // int index = (J + K * BY) * BX + I;
+
     long long index = Zsave[0][(J + K * BY) * BX + I];
     return index;
   }
 
-  /// space-filling curve Z-index --> (i,j,k) (at level 0)
   void index_to_IJK(long long index, int &I, int &J, int &K) {
-    // K = index / (BX*BY);
-    // J = (index - K*(BX*BY) ) / BX;
-    // I = index - K*(BX*BY) - J*BX;
+
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     K = k_inverse[0][index];
     return;
   }
 
-  /// convert Z-index, level and ijk index to single unique number
   long long Encode(int level, long long Z, int index[3]) {
     int lmax = levelMax;
     long long retval = 0;

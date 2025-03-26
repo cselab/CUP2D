@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "NeuroKinematicFish.h"
 #include "FishData.h"
@@ -15,8 +11,8 @@ class NeuroFish : public FishData {
   const Real Tperiod;
 
 public:
-  Real t_next = 0.0;           // Time for next action
-  Real target[2] = {0.0, 0.0}; // Target location
+  Real t_next = 0.0;
+  Real target[2] = {0.0, 0.0};
   bool act1 = true;
   bool act2 = true;
   bool act3 = true;
@@ -38,24 +34,22 @@ public:
   Real oldrFireTime = 0;
 
 protected:
-  Real *const rK;  // Current curvature
-  Real *const vK;  // Current curvature velocity
-  Real *const rBC; // Current baseline curvature
-  Real *const vBC; // Current baseline curvature velocity
-  Real *const rUC; // Current undulatory curvature
-  Real *const vUC; // Current undulatory curvature velocity
+  Real *const rK;
+  Real *const vK;
+  Real *const rBC;
+  Real *const vBC;
+  Real *const rUC;
+  Real *const vUC;
   Real *const rMuscSignal;
   Real *const vMuscSignal;
   Real *const spatialDerivativeMuscSignal;
   Real *const spatialDerivativeDMuscSignal;
-  Real tauTail;  // Current tail phase
-  Real vTauTail; // Current tail phase velocity
-  Real alpha;    // Current alpha
-  Schedulers::ParameterSchedulerVector<6>
-      baselineCurvatureScheduler; // baseline scheduler
-  Schedulers::ParameterSchedulerVector<6>
-      undulatoryCurvatureScheduler;                      // undulation scheduler
-  Schedulers::ParameterSchedulerScalar tauTailScheduler; // phase scheduler
+  Real tauTail;
+  Real vTauTail;
+  Real alpha;
+  Schedulers::ParameterSchedulerVector<6> baselineCurvatureScheduler;
+  Schedulers::ParameterSchedulerVector<6> undulatoryCurvatureScheduler;
+  Schedulers::ParameterSchedulerScalar tauTailScheduler;
   Schedulers::ParameterSchedulerNeuroKinematicObject<20>
       neuroKinematicScheduler;
 
@@ -128,27 +122,15 @@ public:
                              : (wt - wt * std::pow((s - st) / (L - st), 2))));
   }
 
-  /*************************** ACTION REPERTOIRE
-   * ***********************************/
-
   void burst(const Real t_current, const std::vector<Real> &a) {
-    // Current time must be later than time at which action should be performed.
-    // (PW) commented to resolve compilation error with config=debug
-    // assert(t_current >= t_rlAction);
 
-    // Fix the phase of the burst. Normally I should deduce the phase required
-    // based on the current curvature configuration.
     const Real tailPhase = 0.74;
 
-    // Schedule a burst with given modulation and timing factor
     const Real modulationFactor = a[0];
     const Real timingFactor = a[1];
 
-    // Curvature of the burst is modulated by the modulation factor. Curvatures
-    // are normalized.
     const Real curvatureFactor = modulationFactor / this->length;
 
-    // Define the curvature values of the burst
     const std::array<Real, 6> baselineCurvatureValues = {
         (Real)0.0 * curvatureFactor,  (Real)0.0 * curvatureFactor,
         (Real)-4.0 * curvatureFactor, (Real)-1.0 * curvatureFactor,
@@ -158,16 +140,12 @@ public:
         (Real)-6.0 * curvatureFactor, (Real)-3.0 * curvatureFactor,
         (Real)-1.5 * curvatureFactor, (Real)0.0 * curvatureFactor};
 
-    // Use the agent-prescribed timing factor to get the final time of the
-    // prescribed action
     const Real actionDuration = (1 - timingFactor) * 0.5 * this->Tperiod / 2 +
                                 timingFactor * this->Tperiod / 2;
     this->t_next = t_current + actionDuration;
 
-    // Decide whether to use the current derivative for the cubic interpolation
     const bool useCurrentDerivative = true;
 
-    // Act by scheduling a transition at the current time.
     baselineCurvatureScheduler.transition(t_current, t_current, this->t_next,
                                           baselineCurvatureValues,
                                           useCurrentDerivative);
@@ -183,23 +161,14 @@ public:
   }
 
   void scoot(const Real t_current, const std::vector<Real> &a) {
-    // Current time must be later than time at which action should be performed.
-    // (PW) commented to resolve compilation error with config=debug
-    // assert(t_current >= t_rlAction);
 
-    // Fix the phase of the burst. Normally I should deduce the phase required
-    // based on the current curvature configuration.
     const Real tailPhase = 0.74;
 
-    // Schedule a burst with given modulation and timing factor
     const Real modulationFactor = a[0];
     const Real timingFactor = a[1];
 
-    // Curvature of the burst is modulated by the modulation factor. Curvatures
-    // are normalized.
     const Real curvatureFactor = modulationFactor / this->length;
 
-    // Define the curvature values of the burst
     const std::array<Real, 6> baselineCurvatureValues = {
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
@@ -209,16 +178,12 @@ public:
         (Real)2.57136 * curvatureFactor, (Real)3.75425 * curvatureFactor,
         (Real)5.09147 * curvatureFactor, (Real)0.0 * curvatureFactor};
 
-    // Use the agent-prescribed timing factor to get the final time of the
-    // prescribed action
     const Real actionDuration =
         (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
     this->t_next = t_current + actionDuration;
 
-    // Decide whether to use the current derivative for the cubic interpolation
     const bool useCurrentDerivative = true;
 
-    // Act by scheduling a transition at the current time.
     baselineCurvatureScheduler.transition(t_current, t_current, this->t_next,
                                           baselineCurvatureValues,
                                           useCurrentDerivative);
@@ -234,23 +199,14 @@ public:
   }
 
   void coast(const Real t_current, const std::vector<Real> &a) {
-    // Current time must be later than time at which action should be performed.
-    // (PW) commented to resolve compilation error with config=debug
-    // assert(t_current >= t_rlAction);
 
-    // Fix the phase of the burst. Normally I should deduce the phase required
-    // based on the current curvature configuration.
     const Real tailPhase = 0.0;
 
-    // Schedule a burst with given modulation and timing factor
     const Real modulationFactor = a[0];
     const Real timingFactor = a[1];
 
-    // Curvature of the burst is modulated by the modulation factor. Curvatures
-    // are normalized.
     const Real curvatureFactor = modulationFactor / this->length;
 
-    // Define the curvature values of the burst
     const std::array<Real, 6> baselineCurvatureValues = {
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
@@ -260,16 +216,12 @@ public:
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor,
         (Real)0.0 * curvatureFactor, (Real)0.0 * curvatureFactor};
 
-    // Use the agent-prescribed timing factor to get the final time of the
-    // prescribed action
     const Real actionDuration =
         (1 - timingFactor) * 0.5 * this->Tperiod + timingFactor * this->Tperiod;
     this->t_next = t_current + actionDuration;
 
-    // Decide whether to use the current derivative for the cubic interpolation
     const bool useCurrentDerivative = true;
 
-    // Act by scheduling a transition at the current time.
     baselineCurvatureScheduler.transition(t_current, t_current, this->t_next,
                                           baselineCurvatureValues,
                                           useCurrentDerivative);
@@ -286,13 +238,11 @@ public:
 
   void hybrid(const Real t_current, const std::vector<Real> &a) {
 
-    // Store last action into the older action placeholder
     oldrBeta = lastBeta;
     oldrKappa = lastKappa;
     oldrC = lastC;
     oldrTimingFactor = lastTimingFactor;
 
-    // Store the new action into the last action placeholder
     lastBeta = a[0];
     lastKappa = a[1];
     lastC = a[2];
@@ -330,16 +280,11 @@ public:
                    lastKappa * undulatoryCurvatureValuesBurst[i]);
     }
 
-    // Use the agent-prescribed timing factor to get the final time of the
-    // prescribed action
     const Real actionDuration = (1 - lastTimingFactor) * 0.5 * this->Tperiod +
                                 lastTimingFactor * this->Tperiod;
     this->t_next = t_current + actionDuration;
-    const bool useCurrentDerivative =
-        true; // Decide whether to use the current derivative for the cubic
-              // interpolation
+    const bool useCurrentDerivative = true;
 
-    // Act by scheduling a transition at the current time.
     baselineCurvatureScheduler.transition(t_current, t_current, this->t_next,
                                           baselineCurvatureValues,
                                           useCurrentDerivative);
@@ -355,12 +300,10 @@ public:
 
   void spike(const Real t_current, const std::vector<Real> &a) {
 
-    // Store last action into the older action placeholder
     oldrAmplitude = lastAmplitude;
     oldrDelay = lastDelay;
     oldrFireTime = lastFireTime;
 
-    // Store the new action into the last action placeholder
     lastAmplitude = a[0];
     lastDelay = a[1];
     lastFireTime = a[2];
@@ -377,11 +320,6 @@ public:
 };
 
 void NeuroFish::computeMidline(const Real t, const Real dt) {
-  //    // Curvature control points along midline of fish, as in Gazzola et. al.
-  //    const std::array<Real ,9> curvaturePoints = {(Real)0.0, (Real)0.10,
-  //    (Real)0.20, (Real)0.30, (Real)0.50,
-  //                                                 (Real)0.60, (Real)0.80,
-  //                                                 (Real)0.90, (Real)1};
 
   const std::array<Real, 20> curvaturePoints = {
       (Real)0.0,        (Real)0.05263158, (Real)0.10526316, (Real)0.15789474,
@@ -390,18 +328,14 @@ void NeuroFish::computeMidline(const Real t, const Real dt) {
       (Real)0.63157895, (Real)0.68421053, (Real)0.73684211, (Real)0.78947368,
       (Real)0.84210526, (Real)0.89473684, (Real)0.94736842, (Real)0.1};
 
-  // Define the compliance function (1/wS)
   Real *compliance_fine = new Real[Nm];
   const int NCompliancePoints = 10;
-  //    std::array<Real, 9> criticalSpinePoints = {0.0, 0.1, 0.2, 0.3, 0.5, 0.6,
-  //    0.8, 0.9, 1};
+
   std::array<Real, 10> criticalSpinePoints = {
       0.0,        0.11111111, 0.22222222, 0.33333333, 0.44444444,
       0.55555556, 0.66666667, 0.77777778, 0.88888889, 1.0};
   std::array<Real, 10> compliancePoints = {0.00, 0.04, 0.2,  0.4,  0.60,
                                            0.78, 0.9,  0.85, 0.60, 0.20};
-  //    std::array<Real, 9> compliancePoints = {0.00, 0.16, 0.46, 0.50, 0.60,
-  //    0.75, 0.9, 0.85, 0.60};
 
   IF2D_Interpolation1D::naturalCubicSpline(
       criticalSpinePoints.data(), compliancePoints.data(), NCompliancePoints,
@@ -409,27 +343,23 @@ void NeuroFish::computeMidline(const Real t, const Real dt) {
 
   if (t >= 0.0 && act1) {
     printf("\n\n\n first action \n\n\n");
-    std::vector<Real> a{500, 0.01569,
-                        0.013}; // a good starting heuristic is = firing time/10
+    std::vector<Real> a{500, 0.01569, 0.013};
     neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
     act1 = false;
   }
   if (t >= 0.3138 && act2) {
     printf("\n\n\n second action \n\n\n");
-    std::vector<Real> a{-500, 0.01569,
-                        0.013}; // a good starting heuristic is = firing time/10
+    std::vector<Real> a{-500, 0.01569, 0.013};
     neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
     act2 = false;
   }
   if (t >= 0.6276 && act3) {
-    std::vector<Real> a{300, 0.0157,
-                        0.013}; // a good starting heuristic is = firing time/10
+    std::vector<Real> a{300, 0.0157, 0.013};
     neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
     act3 = false;
   }
   if (t >= 0.9414 && act4) {
-    std::vector<Real> a{-300, 0.0157,
-                        0.147}; // a good starting heuristic is = firing time/10
+    std::vector<Real> a{-300, 0.0157, 0.147};
     neuroKinematicScheduler.Spike(t, a[0], a[1], a[2]);
     act4 = false;
   }
@@ -442,8 +372,6 @@ void NeuroFish::computeMidline(const Real t, const Real dt) {
   for (int i = 0; i < Nm; ++i) {
     const Real curvCmd = rMuscSignal[i] * compliance_fine[i] / length;
     const Real curvCmdVel = vMuscSignal[i] * compliance_fine[i] / length;
-
-    //        printf("[node %d] curvature %f", i, curvCmd);
 
     if (curvCmd >= curvMax) {
       rK[i] = curvMax;
@@ -458,12 +386,11 @@ void NeuroFish::computeMidline(const Real t, const Real dt) {
     assert(not std::isnan(vK[i]));
     assert(not std::isinf(vK[i]));
   }
-  // solve frenet to compute midline parameters
+
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 }
 
-// Core functions
 NeuroKinematicFish::NeuroKinematicFish(SimulationData &s, ArgumentParser &p,
                                        Real C[2])
     : Fish(s, p, C) {
@@ -499,13 +426,12 @@ void NeuroKinematicFish::act(const Real t_rlAction,
   cFish->spike(sim.time, a);
 }
 
-// Functions for state/reward
 std::vector<Real> NeuroKinematicFish::state() const {
   const NeuroFish *const nFish = dynamic_cast<NeuroFish *>(myFish);
   std::vector<Real> S(12, 0);
 
-  S[0] = this->getRadialDisplacement() / length; // distance from center
-  S[1] = this->getPolarAngle();                  // polar angle
+  S[0] = this->getRadialDisplacement() / length;
+  S[1] = this->getPolarAngle();
   S[2] = getOrientation();
   S[3] = getU() * Tperiod / length;
   S[4] = getV() * Tperiod / length;
@@ -519,7 +445,6 @@ std::vector<Real> NeuroKinematicFish::state() const {
   return S;
 }
 
-// Helper functions
 void NeuroKinematicFish::setTarget(Real inTarget[2]) const {
   NeuroFish *const cFish = dynamic_cast<NeuroFish *>(myFish);
   cFish->target[0] = inTarget[0];

@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "advDiffSGS.h"
 
@@ -228,7 +224,6 @@ void advDiffSGS::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   const Real UINF[2] = {sim.uinfx, sim.uinfy};
 
-// 1.Save u^{n} to dataOld
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -240,13 +235,9 @@ void advDiffSGS::operator()(const Real dt) {
       }
   }
 
-  /********************************************************************/
-  // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
-  //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
   KernelAdvectDiffuseSGS Step1(sim, 0.5, UINF[0], UINF[1]);
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 
-//   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -259,14 +250,10 @@ void advDiffSGS::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-  /********************************************************************/
 
-  /********************************************************************/
-  // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
-  //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
   KernelAdvectDiffuseSGS Step2(sim, 1.0, UINF[0], UINF[1]);
   cubism::compute<VectorLab>(Step2, sim.vel, sim.tmpV);
-//   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -279,7 +266,6 @@ void advDiffSGS::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-  /********************************************************************/
 
   sim.stopProfiler();
 }

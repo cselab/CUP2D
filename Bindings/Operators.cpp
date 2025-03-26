@@ -10,9 +10,7 @@ public:
       : Operator{s}, name_{std::move(name)} {}
 
   void operator()(const Real dt) override {
-    // If this fails, store the object in a permanent variable somewhere. See
-    // https://github.com/pybind/pybind11/issues/1546
-    // https://github.com/pybind/pybind11/pull/2839
+
     PYBIND11_OVERRIDE_PURE_NAME(void, Operator, "__call__", operator(), dt);
   }
 

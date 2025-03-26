@@ -9,15 +9,13 @@ namespace cubism {
 template <typename Lab, typename Kernel, typename TGrid,
           typename TGrid_corr = TGrid>
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
-  // If flux corrections are needed, prepare the flux correction object
+
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
 
-  // Start sending and receiving of data for blocks at the boundary of each rank
   cubism::SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
       *(g->sync(kernel.stencil));
 
-  // Access the inner blocks of each rank
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
 
   std::vector<cubism::BlockInfo *> *halo_next;
@@ -27,14 +25,12 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
     Lab lab;
     lab.prepare(*g, kernel.stencil);
 
-// First compute for inner blocks
 #pragma omp for nowait
     for (const auto &I : *inner) {
       lab.load(*I, 0);
       kernel(lab, *I);
     }
 
-    // Then compute for boundary blocks
 #if 1
     while (done == false) {
 #pragma omp master
@@ -76,15 +72,12 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
 #endif
   }
 
-  // Complete the send requests remaining
   Synch.avail_halo();
 
-  // Carry out flux corrections
   if (g_corr != nullptr)
     g_corr->Corrector.FillBlockCases();
 }
 
-// Get two BlockLabs from two different Grids
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2, typename TGrid_corr = TGrid>
 static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
@@ -120,7 +113,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   const int Ninner = avail0.size();
   std::vector<cubism::BlockInfo *> avail1;
   std::vector<cubism::BlockInfo *> avail12;
-// bool done = false;
+
 #pragma omp parallel
   {
     LabMPI lab;
@@ -202,19 +195,14 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     corrected_grid->Corrector.FillBlockCases();
 }
 
-/// Example of a gridpoint element that is merely a scalar quantity of type
-/// 'Real' (double/float).
 template <typename Real = double> struct ScalarElement {
-  using RealType = Real; ///< definition of 'RealType', needed by BlockLab
-  Real s = 0;            ///< scalar quantity
+  using RealType = Real;
+  Real s = 0;
 
-  /// set scalar to zero
   inline void clear() { s = 0; }
 
-  /// set scalar to a value
   inline void set(const Real v) { s = v; }
 
-  /// copy a ScalarElement
   inline void copy(const ScalarElement &c) { s = c.s; }
 
   ScalarElement &operator*=(const Real a) {
@@ -254,28 +242,23 @@ template <typename Real = double> struct ScalarElement {
   static constexpr int DIM = 1;
 };
 
-/// Example of a gridpoint element that is a vector quantity of type 'Real'
-/// (double/float); 'dim' are the number of dimensions of the vector
 template <int dim, typename Real = double> struct VectorElement {
-  using RealType = Real; ///< definition of 'RealType', needed by BlockLab
+  using RealType = Real;
   static constexpr int DIM = dim;
-  Real u[DIM]; ///< vector quantity
+  Real u[DIM];
 
   VectorElement() { clear(); }
 
-  /// set vector components to zero
   inline void clear() {
     for (int i = 0; i < DIM; ++i)
       u[i] = 0;
   }
 
-  /// set vector components to a number
   inline void set(const Real v) {
     for (int i = 0; i < DIM; ++i)
       u[i] = v;
   }
 
-  /// set copy one VectorElement to another
   inline void copy(const VectorElement &c) {
     for (int i = 0; i < DIM; ++i)
       u[i] = c.u[i];
@@ -365,9 +348,8 @@ template <int dim, typename Real = double> struct VectorElement {
   Real &member(int i) { return u[i]; }
 };
 
-/// array of blocksize^dim gridpoints of type 'TElement'.
 template <int blocksize, int dim, typename TElement> struct GridBlock {
-  // these identifiers are required by cubism!
+
   static constexpr int BS = blocksize;
   static constexpr int sizeX = blocksize;
   static constexpr int sizeY = blocksize;
@@ -378,21 +360,18 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
 
   ElementType data[sizeZ][sizeY][sizeX];
 
-  /// set 'data' to zero (call 'clear()' of each TElement)
   inline void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
 
-  /// set 'data' to a value (call 'set()' of each TElement)
   inline void set(const RealType v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
   }
 
-  /// copy one GridBlock to another  (call 'copy()' of each TElement)
   inline void copy(const GridBlock<blocksize, dim, ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
@@ -400,14 +379,12 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
       entry[i].copy(source[i]);
   }
 
-  /// Access an element of this GridBlock (const.)
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
     return data[iz][iy][ix];
   }
 
-  /// Access an element of this GridBlock
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
@@ -417,26 +394,16 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
   GridBlock &operator=(const GridBlock &) = delete;
 };
 
-/** BlockLab to apply zero Neumann boundary conditions (zero normal derivative
- * to the boundary).
- * @tparam TGrid: Grid/GridMPI type to apply the boundary conditions to.
- * @tparam dim: = 2 or 3, depending on the spatial dimensions
- * @tparam allocator: allocator object, same as the one from BlockLab.
- */
 template <typename TGrid, int dim,
           template <typename X> class allocator = std::allocator>
 class BlockLabNeumann : public cubism::BlockLab<TGrid, allocator> {
-  /*
-   * Apply 2nd order Neumann boundary condition: du/dn_{i+1/2} = 0 => u_{i} =
-   * u_{i+1}
-   */
+
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
   static constexpr int DIM = dim;
 
 protected:
-  /// Apply bc on face of direction dir and side side (0 or 1):
   template <int dir, int side> void Neumann3D(const bool coarse = false) {
     int stenBeg[3];
     int stenEnd[3];
@@ -480,7 +447,6 @@ protected:
     e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1) : bsize[1];
     e[2] = dir == 2 ? (side == 0 ? 0 : bsize[2] + stenEnd[2] - 1) : bsize[2];
 
-    // Fill face
     for (int iz = s[2]; iz < e[2]; iz++)
       for (int iy = s[1]; iy < e[1]; iy++)
         for (int ix = s[0]; ix < e[0]; ix++) {
@@ -492,7 +458,6 @@ protected:
                       stenBeg[2]);
         }
 
-    // Fill edges and corners (necessary for the coarse block)
     s[dir] = stenBeg[dir] * (1 - side) + bsize[dir] * side;
     e[dir] = (bsize[dir] - 1 + stenEnd[dir]) * side;
     const int d1 = (dir + 1) % 3;
@@ -520,7 +485,6 @@ protected:
       }
   }
 
-  /// Apply bc on face of direction dir and side side (0 or 1):
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -566,25 +530,18 @@ protected:
 public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  using Real = typename ElementType::RealType; ///< Number type used by Element
-                                               ///< (double/float etc.)
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+  using Real = typename ElementType::RealType;
+
   virtual bool is_xperiodic() override { return false; }
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+
   virtual bool is_yperiodic() override { return false; }
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+
   virtual bool is_zperiodic() override { return false; }
 
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
 
-  /// Apply the boundary condition; 'coarse' is set to true if the boundary
-  /// condition should be applied to the coarsened version of the BlockLab (see
-  /// also BlockLab).
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (DIM == 2) {

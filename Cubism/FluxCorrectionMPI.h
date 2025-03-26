@@ -4,17 +4,6 @@
 
 namespace cubism {
 
-/**
- * @brief Performs flux corrections at coarse-fine block interfaces, with
- * multiple MPI processes.
- *
- * This class can replace the coarse fluxes stored at BlockCases with the sum of
- * the fine fluxes (also stored at BlockCases). This ensures conservation of the
- * quantity whose flux we compute.
- * @tparam TFluxCorrection The single-node version from which this class
- * inherits
- */
-
 template <typename TFluxCorrection>
 class FluxCorrectionMPI : public TFluxCorrection {
 public:
@@ -26,16 +15,12 @@ public:
   int size;
 
 protected:
-  /// Auxiliary struct to keep track of coarse-fine interfaces between two
-  /// different MPI processes
   struct face {
-    BlockInfo *infos[2]; ///< the two BlockInfos of the interface
-    int icode[2]; ///< encodes what face (+x,-x,+y,-y,+z,-z) is shared by the
-                  ///< two Blocks
-    int offset;   ///< offset in the send/recv buffers where the data for this
-                  ///< face will be put
-    // infos[0] : Fine block
-    // infos[1] : Coarse block
+    BlockInfo *infos[2];
+    int icode[2];
+
+    int offset;
+
     face(BlockInfo &i0, BlockInfo &i1, int a_icode0, int a_icode1) {
       infos[0] = &i0;
       infos[1] = &i1;
@@ -51,16 +36,11 @@ protected:
     }
   };
 
-  std::vector<std::vector<Real>>
-      send_buffer; ///< multiple buffers to send to other ranks
-  std::vector<std::vector<Real>>
-      recv_buffer; ///< multiple buffers to receive from other ranks
-  std::vector<std::vector<face>>
-      send_faces; ///< buffers with 'faces' meta-data to send
-  std::vector<std::vector<face>>
-      recv_faces; ///< buffers with 'faces' meta-data to receive
+  std::vector<std::vector<Real>> send_buffer;
+  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<std::vector<face>> send_faces;
+  std::vector<std::vector<face>> recv_faces;
 
-  /// Perform flux correction for face 'F'
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -75,9 +55,7 @@ protected:
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
     std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
-    for (int B = 0; B <= 1;
-         B++) // loop over fine blocks that make up coarse face
-    {
+    for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
       const long long Z =
@@ -96,7 +74,7 @@ protected:
       const int N1 = CoarseCase.m_vSize[d1];
       const int N2 = CoarseCase.m_vSize[d2];
 
-      int base = 0; //(B%2)*(N1/2)+ (B/2)*(N2/2)*N1;
+      int base = 0;
       if (B == 1)
         base = (N2 / 2) + (0) * N2;
       else if (B == 2)
@@ -118,8 +96,6 @@ protected:
     }
   }
 
-  /// Perform flux correction for face 'F' and direction encoded by 'code*' (for
-  /// data received from other processes)
   void FillCase_2(face &F, int codex, int codey, int codez) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -153,8 +129,7 @@ protected:
         block(j, i2) += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
-    } else // if (d == 1)
-    {
+    } else {
       const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block(i2, j) += CoarseFace[i2];
@@ -164,8 +139,6 @@ protected:
   }
 
 public:
-  /// Prepare the FluxCorrection class for a given 'grid' by allocating
-  /// BlockCases at each coarse-fine interface
   virtual void prepare(TGrid &_grid) override {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -284,10 +257,8 @@ public:
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(info.level,
                                    info.Znei_(code[0], code[1], code[2]));
-          int Bstep = 1; // face
-          for (int B = 0; B <= 1;
-               B += Bstep) // loop over blocks that make up face
-          {
+          int Bstep = 1;
+          for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
                 infoNei.Zchild[std::max(-code[0], 0) +
@@ -310,7 +281,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (stored) {
         TFluxCorrection::Cases.push_back(
@@ -340,13 +311,11 @@ public:
         }
       }
 
-    // 2.Sort faces
     for (int r = 0; r < size; r++) {
       std::sort(send_faces[r].begin(), send_faces[r].end());
       std::sort(recv_faces[r].begin(), recv_faces[r].end());
     }
 
-    // 3.Define map
     for (int r = 0; r < size; r++) {
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
@@ -371,18 +340,12 @@ public:
     }
   }
 
-  /// Go over each coarse-fine interface and perform the flux corrections,
-  /// assuming the associated BlockCases have been filled with the fluxes by the
-  /// user
   virtual void FillBlockCases() override {
     auto MPI_real =
         (sizeof(Real) == sizeof(float))
             ? MPI_FLOAT
             : ((sizeof(Real) == sizeof(double)) ? MPI_DOUBLE : MPI_LONG_DOUBLE);
 
-    // This assumes that the BlockCases have been filled by the user somehow...
-
-    // 1.Pack send data
     for (int r = 0; r < size; r++) {
 
       int displacement = 0;
@@ -470,12 +433,10 @@ public:
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
           FillCase(recv_faces[r][index]);
 
-    // first do x, then y then z. It is done like this to preserve symmetry and
-    // not favor any direction
-    for (int r = 0; r < size; r++) // if (r!=me)
+    for (int r = 0; r < size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0, 0);
-    for (int r = 0; r < size; r++) // if (r!=me)
+    for (int r = 0; r < size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 0, 1, 0);
 

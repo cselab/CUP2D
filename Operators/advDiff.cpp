@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "advDiff.h"
 
@@ -213,7 +209,6 @@ void advDiff::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   KernelAdvectDiffuse Step1(sim);
 
-// 1.Save u^{n} to dataOld
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -225,12 +220,8 @@ void advDiff::operator()(const Real dt) {
       }
   }
 
-  /********************************************************************/
-  // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
-  //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 
-//   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -243,13 +234,9 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
       }
   }
-  /********************************************************************/
 
-  /********************************************************************/
-  // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
-  //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-//   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -262,7 +249,6 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-  /********************************************************************/
 
   sim.stopProfiler();
 }

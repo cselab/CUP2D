@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "PutObjectsOnGrid.h"
 #include "../Shape.h"
@@ -22,7 +18,7 @@ struct ComputeSurfaceNormals {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const Real h = infoChi.h;
       ObstacleBlock &o = *OBLOCK[infoChi.blockID];
       const Real i2h = 0.5 / h;
@@ -56,7 +52,7 @@ struct PutChiOnGrid {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[info.blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const Real h = info.h;
       const Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.blockID];
@@ -70,7 +66,7 @@ struct PutChiOnGrid {
         for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
 #if 0
         X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
-#else // Towers mollified Heaviside
+#else
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
@@ -113,7 +109,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
 }
 
 void PutObjectsOnGrid::advanceShapes(const Real dt) {
-  // Update laboratory frame of reference
+
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   for (const auto &shape : sim.shapes)
@@ -126,11 +122,10 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
     sim.uinfy_old = sim.uinfy;
     sim.uinfy = uSum[1] / nSum[1];
   }
-  // Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
+
   for (const auto &shape : sim.shapes) {
     shape->updatePosition(dt);
 
-    // .. and check if shape is outside the simulation domain
     Real p[2] = {0, 0};
     shape->getCentroid(p);
     const auto &extent = sim.extents;
@@ -146,18 +141,15 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
 void PutObjectsOnGrid::putObjectsOnGrid() {
   const size_t Nblocks = velInfo.size();
 
-// 1) Clear fields related to obstacle
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((ScalarBlock *)chiInfo[i].ptrBlock)->clear();
     ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
   }
 
-  // 2) Compute signed dist function and udef
   for (const auto &shape : sim.shapes)
     shape->create(tmpInfo);
 
-  // 3) Compute chi and shape center of mass
   const PutChiOnGrid K(sim);
   cubism::compute<ScalarLab>(K, sim.tmp);
   const ComputeSurfaceNormals K1(sim);
@@ -181,12 +173,10 @@ void PutObjectsOnGrid::putObjectsOnGrid() {
     shape->centerOfMass[1] += com[2] / com[0];
   }
 
-  // 4) remove moments from characteristic function and put on grid U_s
   for (const auto &shape : sim.shapes) {
     shape->removeMoments(chiInfo);
   }
 
-  // 5) do anything else needed by some shapes
   for (const auto &shape : sim.shapes) {
     shape->finalize();
   }

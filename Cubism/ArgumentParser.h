@@ -1,22 +1,7 @@
-/*
- *  ArgumentParser.h
- *  Cubism
- *
- *	This argument parser assumes that all arguments are optional ie, each of
- *the argument names is preceded by a '-' all arguments are however NOT optional
- *to avoid a mess with default values and returned values when not found!
- *
- *	More converter could be required:
- *		add as needed
- *			TypeName as{TypeName}() in Value
- *
- *  Created by Christian Conti on 6/7/10.
- *  Copyright 2010 ETH Zurich. All rights reserved.
- *
- */
+
 
 #pragma once
-#include <iosfwd> // Forward declaration of <iostream>
+#include <iosfwd>
 #include <map>
 #include <string>
 
@@ -90,15 +75,12 @@ class ArgumentParser : public CommandlineParser {
 
   const char commentStart;
 
-  // keep a reference from option origin
   ArgMap from_commandline;
   FileMap from_files;
   pArgMap from_code;
 
-  // for runtime interaction (we keep the original map)
   ArgMap mapRuntime;
 
-  // helper
   void _ignoreComments(std::istream &stream, char commentChar);
   void _parseFile(std::ifstream &stream, ArgMap &container);
 

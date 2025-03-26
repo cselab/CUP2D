@@ -1,28 +1,20 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Fish.h"
 #include "FishData.h"
-// #include <sstream>
-// #include <iomanip>
 
 using namespace cubism;
 
-// #define profile( arg ) do { profiler.arg; } while (0)
 #define profile(func)                                                          \
   do {                                                                         \
   } while (0)
 
 void Fish::create(const std::vector<BlockInfo> &vInfo) {
-  //// 0) clear obstacle blocks
+
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
 
-  //// 1) Update Midline and compute surface
   assert(myFish != nullptr);
   profile(push_start("midline"));
   myFish->computeMidline(sim.time, sim.dt);
@@ -32,21 +24,20 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
   if (sim.rank == 0 && sim.bDump())
     myFish->writeMidline2File(0, "appending");
 
-  //// 2) Integrate Linear and Angular Momentum and shift Fish accordingly
   profile(push_start("2dmoments"));
-  // returns area, CoM_internal, vCoM_internal:
+
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-  // takes CoM_internal, vCoM_internal, puts CoM in and nullifies  lin mom:
+
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
-  // returns mom of intertia and angvel:
+
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
-  // rotates fish midline to current angle and removes angular moment:
+
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-#if 0 // ndef NDEBUG
+#if 0
   {
     Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-    // check that things are zero
+
     const Real area_internal_check =
     myFish->integrateLinearMomentum(dummy_CoM_internal, dummy_vCoM_internal);
     myFish->integrateAngularMomentum(dummy_angvel_internal);
@@ -62,10 +53,6 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
   profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
 
-  //// 3) Create Bounding Boxes around Fish
-  //- performance of create seems to decrease if VolumeSegment_OBB are bigger
-  //- this code groups segments together and finds a bounding box (maximal
-  //  x and y coords) to then be able to check intersection with cartesian grid
   const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
   assert((Nm - 1) % Nsegments == 0);
   profile(push_start("boxes"));
@@ -76,7 +63,7 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
   for (int i = 0; i < Nsegments; ++i) {
     const int next_idx = (i + 1) * (Nm - 1) / Nsegments,
               idx = i * (Nm - 1) / Nsegments;
-    // find bounding box based on this
+
     Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
     for (int ss = idx; ss <= next_idx; ++ss) {
       const Real xBnd[2] = {
@@ -94,8 +81,8 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
       bbox[1][0] = std::min(bbox[1][0], minY);
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
-    const Real DD = 4 * h; // two points on each side
-    // const Real safe_distance = info.h; // one point on each side
+    const Real DD = 4 * h;
+
     AreaSegment *const tAS =
         new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
     tAS->changeToComputationalFrame(center, orientation);
@@ -103,7 +90,6 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
   }
   profile(pop_stop());
 
-  //// 4) Interpolate shape with computational grid
   profile(push_start("intersect"));
   const auto N = vInfo.size();
   std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
@@ -123,7 +109,6 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
         segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
       }
 
-    // allocate new blocks if necessary
     if (segmentsPerBlock[info.blockID] not_eq nullptr) {
       assert(obstacleBlocks[info.blockID] == nullptr);
       ObstacleBlock *const block = new ObstacleBlock();
@@ -151,7 +136,6 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
     }
   }
 
-  // clear vSegments
   for (auto &E : vSegments) {
     if (E not_eq nullptr)
       delete E;
@@ -169,9 +153,9 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
 }
 
 void Fish::updatePosition(Real dt) {
-  // update position and angles
+
   Shape::updatePosition(dt);
-  theta_internal -= dt * angvel_internal; // negative: we subtracted this angvel
+  theta_internal -= dt * angvel_internal;
 }
 
 void Fish::resetAll() {

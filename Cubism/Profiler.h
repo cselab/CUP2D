@@ -1,11 +1,4 @@
-/*
- *  Profiler.h
- *  Cubism
- *
- *  Created by Diego Rossinelli on 9/13/08.
- *  Copyright 2008 CSE Lab, ETH Zurich. All rights reserved.
- *
- */
+
 #pragma once
 
 #include <assert.h>
@@ -20,15 +13,13 @@
 #include <string>
 
 #include <sys/time.h>
-// #include <tbb/tick_count.h>
-//  namespace tbb { class tick_count; }
 
 namespace cubism {
 
 const bool bVerboseProfiling = false;
 
 class ProfileAgent {
-  //	typedef tbb::tick_count ClockTime;
+
   typedef timeval ClockTime;
 
   enum ProfileAgentState {
@@ -43,14 +34,10 @@ class ProfileAgent {
   int m_nMeasurements;
   int m_nMoney;
 
-  static void _getTime(ClockTime &time) {
-    // time = tick_count::now();
-    gettimeofday(&time, NULL);
-  }
+  static void _getTime(ClockTime &time) { gettimeofday(&time, NULL); }
 
   static double _getElapsedTime(const ClockTime &tS, const ClockTime &tE) {
     return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
-    // return (tE - tS).seconds();
   }
 
   void _reset() {
@@ -210,7 +197,7 @@ public:
   }
 
   void reset() {
-    // printf("reset\n");
+
     for (std::map<std::string, ProfileAgent *>::const_iterator it =
              m_mapAgents.begin();
          it != m_mapAgents.end(); it++)

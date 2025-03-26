@@ -1,13 +1,9 @@
 #pragma once
 
-// Functions suggested in "Numerical symmetry-preserving techniques for
-// low-dissipation shock-capturing schemes" equation (19) for summation that
-// does not favor a spatial direction
-
 namespace cubism {
 #ifdef PRESERVE_SYMMETRY
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function" // silence annoying warnings
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 template <typename T> static T ConsistentSum(const T a, const T b, const T c) {
   const T s1 = a + (b + c);

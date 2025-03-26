@@ -1,12 +1,5 @@
-// Does anyone love me, does anyone need me? I feel so lonely...
-/*
- *  Histogram.cpp
- *
- *
- *  Created by Babak Hejazialhosseini on 3/15/12.
- *  Copyright 2012 ETH Zurich. All rights reserved.
- *
- */
+
+
 #include <assert.h>
 #include <fstream>
 #include <iostream>

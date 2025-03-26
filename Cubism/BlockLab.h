@@ -11,86 +11,51 @@
 namespace cubism {
 #define memcpy2(a, b, c) memcpy((a), (b), (c))
 
-// default coarse-fine interpolation stencil
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
 
-/** \brief Copy of a Gridblock plus halo cells.*/
-/** This class provides the user a copy of a Gridblock that is extended by a
- * layer of halo cells. To define one instance of it, the user needs to provide
- * a 'TGrid' type in the template parameters. From this, the BlockType and
- * ElementType and inferred, which are the GridBlock class and Element type
- * stored at each gridpoint of the mesh. To use a BlockLab, the user first needs
- * to call 'prepare', which will provide the BlockLab with the stencil of points
- * needed for a particular computation. To get an array of a particular
- *  GridBlock (+halo cells), the user should call 'load' and provide it with the
- * BlockInfo that is associated with the GridBlock of interest. Once this is
- * done, gridpoints in the GridBlock and halo cells can be accessed with the
- * (x,y,z) operator. For example, (-1,0,0) would access a halo cell in the -x
- * direction.
- *  @tparam TGrid: the kind of Grid/GridMPI halo cells are needed for
- *  @tparam allocator: a class responsible for allocation of memory for this
- * BlockLab
- */
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLab {
 public:
-  using GridType = TGrid; ///< should be a 'Grid', 'GridMPI' or derived class
-  using BlockType =
-      typename GridType::BlockType; ///< GridBlock type used by TGrid
-  using ElementType =
-      typename BlockType::ElementType; ///< Element type used by GridBlock type
-  using Real = typename ElementType::RealType; ///< Number type used by Element
-                                               ///< (double/float etc.)
+  using GridType = TGrid;
+  using BlockType = typename GridType::BlockType;
+  using ElementType = typename BlockType::ElementType;
+  using Real = typename ElementType::RealType;
 
 protected:
-  Matrix3D<ElementType, allocator>
-      *m_cacheBlock;     ///< working array of GridBlock + halo cells.
-  int m_stencilStart[3]; ///< starts of stencil for halo cells
-  int m_stencilEnd[3];   ///< ends of stencil fom halo cells
-  bool istensorial;      ///< whether the stencil is tensorial or not (see also
-                         ///< StencilInfo struct)
-  bool use_averages;     ///< if true, fine blocks average down their cells to
-                         ///< provide halo cells for coarse blocks (2nd order
-                     ///< accurate). If false, they perform a 3rd-order accurate
-                     ///< interpolation instead (which is the accuracy needed to
-                     ///< compute 2nd derivatives).
-  GridType *m_refGrid; ///< Point to TGrid instance
-  int NX;              ///< GridBlock size in the x-direction.
-  int NY;              ///< GridBlock size in the y-direction.
-  int NZ;              ///< GridBlock size in the z-direction.
-  std::array<BlockType *, 27>
-      myblocks; ///< Pointers to neighboring blocks of a GridBlock
-  std::array<int, 27> coarsened_nei_codes; ///< If a neighbor is at a coarser
-                                           ///< level, store it here
-  int coarsened_nei_codes_size;            ///< Number of coarser neighbors
-  int offset[3]; ///< like m_stencilStart but used when a coarse block sends
-                 ///< cells to a finer block
-  Matrix3D<ElementType, allocator>
-      *m_CoarsenedBlock;       ///< coarsened version of given block
-  int m_InterpStencilStart[3]; ///< stencil starts used for refinement (assumed
-                               ///< tensorial)
-  int m_InterpStencilEnd[3];   ///< stencil ends used for refinement (assumed
-                               ///< tensorial)
-  bool coarsened;         ///< true if block has at least one coarser neighbor
-  int CoarseBlockSize[3]; ///< size of coarsened block (NX/2,NY/2,NZ/2)
+  Matrix3D<ElementType, allocator> *m_cacheBlock;
+  int m_stencilStart[3];
+  int m_stencilEnd[3];
+  bool istensorial;
 
-  /// Coefficients used with upwind/central stencil of points with 3rd order
-  /// interpolation of halo cells from fine to coarse blocks
-  const double d_coef_plus[9] = {
-      -0.09375, 0.4375,  0.15625,  // starting point (+2,+1,0)
-      0.15625,  -0.5625, 0.90625,  // last point     (-2,-1,0)
-      -0.09375, 0.4375,  0.15625}; // central point  (-1,0,+1)
-  /// Coefficients used with upwind/central stencil of points with 3rd order
-  /// interpolation of halo cells from fine to coarse blocks
-  const double d_coef_minus[9] = {
-      0.15625,  -0.5625, 0.90625,   // starting point (+2,+1,0)
-      -0.09375, 0.4375,  0.15625,   // last point     (-2,-1,0)
-      0.15625,  0.4375,  -0.09375}; // central point  (-1,0,+1)
+  bool use_averages;
+
+  GridType *m_refGrid;
+  int NX;
+  int NY;
+  int NZ;
+  std::array<BlockType *, 27> myblocks;
+  std::array<int, 27> coarsened_nei_codes;
+
+  int coarsened_nei_codes_size;
+  int offset[3];
+
+  Matrix3D<ElementType, allocator> *m_CoarsenedBlock;
+  int m_InterpStencilStart[3];
+
+  int m_InterpStencilEnd[3];
+
+  bool coarsened;
+  int CoarseBlockSize[3];
+
+  const double d_coef_plus[9] = {-0.09375, 0.4375,   0.15625, 0.15625, -0.5625,
+                                 0.90625,  -0.09375, 0.4375,  0.15625};
+
+  const double d_coef_minus[9] = {0.15625, -0.5625, 0.90625, -0.09375, 0.4375,
+                                  0.15625, 0.15625, 0.4375,  -0.09375};
 
 public:
-  /// Constructor.
   BlockLab()
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
     m_stencilStart[0] = m_stencilStart[1] = m_stencilStart[2] = 0;
@@ -110,36 +75,19 @@ public:
       CoarseBlockSize[2] = 1;
   }
 
-  /// Return a name for this BlockLab. Useful for derived instances with custom
-  /// boundary conditions.
   virtual std::string name() const { return "BlockLab"; }
 
-  /// true if boundary conditions are periodic in x-direction
   virtual bool is_xperiodic() { return true; }
 
-  /// true if boundary conditions are periodic in y-direction
   virtual bool is_yperiodic() { return true; }
 
-  /// true if boundary conditions are periodic in z-direction
   virtual bool is_zperiodic() { return true; }
 
-  /// Destructor.
   ~BlockLab() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
 
-  /**
-   * Get a single element from the block.
-   * stencil_start and stencil_end refer to the values passed in
-   * BlockLab::prepare().
-   * @param ix: Index in x-direction (stencil_start[0] <= ix < BlockType::sizeX
-   * + stencil_end[0] - 1).
-   * @param iy: Index in y-direction (stencil_start[1] <= iy < BlockType::sizeY
-   * + stencil_end[1] - 1).
-   * @param iz: Index in z-direction (stencil_start[2] <= iz < BlockType::sizeZ
-   * + stencil_end[2] - 1).
-   */
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -151,7 +99,6 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Just as BlockLab::operator() but const.
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -163,7 +110,6 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Just as BlockLab::operator() but returning a const.
   const ElementType &read(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -175,23 +121,11 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Deallocate memory (used in destructor).
   void release() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
 
-  /** Prepares the BlockLab for a given 'grid' and stencil of points.
-   *  Allocates memory (if not already allocated) for the arrays that will hold
-   * the copy of a GridBlock plus its halo cells.
-   * @param grid: the Grid/GridMPI with all the GridBlocks that will need halo
-   * cells
-   * @param stencil: the StencilInfo for the halo cells
-   * @param  Istencil_start: the starts of the stencil used for coarse-fine
-   * interpolation of halo cells, set to -1 for the default interpolation.
-   * @param  Istencil_end: the ends of the stencil used for coarse-fine
-   * interpolation of halo cells, set to +2 for the default interpolation.
-   */
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
@@ -279,15 +213,6 @@ public:
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
 
-  /** Provide a prepared BlockLab (working copy of gridpoints+halo cells).
-   *  Once called, the user can use the () operators to access the halo cells.
-   * For derived instances of BlockLab, the time 't' can also be provided, in
-   * order to enforce time-dependent boundary conditions.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param t: (optional) current time, for time-dependent boundary conditions
-   * @param applybc: (optional, default is true) apply boundary conditions or
-   * not (assume periodic if not)
-   */
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
     const int nX = BlockType::sizeX;
@@ -300,18 +225,17 @@ public:
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
 
     const int aux = 1 << info.level;
-    NX = blocksPerDim[0] * aux; // needed for apply_bc
-    NY = blocksPerDim[1] * aux; // needed for apply_bc
-    NZ = blocksPerDim[2] * aux; // needed for apply_bc
+    NX = blocksPerDim[0] * aux;
+    NY = blocksPerDim[1] * aux;
+    NZ = blocksPerDim[2] * aux;
 
     assert(m_cacheBlock != NULL);
 
-    // 1.load the block into the cache
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
       ElementType *ptrSource = &block(0);
 
-#if 0 // original
+#if 0
             for(int iz=0; iz<nZ; iz++)
             for(int iy=0; iy<nY; iy++)
             {
@@ -351,7 +275,6 @@ public:
 #endif
     }
 
-    // 2. put the ghosts into the cache
     {
       coarsened = false;
 
@@ -362,7 +285,7 @@ public:
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
 
-      int icodes[DIMENSION == 2 ? 8 : 26]; // Could be uint8_t?
+      int icodes[DIMENSION == 2 ? 8 : 26];
       int k = 0;
       coarsened_nei_codes_size = 0;
 
@@ -393,8 +316,6 @@ public:
             abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
           continue;
 
-        // s and e correspond to start and end of this lab's cells that are
-        // filled by neighbors
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
             code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
@@ -409,7 +330,7 @@ public:
           SameLevelExchange(info, code, s, e);
         else if (TreeNei.CheckFiner())
           FineToCoarseExchange(info, code, s, e);
-      } // icode = 0,...,26 (3D) or 9,...,17 (2D)
+      }
       if (coarsened_nei_codes_size > 0)
         for (int i = 0; i < k; ++i) {
           const int icode = icodes[i];
@@ -431,19 +352,6 @@ public:
   }
 
 protected:
-  /** Called from 'load', to enforce boundary conditions and coarse-fine
-   * interpolation. To interpolate halo cells from neighboring coarser blocks,
-   * the BlockLab first fills a coarsened version of the GridBlock that requires
-   * the halo cells. This coarsened version is filled with grid points from the
-   * coarse neighbors and with averaged down values of this GridBlock's
-   * gridpoints. Averaging down happens in this function, followed by the
-   *  interpolation. Boundary conditions from derived versions of this class are
-   * also enforced. Default boundary conditions are periodic.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param t: (optional) current time, for time-dependent boundary conditions
-   * @param applybc: (optional, default is true) apply boundary conditions or
-   * not (assume periodic if not)
-   */
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
@@ -469,23 +377,12 @@ protected:
       }
     }
     if (applybc)
-      _apply_bc(info, t, true); // apply BC to coarse block
+      _apply_bc(info, t, true);
     CoarseFineInterpolation(info);
     if (applybc)
       _apply_bc(info, t);
   }
 
-  /** Check if blocks on the same refinement level need to exchange averaged
-   * down cells. To perform coarse-fine interpolation, the BlockLab creates a
-   * coarsened version of the GridBlock that needs halo cells. Filling this
-   * coarsened version can require averaged down values from GridBlocks of the
-   * same resolution, which would create a large enough stencil of coarse values
-   * to perform the interpolation. Whether or not this is needed is determined
-   *  by this function.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param b_index: the (i,j,k) index coordinates of the block that is adjacent
-   * to 'info'.
-   */
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
@@ -525,14 +422,6 @@ protected:
     return false;
   }
 
-  /** Exchange halo cells for blocks on the same refinement level.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   * @param s: the starts of the part of 'info' that will be filled
-   * @param e: the ends of the part of 'info' that will be filled
-   */
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
@@ -591,38 +480,23 @@ protected:
     }
   }
 
-  /// Average down four elements (2D)
   ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                           const ElementType &e2, const ElementType &e3) {
     return 0.25 * ((e0 + e3) + (e1 + e2));
   }
 
-  /// Auxiliary function for 3rd order coarse-fine interpolation
   void LI(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (4.0 * kappa + 2.0 * lambda) + c;
   }
 
-  /// Auxiliary function for 3rd order coarse-fine interpolation
   void LE(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (9.0 * kappa + 3.0 * lambda) + c;
   }
 
-  /** Coarse-fine interpolation function, based on interpolation stencil of +-1
-   * point. This function evaluates a third-order Taylor expansion by using a
-   * stencil of +-1 points around the coarse grid point that will be replaced by
-   * eight finer ones. This function can be overwritten by derived versions of
-   * BlockLab, to enable a custom interpolation. The +-1 points used here come
-   * from the 'interpolation stencil' passed to BlockLab.
-   *  @param C: pointer to the +-1 points around the coarse point (9 values in
-   * total)
-   *  @param R: pointer to the one refined points around the coarse point
-   *  @param x: delta x of the point to be interpolated (+1 or -1).
-   *  @param y: delta y of the point to be interpolated (+1 or -1).
-   */
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
     const double dx = 0.25 * (2 * x - 1);
     const double dy = 0.25 * (2 * y - 1);
@@ -637,14 +511,6 @@ protected:
          (dx * dy) * dudxdy);
   }
 
-  /** Exchange halo cells from fine to coarse blocks.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   * @param s: the starts of the part of 'info' that will be filled
-   * @param e: the ends of the part of 'info' that will be filled
-   */
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -662,37 +528,12 @@ protected:
     const int zStep = (code[2] == 0) ? 2 : 1;
     const int mod = ((e[1] - s[1]) / yStep) % 4;
 
-    int Bstep = 1; // face
+    int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-      Bstep = 3; // edge
+      Bstep = 3;
     else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-      Bstep = 4; // corner
+      Bstep = 4;
 
-    /*
-      A corner has one finer block.
-      An edge has two finer blocks, corresponding to B=0 and B=3. The block B=0
-      is the one closer to the origin (0,0,0). A face has four finer blocks.
-      They are numbered as follows, depending on whether the face lies on the
-      xy- , yz- or xz- plane
-
-      y                                  z                                  z
-      ^                                  ^                                  ^
-      |                                  |                                  |
-      |                                  |                                  |
-      |_________________                 |_________________ |_________________
-      |        |        |                |        |        |                | |
-      | |    2   |   3    |                |    2   |   3    |                |
-      2   |   3    |
-      |________|________|                |________|________| |________|________|
-      |        |        |                |        |        |                | |
-      | |    0   |    1   |                |    0   |    1   |                |
-      0   |    1   |
-      |________|________|------------->x |________|________|------------->x
-      |________|________|------------->y
-
-    */
-    // loop over blocks that make up face/edge/corner (respectively 4,2 or 1
-    // blocks)
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
@@ -803,7 +644,7 @@ protected:
                                              : iy;
           const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
           const ElementType *ptrSrc_1 = &b(XX, YY + 1, ZZ);
-// average down elements of block b to send to coarser neighbor
+
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -814,19 +655,10 @@ protected:
           }
         }
       }
-    } // B
+    }
   }
 
-  /** Exchange halo cells from coarse to fine blocks.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   */
   void CoarseFineExchange(const BlockInfo &info, const int *const code) {
-    // Coarse neighbors send their cells. Those are stored in m_CoarsenedBlock
-    // and are later used in function CoarseFineInterpolation to interpolate
-    // fine values.
 
     const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                   (info.index[1] + code[1] + NY) % NY,
@@ -942,22 +774,7 @@ protected:
     }
   }
 
-  /** Fill coarsened version of a block, used for fine-coarse interpolation.
-   * Each block will create a coarsened version of itself, with averaged down
-   * values. This version is also filled with gridpoints for halo cells that are
-   * received from coarser neighbors. It is then used to interpolate fine cells
-   * at coarse-fine interfaces.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   */
   void FillCoarseVersion(const BlockInfo &info, const int *const code) {
-    // If a neighboring block is on the same level it might need to average down
-    // some cells and use them to fill the coarsened version of this block.
-    // Those cells are needed to refine the coarsened version and obtain ghosts
-    // from coarser neighbors (those cells are inside the interpolation stencil
-    // for refinement).
 
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
@@ -1021,7 +838,7 @@ protected:
         const int YY = 2 * (iy - s[1]) + start[1];
         const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
         const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
-// average down elements of block b to send to coarser neighbor
+
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -1032,7 +849,6 @@ protected:
     }
   }
 
-/// Perform fine-coarse interpolation, after filling coarsened version of block.
 #ifdef PRESERVE_SYMMETRY
   __attribute__((optimize("-O1")))
 #endif
@@ -1076,8 +892,6 @@ protected:
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
         continue;
 
-      // s and e correspond to start and end of this lab's cells that are filled
-      // by neighbors
       const int s[3] = {
           code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
           code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
@@ -1125,10 +939,7 @@ protected:
           }
         }
       }
-      if (m_refGrid->FiniteDifferences &&
-          abs(code[0]) + abs(code[1]) ==
-              1) // Correct stencil points +-1 and +-2 at faces
-      {
+      if (m_refGrid->FiniteDifferences && abs(code[0]) + abs(code[1]) == 1) {
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1]; iy += 2) {
           const int YY =
@@ -1194,8 +1005,7 @@ protected:
                                      iy - m_stencilStart[1] + iyp, 0) =
                     m_CoarsenedBlock->Access(XX, YY, 0) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
-            } else // if (code[1] != 0)
-            {
+            } else {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
                 dudx = (-0.5 * m_CoarsenedBlock->Access(XX + 2, YY, 0) -
@@ -1256,15 +1066,13 @@ protected:
                                            iy - m_stencilStart[1], 0);
 
             if (code[0] == 0 && code[1] == 1) {
-              if (y == 0) // interpolation
-              {
+              if (y == 0) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 1, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 2, 0);
                 LI(a, b, c);
-              } else if (y == 1) // extrapolation
-              {
+              } else if (y == 1) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 2, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
@@ -1272,15 +1080,13 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
-              if (y == 1) // interpolation
-              {
+              if (y == 1) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 1, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 2, 0);
                 LI(a, b, c);
-              } else if (y == 0) // extrapolation
-              {
+              } else if (y == 0) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 2, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
@@ -1288,15 +1094,13 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
-              if (x == 0) // interpolation
-              {
+              if (x == 0) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 1,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
                                                iy - m_stencilStart[1], 0);
                 LI(a, b, c);
-              } else if (x == 1) // extrapolation
-              {
+              } else if (x == 1) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] - 3,
@@ -1304,15 +1108,13 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
-              if (x == 1) // interpolation
-              {
+              if (x == 1) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 1,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
                                                iy - m_stencilStart[1], 0);
                 LI(a, b, c);
-              } else if (x == 0) // extrapolation
-              {
+              } else if (x == 0) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] + 3,
@@ -1326,11 +1128,9 @@ protected:
     }
   }
 
-  /// Enforce boundary conditions.
   virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
                          bool coarse = false) {}
 
-  /// Deallocate memory.
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       allocator<T>().destroy(t);

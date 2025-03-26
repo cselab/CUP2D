@@ -7,33 +7,6 @@
 
 namespace cubism {
 
-/**
- * @brief Class responsible for mesh refinement of a GridMPI.
- *
- * This class can label each GridBlock of a GridMPI as requiring
- * refinement/compression/nothing. It can then perform interpolation of points
- * for refinement and averaging down for compression, followed by load balancing
- * of GridBlocks among different processes.
- *
- * The user should use this class through its constructor and through the
- * functions 'Tag', 'TagLike' and 'Adapt'. When constructed, the user provides
- * this class with a Grid and two numbers: the tolerance for refinement (Rtol)
- * and the tolerance for compression (Ctol). By calling 'Tag', GridBlocks with
- * gridpoints that have magnitude() > Rtol will be tagged for refinement and
- * those with magnitude() < Ctol for compression. Alternatively, 'TagLike' can
- * be used to copy the tags of blocks from another already tagged grid to this
- * grid. Once tagged, the user needs to call 'Adapt', which will adapt the mesh,
- * interpolate new points and do the load-balancing of blocks among processes.
- *
- * In order to change the default refinement criterion, a new class can inherit
- * from this class and overload the function 'TagLoadedBlock'. In order to
- * change the default refinement interpolation, a new class can inherit from
- * this class and overload the function 'RefineBlocks'.
- *
- * @tparam TLab  The BlockLab type used for halo cells exchange and boundary
- * condition enforcement, when interpolation of gridpoints happens after mesh
- * refinement.
- */
 template <typename TLab> class MeshAdaptation {
 protected:
   typedef typename TLab::GridType TGrid;
@@ -42,36 +15,25 @@ protected:
   typedef typename TGrid::BlockType::ElementType::RealType Real;
   typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
 
-  StencilInfo stencil;  ///< stencil of +-1 point, needed for 2nd-order
-                        ///< refinement interpolation
-  bool CallValidStates; ///< will be true when 'Tag' is called and some
-                        ///< refinement/compression is needed
-  bool boundary_needed; ///< set true to update the boundary blocks of each
-                        ///< GridMPI
-  LoadBalancer<TGrid> *Balancer; ///< load-balancing of blocks
-  TGrid *grid;                   ///< pointer to Grid that will be adapted
-  double time; ///< (optional) time of simulation, for time-dependent refinement
-               ///< criteria
-  bool basic_refinement; ///< set to false if no interpolation is to be
-                         ///< performed after refinement
-  double tolerance_for_refinement;  ///< compare 'magnitude()' of each gridpoint
-                                    ///< to this number, to check if refinement
-                                    ///< is needed
-  double tolerance_for_compression; ///< compare 'magnitude()' of each gridpoint
-                                    ///< to this number, to check if compression
-                                    ///< is needed
-  std::vector<long long>
-      dealloc_IDs; ///< blockIDs for blocks that are deallocated because of mesh
-                   ///< refinement/compression
+  StencilInfo stencil;
+
+  bool CallValidStates;
+
+  bool boundary_needed;
+
+  LoadBalancer<TGrid> *Balancer;
+  TGrid *grid;
+  double time;
+
+  bool basic_refinement;
+
+  double tolerance_for_refinement;
+
+  double tolerance_for_compression;
+
+  std::vector<long long> dealloc_IDs;
 
 public:
-  /**
-   * @brief Class constructor.
-   *
-   * @param g The Grid to be refined/compressed.
-   * @param Rtol Tolerance for refinement.
-   * @param Ctol Tolerance for compression.
-   */
   MeshAdaptation(TGrid &g, double Rtol, double Ctol) {
     grid = &g;
 
@@ -96,17 +58,8 @@ public:
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
 
-  /**
-   * @brief Class destructor.
-   */
   virtual ~MeshAdaptation() { delete Balancer; }
 
-  /**
-   * @brief Tag each block of this grid for refinement/compression based on
-   * criterion from 'TagLoadedBlock'.
-   * @param t Current time of the simulation; used only for time-dependent
-   * boundary conditions.
-   */
   void Tag(double t = 0) {
     time = t;
     boundary_needed = true;
@@ -140,22 +93,12 @@ public:
       ValidStates();
   }
 
-  /**
-   * @brief Refine/compress the mesh after blocks are tagged.
-   * @param t Current time of the simulation; used only for time-dependent
-   * boundary conditions.
-   * @param verbosity Boolean variable controlling screen output.
-   * @param basic Boolean variable; if set to false, no refinement interpolation
-   * is performed and blocks are simply allocated (and filled with nothing)
-   * after refinement.
-   */
   void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<Real, TGrid> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
-      // TODO: the line below means there's no computation & communication
-      // overlap here
+
       grid->boundary = Synch->avail_halo();
       if (boundary_needed)
         grid->UpdateBoundary();
@@ -251,12 +194,6 @@ public:
     }
   }
 
-  /**
-   * @brief Tag each block of this grid for refinement/compression by copying
-   * the tags of the given BlockInfos.
-   * @param I1 Vector of BlockInfos whose 'state' (refine/compress/leave) will
-   * be copied to the BlockInfos of this grid.
-   */
   void TagLike(const std::vector<BlockInfo> &I1) {
     std::vector<BlockInfo> &I2 = grid->getBlocksInfo();
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
@@ -291,14 +228,6 @@ public:
   }
 
 protected:
-  /**
-   * @brief Auxiliary function to tag a vector of blocks
-   * @param I Vector of BlockInfos to tag.
-   * @param Reduction Boolean that will be set to true if any block is tagged;
-   * setting to true will cause a call to 'ValidStates()' after tagging blocks.
-   * @param Reduction_req MPI request that will be used if 'Reduction' is true
-   * @param tmp Same value as 'Reduction' by this is an integer
-   */
   void TagBlocksVector(std::vector<BlockInfo *> &I, bool &Reduction,
                        MPI_Request &Reduction_req, int &tmp) {
     const int levelMax = grid->getlevelMax();
@@ -334,15 +263,6 @@ protected:
     }
   }
 
-  /**
-   * @brief First step of refinement of a block.
-   *
-   * The new blocks are allocated and the interpolation needed for refinement is
-   * perfomed. The parent block will be deallocated in step 2 (refine_2).
-   *
-   * @param level The refinement level of the block to be refined.
-   * @param Z The Z-order index of the block to be refined.
-   */
   void refine_1(const int level, const long long Z, TLab &lab) {
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     parent.state = Leave;
@@ -368,15 +288,6 @@ protected:
       RefineBlocks(Blocks, lab);
   }
 
-  /**
-   * @brief Second step of refinement of a block.
-   *
-   * After all blocks are refined with refine_1, we can deallocate their parent
-   * blocks here.
-   *
-   * @param level The refinement level of the block to be refined.
-   * @param Z The Z-order index of the block to be refined.
-   */
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
     {
@@ -401,16 +312,6 @@ protected:
       }
   }
 
-  /**
-   * @brief Compress eight blocks.
-   *
-   * The 'bottom left' block (i,j,k) is provided in the input, via its
-   * refinement level and Z-order index. The top right block would be the block
-   * (i+1,j+1,k+1).
-   *
-   * @param level The refinement level of the bottom left block to be refined.
-   * @param Z The Z-order index of the bottom left block to be refined.
-   */
   void compress(const int level, const long long Z) {
     assert(level > 0);
 
@@ -468,16 +369,6 @@ protected:
       }
   }
 
-  /**
-   * @brief Make sure adjacent blocks of the to-be-adapted mesh do not differ by
-   * more than one refinement level.
-   *
-   * Given a set of tagged blocks, this function will mark some additional
-   * blocks for refinement, to make sure no adjacent blocks differ by more than
-   * one refinement level. It will also unmark some blocks from being
-   * compressed, if their adjacent blocks do not need compression and/or belong
-   * to a finer refinement level.
-   */
   void ValidStates() {
     const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
     const int levelMin = 0;
@@ -503,13 +394,9 @@ protected:
       }
     }
 
-    // 1.Change states of blocks next to finer resolution blocks
-    // 2.Change states of blocks next to same resolution blocks
-    // 3.Compress a block only if all blocks with the same parent need
-    // compression
     bool clean_boundary = true;
     for (int m = levelMax - 1; m >= levelMin; m--) {
-      // 1.
+
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state != Refine &&
@@ -547,17 +434,14 @@ protected:
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
               }
-              // if (info.level == levelMax - 1) break;
 
               const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
-              int Bstep = 1; // face
+              int Bstep = 1;
               if (tmp == 2)
-                Bstep = 3; // edge
+                Bstep = 3;
               else if (tmp == 3)
-                Bstep = 4; // corner
+                Bstep = 4;
 
-              // loop over blocks that make up face/edge/corner(respectively 4,2
-              // or 1 blocks)
               for (int B = 0; B <= 1; B += Bstep) {
                 const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                 const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
@@ -586,7 +470,6 @@ protected:
       if (m == levelMin)
         break;
 
-      // 2.
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state == Compress) {
@@ -625,9 +508,8 @@ protected:
           }
         }
       }
-    } // m
+    }
 
-    // 3.
     for (size_t jjj = 0; jjj < I.size(); jjj++) {
       BlockInfo &info = I[jjj];
       const int m = info.level;
@@ -665,18 +547,6 @@ protected:
     }
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  // Virtual functions that can be overwritten by user
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * @brief How cells are interpolated after refinement
-   *
-   * Default interpolation is a 2nd order Taylor expansion. Can be overidden by
-   * a derived class, to enable a custom refinement interpolation.
-   *
-   * @param B Pointers to the eight new blocks to be interpolated.
-   */
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
@@ -733,15 +603,6 @@ protected:
       }
   }
 
-  /**
-   * @brief Refinement criterion.
-   *
-   * Default refinement criterion is to compare the 'magnitude()' of each
-   * gridpoint to Rtol and Ctol. Can be overidden by a derived class, to enable
-   * a custom refinement criterion.
-   *
-   * @param info BlockInfo to be tagged.
-   */
   virtual State TagLoadedBlock(BlockInfo &info) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;

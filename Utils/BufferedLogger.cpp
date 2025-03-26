@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "BufferedLogger.h"
 #include <fstream>
@@ -26,8 +22,7 @@ std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
       flush(it);
     return it->second.stream;
   } else {
-    // With request_since_last_flush == 0,
-    // the first flush will have AUTO_FLUSH_COUNT frames.
+
     auto new_it = files.emplace(filename, Stream()).first;
     return new_it->second.stream;
   }

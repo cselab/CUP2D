@@ -7,22 +7,17 @@ namespace cubismup2d {
 
 using namespace py::literals;
 
-// Bindings/Operators.cpp
 void bindOperators(py::module &m);
 
-// Bindings/Poisson.cpp
 void bindPoissonSolvers(py::module &m);
 
-// Bindings/Shapes.cpp
 void bindShapes(py::module &m);
 
-// Bindings/Simulation.cpp
 void bindSimulationData(py::module &m);
 void bindSimulation(py::module &m);
 
 namespace {
 
-/* Ensure that we load highest thread level we need. */
 struct CUPMPILoader {
   CUPMPILoader() {
     int flag, provided;
@@ -46,7 +41,7 @@ struct CUPMPILoader {
   }
 } cup_mpi_loader;
 
-} // anonymous namespace
+} // namespace
 
 } // namespace cubismup2d
 

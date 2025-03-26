@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 #include "Fish.h"
@@ -20,20 +16,17 @@ public:
 };
 
 class ExperimentDataFish : public FishData {
-  // Conainers for experimentally measured midlines and center of mass
+
   std::vector<std::vector<Real>> midlineData;
   std::vector<std::vector<Real>> centerOfMassData;
 
-  // Counter for time and index of current frames from experimental dataset
   const Real timeStart, dtDataset;
   Real tLast = 0.0, tNext = 0.0;
   size_t idxLast = 0, idxNext = 0;
 
-  // Scheduler to interpolate midline between frames
   Schedulers::ParameterSchedulerVector<6> midlineScheduler;
 
 public:
-  // Current velocities
   Real u = 0.0, v = 0.0, omega = 0.0;
 
   ExperimentDataFish(Real L, Real _h, std::string path, Real _timeStart,
@@ -56,7 +49,6 @@ public:
     return (s < sb
                 ? std::sqrt(2 * wh * s - s * s)
                 : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
-                          : // pow(.,2) is 3D
-                       (wt * (L - s) / (L - st))));
+                          : (wt * (L - s) / (L - st))));
   }
 };

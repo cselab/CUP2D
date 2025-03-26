@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 #include "Fish.h"
@@ -53,7 +49,6 @@ public:
     return (s < sb
                 ? std::sqrt(2 * wh * s - s * s)
                 : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
-                          : // pow(.,2) is 3D
-                       (wt * (L - s) / (L - st))));
+                          : (wt * (L - s) / (L - st))));
   }
 };

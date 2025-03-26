@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Simulation.h"
 
@@ -37,9 +33,6 @@
 
 #include <algorithm>
 #include <iterator>
-
-// to test reward function of windmill
-// #include <random>
 
 using namespace cubism;
 
@@ -112,19 +105,19 @@ void Simulation::insertOperatorAfter(std::shared_ptr<Operator> op,
 }
 
 void Simulation::init() {
-  // parse field variables
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
-  // allocate the grid
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Allocating Grid..." << std::endl;
   sim.allocateGrid();
-  // create shapes
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Creating Shapes..." << std::endl;
   createShapes();
-  // impose field initial condition
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   if (sim.ic == "random") {
@@ -134,7 +127,7 @@ void Simulation::init() {
     IC ic(sim);
     ic(0);
   }
-  // create compute pipeline
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
@@ -155,87 +148,64 @@ void Simulation::init() {
       std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
   }
 
-  // Put Object on Intially defined Mesh and impose obstacle velocities
   startObstacles();
 }
 
 void Simulation::parseRuntime() {
-  // restart the simulation?
+
   sim.bRestart = parser("-restart").asBool(false);
 
-  /* parameters that have to be given */
-  /************************************/
   parser.set_strict_mode();
 
-  // set initial number of blocks
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
 
-  // maximal number of refinement levels
   sim.levelMax = parser("-levelMax").asInt();
 
-  // refinement/compression tolerance for vorticity magnitude
   sim.Rtol = parser("-Rtol").asDouble();
   sim.Ctol = parser("-Ctol").asDouble();
 
   parser.unset_strict_mode();
-  /************************************/
-  /************************************/
 
-  // refiment according to Qcriterion instead of |omega|
   sim.Qcriterion = parser("-Qcriterion").asBool(false);
 
-  // check for refinement every this many timesteps
   sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
 
-  // boolean to switch between refinement according to chi or grad(chi)
   sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
 
-  // initial level of refinement
   sim.levelStart = parser("-levelStart").asInt(-1);
   if (sim.levelStart == -1)
     sim.levelStart = sim.levelMax - 1;
 
-  // simulation extent
   sim.extent = parser("-extent").asDouble(1);
 
-  // timestep / CFL number
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
   sim.rampup = parser("-rampup").asInt(0);
 
-  // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
   sim.endTime = parser("-tend").asDouble(0);
 
-  // penalisation coefficient
   sim.lambda = parser("-lambda").asDouble(1e7);
 
-  // constant for explicit penalisation lambda=dlm/dt
   sim.dlm = parser("-dlm").asDouble(0);
 
-  // kinematic viscocity
   sim.nu = parser("-nu").asDouble(1e-2);
 
-  // forcing
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
 
-  // Smagorinsky Model
   sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
   sim.bDumpCs = parser("-dumpCs").asInt(0);
 
-  // Flag for initial condition
   sim.ic = parser("-ic").asString("");
 
-  // Boundary conditions (freespace or periodic)
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
   cubismBCY = string2BCflag(BC_y);
 
-  // poisson solver parameters
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
@@ -243,7 +213,6 @@ void Simulation::parseRuntime() {
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
 
-  // output parameters
   sim.profilerFreq = parser("-profilerFreq").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
@@ -271,13 +240,13 @@ void Simulation::createShapes() {
       if (sim.rank == 0 && sim.verbose)
         std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
-      // Comments and empty lines ignored:
+
       if (objectName.empty() or objectName[0] == '#')
         continue;
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
-      // ffparser.print_args();
+
       Shape *shape = nullptr;
       if (objectName == "disk")
         shape = new Disk(sim, ffparser, center);
@@ -324,25 +293,25 @@ void Simulation::createShapes() {
 }
 
 void Simulation::reset() {
-  // reset field variables and shapes
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
-  // impose field initial condition
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
-  // Put Object on Intially defined Mesh and impose obstacle velocities
+
   startObstacles();
 }
 
 void Simulation::resetRL() {
-  // reset simulation (not shape)
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
   sim.resetAll();
-  // impose field initial condition
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
@@ -352,7 +321,6 @@ void Simulation::resetRL() {
 void Simulation::startObstacles() {
   Checker check(sim);
 
-  // put obstacles to grid and compress
   if (sim.rank == 0 && sim.verbose && !sim.bRestart)
     std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
@@ -365,7 +333,6 @@ void Simulation::startObstacles() {
     }
   (*putObjectsOnGrid)(0.0);
 
-  // impose velocity of obstacles
   if (not sim.bRestart) {
     if (sim.rank == 0 && sim.verbose)
       std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
@@ -383,7 +350,6 @@ void Simulation::simulate() {
 
     bool done = false;
 
-    // Ignore the final time step if `dt` is way too small.
     if (!done || dt > 2e-16)
       advance(dt);
 
@@ -426,9 +392,6 @@ Real Simulation::calcMaxTimestep() {
         0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
     const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
 
-    // non-constant timestep introduces a source term = (1-dt_new/dt_old)
-    // \nabla^2 P_{old} in the Poisson equation. Thus, we try to modify the
-    // timestep less often
     if (sim.step < sim.rampup) {
       const Real x = (sim.step + 1.0) / sim.rampup;
       const Real rampupFactor = std::exp(std::log(1e-3) * (1 - x));
@@ -461,7 +424,6 @@ void Simulation::advance(const Real dt) {
            (double)sim.uMax_measured, (double)CFL);
   }
 
-  // dump field
   const bool bDump = sim.bDump();
   if (bDump) {
     if (sim.rank == 0 && sim.verbose)

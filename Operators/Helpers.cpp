@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper.h"
@@ -48,28 +44,17 @@ void IC::operator()(const Real dt) {
       }
     }
   } else {
-    // create filename from step
+
     sim.readRestartFiles();
 
     std::stringstream ss;
     ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
 
-    // The only field that is needed for restarting is velocity. Chi is derived
-    // from the files we read for obstacles. Here we also read pres so that the
-    // Poisson solver has the same initial guess, which in turn leads to
-    // restarted simulations having the exact same result as non-restarted ones
-    // (we also read pres because we need to read at least one ScalarGrid, see
-    // hack below).
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
         *(sim.vel), "vel_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
         *(sim.pres), "pres_" + ss.str(), sim.path4serialization);
 
-    // hack: need to "read" the other grids too, so that the mesh is the same
-    // for every grid. So we read VectorGrids from "vel" and ScalarGrids from
-    // "pres". We don't care about the grid point values (those are set to zero
-    // below), we only care about the grid structure, i.e. refinement levels
-    // etc.
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
         *(sim.pold), "pres_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
@@ -166,7 +151,7 @@ Real findMaxU::run() const {
   const size_t Nblocks = velInfo.size();
 
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
-///*
+
 #ifdef ZERO_TOTAL_MOM
   Real momX = 0, momY = 0, totM = 0;
 #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
@@ -187,10 +172,10 @@ Real findMaxU::run() const {
   momX = temp[0];
   momY = temp[1];
   totM = temp[2];
-  // printf("Integral of momenta X:%e Y:%e mass:%e\n", momX, momY, totM);
+
   const Real DU = momX / totM, DV = momY / totM;
 #endif
-  //*/
+
   Real U = 0, V = 0, u = 0, v = 0;
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
   for (size_t i = 0; i < Nblocks; i++) {
@@ -274,9 +259,6 @@ void Checker::run(std::string when) const {
 }
 
 void ApplyObjVel::operator()(const Real dt) {
-  // We loop over each shape's obstacle blocks and copy the obstacle's
-  // deformation velocity UDEF to tmpV.
-  // Then, we put that velocity to the grid.
 
   const size_t Nblocks = velInfo.size();
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
@@ -290,10 +272,10 @@ void ApplyObjVel::operator()(const Real dt) {
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
       const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock; // dest
+      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
       const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; iy++)
         for (int ix = 0; ix < VectorBlock::sizeX; ix++) {

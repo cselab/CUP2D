@@ -1,18 +1,14 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
 #include "Fish.h"
 
 class Teardrop : public Fish {
-  const Real Apitch;          // aplitude of sinusoidal pitch angle
-  const Real Fpitch;          // frequency
-  const Real tAccel;          // time to accelerate to target velocity
-  const Real fixedCenterDist; // distance s/L from CoM where hydrofoil is fixed
+  const Real Apitch;
+  const Real Fpitch;
+  const Real tAccel;
+  const Real fixedCenterDist;
 
 public:
   Teardrop(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);

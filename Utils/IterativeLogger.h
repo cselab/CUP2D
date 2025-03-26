@@ -9,7 +9,7 @@
 #include "mpi.h"
 
 #include "../include/helper_cuda.h"
-#include "../include/json.hpp" // https://github.com/nlohmann/json
+#include "../include/json.hpp"
 
 class BiCGSTABLoggerCPU {
 public:
@@ -18,10 +18,8 @@ public:
     MPI_Comm_rank(m_comm, &rank_);
   }
 
-  // Method to be called at the beginning of each time-step to save metadata
   void new_step(int m) { j_["metadata"][std::to_string(step_)]["m"] = m; }
 
-  // Method to log BiCGSTAB coefficients
   void log_coeffs(const int iter, const double alpha, const double rho,
                   const double beta, const double omega) {
     j_["bicgstab"][std::to_string(step_)][std::to_string(iter)]["alpha"] =
@@ -32,7 +30,6 @@ public:
         omega;
   }
 
-  // Method to log a BiCGSTAB vector
   template <class val_t>
   void log_vec(int iter, std::string tag, std::vector<val_t> &vec) {
     j_["bicgstab"][std::to_string(step_)][std::to_string(iter)][tag] = vec;
@@ -94,7 +91,6 @@ public:
   BiCGSTABLoggerGPU(MPI_Comm m_comm, int max_steps)
       : BiCGSTABLoggerCPU(m_comm, max_steps) {}
 
-  // Method to be called at the beginning of each time-step to save metadata
   void new_step(int m, int halo, int loc_nnz, int bd_nnz) {
     j_["metadata"][std::to_string(step_)]["m"] = m;
     j_["metadata"][std::to_string(step_)]["halo"] = halo;
@@ -102,13 +98,11 @@ public:
     j_["metadata"][std::to_string(step_)]["bd_nnz"] = bd_nnz;
   }
 
-  // Redefine here because templating prevents method from being virtual
   template <class val_t>
   void log_vec(int iter, std::string tag, std::vector<val_t> &vec) {
     j_["bicgstab"][std::to_string(step_)][std::to_string(iter)][tag] = vec;
   }
 
-  // Method to log a BiCGSTAB vector
   void log_vec(cudaStream_t solver_stream, const int iter,
                const std::string tag, const int m, const double *const d_vec) {
     std::vector<double> vec(m);

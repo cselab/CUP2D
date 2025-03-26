@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "CarlingFish.h"
 
@@ -27,7 +23,7 @@ void AmplitudeFish::computeMidline(const Real t, const Real dt) {
   const Real rampFacVel = rampFactorVelSine(t, Tperiod);
   rX[0] = 0.0;
   rY[0] = rampFac * midlineLatPos(rS[0], t);
-  vX[0] = 0.0; // rX[0] is constant
+  vX[0] = 0.0;
   vY[0] =
       rampFac * midlineLatVel(rS[0], t) + rampFacVel * midlineLatPos(rS[0], t);
 
@@ -44,7 +40,7 @@ void AmplitudeFish::computeMidline(const Real t, const Real dt) {
     const Real dx = std::sqrt(ds * ds - dy * dy);
     assert(dx > 0);
     const Real dVy = vY[i] - vY[i - 1];
-    const Real dVx = -dy / dx * dVy; // ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
+    const Real dVx = -dy / dx * dVy;
 
     rX[i] = dx;
     vX[i] = dVx;

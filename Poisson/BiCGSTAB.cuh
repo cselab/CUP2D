@@ -15,7 +15,7 @@ struct BiCGSTABScalars {
   double omega;
   double eps;
   double rho_prev;
-  double rho_curr; // reductions happen along these three, make contigious
+  double rho_curr;
   double buff_1;
   double buff_2;
   int amax_idx;
@@ -27,33 +27,24 @@ public:
                  const bool bMeanConstraint, const std::vector<double> &P_inv);
   ~BiCGSTABSolver();
 
-  // Solve method with update to LHS matrix
   void solveWithUpdate(const double max_error, const double max_rel_error,
                        const int max_restarts);
 
-  // Solve method without update to LHS matrix
   void solveNoUpdate(const double max_error, const double max_rel_error,
                      const int max_restarts);
 
 private:
-  // Method to free memory allocated by updateAll
   void freeLast();
 
-  // Method to update LS
   void updateAll();
 
-  // Method to set RHS and LHS vec initial guess
   void updateVec();
 
-  // Main BiCGSTAB call
   void main(const double max_error, const double max_rel_error,
             const int restarts);
 
-  // Haloed SpMV
-  void hd_cusparseSpMV(double *d_op, // operand vec
-                       cusparseDnVecDescr_t spDescrLocOp,
-                       cusparseDnVecDescr_t spDescrBdOp,
-                       double *d_res, // result vec
+  void hd_cusparseSpMV(double *d_op, cusparseDnVecDescr_t spDescrLocOp,
+                       cusparseDnVecDescr_t spDescrBdOp, double *d_res,
                        cusparseDnVecDescr_t Res);
 
   cudaStream_t solver_stream_;
@@ -62,9 +53,8 @@ private:
   cublasHandle_t cublas_handle_;
   cusparseHandle_t cusparse_handle_;
 
-  bool dirty_ = false; // dirty "bit" to set after first call to updateAll
+  bool dirty_ = false;
 
-  // Sparse linear system metadata
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
@@ -72,28 +62,24 @@ private:
   int halo_;
   int loc_nnz_;
   int bd_nnz_;
-  int hd_m_;       // haloed number of row
-  const int BLEN_; // block length (i.e no. of rows in preconditioner)
+  int hd_m_;
+  const int BLEN_;
   const bool bMeanConstraint_;
   int bMeanRow_;
 
-  // Reference to owner LocalLS
   LocalSpMatDnVec &LocalLS_;
 
-  // Send/receive rules and buffers
   int send_buff_sz_;
   int *d_send_pack_idx_;
   double *d_send_buff_;
   double *h_send_buff_;
   double *h_recv_buff_;
 
-  // Device-side constants
   double *d_consts_;
   const double *d_eye_;
   const double *d_nye_;
   const double *d_nil_;
 
-  // Device-side varibles for linear system
   BiCGSTABScalars *h_coeffs_;
   BiCGSTABScalars *d_coeffs_;
   double *dloc_cooValA_;
@@ -107,27 +93,25 @@ private:
   double *d_r_;
   double *d_P_inv_;
 
-  // bMeanConstraint buffers
   size_t red_temp_storage_bytes_;
   void *d_red_temp_storage_;
-  double *d_red_;     // auxilary buffer for carrying out reductions
-  double *d_red_res_; // auxilary buffer for reduction result
+  double *d_red_;
+  double *d_red_res_;
   double *d_h2_;
 
-  // Device-side intermediate variables for BiCGSTAB
   double *d_rhat_;
   double *d_p_;
   double *d_nu_;
   double *d_t_;
-  double *d_z_; // vec with halos
-  // Descriptors for variables that will pass through cuSPARSE
+  double *d_z_;
+
   cusparseSpMatDescr_t spDescrLocA_;
   cusparseSpMatDescr_t spDescrBdA_;
   cusparseDnVecDescr_t spDescrNu_;
   cusparseDnVecDescr_t spDescrT_;
   cusparseDnVecDescr_t spDescrLocZ_;
   cusparseDnVecDescr_t spDescrBdZ_;
-  // Work buffer for cusparseSpMV
+
   size_t locSpMVBuffSz_;
   void *locSpMVBuff_;
   size_t bdSpMVBuffSz_;

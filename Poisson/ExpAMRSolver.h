@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -12,25 +8,16 @@
 #include "LocalSpMatDnVec.h"
 
 class ExpAMRSolver : public PoissonSolver {
-  /*
-  Method used to solve Poisson's equation:
-  https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
-  */
+
 public:
-  std::string getName() {
-    // ExpAMRSolver == AMRSolver for explicit linear system
-    return "ExpAMRSolver";
-  }
-  // Constructor and destructor
+  std::string getName() { return "ExpAMRSolver"; }
+
   ExpAMRSolver(SimulationData &s);
   ~ExpAMRSolver() = default;
 
-  // main function used to solve Poisson's equation
   void solve(const ScalarGrid *input, ScalarGrid *const output);
 
 protected:
-  // this struct contains information such as the currect timestep size, fluid
-  // properties and many others
   SimulationData &sim;
 
   int rank_;
@@ -41,28 +28,21 @@ protected:
   static constexpr int BSY_ = VectorBlock::sizeY;
   static constexpr int BLEN_ = BSX_ * BSY_;
 
-  // This returns element K_{I1,I2}. It is used when we invert K
   double getA_local(int I1, int I2);
 
-  // Method to add off-diagonal matrix element associated to cell in 'rhsNei'
-  // block
-  class EdgeCellIndexer; // forward declaration
+  class EdgeCellIndexer;
   void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
                 const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const;
 
-  // Method to compute A and b for the current mesh
-  void getMat(); // update LHS and RHS after refinement
-  void getVec(); // update initial guess and RHS vecs only
+  void getMat();
+  void getVec();
 
-  // Distributed linear system which uses local indexing
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
 
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
 
-  // Edge descriptors to allow algorithmic access to cell indices regardless of
-  // edge type
   class CellIndexer {
   public:
     CellIndexer(const ExpAMRSolver &pSolver) : ps(pSolver) {}
@@ -104,24 +84,20 @@ protected:
     static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
     static int iy_f(const int iy) { return (iy % (BSY_ / 2)) * 2; }
 
-    const ExpAMRSolver &ps; // poisson solver
+    const ExpAMRSolver &ps;
   };
 
   class EdgeCellIndexer : public CellIndexer {
   public:
     EdgeCellIndexer(const ExpAMRSolver &pSolver) : CellIndexer(pSolver) {}
 
-    // When I am uniform with the neighbouring block
     virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                               const int iy) const = 0;
 
-    // When I am finer than neighbouring block
     virtual long long neiInward(const cubism::BlockInfo &info, const int ix,
                                 const int iy) const = 0;
     virtual double taylorSign(const int ix, const int iy) const = 0;
 
-    // Indices of coarses cells in neighbouring blocks, to be overridden where
-    // appropriate
     virtual int ix_c(const cubism::BlockInfo &info, const int ix) const {
       return info.index[0] % 2 == 0 ? ix / 2 : ix / 2 + BSX_ / 2;
     }
@@ -129,27 +105,20 @@ protected:
       return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + BSY_ / 2;
     }
 
-    // When I am coarser than neighbouring block
-    // neiFine1 must correspond to cells where taylorSign == -1., neiFine2 must
-    // correspond to taylorSign == 1.
     virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int ix,
                                const int iy, const int offset = 0) const = 0;
     virtual long long neiFine2(const cubism::BlockInfo &nei_info, const int ix,
                                const int iy, const int offset = 0) const = 0;
 
-    // Indexing aids for derivatives in Taylor approximation in coarse cell
     virtual bool isBD(const int ix, const int iy) const = 0;
     virtual bool isFD(const int ix, const int iy) const = 0;
     virtual long long Nei(const cubism::BlockInfo &info, const int ix,
                           const int iy, const int dist) const = 0;
 
-    // When I am coarser and need to determine which Zchild I'm next to
     virtual long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                              const int iy) const = 0;
   };
 
-  // ----------------------------------------------------- Edges perpendicular
-  // to x-axis -----------------------------------
   class XbaseIndexer : public EdgeCellIndexer {
   public:
     XbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
@@ -235,8 +204,6 @@ protected:
     }
   };
 
-  // ----------------------------------------------------- Edges perpendicular
-  // to y-axis -----------------------------------
   class YbaseIndexer : public EdgeCellIndexer {
   public:
     YbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
@@ -327,14 +294,14 @@ protected:
   XmaxIndexer XmaxCell;
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
-  // Array of pointers for the indexers above for polymorphism in makeFlux
+
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
 
   std::array<std::pair<long long, double>, 3> D1(const cubism::BlockInfo &info,
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
-    // Scale D1 by h^l/4
+
     if (indexer.isBD(ix, iy))
       return {{{indexer.Nei(info, ix, iy, -2), 1. / 8.},
                {indexer.Nei(info, ix, iy, -1), -1. / 2.},
@@ -353,7 +320,7 @@ protected:
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
-    // Scale D2 by 0.5*(h^l/4)^2
+
     if (indexer.isBD(ix, iy))
       return {{{indexer.Nei(info, ix, iy, -2), 1. / 32.},
                {indexer.Nei(info, ix, iy, -1), -1. / 16.},

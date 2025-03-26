@@ -11,13 +11,12 @@ using namespace py::literals;
 
 namespace {
 
-/// Operator that stops the simulation when Ctrl-C is pressed in Python.
 class SIGINTHandlerOperator : public Operator {
 public:
   using Operator::Operator;
 
-  void operator()(double /* dt */) override {
-    // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
+  void operator()(double) override {
+
     if (PyErr_CheckSignals() != 0)
       throw py::error_already_set();
   }
@@ -25,7 +24,7 @@ public:
   std::string getName() override { return "SIGINTHandlerOperator"; }
 };
 
-} // anonymous namespace
+} // namespace
 
 void bindSimulationData(py::module &m) {
   auto pyData =
@@ -43,8 +42,6 @@ void bindSimulationData(py::module &m) {
           .def_readwrite("mute_all", &SimulationData::muteAll)
           .def_readwrite("nu", &SimulationData::nu);
 
-  // Bind all grids. If updating this, update properties in
-  // cubismup2d/simulation.py as well.
   const auto byRef = py::return_value_policy::reference_internal;
   pyData.def_readonly("chi", &SimulationData::chi, byRef);
   pyData.def_readonly("vel", &SimulationData::vel, byRef);
@@ -55,9 +52,6 @@ void bindSimulationData(py::module &m) {
   pyData.def_readonly("pold", &SimulationData::pold, byRef);
   pyData.def_readonly("Cs", &SimulationData::Cs, byRef);
 
-  // TODO: Create a `fields.dump()` function. To do it properly, instead of
-  // recompiling large HDF5 dump functions, compile them in a separate file and
-  // use them from here and from SimulationData.cpp.
   pyData.def("dump_chi", &SimulationData::dumpChi, "prefix"_a);
   pyData.def("dump_vel", &SimulationData::dumpVel, "prefix"_a);
   pyData.def("dump_vOld", &SimulationData::dumpVold, "prefix"_a);
@@ -71,8 +65,7 @@ void bindSimulationData(py::module &m) {
 
 static std::shared_ptr<Simulation>
 pyCreateSimulation(const std::vector<std::string> &argv, uintptr_t commPtr) {
-  // https://stackoverflow.com/questions/49259704/pybind11-possible-to-use-mpi4py
-  // In Python, pass communicators with `MPI._addressof(comm)`.
+
   MPI_Comm comm = commPtr ? *(MPI_Comm *)commPtr : MPI_COMM_WORLD;
   std::vector<char *> ptrs(argv.size());
   for (size_t i = 0; i < argv.size(); ++i)
@@ -83,8 +76,7 @@ pyCreateSimulation(const std::vector<std::string> &argv, uintptr_t commPtr) {
 }
 
 static void pyAdaptMesh(Simulation &sim) {
-  // Immediately invoke putObjectsOnGrid(). Forgetting to invoke it after
-  // adapt() may cause the code to crash.
+
   auto *const adapt = sim.findOperator<AdaptTheMesh>();
   auto *const obj = sim.findOperator<PutObjectsOnGrid>();
   if (!adapt)

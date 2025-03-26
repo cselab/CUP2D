@@ -5,39 +5,21 @@
 #include <math.h>
 #include <vector>
 
-namespace cubism // AMR_CUBISM
-{
+namespace cubism {
 
-/**
- * @brief Hilbert Space-Filling Curve(SFC) in 2D.
- *
- * The Quadtree of GridBlocks of a simulation is traversed by an SFC.
- * Each node of the Quadtree (aka each GridBlock) is associated with
- * (i) a refinement level
- * (ii) indices (i,j) that indicate its coordinates in a uniform grid of the
- * same refinement level (iii) a Z-order index which is a unique integer along
- * an SFC that would traverse a uniform grid of the same refinement level (iv) a
- * unique integer (blockID_2). This class provides trasformations from each of
- * these attributes to the others.
- */
 class SpaceFillingCurve2D {
 protected:
-  int BX;         ///< number of blocks in the x-direction at the coarsest level
-  int BY;         ///< number of blocks in the y-direction at the coarsest level
-  int levelMax;   ///< maximum level allowed
-  bool isRegular; ///< true if BX,BY,BZ are powers of 2
-  int base_level; ///< minimum (starting) level (determined from BX,BY,BZ)
-  std::vector<std::vector<long long>>
-      Zsave; ///< option to save block indices instead of computing them every
-             ///< time
-  std::vector<std::vector<int>>
-      i_inverse; ///< option to save blocks i index instead of computing it
-                 ///< every time
-  std::vector<std::vector<int>>
-      j_inverse; ///< option to save blocks j index instead of computing it
-                 ///< every time
+  int BX;
+  int BY;
+  int levelMax;
+  bool isRegular;
+  int base_level;
+  std::vector<std::vector<long long>> Zsave;
 
-  /// convert (x,y) to index
+  std::vector<std::vector<int>> i_inverse;
+
+  std::vector<std::vector<int>> j_inverse;
+
   long long AxestoTranspose(const int *X_in, int b) const {
     int x = X_in[0];
     int y = X_in[1];
@@ -52,9 +34,8 @@ protected:
     return d;
   }
 
-  /// convert index to (x,y)
   void TransposetoAxes(long long index, int *X, int b) const {
-    // position, #bits, dimension
+
     int n = 1 << b;
     long long rx, ry, s, t = index;
     X[0] = 0;
@@ -69,7 +50,6 @@ protected:
     }
   }
 
-  /// rotate/flip a quadrant appropriately
   void rot(long long n, int *x, int *y, long long rx, long long ry) const {
     if (ry == 0) {
       if (rx == 1) {
@@ -77,7 +57,6 @@ protected:
         *y = n - 1 - *y;
       }
 
-      // Swap x and y
       int t = *x;
       *x = *y;
       *y = t;
@@ -127,9 +106,7 @@ public:
       }
   }
 
-  /// space-filling curve (i,j) --> 1D index (given level l)
-  long long forward(const int l, const int i, const int j) // const
-  {
+  long long forward(const int l, const int i, const int j) {
     const int aux = 1 << l;
 
     if (l >= levelMax)
@@ -148,7 +125,6 @@ public:
     return retval;
   }
 
-  /// space-filling curve Z-index --> (i,j) (given level l)
   void inverse(long long Z, int l, int &i, int &j) {
     if (isRegular) {
       int X[2] = {0, 0};
@@ -169,21 +145,18 @@ public:
     return;
   }
 
-  /// space-filling curve (i,j) --> 1D index (at level 0)
   long long IJ_to_index(int I, int J) {
-    // int index = (J + K * BY) * BX + I;
+
     long long index = Zsave[0][J * BX + I];
     return index;
   }
 
-  /// space-filling curve Z-index --> (i,j) (at level 0)
   void index_to_IJ(long long index, int &I, int &J) {
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     return;
   }
 
-  /// convert Z-index, level and ij index to single unique number
   long long Encode(int level, long long Z, int index[2]) {
     int lmax = levelMax;
     long long retval = 0;

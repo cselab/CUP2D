@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -10,15 +6,15 @@
 #include "SimulationData.h"
 
 class Shape {
-public: // data fields
+public:
   SimulationData &sim;
   unsigned obstacleID = 0;
   std::vector<ObstacleBlock *> obstacleBlocks;
-  // general quantities
+
   const Real origC[2], origAng;
-  Real center[2]; // for single density, this corresponds to centerOfMass
+  Real center[2];
   Real centerOfMass[2];
-  Real d_gm[2] = {0, 0}; // distance of center of geometry to center of mass
+  Real d_gm[2] = {0, 0};
   Real labCenterOfMass[2] = {0, 0};
   Real orientation = origAng;
 
@@ -40,8 +36,8 @@ public: // data fields
 
   Real M = 0;
   Real J = 0;
-  Real u = forcedu; // in lab frame, not sim frame
-  Real v = forcedv; // in lab frame, not sim frame
+  Real u = forcedu;
+  Real v = forcedv;
   Real omega = forcedomega;
   Real fluidAngMom = 0;
   Real fluidMomX = 0;
@@ -87,14 +83,6 @@ public: // data fields
   }
 
 protected:
-  /*
-    inline void rotate(Real p[2]) const
-    {
-      const Real x = p[0], y = p[1];
-      p[0] =  x*std::cos(orientation) + y*std::sin(orientation);
-      p[1] = -x*std::sin(orientation) + y*std::cos(orientation);
-    }
-  */
 public:
   Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
 
@@ -153,7 +141,6 @@ public:
   Real getOrientation() const { return this->orientation; }
   void setOrientation(const Real angle) { this->orientation = angle; }
 
-  // functions needed for restarting the simulation
   virtual void saveRestart(FILE *f);
   virtual void loadRestart(FILE *f);
 

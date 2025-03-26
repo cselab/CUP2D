@@ -23,12 +23,11 @@ void convertVectorToGrid(Grid *grid, const typename Grid::ElementType *vec) {
   const int log2n = log2(nx);
   const int sfc_level = grid->getlevelMax() + log2n;
 
-  assert((nx & (nx - 1)) == 0); // assert that nx is a power of 2
+  assert((nx & (nx - 1)) == 0);
 
   std::array<int, 3> N = {nx * grid->NX, ny * grid->NY, nz * grid->NZ};
   static SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0], N[1], sfc_level);
 
-  // Blocks might not be ordered. We create a sorted copy and loop over it
   std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
   std::sort(SortedInfos.begin(), SortedInfos.end());
 
@@ -76,14 +75,13 @@ void convertGridToVector(const Grid *const grid,
   const int log2n = log2(nx);
   const int sfc_level = grid->getlevelMax() + log2n;
   const size_t blocks = grid->getBlocksInfo().size();
-  const size_t length = blocks * nx * ny * nz; // Total number of grid points;
+  const size_t length = blocks * nx * ny * nz;
 
-  assert((nx & (nx - 1)) == 0); // assert that nx is a power of 2
+  assert((nx & (nx - 1)) == 0);
 
   std::array<int, 3> N = {nx * grid->NX, ny * grid->NY, nz * grid->NZ};
   static SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0], N[1], sfc_level);
 
-  // Blocks might not be ordered. We create a sorted copy and loop over it
   std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
   std::sort(SortedInfos.begin(), SortedInfos.end());
 

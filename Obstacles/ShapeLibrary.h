@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #pragma once
 
@@ -14,7 +10,7 @@ inline bool _is_touching(const cubism::BlockInfo &INFO, const Real BBOX[2][2],
   Real MINP[2], MAXP[2];
   INFO.pos(MINP, 0, 0);
   INFO.pos(MAXP, ObstacleBlock::sizeX - 1, ObstacleBlock::sizeY - 1);
-  // for(int i=0; i<2; ++i) { MINP[i] -= safety; MAXP[i] += safety; }
+
   const Real intrsct[2][2] = {
       {std::max(MINP[0], BBOX[0][0]), std::min(MAXP[0], BBOX[0][1])},
       {std::max(MINP[1], BBOX[1][0]), std::min(MAXP[1], BBOX[1][1])}};
@@ -30,7 +26,7 @@ struct FillBlocks_Cylinder {
       : radius(R), safety(2 * h), pos{(Real)C[0], (Real)C[1]} {}
 
   inline Real distanceTocylinder(const Real x, const Real y) const {
-    return radius - std::sqrt(x * x + y * y); // pos inside, neg outside
+    return radius - std::sqrt(x * x + y * y);
   }
 
   inline bool is_touching(const cubism::BlockInfo &INFO) const {
@@ -55,10 +51,9 @@ struct FillBlocks_HalfCylinder {
     const Real X = x * cosang + y * sinang;
     if (X > 0)
       return -X;
-    // const Real Y = - x*sinang + y*cosang; /// For default orientation
-    // if(Y>0) return -Y;                    /// pointing downwards.
+
     else
-      return radius - std::sqrt(x * x + y * y); // (pos inside, neg outside)
+      return radius - std::sqrt(x * x + y * y);
   }
 
   inline bool is_touching(const cubism::BlockInfo &INFO) const {

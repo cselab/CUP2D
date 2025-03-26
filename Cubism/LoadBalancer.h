@@ -7,49 +7,25 @@
 
 namespace cubism {
 
-/** Takes care of load-balancing of Blocks.
- * This class will redistribute Blocks among different MPI ranks for two
- * reasons: 1) Eight (in 3D) or four (in 2D) blocks need to be compressed to
- * one, but they are owned by different ranks. PrepareCompression() will collect
- * them all to one rank, so that they can be compressed. 2) There is a load
- * imbalance after the grid is refined or compressed. If the imbalance is not
- * great (load imbalance ratio < 1.1), a 1D-diffusion based scheme is used to
- * redistribute blocks along the 1D Space-Filling-Curve. Otherwise, all blocks
- * are simply evenly redistributed among all ranks.
- * @tparam TGrid: the type of GridMPI to perform load-balancing for
- */
 template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
   typedef typename TGrid::Block::ElementType::RealType Real;
-  bool movedBlocks; ///< =true if load-balancing is performed when
-                    ///< Balance_Diffusion of Balance_Global is called
+  bool movedBlocks;
 
 protected:
-  TGrid *grid; ///< grid where load balancing will be performed
+  TGrid *grid;
 
-  /// MPI datatype and auxiliary struct used to send/receive blocks among ranks
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
-    long long mn[2]; ///< level and Z-order index of a BlockInfo
-    Real data[sizeof(BlockType) /
-              sizeof(Real)]; ///< buffer array of data to send/receive
+    long long mn[2];
+    Real data[sizeof(BlockType) / sizeof(Real)];
 
-    /** Constructor; calls 'prepare'.
-     * @param info: BlockInfo for block to be sent/received.
-     * @param Fillptr: true if we want the data of the GridBlock to be copied to
-     * this MPI_Block.
-     */
     MPI_Block(const BlockInfo &info, const bool Fillptr = true) {
       prepare(info, Fillptr);
     }
 
-    /** Prepare the MPI_Block with data from a GridBlock.
-     * @param info: BlockInfo for block to be sent/received.
-     * @param Fillptr: true if we want the data of the GridBlock to be copied to
-     * this MPI_Block.
-     */
     void prepare(const BlockInfo &info, const bool Fillptr = true) {
       mn[0] = info.level;
       mn[1] = info.Z;
@@ -62,20 +38,16 @@ protected:
     MPI_Block() {}
   };
 
-  /// Allocate a block at a given level and Z-index and fill it with received
-  /// data
   void AddBlock(const int level, const long long Z, Real *data) {
-    // 1. Allocate the block from the grid
+
     grid->_alloc(level, Z);
 
-    // 2. Fill the block with data received
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
     BlockType *b1 = (BlockType *)info.ptrBlock;
     assert(b1 != NULL);
     Real *a1 = &b1->data[0][0][0].member(0);
     std::memcpy(a1, data, sizeof(BlockType));
 
-    // 3. Update status of children and parent block of newly allocated block
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
     if (level < grid->getlevelMax() - 1)
@@ -92,13 +64,10 @@ protected:
   }
 
 public:
-  /// Constructor
   LoadBalancer(TGrid &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
 
-    // Create MPI datatype to send/receive blocks (data) + two integers (their
-    // level and Z-index)
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
     MPI_Datatype array_of_types[2];
@@ -114,12 +83,8 @@ public:
     MPI_Type_commit(&MPI_BLOCK);
   }
 
-  /// Destructor
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
 
-  /// Compression of eight blocks requires all of them to be owned by one rank;
-  /// this function collects all groups of 8 blocks to be compressed to a single
-  /// rank.
   void PrepareCompression() {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
@@ -128,17 +93,12 @@ public:
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
 
-    // Loop over blocks
     for (auto &b : I) {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
 
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
 
-      // If the 'base' block does not exist, no compression will take place.
-      // Continue to next block. By now, if 'base' block is marked for
-      // compression it means that the remaining 7 (3, in 2D) blocks will also
-      // need compression, so we check if base.state == Compress.
       if (!grid->Tree(base).Exists() || base.state != Compress)
         continue;
 
@@ -146,16 +106,13 @@ public:
       const int baserank = grid->Tree(b.level, nBlock).rank();
       const int brank = grid->Tree(b.level, b.Z).rank();
 
-      // if 'b' is NOT the 'base' block we send it to the rank that owns the
-      // 'base' block.
       if (b.Z != nBlock) {
         if (baserank != rank && brank == rank) {
           send_blocks[baserank].push_back({bCopy});
           grid->Tree(b.level, b.Z).setrank(baserank);
         }
       }
-      // if 'b' is the 'base' block we collect the remaining 7 (3, in 2D) blocks
-      // that will be compressed with it.
+
       else {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
@@ -173,7 +130,6 @@ public:
       }
     }
 
-    // 1/4 Perform the sends/receives of blocks
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
       if (r != rank) {
@@ -191,8 +147,6 @@ public:
         }
       }
 
-    // 2/4 Do some work while sending/receiving. Here we deallocate the blocks
-    // we sent.
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
@@ -200,13 +154,11 @@ public:
             .setCheckCoarser();
       }
 
-    // 3/4 Wait for communication to complete
     if (requests.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(requests.size(), &requests[0], MPI_STATUSES_IGNORE);
     }
 
-    // 4/4 Allocate the blocks we received and copy data to them.
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
@@ -220,9 +172,6 @@ public:
       }
   }
 
-  /// Redistributes blocks with diffusion algorithm along the 1D Space-Filling
-  /// Hilbert Curve; block_distribution[i] is the number of blocks owned by rank
-  /// i, for i=0,...,#of ranks -1
   void Balance_Diffusion(const bool verbose,
                          std::vector<long long> &block_distribution) {
     const int size = grid->get_world_size();
@@ -281,8 +230,7 @@ public:
 
     std::vector<MPI_Request> request;
 
-    if (flux_left > 0) // then I will send blocks to my left rank
-    {
+    if (flux_left > 0) {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_left; i++)
@@ -291,16 +239,14 @@ public:
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
                 grid->getWorldComm(), &request.back());
-    } else if (flux_left < 0) // then I will receive blocks from my left rank
-    {
+    } else if (flux_left < 0) {
       recv_left.resize(abs(flux_left));
       MPI_Request req{};
       request.push_back(req);
       MPI_Irecv(&recv_left[0], recv_left.size(), MPI_BLOCK, left, 4560,
                 grid->getWorldComm(), &request.back());
     }
-    if (flux_right > 0) // then I will send blocks to my right rank
-    {
+    if (flux_right > 0) {
       send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_right; i++)
@@ -309,8 +255,7 @@ public:
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
                 grid->getWorldComm(), &request.back());
-    } else if (flux_right < 0) // then I will receive blocks from my right rank
-    {
+    } else if (flux_right < 0) {
       recv_right.resize(abs(flux_right));
       MPI_Request req{};
       request.push_back(req);
@@ -349,21 +294,13 @@ public:
     grid->FillPos();
   }
 
-  /// Redistributes all blocks evenly, along the 1D Space-Filling Hilbert Curve;
-  /// all_b[i] is the number of blocks owned by rank i, for i=0,...,#of ranks -1
   void Balance_Global(std::vector<long long> &all_b) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
 
-    // Redistribute all blocks evenly, along the 1D Hilbert curve.
-    // all_b[i] = # of blocks currently owned by rank i.
-
-    // sort blocks according to Z-index and level on the Hilbert curve.
     std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
     std::sort(SortedInfos.begin(), SortedInfos.end());
 
-    // compute the total number of blocks (total_load) and how many blocks each
-    // rank should have, for a balanced load distribution
     long long total_load = 0;
     for (int r = 0; r < size; r++)
       total_load += all_b[r];
@@ -379,14 +316,11 @@ public:
     long long ideal_index = (total_load / size) * rank;
     ideal_index += (rank < (total_load % size)) ? rank : (total_load % size);
 
-    // now check the actual block distribution and mark the blocks that should
-    // not be owned by a particular rank and should instead be sent to another
-    // rank.
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
     for (int r = 0; r < size; r++)
       if (rank != r) {
-        { // check if I need to receive blocks
+        {
           const long long a1 = ideal_index;
           const long long a2 = ideal_index + my_load - 1;
           const long long b1 = index_start[r];
@@ -396,7 +330,7 @@ public:
           if (c2 - c1 + 1 > 0)
             recv_blocks[r].resize(c2 - c1 + 1);
         }
-        { // check if I need to send blocks
+        {
           long long other_ideal_index = (total_load / size) * r;
           other_ideal_index +=
               (r < (total_load % size)) ? r : (total_load % size);
@@ -414,7 +348,6 @@ public:
         }
       }
 
-    // perform the sends and receives of blocks
     int tag = 12345;
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
@@ -449,11 +382,6 @@ public:
                   tag, grid->getWorldComm(), &requests.back());
       }
 
-    // no need to wait here, do some work first!
-    // MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-
-    // do some work while sending/receiving, by deallocating the blocks that are
-    // being sent
     movedBlocks = true;
     std::vector<long long> deallocIDs;
     counter_S = 0;
@@ -479,10 +407,8 @@ public:
       }
     grid->dealloc_many(deallocIDs);
 
-    // wait for communication
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 
-// allocate received blocks
 #pragma omp parallel
     {
       for (int r = 0; r < size; r++)

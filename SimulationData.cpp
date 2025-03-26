@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Definitions.h"
 #include "Operators/Helpers.h"
@@ -50,7 +46,6 @@ void SimulationData::allocateGrid() {
   pold = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
 
-  // For RL SGS learning
   if (smagorinskyCoeff != 0)
     Cs = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
@@ -64,13 +59,11 @@ void SimulationData::allocateGrid() {
               << std::endl;
     MPI_Abort(chi->getWorldComm(), 1);
   }
-  // Compute extents, assume all blockinfos have same h at the start!!!
+
   int aux = pow(2, levelStart);
   extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
-  // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 
-  // compute min and max gridspacing for set AMR parameter
   int auxMax = pow(2, levelMax - 1);
   minH = extents[0] / (auxMax * bpdx * VectorBlock::sizeX);
   maxH = extents[0] / (bpdx * VectorBlock::sizeX);
@@ -170,11 +163,7 @@ void SimulationData::startProfiler(std::string name) {
   profiler->push_start(name);
 }
 
-void SimulationData::stopProfiler() {
-  // Checker check (*this);
-  // check.run("after" + profiler->currentAgentName());
-  profiler->pop_stop();
-}
+void SimulationData::stopProfiler() { profiler->pop_stop(); }
 
 void SimulationData::printResetProfiler() {
   profiler->printSummary();
@@ -186,13 +175,11 @@ void SimulationData::dumpAll(std::string name) {
 
   auto K1 = computeVorticity(*this);
   K1(0);
-  dumpTmp(name); // dump vorticity
+  dumpTmp(name);
   dumpChi(name);
   dumpVel(name);
   dumpPres(name);
-  // dumpPold(name);
-  // dumpTmpV(name);
-  // dumpVold(name);
+
   if (bDumpCs)
     dumpCs(name);
 
@@ -203,7 +190,6 @@ void SimulationData::dumpAll(std::string name) {
 
 void SimulationData::writeRestartFiles() {
 
-  // write restart file for field
   if (rank == 0) {
     std::stringstream ssR;
     ssR << path4serialization + "/field.restart";
@@ -222,14 +208,12 @@ void SimulationData::writeRestartFiles() {
     fclose(fField);
   }
 
-  // write restart file for shapes
   {
     int size;
     MPI_Comm_size(comm, &size);
     const size_t tasks = shapes.size();
     size_t my_share = tasks / size;
-    if (tasks % size != 0 && rank == size - 1) // last rank gets what's left
-    {
+    if (tasks % size != 0 && rank == size - 1) {
       my_share += tasks % size;
     }
     const size_t my_start = rank * (tasks / size);
@@ -253,7 +237,7 @@ void SimulationData::writeRestartFiles() {
 }
 
 void SimulationData::readRestartFiles() {
-  // read restart file for field
+
   FILE *fField = fopen("field.restart", "r");
   if (fField == NULL) {
     printf("Could not read %s. Aborting...\n", "field.restart");
@@ -285,7 +269,6 @@ void SimulationData::readRestartFiles() {
            (double)time, step, (double)uinfx, (double)uinfy);
   nextDumpTime = time + dumpTime;
 
-  // read restart file for shapes
   for (std::shared_ptr<Shape> shape : shapes) {
     std::stringstream ssR;
     ssR << "shape_" << shape->obstacleID << ".restart";

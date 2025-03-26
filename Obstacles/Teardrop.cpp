@@ -1,8 +1,4 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
+
 
 #include "Teardrop.h"
 #include "FishData.h"
@@ -21,14 +17,12 @@ public:
 
   void computeMidline(const Real time, const Real dt) override;
   Real _width(const Real s, const Real L) override {
-    // Compute radius of half-circle using given t-ratio
+
     const Real R = .5 * tRatio * L;
 
-    // safety
     if (s < 0 or s > L)
       return 0;
 
-    // compute width
     Real w;
     if (s == 0)
       w = 0;
@@ -36,25 +30,25 @@ public:
       w = std::sqrt(R * R - (s - R) * (s - R));
     else
       w = R - R * (s - R) / (L - R);
-    // std::cout << "s=" << s << ", w=" << w << std::endl;
+
     assert(w >= 0);
     return w;
   }
 };
 
 void TeardropData::computeMidline(const Real t, const Real dt) {
-  // TODO: For Teardrop the midline is static
+
   rX[0] = rY[0] = vX[0] = vY[0] = norX[0] = vNorX[0] = vNorY[0] = 0.0;
   vNorY[0] = 1.0;
 
 #pragma omp parallel for schedule(static)
   for (int i = 1; i < Nm; ++i) {
-    // only x-coordinate of midline varies
+
     const Real dx = std::fabs(rS[i] - rS[i - 1]);
     rX[i] = dx;
-    // rest 0
+
     rY[i] = vX[i] = vY[i] = norX[i] = vNorX[i] = vNorY[i] = 0.0;
-    // thus normal is
+
     norY[i] = 1.0;
   }
 
@@ -79,20 +73,19 @@ Teardrop::Teardrop(SimulationData &s, ArgumentParser &p, Real C[2])
 void Teardrop::updateVelocity(Real dt) {
   const Real omegaAngle = 2 * M_PI * Fpitch;
   const Real angle = Apitch * std::sin(omegaAngle * sim.time);
-  // angular velocity
+
   omega = Apitch * omegaAngle * std::cos(omegaAngle * sim.time);
   if (sim.time < tAccel) {
-    // linear velocity (due to rotation-axis != CoM)
+
     u = (sim.time / tAccel) * forcedu -
         fixedCenterDist * length * omega * std::sin(angle);
     v = (sim.time / tAccel) * forcedv +
         fixedCenterDist * length * omega * std::cos(angle);
   } else {
-    // linear velocity (due to rotation-axis != CoM)
+
     u = forcedu - fixedCenterDist * length * omega * std::sin(angle);
     v = forcedv + fixedCenterDist * length * omega * std::cos(angle);
   }
-  // std::cout << "u=" << u << ", v=" << v << "\n";
 }
 
 void Teardrop::updateLabVelocity(int nSum[2], Real uSum[2]) {
