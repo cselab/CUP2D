@@ -39,49 +39,7 @@ void IC::operator()(const Real dt) {
       }
     }
   } else {
-    sim.readRestartFiles();
-    std::stringstream ss;
-    ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
-    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
-        *(sim.vel), "vel_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
-        *(sim.pres), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
-        *(sim.pold), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
-        *(sim.chi), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
-        *(sim.tmp), "pres_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
-        *(sim.tmpV), "vel_" + ss.str(), sim.path4serialization);
-    ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
-        *(sim.vOld), "vel_" + ss.str(), sim.path4serialization);
-#pragma omp parallel for
-    for (size_t i = 0; i < velInfo.size(); i++) {
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      CHI.clear();
-      ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-      POLD.clear();
-      ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-      TMP.clear();
-      VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      TMPV.clear();
-      VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-      VOLD.clear();
-    }
-    if (sim.smagorinskyCoeff != 0) {
-      ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
-          *(sim.Cs), "pres_" + ss.str(), sim.path4serialization);
-      const std::vector<BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
-#pragma omp parallel for
-      for (size_t i = 0; i < CsInfo.size(); i++) {
-        ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-        for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-          for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-            CS(ix, iy).s = sim.smagorinskyCoeff;
-          }
-      }
-    }
+    assert(0);
   }
 }
 void randomIC::operator()(const Real dt) {
