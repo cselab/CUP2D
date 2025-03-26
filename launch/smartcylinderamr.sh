@@ -15,4 +15,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -exte
 # bForced, tAccel is needed here!
 OBJECTS="smartDisk radius=$RADIUS xpos=$XPOS"
 
-source launchCommon.sh
+. common.sh

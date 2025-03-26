@@ -53,4 +53,4 @@ OBJECTS="
 		 stefanfish L=0.2 T=1.0 xpos=3.00 ypos=1.40 bFixed=1 Forced=1 xvel=0.1 
 "
 
-source launchCommon.sh
+. common.sh

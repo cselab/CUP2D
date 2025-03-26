@@ -90,4 +90,4 @@ OBJECTS="NACA L=$LENGTH xpos=$XPOS ypos=$YPOS fixedCenterDist=$FIXEDCENTERDIST b
 #Uncomment the following to use SmartNaca instead
 #OBJECTS="SmartNACA L=$LENGTH xpos=$XPOS ypos=$YPOS fixedCenterDist=$FIXEDCENTERDIST bFixed=1 xvel=$UFORCED yvel=$VFORCED  Apitch=$APITCH Fpitch=$FPITCH Mpitch=$MPITCH Aheave=$AHEAVE Fheave=$FHEAVE tRatio=$TRATIO Nactuators=4 actuatords=0.05 value1=0.1 value2=0.1 value3=-0.1 value4=-0.1"
 
-source launchCommon.sh
+. common.sh

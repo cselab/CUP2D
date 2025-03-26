@@ -207,4 +207,4 @@ echo $OPTIONS
 echo "----------------------------"
 fi
 
-source launchCommon.sh
+. common.sh

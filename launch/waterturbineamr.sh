@@ -30,4 +30,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -exte
 OBJECTS="waterturbine semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS bForced=1 bFixed=1 xvel=$XVEL angvel=$ANGVEL tAccel=0
 "
 
-source launchCommon.sh
+. common.sh

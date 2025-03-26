@@ -36,7 +36,7 @@ OBJECTS="stefanfish L=$LENGTH T=$PERIOD xpos=0.60 ypos=1.00 bFixed=1 pidpos=$PID
 		 stefanfish L=$LENGTH T=$PERIOD xpos=1.80 ypos=1.00 bFixed=1 pidpos=$PIDPOS pid=$PID
 "
 
-source launchCommon.sh
+. common.sh
 
 ## L=0.1
 

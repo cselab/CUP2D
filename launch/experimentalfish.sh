@@ -22,4 +22,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ct
 OBJECTS="experimentFish L=$LENGTH xpos=$XPOS ypos=$YPOS timeStart=$TIMESTART dtDataset=$DTDATA path="${DATAPATH}" bFixed=0
 "
 
-source launchCommon.sh
+. common.sh
