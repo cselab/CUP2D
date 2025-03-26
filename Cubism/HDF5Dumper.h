@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
-#include <fstream>
 #include <hdf5.h>
 #include <iomanip>
 #include <iostream>
@@ -14,7 +13,6 @@
 #include <sys/stat.h>
 #include <utility>
 #include <vector>
-namespace fs = std::filesystem;
 template <typename T> hid_t get_hdf5_type();
 template <> inline hid_t get_hdf5_type<long long>() { return H5T_NATIVE_LLONG; }
 template <> inline hid_t get_hdf5_type<short int>() { return H5T_NATIVE_SHORT; }
@@ -99,24 +97,16 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
     H5Pclose(plist_id);
 #endif
 }
-static double latestTime{-1.0};
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                   const std::string &fname, const std::string &dpath = ".",
                   const bool dumpGrid = true) {
+  static double latestTime{-1.0};
+  static long gridCount = 0;
   const bool SaveGrid = latestTime < absTime && dumpGrid;
-  int gridCount = 0;
-  for (auto &p : fs::recursive_directory_iterator(dpath)) {
-    if (p.path().extension() == ".h5") {
-      std::string g = p.path().stem().string();
-      g.resize(4);
-      if (g == "grid") {
-        gridCount++;
-      }
-    }
+  if (SaveGrid) {
+    gridCount++;
   }
-  if (SaveGrid == false)
-    gridCount--;
   latestTime = absTime;
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
