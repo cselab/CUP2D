@@ -27,7 +27,6 @@ public:
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   void updateVelocity(Real dt) override;
   void updatePosition(Real dt) override;
-  void act(std::vector<double> action);
   void setInitialConditions(Real init_angle);
   Real getAngularVelocity();
   Real getCharLength() const override {

@@ -58,18 +58,9 @@ void Windmill::create(const std::vector<BlockInfo> &vInfo) {
   }
 }
 void Windmill::updateVelocity(Real dt) {
-  if (std::floor((1 / time_step) * (sim.time + sim.dt)) -
-          std::floor((1 / time_step) * (sim.time)) !=
-      0) {
-    prev_dt = sim.dt;
-  }
   omega = action_ang_vel_max * std::sin(2 * M_PI * action_freq * sim.time);
 }
 void Windmill::updatePosition(Real dt) { Shape::updatePosition(dt); }
-void Windmill::act(std::vector<double> action) {
-  action_ang_vel_max = action[0];
-  action_freq = action[1];
-}
 void Windmill::setInitialConditions(Real init_angle) {
   setOrientation(init_angle);
 }
