@@ -1,32 +1,22 @@
-# Defaults for Options
-BPDX=${BPDX:-16}
-BPDY=${BPDY:-8}
-LEVELS=${LEVELS:-7}
-RTOL=${RTOL-0.1}
-CTOL=${CTOL-0.01}
-EXTENT=${EXTENT:-4}
-CFL=${CFL:-0.2}
-PT=${PT:-1e-6}
-PTR=${PTR:-0}
-PR=${PR:-100}
-PI=${PI:-10000}
-# Defaults for Objects
-LENGTH=${LENGTH:-0.2}
-TRATIO=${TRATIO:-0.1}
-XPOS=${XPOS:-1.2} #3.8
-ANGLE=${ANGLE:-0}
-RCENTER=${RCENTER:-0.2603} # rotation trough center of circle
-VELX=${VELX:-0.2}
-APITCH=${APITCH:-7}
-FPITCH=${FPITCH:-0.664}
-
-# Re=5'400 <-> NU=0.000007407407407
-NU=${NU:-0.000007407407407}
-
-# Re=1'000 <-> 0.00001125; Re=10'000 <-> 0.000001125 # 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.1 -nu $NU -tend 100 -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -maxPoissonRestarts $PR -maxPoissonIterations $PI -bAdaptChiGradient 0 -bMeanConstraint 1"
-# COM IS 0.3103, COR 0.05, thus fixedCenterDist=0.2603
-OBJECTS="teardrop L=$LENGTH tRatio=$TRATIO xpos=$XPOS angle=$ANGLE fixedCenterDist=$RCENTER xvel=$VELX Apitch=$APITCH Fpitch=$FPITCH tAccel=0 bFixed=1
-"
-
-. ./common.sh
+./simulation \
+    -bpdx 16 \
+    -bpdy 8 \
+    -levelMax 7 \
+    -levelStart 4 \
+    -Rtol 0.1 \
+    -Ctol 0.01 \
+    -extent 4 \
+    -CFL 0.2 \
+    -tdump 0.1 \
+    -nu 0.000007407407407 \
+    -tend 100 \
+    -muteAll 0 \
+    -verbose 0 \
+    -poissonTol 1e-6 \
+    -poissonTolRel 0 \
+    -maxPoissonRestarts 100 \
+    -maxPoissonIterations 10000 \
+    -bAdaptChiGradient 0 \
+    -bMeanConstraint 1 \
+    -shapes 'teardrop L=0.2 tRatio=0.1 xpos=1.2 angle=0 fixedCenterDist=0.2603 xvel=0.2 Apitch=7 Fpitch=0.664 tAccel=0 bFixed=1
+'
