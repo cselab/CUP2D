@@ -10,24 +10,20 @@
 
 class Shape;
 
-class PutObjectsOnGrid : public Operator
-{
+class PutObjectsOnGrid : public Operator {
 protected:
-  const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& tmpInfo   = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
 
-  void putChiOnGrid(Shape * const shape) const;
+  void putChiOnGrid(Shape *const shape) const;
 
- public:
+public:
   using Operator::Operator;
 
   void operator()(Real dt) override;
   void advanceShapes(Real dt);
   void putObjectsOnGrid();
 
-  std::string getName() override
-  {
-    return "PutObjectsOnGrid";
-  }
+  std::string getName() override { return "PutObjectsOnGrid"; }
 };

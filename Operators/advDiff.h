@@ -9,20 +9,16 @@
 #include "../Operator.h"
 #include "Cubism/FluxCorrection.h"
 
-class advDiff : public Operator
-{
+class advDiff : public Operator {
 protected:
-  const std::vector<cubism::BlockInfo>& velInfo   = sim.vel->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& tmpVInfo  = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& vOldInfo  = sim.vOld->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
 
- public:
-  advDiff(SimulationData& s) : Operator(s) { }
+public:
+  advDiff(SimulationData &s) : Operator(s) {}
 
-  void operator() (const Real dt) override;
+  void operator()(const Real dt) override;
 
-  std::string getName() override
-  {
-    return "advDiff";
-  }
+  std::string getName() override { return "advDiff"; }
 };

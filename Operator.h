@@ -8,11 +8,10 @@
 
 #include "SimulationData.h"
 
-class Operator
-{
+class Operator {
 public:
-  SimulationData& sim;
-  Operator(SimulationData& s) : sim(s) { }
+  SimulationData &sim;
+  Operator(SimulationData &s) : sim(s) {}
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
   virtual std::string getName() = 0;

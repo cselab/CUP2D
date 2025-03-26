@@ -10,4 +10,4 @@ struct FieldsView {
 
 void bindFields(py::module &m);
 
-}  // namespace cubismup2d
+} // namespace cubismup2d

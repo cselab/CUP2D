@@ -6,29 +6,27 @@
 
 #pragma once
 
-#include "SimulationData.h"
 #include "Operator.h"
+#include "SimulationData.h"
 
-class Simulation
-{
- public:
+class Simulation {
+public:
   SimulationData sim;
   std::vector<std::shared_ptr<Operator>> pipeline;
- protected:
+
+protected:
   cubism::ArgumentParser parser;
 
   void createShapes();
   void parseRuntime();
 
 public:
-  Simulation(int argc, char ** argv, MPI_Comm comm);
+  Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
 
   /// Find the first operator in the pipeline that matches the given type.
   /// Returns `nullptr` if nothing was found.
-  template <typename Op>
-  Op *findOperator() const
-  {
+  template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
       if (out != nullptr)
@@ -42,7 +40,8 @@ public:
 
   /// Insert an operator after the operator of the given name.
   /// Throws an exception if the name is not found.
-  void insertOperatorAfter(std::shared_ptr<Operator> op, const std::string &name);
+  void insertOperatorAfter(std::shared_ptr<Operator> op,
+                           const std::string &name);
 
   void reset();
   void resetRL();
@@ -52,5 +51,5 @@ public:
   Real calcMaxTimestep();
   void advance(const Real dt);
 
-  const std::vector<std::shared_ptr<Shape>>& getShapes() { return sim.shapes; }
+  const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };

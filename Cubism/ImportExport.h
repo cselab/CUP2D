@@ -1,7 +1,6 @@
 #include <vector>
 
-namespace cubism
-{
+namespace cubism {
 
 /** Fully refine the AMR grid and store into the given contiguous matrix.
 
@@ -27,9 +26,9 @@ namespace cubism
       out: output matrix
 */
 template <typename Lab, typename Grid, typename Getter, typename T>
-void exportGridToUniformMatrix(
-    Grid *grid, Getter getter, std::vector<int> components, T * __restrict__ out);
-
+void exportGridToUniformMatrix(Grid *grid, Getter getter,
+                               std::vector<int> components,
+                               T *__restrict__ out);
 
 /** Copy the grid to a uniform grid matrix, scaling where necessary.
 
@@ -41,9 +40,8 @@ void exportGridToUniformMatrix(
     involved.
 */
 template <typename Grid, typename Getter, typename T>
-void exportGridToUniformMatrixNearestInterpolation(
-    Grid *grid, Getter getter, T * __restrict__ out);
-
+void exportGridToUniformMatrixNearestInterpolation(Grid *grid, Getter getter,
+                                                   T *__restrict__ out);
 
 /** Import data from a large contiguous matrix representing the fully refined
     grid.
@@ -60,7 +58,7 @@ void exportGridToUniformMatrixNearestInterpolation(
       in: the input contiguous matrix
 */
 template <typename Grid, typename Setter, typename T>
-void importGridFromUniformMatrix(
-    Grid *grid, Setter setter, const T * __restrict__ in);
+void importGridFromUniformMatrix(Grid *grid, Setter setter,
+                                 const T *__restrict__ in);
 
-}  // namespace cubism
+} // namespace cubism

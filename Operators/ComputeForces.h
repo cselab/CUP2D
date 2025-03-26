@@ -10,18 +10,14 @@
 
 class Shape;
 
-class ComputeForces : public Operator
-{
-  const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+class ComputeForces : public Operator {
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
 
 public:
-  void operator() (const Real dt) override;
+  void operator()(const Real dt) override;
 
-  ComputeForces(SimulationData& s);
+  ComputeForces(SimulationData &s);
   ~ComputeForces() {}
 
-  std::string getName() override
-  {
-    return "ComputeForces";
-  }
+  std::string getName() override { return "ComputeForces"; }
 };

@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include "Fish.h"
 #include "../Utils/BufferedLogger.h"
+#include "Fish.h"
 
-
-class Naca: public Fish
-{
+class Naca : public Fish {
   /*
    Hydrofoil motion is defined as:
 
@@ -31,15 +29,16 @@ class Naca: public Fish
       y(t) = Aheave*cos(2*pi*Fheave*t)
       v(t) = dy/dt = -2.0*pi*Fheave*Aheave*sin(2*pi*Fheave*t)
 
-      It is also possible to add a constant velocity (uforced,vforced) to the motion.
+      It is also possible to add a constant velocity (uforced,vforced) to the
+   motion.
   */
   Real Apitch, Fpitch, Mpitch, Fheave, Aheave;
-  Real tAccel; // time to accelerate to target velocity
+  Real tAccel;          // time to accelerate to target velocity
   Real fixedCenterDist; // distance s/L from CoM where hydrofoil is fixed
 
- public:
-  Naca(SimulationData&s, cubism::ArgumentParser&p, Real C[2]);
+public:
+  Naca(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
   void updateVelocity(Real dt) override;
   void updatePosition(Real dt) override;
-  void updateLabVelocity( int mSum[2], Real uSum[2] ) override;
+  void updateLabVelocity(int mSum[2], Real uSum[2]) override;
 };

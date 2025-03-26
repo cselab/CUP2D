@@ -6,14 +6,13 @@
 
 #pragma once
 
-#include "Definitions.h"
 #include "Cubism/Profiler.h"
+#include "Definitions.h"
 #include <memory>
 
 class Shape;
 
-struct SimulationData
-{
+struct SimulationData {
   // MPI
   MPI_Comm comm;
   int rank;
@@ -38,17 +37,17 @@ struct SimulationData
   Real Ctol;
 
   // boolean to switch between vorticity magnitude and Q-criterion refinement
-  // the Q-criterion measures the difference between rotation rate and shear rate
-  // Q > 0 indicates that there's a vortex
-  // Q < 0 indicates a region where viscous forces are stronger
-  // if Qcriterion=true, refinement will be done where Q>Rtol (Rtol>0)
-  // Generally this results in less refinement, compared to refining according
-  // to vorticity magnitude. For the cases this has been tested with there
-  // was no loss of accuracy, despite the fact that the mesh that was refined
-  // according to Q had about 1/4 of the points the other mesh had.
+  // the Q-criterion measures the difference between rotation rate and shear
+  // rate Q > 0 indicates that there's a vortex Q < 0 indicates a region where
+  // viscous forces are stronger if Qcriterion=true, refinement will be done
+  // where Q>Rtol (Rtol>0) Generally this results in less refinement, compared
+  // to refining according to vorticity magnitude. For the cases this has been
+  // tested with there was no loss of accuracy, despite the fact that the mesh
+  // that was refined according to Q had about 1/4 of the points the other mesh
+  // had.
   bool Qcriterion{false};
 
-  //check for mesh refinement every this many steps
+  // check for mesh refinement every this many steps
   int AdaptSteps{20};
 
   // boolean to switch between refinement according to chi or grad(chi)
@@ -58,7 +57,7 @@ struct SimulationData
   Real extent;
 
   // simulation extents
-  std::array<Real,2> extents;
+  std::array<Real, 2> extents;
 
   // timestep / cfl condition
   Real dt;
@@ -77,7 +76,7 @@ struct SimulationData
 
   // kinematic viscosity
   Real nu;
-  
+
   // forcing
   bool bForcing;
   Real forcingWavenumber;
@@ -90,12 +89,12 @@ struct SimulationData
   std::string ic;
 
   // poisson solver parameters
-  std::string poissonSolver;  // for now only "iterative"
-  Real PoissonTol;    // absolute error tolerance
-  Real PoissonTolRel; // relative error tolerance
-  int maxPoissonRestarts; // maximal number of restarts of Poisson solver
-  int maxPoissonIterations; // maximal number of iterations of Poisson solver
-  int bMeanConstraint; // regularizing the poisson equation using the mean
+  std::string poissonSolver; // for now only "iterative"
+  Real PoissonTol;           // absolute error tolerance
+  Real PoissonTolRel;        // relative error tolerance
+  int maxPoissonRestarts;    // maximal number of restarts of Poisson solver
+  int maxPoissonIterations;  // maximal number of iterations of Poisson solver
+  int bMeanConstraint;       // regularizing the poisson equation using the mean
 
   // output setting
   int profilerFreq = 0;
@@ -109,17 +108,17 @@ struct SimulationData
   /*********************/
 
   // initialize profiler
-  cubism::Profiler * profiler = new cubism::Profiler();
+  cubism::Profiler *profiler = new cubism::Profiler();
 
   // declare grids
-  ScalarGrid * chi  = nullptr;
-  VectorGrid * vel  = nullptr;
-  VectorGrid * vOld = nullptr;
-  ScalarGrid * pres = nullptr;
-  VectorGrid * tmpV = nullptr;
-  ScalarGrid * tmp  = nullptr;
-  ScalarGrid * pold = nullptr;
-  ScalarGrid * Cs   = nullptr;
+  ScalarGrid *chi = nullptr;
+  VectorGrid *vel = nullptr;
+  VectorGrid *vOld = nullptr;
+  ScalarGrid *pres = nullptr;
+  VectorGrid *tmpV = nullptr;
+  ScalarGrid *tmp = nullptr;
+  ScalarGrid *pold = nullptr;
+  ScalarGrid *Cs = nullptr;
 
   // vector containing obstacles
   std::vector<std::shared_ptr<Shape>> shapes;
@@ -135,8 +134,9 @@ struct SimulationData
   Real uinfy = 0;
   Real uinfx_old = 0;
   Real uinfy_old = 0;
-  Real dt_old = 1e10;//need to initialize to a big value so that restarting does not
-  Real dt_old2 = 1e10;//break when these are used in PressureSingle.cpp
+  Real dt_old =
+      1e10; // need to initialize to a big value so that restarting does not
+  Real dt_old2 = 1e10; // break when these are used in PressureSingle.cpp
 
   // largest velocity measured
   Real uMax_measured = 0;
@@ -168,17 +168,15 @@ struct SimulationData
   SimulationData();
   SimulationData(const SimulationData &) = delete;
   SimulationData(SimulationData &&) = delete;
-  SimulationData& operator=(const SimulationData &) = delete;
-  SimulationData& operator=(SimulationData &&) = delete;
+  SimulationData &operator=(const SimulationData &) = delete;
+  SimulationData &operator=(SimulationData &&) = delete;
   ~SimulationData();
 
   // minimal gridspacing present on grid
-  Real getH()
-  {
+  Real getH() {
     Real minHGrid = std::numeric_limits<Real>::infinity();
-    auto & infos = vel->getBlocksInfo();
-    for (size_t i = 0 ; i< infos.size(); i++)
-    {
+    auto &infos = vel->getBlocksInfo();
+    for (size_t i = 0; i < infos.size(); i++) {
       minHGrid = std::min((Real)infos[i].h, minHGrid);
     }
     MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
@@ -192,14 +190,14 @@ struct SimulationData
   void writeRestartFiles();
   void readRestartFiles();
 
-  void dumpChi  (std::string name);
-  void dumpPres (std::string name);
-  void dumpTmp  (std::string name);
-  void dumpVel  (std::string name);
-  void dumpUdef (std::string name);
-  void dumpVold (std::string name);
-  void dumpPold (std::string name);
-  void dumpTmpV (std::string name);
-  void dumpCs   (std::string name);
-  void dumpAll  (std::string name);
+  void dumpChi(std::string name);
+  void dumpPres(std::string name);
+  void dumpTmp(std::string name);
+  void dumpVel(std::string name);
+  void dumpUdef(std::string name);
+  void dumpVold(std::string name);
+  void dumpPold(std::string name);
+  void dumpTmpV(std::string name);
+  void dumpCs(std::string name);
+  void dumpAll(std::string name);
 };

@@ -1,9 +1,9 @@
-#include "Common.h"
+#include "../Simulation.h"
 #include "../Operators/AdaptTheMesh.h"
 #include "../Operators/Helpers.h"
 #include "../Operators/PutObjectsOnGrid.h"
 #include "../Shape.h"
-#include "../Simulation.h"
+#include "Common.h"
 
 namespace cubismup2d {
 
@@ -12,41 +12,36 @@ using namespace py::literals;
 namespace {
 
 /// Operator that stops the simulation when Ctrl-C is pressed in Python.
-class SIGINTHandlerOperator : public Operator
-{
+class SIGINTHandlerOperator : public Operator {
 public:
   using Operator::Operator;
 
-  void operator()(double /* dt */) override
-  {
+  void operator()(double /* dt */) override {
     // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
     if (PyErr_CheckSignals() != 0)
       throw py::error_already_set();
   }
 
-  std::string getName() override
-  {
-    return "SIGINTHandlerOperator";
-  }
+  std::string getName() override { return "SIGINTHandlerOperator"; }
 };
 
-}  // anonymous namespace
+} // anonymous namespace
 
-void bindSimulationData(py::module &m)
-{
-  auto pyData = py::class_<SimulationData>(m, "SimulationData")
-      .def_readonly("CFL", &SimulationData::CFL)
-      .def_readonly("extents", &SimulationData::extents)
-      .def_readonly("uinfx", &SimulationData::uinfx)
-      .def_readonly("uinfy", &SimulationData::uinfy)
-      .def_readonly("shapes", &SimulationData::shapes)
-      .def_readonly("smagorinskyCoeff", &SimulationData::smagorinskyCoeff)
-      .def_readwrite("time", &SimulationData::time)
-      .def_readwrite("step", &SimulationData::step)
-      .def_readwrite("_nsteps", &SimulationData::nsteps)
-      .def_readwrite("_tend", &SimulationData::endTime)
-      .def_readwrite("mute_all", &SimulationData::muteAll)
-      .def_readwrite("nu", &SimulationData::nu);
+void bindSimulationData(py::module &m) {
+  auto pyData =
+      py::class_<SimulationData>(m, "SimulationData")
+          .def_readonly("CFL", &SimulationData::CFL)
+          .def_readonly("extents", &SimulationData::extents)
+          .def_readonly("uinfx", &SimulationData::uinfx)
+          .def_readonly("uinfy", &SimulationData::uinfy)
+          .def_readonly("shapes", &SimulationData::shapes)
+          .def_readonly("smagorinskyCoeff", &SimulationData::smagorinskyCoeff)
+          .def_readwrite("time", &SimulationData::time)
+          .def_readwrite("step", &SimulationData::step)
+          .def_readwrite("_nsteps", &SimulationData::nsteps)
+          .def_readwrite("_tend", &SimulationData::endTime)
+          .def_readwrite("mute_all", &SimulationData::muteAll)
+          .def_readwrite("nu", &SimulationData::nu);
 
   // Bind all grids. If updating this, update properties in
   // cubismup2d/simulation.py as well.
@@ -74,10 +69,8 @@ void bindSimulationData(py::module &m)
              "Compute vorticity (stored in tmp) and dump relevant fields.");
 }
 
-static std::shared_ptr<Simulation> pyCreateSimulation(
-      const std::vector<std::string> &argv,
-      uintptr_t commPtr)
-{
+static std::shared_ptr<Simulation>
+pyCreateSimulation(const std::vector<std::string> &argv, uintptr_t commPtr) {
   // https://stackoverflow.com/questions/49259704/pybind11-possible-to-use-mpi4py
   // In Python, pass communicators with `MPI._addressof(comm)`.
   MPI_Comm comm = commPtr ? *(MPI_Comm *)commPtr : MPI_COMM_WORLD;
@@ -89,12 +82,11 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   return sim;
 }
 
-static void pyAdaptMesh(Simulation &sim)
-{
+static void pyAdaptMesh(Simulation &sim) {
   // Immediately invoke putObjectsOnGrid(). Forgetting to invoke it after
   // adapt() may cause the code to crash.
-  auto * const adapt = sim.findOperator<AdaptTheMesh>();
-  auto * const obj = sim.findOperator<PutObjectsOnGrid>();
+  auto *const adapt = sim.findOperator<AdaptTheMesh>();
+  auto *const obj = sim.findOperator<PutObjectsOnGrid>();
   if (!adapt)
     throw std::runtime_error("AdaptTheMesh operator not found");
   if (!obj)
@@ -103,24 +95,25 @@ static void pyAdaptMesh(Simulation &sim)
   obj->putObjectsOnGrid();
 }
 
-static void pyComputeVorticity(Simulation &sim)
-{
+static void pyComputeVorticity(Simulation &sim) {
   computeVorticity op{sim.sim};
   op(0);
 }
 
-void bindSimulation(py::module &m)
-{
+void bindSimulation(py::module &m) {
   class_shared<Simulation>(m, "_Simulation")
       .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
       .def_readonly("data", &Simulation::sim,
                     py::return_value_policy::reference_internal)
-      .def("add_shape", [](Simulation *sim, std::shared_ptr<Shape> shape) {
-        sim->sim.addShape(std::move(shape));
-      }, "shape"_a)
+      .def(
+          "add_shape",
+          [](Simulation *sim, std::shared_ptr<Shape> shape) {
+            sim->sim.addShape(std::move(shape));
+          },
+          "shape"_a)
       .def("insert_operator", &Simulation::insertOperator, "op"_a)
-      .def("insert_operator", &Simulation::insertOperatorAfter,
-           "op"_a, "after"_a)
+      .def("insert_operator", &Simulation::insertOperatorAfter, "op"_a,
+           "after"_a)
       .def("adapt_mesh", &pyAdaptMesh)
       .def("compute_vorticity", &pyComputeVorticity,
            "compute the vorticity and store it to the tmp field")
@@ -128,4 +121,4 @@ void bindSimulation(py::module &m)
       .def("simulate", &Simulation::simulate);
 }
 
-}  // namespace cubismup2d
+} // namespace cubismup2d

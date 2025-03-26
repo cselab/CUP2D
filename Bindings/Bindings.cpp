@@ -23,10 +23,8 @@ void bindSimulation(py::module &m);
 namespace {
 
 /* Ensure that we load highest thread level we need. */
-struct CUPMPILoader
-{
-  CUPMPILoader()
-  {
+struct CUPMPILoader {
+  CUPMPILoader() {
     int flag, provided;
     MPI_Initialized(&flag);
     if (!flag)
@@ -36,24 +34,23 @@ struct CUPMPILoader
     if (provided >= MPI_THREAD_MULTIPLE)
       return;
     if (!flag) {
-      fprintf(stderr,
-              "Error: MPI does not have the required thread support!\n"
-              "Try setting the following environment variable:\n"
-              "    MPICH_MAX_THREAD_SAFETY=multiple\n");
+      fprintf(stderr, "Error: MPI does not have the required thread support!\n"
+                      "Try setting the following environment variable:\n"
+                      "    MPICH_MAX_THREAD_SAFETY=multiple\n");
     } else {
-      fprintf(stderr, "Error: MPI does not have or not initialized with the required thread support!\n");
+      fprintf(stderr, "Error: MPI does not have or not initialized with the "
+                      "required thread support!\n");
     }
     fflush(stderr);
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 } cup_mpi_loader;
 
-}  // anonymous namespace
+} // anonymous namespace
 
-}  // namespace cubismup2d
+} // namespace cubismup2d
 
-PYBIND11_MODULE(libcubismup2d, m)
-{
+PYBIND11_MODULE(libcubismup2d, m) {
   using namespace cubismup2d;
   m.doc() = "CubismUP2D solver for incompressible Navier-Stokes";
 

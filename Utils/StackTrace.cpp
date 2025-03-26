@@ -6,4 +6,4 @@ void enableStackTraceSignalHandling() {
   static backward::SignalHandling sh;
 }
 
-#endif  // CUP2D_BACKWARD_CPP
+#endif // CUP2D_BACKWARD_CPP

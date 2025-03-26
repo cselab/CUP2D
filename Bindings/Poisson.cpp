@@ -1,17 +1,16 @@
-#include "Common.h"
 #include "../Poisson/AMRSolver.h"
 #include "../SimulationData.h"
+#include "Common.h"
 
 namespace cubismup2d {
 
-void bindPoissonSolvers(py::module &m)
-{
+void bindPoissonSolvers(py::module &m) {
   using namespace py::literals;
   class_shared<PoissonSolver>(m, "Solver")
-    .def("solve", &PoissonSolver::solve, "input"_a, "output"_a);
+      .def("solve", &PoissonSolver::solve, "input"_a, "output"_a);
 
   class_shared<AMRSolver, PoissonSolver>(m, "AMRSolver")
-    .def(py::init<SimulationData &>(), "data"_a);
+      .def(py::init<SimulationData &>(), "data"_a);
 }
 
-}  // namespace cubismup2d
+} // namespace cubismup2d
