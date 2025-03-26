@@ -140,9 +140,7 @@ class GridMPI : public TGrid
             if (!TGrid::xperiodic && code[0] == xskip && xskin) continue;
             if (!TGrid::yperiodic && code[1] == yskip && yskin) continue;
             if (!TGrid::zperiodic && code[2] == zskip && zskin) continue;
-            #if DIMENSION == 2
             if (code[2] != 0) continue;
-            #endif
 
             BlockInfo &infoNei = TGrid::getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
 
@@ -173,12 +171,7 @@ class GridMPI : public TGrid
                else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
                   Bstep = 4; // corner
 
-               #if DIMENSION == 3
-               for (int B = 0; B <= 3; B += Bstep) // loop over blocks that make up face/edge/corner
-                                                   // (respectively 4,2 or 1 blocks)
-               #else
                for (int B = 0; B <= 1; B += Bstep)
-               #endif
                {
                   const int temp         = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                   const long long nFine  = infoNei.Zchild[std::max(-code[0], 0) + (B % 2) * std::max(0, 1 - abs(code[0]))]
@@ -285,9 +278,7 @@ class GridMPI : public TGrid
             if (!TGrid::xperiodic && code[0] == xskip && xskin) continue;
             if (!TGrid::yperiodic && code[1] == yskip && yskin) continue;
             if (!TGrid::zperiodic && code[2] == zskip && zskin) continue;
-            #if DIMENSION == 2
             if (code[2] != 0) continue;
-            #endif
 
             BlockInfo &infoNei = TGrid::getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
 
@@ -389,24 +380,6 @@ class GridMPI : public TGrid
             const long long Z = recv_buffer[kk][index__ + 1];
             TGrid::Tree(level, Z).setrank(r);
             if (UpdateIDs) TGrid::getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
-           #if DIMENSION == 3
-            int p[3];
-            BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-
-            if (level < TGrid::levelMax - 1)
-               for (int k = 0; k < 2; k++)
-                  for (int j = 0; j < 2; j++)
-                     for (int i = 0; i < 2; i++)
-                     {
-                        const long long nc = TGrid::getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j, 2 * p[2] + k);
-                        TGrid::Tree(level + 1, nc).setCheckCoarser();
-                     }
-            if (level > 0)
-            {
-               const long long nf = TGrid::getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-               TGrid::Tree(level - 1, nf).setCheckFiner();
-            }
-           #else
             int p[2];
             BlockInfo::inverse(Z, level, p[0], p[1]);
             if (level < TGrid::levelMax - 1)
@@ -421,7 +394,6 @@ class GridMPI : public TGrid
                const long long nf = TGrid::getZforward(level - 1, p[0] / 2, p[1] / 2);
                TGrid::Tree(level - 1, nf).setCheckFiner();
             }
-           #endif
          }
       }
    }
@@ -436,23 +408,6 @@ class GridMPI : public TGrid
       double p_high[3];
       for (auto &info : TGrid::m_vInfo)
       {
-        #if DIMENSION == 3
-         const double h = 2 * info.h;
-         info.pos(p_low, 0, 0, 0);
-         info.pos(p_high, Block::sizeX - 1, Block::sizeY - 1, Block::sizeZ - 1);
-         p_low[0] -= h;
-         p_low[1] -= h;
-         p_low[2] -= h;
-         p_high[0] += h;
-         p_high[1] += h;
-         p_high[2] += h;
-         low[0]  = std::min(low[0], p_low[0]);
-         low[1]  = std::min(low[1], p_low[1]);
-         low[2]  = std::min(low[2], p_low[2]);
-         high[0] = std::max(high[0], p_high[0]);
-         high[1] = std::max(high[1], p_high[1]);
-         high[2] = std::max(high[2], p_high[2]);
-        #else
          const double h = 2 * info.h;
          info.pos(p_low, 0, 0);
          info.pos(p_high, Block::sizeX - 1, Block::sizeY - 1);
@@ -468,7 +423,6 @@ class GridMPI : public TGrid
          high[0] = std::max(high[0], p_high[0]);
          high[1] = std::max(high[1], p_high[1]);
          high[2] = 0;
-        #endif
       }
       std::vector<double> all_boxes(world_size * 6);
       double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};

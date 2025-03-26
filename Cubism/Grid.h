@@ -314,15 +314,9 @@ class Grid
          xperiodic(a_xperiodic), yperiodic(a_yperiodic), zperiodic(a_zperiodic)
    {
       BlockInfo dummy;
-      #if DIMENSION == 3
-      const int nx = dummy.blocks_per_dim(0, NX, NY, NZ);
-      const int ny = dummy.blocks_per_dim(1, NX, NY, NZ);
-      const int nz = dummy.blocks_per_dim(2, NX, NY, NZ);
-      #else
       const int nx = dummy.blocks_per_dim(0, NX, NY);
       const int ny = dummy.blocks_per_dim(1, NX, NY);
       const int nz = 1;
-      #endif
       const int lvlMax = dummy.levelMax(levelMax);
 
       for (int m = 0; m < lvlMax; m++)
@@ -360,23 +354,6 @@ class Grid
          _alloc(level, Z);
          Tree(level, Z).setrank(rank());
 
-         #if DIMENSION == 3
-            int p[3];
-            BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-            if (level < levelMax - 1)
-               for (int k1 = 0; k1 < 2; k1++)
-               for (int j1 = 0; j1 < 2; j1++)
-               for (int i1 = 0; i1 < 2; i1++)
-               {
-                  const long long nc = getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1, 2 * p[2] + k1);
-                  Tree(level + 1, nc).setCheckCoarser();
-               }
-            if (level > 0)
-            {
-               const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-               Tree(level - 1, nf).setCheckFiner();
-            }
-         #else
             int p[2];
             BlockInfo::inverse(Z, level, p[0], p[1]);
             if (level < levelMax - 1)
@@ -391,32 +368,12 @@ class Grid
                const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
                Tree(level - 1, nf).setCheckFiner();
             }
-         #endif
       }
       FillPos();
       UpdateFluxCorrection = true;
       UpdateGroups = true;
    }
 
-   #if DIMENSION == 3
-   /// Returns Z-index of GridBlock with indices ijk (ix,iy,iz) at level 'level' 
-   long long getZforward(const int level, const int i, const int j, const int k) const
-   {
-      const int TwoPower = 1 << level;
-      const int ix       = (i + TwoPower * NX) % (NX * TwoPower);
-      const int iy       = (j + TwoPower * NY) % (NY * TwoPower);
-      const int iz       = (k + TwoPower * NZ) % (NZ * TwoPower);
-      return BlockInfo::forward(level, ix, iy, iz);
-   }
-
-   /// Returns GridBlock with indices ijk (ix,iy,iz) at level 'm' 
-   Block *avail1(const int ix, const int iy, const int iz, const int m)
-   {
-      const long long n = getZforward(m, ix, iy, iz);
-      return avail(m, n);
-   }
-
-   #else // DIMENSION = 2
 
    /// Returns Z-index of GridBlock with indices ij (ix,iy) at level 'level' 
    long long getZforward(const int level, const int i, const int j) const
@@ -434,7 +391,6 @@ class Grid
       return avail(m, n);
    }
 
-   #endif
 
    /// Used to iterate though all blocks (ID=0,...,m_vInfo.size()-1)
    Block &operator()(const long long ID)
@@ -493,12 +449,8 @@ class Grid
                const double h  = h0 / TwoPower;
                double origin[3];
                int i, j, k;
-               #if DIMENSION == 3
-               BlockInfo::inverse(n, m, i, j, k);
-               #else
                BlockInfo::inverse(n, m, i, j);
                k = 0;
-               #endif
                origin[0] = i * Block::sizeX * h;
                origin[1] = j * Block::sizeY * h;
                origin[2] = k * Block::sizeZ * h;
@@ -542,120 +494,6 @@ class Grid
       MyGroups.clear();
       std::vector<bool> added(MyInfos.size(), false);
 
-      #if DIMENSION == 3
-      const unsigned int nZ = BlockType::sizeZ;
-      for (unsigned int m = 0; m < Ngrids; m++)
-      {
-         const BlockInfo &I = MyInfos[m];
-
-         if (added[I.blockID]) continue;
-         added[I.blockID] = true;
-         BlockGroup newGroup;
-
-         newGroup.level = I.level;
-         newGroup.h     = I.h;
-         newGroup.Z.push_back(I.Z);
-
-         const int base[3] = {I.index[0], I.index[1], I.index[2]};
-         int i_off[6] = {};
-         bool ready_[6] = {};
-
-         int d    = 0;
-         auto blk = getMaxBlocks();
-         do
-         {
-            if (ready_[d] == false)
-            {
-               bool valid = true;
-               i_off[d]++;
-               const int i0 = (d < 3) ? (base[d] - i_off[d]) : (base[d - 3] + i_off[d]);
-               const int d0 = (d < 3) ? (d) % 3 : (d - 3) % 3;
-               const int d1 = (d < 3) ? (d + 1) % 3 : (d - 3 + 1) % 3;
-               const int d2 = (d < 3) ? (d + 2) % 3 : (d - 3 + 2) % 3;
-
-               for (int i2 = base[d2] - i_off[d2]; i2 <= base[d2] + i_off[d2 + 3]; i2++)
-                  for (int i1 = base[d1] - i_off[d1]; i1 <= base[d1] + i_off[d1 + 3]; i1++)
-                  {
-                     if (valid == false) break;
-
-                     if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= blk[d0] * (1 << I.level) ||
-                         i1 >= blk[d1] * (1 << I.level) || i2 >= blk[d2] * (1 << I.level))
-                     {
-                        valid = false;
-                        break;
-                     }
-                     long long n;
-                     if (d == 0 || d == 3) n = getZforward(I.level, i0, i1, i2);
-                     else if (d == 1 || d == 4)
-                        n = getZforward(I.level, i2, i0, i1);
-                     else /*if (d==2||d==5)*/
-                        n = getZforward(I.level, i1, i2, i0);
-
-                     if (Tree(I.level, n).rank() != rank())
-                     {
-                        valid = false;
-                        break;
-                     }
-                     if (added[getBlockInfoAll(I.level, n).blockID] == true)
-                     {
-                        valid = false;
-                     }
-                  }
-
-               if (valid == false)
-               {
-                  i_off[d]--;
-                  ready_[d] = true;
-               }
-               else
-               {
-                  for (int i2 = base[d2] - i_off[d2]; i2 <= base[d2] + i_off[d2 + 3]; i2++)
-                     for (int i1 = base[d1] - i_off[d1]; i1 <= base[d1] + i_off[d1 + 3]; i1++)
-                     {
-                        long long n;
-                        if (d == 0 || d == 3) n = getZforward(I.level, i0, i1, i2);
-                        else if (d == 1 || d == 4)
-                           n = getZforward(I.level, i2, i0, i1);
-                        else /*if (d==2||d==5)*/
-                           n = getZforward(I.level, i1, i2, i0);
-                        newGroup.Z.push_back(n);
-                        added[getBlockInfoAll(I.level, n).blockID] = true;
-                     }
-               }
-            }
-            d = (d + 1) % 6;
-         } while (ready_[0] == false || ready_[1] == false || ready_[2] == false || ready_[3] == false ||
-                  ready_[4] == false || ready_[5] == false);
-
-         const int ix_min = base[0] - i_off[0];
-         const int iy_min = base[1] - i_off[1];
-         const int iz_min = base[2] - i_off[2];
-         const int ix_max = base[0] + i_off[3];
-         const int iy_max = base[1] + i_off[4];
-         const int iz_max = base[2] + i_off[5];
-
-         long long n_base = getZforward(I.level, ix_min, iy_min, iz_min);
-
-         newGroup.i_min[0] = ix_min;
-         newGroup.i_min[1] = iy_min;
-         newGroup.i_min[2] = iz_min;
-
-         newGroup.i_max[0] = ix_max;
-         newGroup.i_max[1] = iy_max;
-         newGroup.i_max[2] = iz_max;
-
-         const BlockInfo & info = getBlockInfoAll(I.level, n_base);
-         newGroup.origin[0] = info.origin[0];
-         newGroup.origin[1] = info.origin[1];
-         newGroup.origin[2] = info.origin[2];
-
-         newGroup.NXX = (newGroup.i_max[0] - newGroup.i_min[0] + 1) * nX + 1;
-         newGroup.NYY = (newGroup.i_max[1] - newGroup.i_min[1] + 1) * nY + 1;
-         newGroup.NZZ = (newGroup.i_max[2] - newGroup.i_min[2] + 1) * nZ + 1;
-
-         MyGroups.push_back(newGroup);
-      }
-      #else
       for (unsigned int m = 0; m < Ngrids; m++)
       {
          const BlockInfo &I = MyInfos[m];
@@ -752,7 +590,6 @@ class Grid
 
          MyGroups.push_back(newGroup);
       }
-      #endif
    }
 };
 

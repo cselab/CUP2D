@@ -104,23 +104,12 @@ class FluxCorrection
       assert(CoarseCase.Z == info.Z);
       assert(CoarseCase.level == info.level);
 
-      #if DIMENSION == 3
-      for (int B = 0; B <= 3; B++) // loop over fine blocks that make up coarse face
-      #else
       for (int B = 0; B <= 1; B++) // loop over fine blocks that make up coarse face
-      #endif
       {
         const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-        #if DIMENSION == 3
-        const long long Z = (*grid).getZforward(info.level + 1,
-                  2 * info.index[0] + std::max(code[0], 0) + code[0] +(B % 2) * std::max(0, 1 - abs(code[0])),
-                  2 * info.index[1] + std::max(code[1], 0) + code[1] +    aux * std::max(0, 1 - abs(code[1])),
-                  2 * info.index[2] + std::max(code[2], 0) + code[2] +(B / 2) * std::max(0, 1 - abs(code[2])));
-        #else
         const long long Z = (*grid).getZforward(info.level + 1,
                   2 * info.index[0] + std::max(code[0], 0) + code[0] +(B % 2) * std::max(0, 1 - abs(code[0])),
                   2 * info.index[1] + std::max(code[1], 0) + code[1] +    aux * std::max(0, 1 - abs(code[1])));
-        #endif
 
         const int other_rank = grid->Tree(info.level + 1, Z).rank();
         if (other_rank != rank) continue;
@@ -143,25 +132,12 @@ class FluxCorrection
         assert(N1F == (int)CoarseCase.m_vSize[d1]);
         assert(N2F == (int)CoarseCase.m_vSize[d2]);
         assert(FineFace.size() == CoarseFace.size());
-        #if DIMENSION == 3
-          for (int i1 = 0; i1 < N1; i1 += 2)
-          for (int i2 = 0; i2 < N2; i2 += 2)
-          {
-            CoarseFace[base + (i2 / 2) + (i1 / 2) * N2] += FineFace[i2 +  i1    * N2] + FineFace[i2+1 +  i1    * N2] +
-                                                           FineFace[i2 + (i1+1) * N2] + FineFace[i2+1 + (i1+1) * N2];
-            FineFace[i2     +  i1      * N2].clear();
-            FineFace[i2 + 1 +  i1      * N2].clear();
-            FineFace[i2     + (i1 + 1) * N2].clear();
-            FineFace[i2 + 1 + (i1 + 1) * N2].clear();
-          }
-        #else
           for (int i2 = 0; i2 < N2; i2 += 2)
           {
             CoarseFace[base + i2/2] += FineFace[i2] + FineFace[i2 + 1];
             FineFace[i2    ].clear();
             FineFace[i2 + 1].clear();
           }
-        #endif
       }
    }
 
@@ -201,9 +177,7 @@ class FluxCorrection
           if (!_grid.xperiodic && code[0] == xskip && xskin) continue;
           if (!_grid.yperiodic && code[1] == yskip && yskin) continue;
           if (!_grid.zperiodic && code[2] == zskip && zskin) continue;
-          #if DIMENSION == 2
           if (code[2] != 0) continue;
-          #endif
 
           if (!grid->Tree(info.level,info.Znei_(code[0],code[1],code[2])).Exists())
           {
@@ -260,9 +234,7 @@ class FluxCorrection
           if (!grid->xperiodic && code[0] == xskip && xskin) continue;
           if (!grid->yperiodic && code[1] == yskip && yskin) continue;
           if (!grid->zperiodic && code[2] == zskip && zskin) continue;
-          #if DIMENSION == 2
           if (code[2] != 0) continue;
-          #endif
 
           bool checkFiner = grid->Tree(info.level, info.Znei_(code[0], code[1], code[2])).CheckFiner();
 
@@ -281,41 +253,6 @@ class FluxCorrection
             const int N2 = CoarseCase.m_vSize[d2];
             BlockType &block = *(BlockType *)info.ptrBlock;
 
-            #if DIMENSION == 3
-              // WARNING: tmp indices are tmp[z][y][x][Flow Quantity]!
-              const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-              const int N1 = CoarseCase.m_vSize[d1];
-              if (d == 0)
-              {
-                const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
-                for (int i1 = 0; i1 < N1; i1 ++)
-                for (int i2 = 0; i2 < N2; i2 ++)
-                {
-                  block(j,i2,i1) += CoarseFace[i2 + i1 * N2];
-                  CoarseFace[i2 + i1 * N2].clear();
-                }
-              }
-              else if (d == 1)
-              {
-                const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
-                for (int i1 = 0; i1 < N1; i1 ++)
-                for (int i2 = 0; i2 < N2; i2 ++)
-                {
-                  block(i2,j,i1) += CoarseFace[i2 + i1 * N2];
-                  CoarseFace[i2 + i1 * N2].clear();
-                }
-              }
-              else
-              {
-                const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeZ - 1;
-                for (int i1 = 0; i1 < N1; i1 ++)
-                for (int i2 = 0; i2 < N2; i2 ++)
-                {
-                  block(i2,i1,j) += CoarseFace[i2 + i1 * N2];
-                  CoarseFace[i2 + i1 * N2].clear();
-                }
-              }               
-            #else
               assert(d!=2);
               if (d == 0)
               {
@@ -335,7 +272,6 @@ class FluxCorrection
                   CoarseFace[i2].clear();
                 }
               }
-            #endif
           }
         }
       }

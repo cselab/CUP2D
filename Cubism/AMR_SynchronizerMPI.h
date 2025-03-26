@@ -234,11 +234,7 @@ struct StencilManager
       range1.ez                         = code[2] < 1 ? nZ                                           : 2 * (stencil.ez - 1);
       sLength[3 * (icode +     27) + 0] = (range1.ex - range1.sx)/2;
       sLength[3 * (icode +     27) + 1] = (range1.ey - range1.sy)/2;
-      #if DIMENSION == 3
-      sLength[3 * (icode +     27) + 2] = (range1.ez - range1.sz)/2;
-      #else
       sLength[3 * (icode +     27) + 2] = 1;
-      #endif
 
       //Coarse sender, fine receiver
       //Coarse sender just needs to send "half" the stencil plus extra cells for coarse-fine interpolation
@@ -247,13 +243,8 @@ struct StencilManager
       range2.sy                         = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1]      : 0) : 0;
       range2.ex                         = code[0] < 1 ? nX / 2 : eC[0] - 1;
       range2.ey                         = code[1] < 1 ? nY / 2 : eC[1] - 1;
-      #if DIMENSION == 3
-      range2.sz                         = code[2] < 1 ? (code[2] < 0 ? nZ / 2 + sC[2]      : 0) : 0;
-      range2.ez                         = code[2] < 1 ? nZ / 2 : eC[2] - 1;
-      #else
       range2.sz                         = 0;
       range2.ez                         = 1;
-      #endif
       sLength[3 * (icode + 2 * 27) + 0] = range2.ex-range2.sx;
       sLength[3 * (icode + 2 * 27) + 1] = range2.ey-range2.sy;
       sLength[3 * (icode + 2 * 27) + 2] = range2.ez-range2.sz;
@@ -350,19 +341,11 @@ struct StencilManager
 
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX + CoarseEdge[0] * code[0] * nX / 2;
         Coarse_Range.sy = s[1] + std::max(code[1], 0) * nY / 2 + (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY + CoarseEdge[1] * code[1] * nY / 2;
-        #if DIMENSION == 3
-        Coarse_Range.sz = s[2] + std::max(code[2], 0) * nZ / 2 + (1 - abs(code[2])) * base[2] * nZ / 2 - code[2] * nZ + CoarseEdge[2] * code[2] * nZ / 2;
-        #else
         Coarse_Range.sz = 0;
-        #endif
 
         Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX + CoarseEdge[0] * code[0] * nX / 2;
         Coarse_Range.ey = e[1] + std::max(code[1], 0) * nY / 2 + (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY + CoarseEdge[1] * code[1] * nY / 2;
-        #if DIMENSION == 3
-        Coarse_Range.ez = e[2] + std::max(code[2], 0) * nZ / 2 + (1 - abs(code[2])) * base[2] * nZ / 2 - code[2] * nZ + CoarseEdge[2] * code[2] * nZ / 2;
-        #else
         Coarse_Range.ez = 1;
-        #endif
 
         return Coarse_Range;
       }
@@ -794,89 +777,6 @@ class SynchronizerMPI_AMR
     const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
                       code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
                       code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
-    #if DIMENSION == 3
-      int pos = 0;
-      const Real *src = (const Real *)(*info).ptrBlock;
-      const int xStep = (code[0] == 0) ? 2 : 1;
-      const int yStep = (code[1] == 0) ? 2 : 1;
-      const int zStep = (code[2] == 0) ? 2 : 1;
-      if (gptfloats == 1)
-      {
-        for (int iz = s[2]; iz < e[2]; iz += zStep)
-        {
-          const int ZZ = (abs(code[2]) == 1) ? 2 * (iz - code[2] * nZ) + std::min(0, code[2]) * nZ : iz;
-          for (int iy = s[1]; iy < e[1]; iy += yStep)
-          {
-            const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY : iy;
-            for (int ix = s[0]; ix < e[0]; ix += xStep)
-            {
-              const int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * nX) + std::min(0, code[0]) * nX : ix;
-              #ifdef PRESERVE_SYMMETRY
-              dst[pos] = ConsistentAverage( src[XX  +(YY  +(ZZ  )*nY)*nX],
-                                            src[XX  +(YY  +(ZZ+1)*nY)*nX],
-                                            src[XX  +(YY+1+(ZZ  )*nY)*nX],
-                                            src[XX  +(YY+1+(ZZ+1)*nY)*nX],
-                                            src[XX+1+(YY  +(ZZ  )*nY)*nX],
-                                            src[XX+1+(YY  +(ZZ+1)*nY)*nX],
-                                            src[XX+1+(YY+1+(ZZ  )*nY)*nX],
-                                            src[XX+1+(YY+1+(ZZ+1)*nY)*nX]);
-              #else
-              dst[pos] = 0.125 *(src[XX  +(YY  +(ZZ  )*nY)*nX]+
-                                 src[XX  +(YY  +(ZZ+1)*nY)*nX]+
-                                 src[XX  +(YY+1+(ZZ  )*nY)*nX]+
-                                 src[XX  +(YY+1+(ZZ+1)*nY)*nX]+
-                                 src[XX+1+(YY  +(ZZ  )*nY)*nX]+
-                                 src[XX+1+(YY  +(ZZ+1)*nY)*nX]+
-                                 src[XX+1+(YY+1+(ZZ  )*nY)*nX]+
-                                 src[XX+1+(YY+1+(ZZ+1)*nY)*nX]);
-              #endif
-              pos ++;
-            }
-          }
-        }
-      }
-      else
-      {
-        for (int iz = s[2]; iz < e[2]; iz += zStep)
-        {
-          const int ZZ = (abs(code[2]) == 1) ? 2 * (iz - code[2] * nZ) + std::min(0, code[2]) * nZ : iz;
-          for (int iy = s[1]; iy < e[1]; iy += yStep)
-          {
-            const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY : iy;
-            for (int ix = s[0]; ix < e[0]; ix += xStep)
-            {
-              const int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * nX) + std::min(0, code[0]) * nX : ix;
-              for (int c = 0; c < NC; c++)
-              {
-                int comp = stencil.selcomponents[c];
-                  #ifdef PRESERVE_SYMMETRY
-                  dst[pos] = ConsistentAverage( (*(src + gptfloats * ((XX    ) + ((YY    ) + (ZZ    )*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX    ) + ((YY    ) + (ZZ + 1)*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX    ) + ((YY + 1) + (ZZ    )*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX    ) + ((YY + 1) + (ZZ + 1)*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX + 1) + ((YY    ) + (ZZ    )*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX + 1) + ((YY    ) + (ZZ + 1)*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ    )*nY) * nX) + comp)),
-                                                (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1)*nY) * nX) + comp)));
-                  #else
-                  dst[pos] = 0.125 *
-                          ((*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) + comp)) +
-                           (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) + comp)));
-                  #endif
-                pos++;
-              }
-            }
-          }
-        }
-      }
-    #endif
-    #if DIMENSION == 2
       Real *src = (Real *)(*info).ptrBlock;
       const int xStep = (code[0] == 0) ? 2 : 1;
       const int yStep = (code[1] == 0) ? 2 : 1;
@@ -898,7 +798,6 @@ class SynchronizerMPI_AMR
           }
         }
       }
-    #endif  
   }
 
   /// Auxiliary function to average down data
@@ -919,11 +818,6 @@ class SynchronizerMPI_AMR
 
     int pos = 0;
 
-    #if DIMENSION == 3
-    for (int iz = s[2]; iz < e[2]; iz++)
-    {
-      const int ZZ = 2 * (iz - s[2]) + s[2] + std::max(code[2], 0) * nZ / 2 - code[2] * nZ + std::min(0, code[2]) * (e[2] - s[2]);
-    #endif
       for (int iy = s[1]; iy < e[1]; iy++)
       {
         const int YY = 2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * nY / 2 - code[1] * nY + std::min(0, code[1]) * (e[1] - s[1]);
@@ -934,41 +828,15 @@ class SynchronizerMPI_AMR
           for (int c = 0; c < NC; c++)
           {
             int comp = stencil.selcomponents[c];
-            #if DIMENSION == 3
-              #ifdef PRESERVE_SYMMETRY
-              dst[pos] = ConsistentAverage( (*(src + gptfloats * ((XX    ) + ((YY    ) + (ZZ    )*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX    ) + ((YY    ) + (ZZ + 1)*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX    ) + ((YY + 1) + (ZZ    )*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX    ) + ((YY + 1) + (ZZ + 1)*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX + 1) + ((YY    ) + (ZZ    )*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX + 1) + ((YY    ) + (ZZ + 1)*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ    )*nY) * nX) + comp)),
-                                            (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1)*nY) * nX) + comp)));
-              #else
-              dst[pos] = 0.125 *
-                ((*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) + comp)));
-              #endif
-            #else
               dst[pos] = 0.25 *
                       (((*(src + gptfloats*(XX  +(YY  )*nX) + comp)) +
                         (*(src + gptfloats*(XX+1+(YY+1)*nX) + comp)))+
                        ((*(src + gptfloats*(XX  +(YY+1)*nX) + comp)) +
                         (*(src + gptfloats*(XX+1+(YY  )*nX) + comp))));
-            #endif
             pos++;
           }
         }
       }
-    #if DIMENSION == 3
-    }
-    #endif
   }
 
   #if 0
@@ -1049,9 +917,7 @@ class SynchronizerMPI_AMR
         if (icode == 1 * 1 + 3 * 1 + 9 * 1) continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
 
-        #if DIMENSION == 2
         if (code[2] != 0) continue;
-        #endif
         if (!grid->xperiodic && code[0] == xskip && xskin) continue;
         if (!grid->yperiodic && code[1] == yskip && yskin) continue;
         if (!grid->zperiodic && code[2] == zskip && zskin) continue;
@@ -1135,30 +1001,10 @@ class SynchronizerMPI_AMR
                 code5[d2] = code3[d2];
                 const int icode5 = (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
 
-                #if DIMENSION == 2
                   if (code3[2] == 0) recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode3});
                   if (code4[2] == 0) recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode4});
                   if (code5[2] == 0) recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode5});
-                #else
-                  recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode3});
-                  recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode4});
-                  recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2,icode5});
-                #endif
               } 
-              #if DIMENSION == 3
-              else if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 2 )//if filling an edge need also a corner
-              {
-                const int d0 = (1-abs(code[1])) + 2*(1-abs(code[2]));
-                const int d1 = (d0+1)%3;
-                const int d2 = (d0+2)%3;
-                int code3[3];
-                code3[d0]= -2*(info.index[d0] % 2)+1;
-                code3[d1] = code[d1];
-                code3[d2] = code[d2];
-                const int icode3 = (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                recv_interfaces[infoNeiCoarserrank].push_back({infoNeiCoarser,info,icode2, icode3});
-              } 
-              #endif
             }
           }
         }
@@ -1172,10 +1018,8 @@ class SynchronizerMPI_AMR
 
           for (int B = 0; B <= 3;B += Bstep) // loop over blocks that make up face/edge/corner (4/2/1 blocks)
           {
-            #if DIMENSION == 2
             if (Bstep == 1 && B >=2) continue;
             if (Bstep >  1 && B >=1) continue;
-            #endif
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
             const long long nFine  = infoNei.Zchild[std::max(-code[0], 0) + (B % 2) * std::max(0, 1 - abs(code[0]))]
@@ -1225,7 +1069,6 @@ class SynchronizerMPI_AMR
                 code5[d2] = code3[d2];
                 const int icode5 = (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
 
-                #if DIMENSION == 2
                   if (code3[2] == 0)
                   {
                     send_interfaces[infoNeiFinerrank].push_back(Interface(info, infoNeiFiner, icode, icode3));
@@ -1241,30 +1084,7 @@ class SynchronizerMPI_AMR
                     send_interfaces[infoNeiFinerrank].push_back(Interface(info, infoNeiFiner, icode, icode5));
                     DM.Add(infoNeiFinerrank,(int)send_interfaces[infoNeiFinerrank].size() - 1);
                   }
-                #else
-                  send_interfaces[infoNeiFinerrank].push_back({info, infoNeiFiner, icode, icode3});
-                  DM.Add(infoNeiFinerrank,(int)send_interfaces[infoNeiFinerrank].size() - 1);
-                  send_interfaces[infoNeiFinerrank].push_back({info, infoNeiFiner, icode, icode4});
-                  DM.Add(infoNeiFinerrank,(int)send_interfaces[infoNeiFinerrank].size() - 1);
-                  send_interfaces[infoNeiFinerrank].push_back({info, infoNeiFiner, icode, icode5});
-                  DM.Add(infoNeiFinerrank,(int)send_interfaces[infoNeiFinerrank].size() - 1);
-                #endif
               }
-              #if DIMENSION ==3
-                else if (Bstep == 3) // if I'm filling an edge then I'm also filling a corner
-                {
-                  const int d0 = (1-abs(code[1])) + 2*(1-abs(code[2]));
-                  const int d1 = (d0+1)%3;
-                  const int d2 = (d0+2)%3;
-                  int code3[3];
-                  code3[d0] = B == 0 ? 1 : -1;
-                  code3[d1] = -code[d1];
-                  code3[d2] = -code[d2];
-                  const int icode3 = (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                  send_interfaces[infoNeiFinerrank].push_back({info, infoNeiFiner, icode, icode3});
-                  DM.Add(infoNeiFinerrank,(int)send_interfaces[infoNeiFinerrank].size() - 1);
-                }
-              #endif
             }
           }
         }

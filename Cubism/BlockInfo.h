@@ -3,15 +3,8 @@
 #include <array>
 #include <cassert>
 
-#ifndef DIMENSION
-#define DIMENSION 3
-#endif
 
-#if DIMENSION == 3
-  #include "SpaceFillingCurve.h"
-#else
   #include "SpaceFillingCurve2D.h"
-#endif
 
 namespace cubism
 {
@@ -71,32 +64,6 @@ struct BlockInfo
       return lmax;
    }
 
-   #if DIMENSION == 3
-
-      /// Static function used to initialize static SFC
-      static int blocks_per_dim(int i, int nx = 0, int ny = 0, int nz = 0)
-      {
-         static int a[3] = {nx, ny, nz};
-         return a[i];
-      }
-   
-      /// Pointer to single instance of SFC used
-      static SpaceFillingCurve *SFC()
-      {
-         static SpaceFillingCurve Zcurve(blocks_per_dim(0), blocks_per_dim(1), blocks_per_dim(2), levelMax());
-         return &Zcurve;
-      }
-   
-      /// get Z-order index for coordinates (ix,iy,iz) and refinement level
-      static long long forward(int level, int ix, int iy, int iz) { return (*SFC()).forward(level, ix, iy, iz); }
-   
-      /// get unique blockID_2 index from refinement level, Z-order index and coordinates
-      static long long Encode(int level, long long Z, int index[3]) { return (*SFC()).Encode(level, Z, index); }
-   
-      /// get coordinates from refinement level and Z-order index
-      static void inverse(long long Z, int l, int &i, int &j, int &k) { (*SFC()).inverse(Z, l, i, j, k); }
-
-   #else
 
       /// Static function used to initialize static SFC (same as above but in 2D)
       static int blocks_per_dim(int i, int nx = 0, int ny = 0)
@@ -121,27 +88,7 @@ struct BlockInfo
       /// get coordinates from refinement level and Z-order index
       static void inverse(long long Z, int l, int &i, int &j) { (*SFC()).inverse(Z, l, i, j); }
 
-   #endif
 
-   #if DIMENSION == 3
-      /// return position (x,y,z) in 3D, given indices of grid point
-      template <typename T>
-      inline void pos(T p[3], int ix, int iy, int iz) const
-      {
-         p[0] = origin[0] + h * (ix + 0.5);
-         p[1] = origin[1] + h * (iy + 0.5);
-         p[2] = origin[2] + h * (iz + 0.5);
-      }
-
-      /// return position (x,y,z) in 3D, given indices of grid point
-      template <typename T>
-      inline std::array<T, 3> pos(int ix, int iy, int iz) const
-      {
-         std::array<T, 3> result;
-         pos(result.data(), ix, iy, iz);
-         return result;
-      }
-   #else
       /// return position (x,y) in 2D, given indices of grid point
       template <typename T>
       inline void pos(T p[2], int ix, int iy) const
@@ -158,7 +105,6 @@ struct BlockInfo
          pos(result.data(), ix, iy);
          return result;
       }
-   #endif
 
    /// used to order/sort blocks based on blockID_2, which is only a function of Z and level
    bool operator<(const BlockInfo &other) const { return (blockID_2 < other.blockID_2); }
@@ -183,22 +129,6 @@ struct BlockInfo
       const int TwoPower = 1 << level;
 
       //Now we also set the indices of the neighbouring blocks, parent block and child blocks.
-      #if DIMENSION == 3
-         inverse(Z, level, index[0], index[1], index[2]);
-
-         const int Bmax[3] = {blocks_per_dim(0) * TwoPower, blocks_per_dim(1) * TwoPower, blocks_per_dim(2) * TwoPower};
-         for (int i = -1; i < 2; i++)
-         for (int j = -1; j < 2; j++)
-         for (int k = -1; k < 2; k++)
-            Znei[i + 1][j + 1][k + 1] = forward(level, (index[0] + i + Bmax[0]) % Bmax[0], (index[1] + j + Bmax[1]) % Bmax[1], (index[2] + k + Bmax[2]) % Bmax[2]);
-
-         for (int i =  0; i < 2; i++)
-         for (int j =  0; j < 2; j++)
-         for (int k =  0; k < 2; k++)
-            Zchild[i][j][k] = forward(level + 1, 2 * index[0] + i, 2 * index[1] + j, 2 * index[2] + k);
-
-         Zparent = (level == 0) ? 0 : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0], (index[1] / 2 + Bmax[1]) % Bmax[1], (index[2] / 2 + Bmax[2]) % Bmax[2]);
-      #else
          inverse(Z, level, index[0], index[1]);
          index[2] = 0;
 
@@ -214,7 +144,6 @@ struct BlockInfo
             Zchild[i][j][k] = forward(level + 1, 2 * index[0] + i, 2 * index[1] + j);
 
          Zparent = (level == 0) ? 0 : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0], (index[1] / 2 + Bmax[1]) % Bmax[1]);
-      #endif
       blockID_2 = Encode(level, Z, index);
       blockID   = blockID_2;
    }

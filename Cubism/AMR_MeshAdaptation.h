@@ -268,20 +268,11 @@ class MeshAdaptation
          BlockInfo &info      = grid->getBlockInfoAll(ary0.level, ary0.Z);
          for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1; i++)
          for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1; j++)
-         #if DIMENSION == 3
-         for (int k = 2 * (info.index[2] / 2); k <= 2 * (info.index[2] / 2) + 1; k++)
-         {
-            const long long n = grid->getZforward(info.level, i, j, k);
-            BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
-            infoNei.state = Leave;
-         }
-         #else
          {
             const long long n = grid->getZforward(info.level, i, j);
             BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
             infoNei.state = Leave;
          }
-         #endif
          info.state = Leave;
          ary0.state = Leave;
       }
@@ -297,12 +288,7 @@ class MeshAdaptation
          {
             const int i2 = 2 * (info2.index[0] / 2);
             const int j2 = 2 * (info2.index[1] / 2);
-            #if DIMENSION == 3
-            const int k2 = 2 * (info2.index[2] / 2);
-            const long long n = grid->getZforward(info2.level, i2, j2, k2);
-            #else
             const long long n = grid->getZforward(info2.level, i2, j2);
-            #endif
             BlockInfo &infoNei = grid->getBlockInfoAll(info2.level, n);
             infoNei.state = Compress;
          }
@@ -371,20 +357,6 @@ class MeshAdaptation
 
       assert(parent.ptrBlock != NULL);
       assert(level <= grid->getlevelMax() - 1);
-      #if DIMENSION == 3
-         BlockType *Blocks[8];
-         for (int k = 0; k < 2; k++)
-         for (int j = 0; j < 2; j++)
-         for (int i = 0; i < 2; i++)
-         {
-            const long long nc = grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j, 2 * p[2] + k);
-            BlockInfo &Child   = grid->getBlockInfoAll(level + 1, nc);
-            Child.state        = Leave;
-            grid->_alloc(level + 1, nc);
-            grid->Tree(level + 1, nc).setCheckCoarser();
-            Blocks[k * 4 + j * 2 + i] = (BlockType *)Child.ptrBlock;
-         }
-      #else
          BlockType *Blocks[4];
          for (int j = 0; j < 2; j++)
          for (int i = 0; i < 2; i++)
@@ -396,7 +368,6 @@ class MeshAdaptation
             grid->Tree(level + 1, nc).setCheckCoarser();
             Blocks[j * 2 + i] = (BlockType *)Child.ptrBlock;
          }
-      #endif
       if (basic_refinement == false)
          RefineBlocks(Blocks,lab);
    }
@@ -421,21 +392,6 @@ class MeshAdaptation
       parent.state = Leave;
 
       int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-      #if DIMENSION == 3
-         for (int k = 0; k < 2; k++)
-         for (int j = 0; j < 2; j++)
-         for (int i = 0; i < 2; i++)
-         {
-            const long long nc = grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j, 2 * p[2] + k);
-            BlockInfo &Child   = grid->getBlockInfoAll(level + 1, nc);
-            grid->Tree(Child).setrank(grid->rank());
-            if (level + 2 < grid->getlevelMax())
-               for (int i0 = 0; i0 < 2; i0++)
-               for (int i1 = 0; i1 < 2; i1++)
-               for (int i2 = 0; i2 < 2; i2++)
-                  grid->Tree(level + 2, Child.Zchild[i0][i1][i2]).setCheckCoarser();
-         }
-      #else
          for (int j = 0; j < 2; j++)
          for (int i = 0; i < 2; i++)
          {
@@ -447,7 +403,6 @@ class MeshAdaptation
                for (int i1 = 0; i1 < 2; i1++) 
                   grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
          }
-      #endif
    }
 
    /**
@@ -467,77 +422,6 @@ class MeshAdaptation
 
       assert(info.state == Compress);
 
-      #if DIMENSION == 3
-      BlockType *Blocks[8];
-      for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++)
-      {
-         const int blk = K * 4 + J * 2 + I;
-         const long long n = grid->getZforward(level, info.index[0] + I, info.index[1] + J, info.index[2] + K);
-         Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
-      }
-
-      const int nx         = BlockType::sizeX;
-      const int ny         = BlockType::sizeY;
-      const int nz         = BlockType::sizeZ;
-      const int offsetX[2] = {0, nx / 2};
-      const int offsetY[2] = {0, ny / 2};
-      const int offsetZ[2] = {0, nz / 2};
-      if (basic_refinement == false)
-      for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++)
-      {
-         BlockType &b = *Blocks[K * 4 + J * 2 + I];
-         for (int k = 0; k < nz; k += 2)
-         for (int j = 0; j < ny; j += 2)
-         for (int i = 0; i < nx; i += 2)
-         {
-          #ifdef PRESERVE_SYMMETRY
-            const ElementType B1 = b(i  ,j  ,k  ) + b(i+1,j+1,k+1);
-            const ElementType B2 = b(i+1,j  ,k  ) + b(i  ,j+1,k+1);
-            const ElementType B3 = b(i  ,j+1,k  ) + b(i+1,j  ,k+1);
-            const ElementType B4 = b(i  ,j  ,k+1) + b(i+1,j+1,k  );
-            (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J], k / 2 + offsetZ[K]) = 0.125*ConsistentSum<ElementType>(B1,B2,B3,B4);
-          #else
-            (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J], k / 2 + offsetZ[K]) =
-                0.125 * ( (b(i  , j  ,k) + b(i+1,j+1,k+1)) 
-                        + (b(i+1, j  ,k) + b(i  ,j+1,k+1))
-                        + (b(i  , j+1,k) + b(i+1,j  ,k+1))
-                        + (b(i+1, j+1,k) + b(i  ,j  ,k+1)) );
-          #endif
-         }
-      }
-
-      const long long np = grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2, info.index[2] / 2);
-      BlockInfo &parent  = grid->getBlockInfoAll(level - 1, np);
-      grid->Tree(parent.level, parent.Z).setrank(grid->rank());
-      parent.ptrBlock    = info.ptrBlock;
-      parent.state       = Leave;
-      if (level - 2 >= 0) grid->Tree(level - 2, parent.Zparent).setCheckFiner();
-
-      for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++)
-      {
-         const long long n = grid->getZforward(level, info.index[0] + I, info.index[1] + J, info.index[2] + K);
-         if (I + J + K == 0)
-         {
-            grid->FindBlockInfo(level, n, level - 1, np);
-         }
-         else
-         {
-            #pragma omp critical
-            {
-               dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2);
-            }
-         }
-         grid->Tree(level, n).setCheckCoarser();
-         grid->getBlockInfoAll(level, n).state = Leave;
-      }
-      #endif
-      #if DIMENSION == 2
       BlockType *Blocks[4];
       for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++)
@@ -588,7 +472,6 @@ class MeshAdaptation
          grid->Tree(level, n).setCheckCoarser();
          grid->getBlockInfoAll(level, n).state = Leave;
       }
-      #endif
    }
 
    /**
@@ -655,9 +538,7 @@ class MeshAdaptation
                   if (!xperiodic && code[0] == xskip && xskin) continue;
                   if (!yperiodic && code[1] == yskip && yskin) continue;
                   if (!zperiodic && code[2] == zskip && zskin) continue;
-                  #if DIMENSION == 2
                   if (code[2] != 0) continue;
-                  #endif
 
                   if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2])).CheckFiner())
                   {
@@ -674,21 +555,12 @@ class MeshAdaptation
                      else if (tmp == 3) Bstep = 4; //corner                                                    
 
                      //loop over blocks that make up face/edge/corner(respectively 4,2 or 1 blocks)
-                     #if DIMENSION == 3
-                     for (int B = 0; B <= 3; B += Bstep)
-                     #else
                      for (int B = 0; B <= 1; B += Bstep)
-                     #endif
                      {
                         const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                         const int iNei = 2 * info.index[0] + std::max(code[0], 0) + code[0] + (B % 2) * std::max(0, 1 - abs(code[0]));
                         const int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] + aux * std::max(0, 1 - abs(code[1]));
-                        #if DIMENSION == 3
-                           const int kNei = 2 * info.index[2] + std::max(code[2], 0) + code[2] + (B / 2) * std::max(0, 1 - abs(code[2]));
-                           const long long zzz = grid->getZforward(m + 1, iNei, jNei, kNei);
-                        #else
                            const long long zzz = grid->getZforward(m + 1, iNei, jNei);
-                        #endif
                         BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
                         State NeiState      = FinerNei.state;
                         if (NeiState == Refine)
@@ -730,9 +602,7 @@ class MeshAdaptation
                   if (!xperiodic && code[0] == xskip && xskin) continue;
                   if (!yperiodic && code[1] == yskip && yskin) continue;
                   if (!zperiodic && code[2] == zskip && zskin) continue;
-                  #if DIMENSION == 2
                   if (code[2] != 0) continue;
-                  #endif
 
                   BlockInfo &infoNei = grid->getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
                   if (grid->Tree(infoNei).Exists() && infoNei.state == Refine)
@@ -756,11 +626,7 @@ class MeshAdaptation
          for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1; j++)
          for (int k = 2 * (info.index[2] / 2); k <= 2 * (info.index[2] / 2) + 1; k++)
          {
-            #if DIMENSION == 3
-               const long long n = grid->getZforward(m, i, j, k);
-            #else
                const long long n = grid->getZforward(m, i, j);
-            #endif
             BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
             if (grid->Tree(infoNei).Exists() == false || infoNei.state != Compress)
             {
@@ -778,11 +644,7 @@ class MeshAdaptation
             for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1; j++)
             for (int k = 2 * (info.index[2] / 2); k <= 2 * (info.index[2] / 2) + 1; k++)
             {
-               #if DIMENSION == 3
-                  const long long n = grid->getZforward(m, i, j, k);
-               #else
                   const long long n = grid->getZforward(m, i, j);
-               #endif
                BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
                if (grid->Tree(infoNei).Exists() && infoNei.state == Compress) infoNei.state = Leave;
             }
@@ -809,57 +671,6 @@ class MeshAdaptation
       int offsetX[2] = {0, nx / 2};
       int offsetY[2] = {0, ny / 2};
 
-      #if DIMENSION == 3
-      const int nz   = BlockType::sizeZ;
-      int offsetZ[2] = {0, nz / 2};
-
-      for (int K = 0; K < 2; K++)
-         for (int J = 0; J < 2; J++)
-            for (int I = 0; I < 2; I++)
-            {
-               BlockType &b = *B[K * 4 + J * 2 + I];
-               b.clear();
-
-               for (int k = 0; k < nz; k += 2)
-                  for (int j = 0; j < ny; j += 2)
-                     for (int i = 0; i < nx; i += 2)
-                     {
-                        const int x = i / 2 + offsetX[I];
-                        const int y = j / 2 + offsetY[J];
-                        const int z = k / 2 + offsetZ[K];
-                        const ElementType dudx  = 0.5 * (Lab(x+1,y,z) - Lab(x-1,y,z));
-                        const ElementType dudy  = 0.5 * (Lab(x,y+1,z) - Lab(x,y-1,z));
-                        const ElementType dudz  = 0.5 * (Lab(x,y,z+1) - Lab(x,y,z-1));
-                        const ElementType dudx2 = (Lab(x+1,y,z)  + Lab(x-1,y,z)) - 2.0*Lab(x,y,z);
-                        const ElementType dudy2 = (Lab(x,y+1,z)  + Lab(x,y-1,z)) - 2.0*Lab(x,y,z);
-                        const ElementType dudz2 = (Lab(x,y,z+1)  + Lab(x,y,z-1)) - 2.0*Lab(x,y,z);
-                        const ElementType dudxdy = 0.25*((Lab(x+1,y+1,z)+Lab(x-1,y-1,z)) - (Lab(x+1,y-1,z)+Lab(x-1,y+1,z)));
-                        const ElementType dudxdz = 0.25*((Lab(x+1,y,z+1)+Lab(x-1,y,z-1)) - (Lab(x+1,y,z-1)+Lab(x-1,y,z+1)));
-                        const ElementType dudydz = 0.25*((Lab(x,y+1,z+1)+Lab(x,y-1,z-1)) - (Lab(x,y+1,z-1)+Lab(x,y-1,z+1)));
-
-                        #ifdef PRESERVE_SYMMETRY
-                        const ElementType d2 = 0.03125 * ConsistentSum<ElementType>(dudx2,dudy2,dudz2);
-                        b(i  , j  , k  ) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(-(1.0)*dudx,-(1.0)*dudy,-(1.0)*dudz) + d2) + 0.0625*ConsistentSum(       dudxdy,       dudxdz,       dudydz);
-                        b(i+1, j  , k  ) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(       dudx,-(1.0)*dudy,-(1.0)*dudz) + d2) + 0.0625*ConsistentSum(-(1.0)*dudxdy,-(1.0)*dudxdz,       dudydz);
-                        b(i  , j+1, k  ) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(-(1.0)*dudx,       dudy,-(1.0)*dudz) + d2) + 0.0625*ConsistentSum(-(1.0)*dudxdy,       dudxdz,-(1.0)*dudydz);
-                        b(i+1, j+1, k  ) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(       dudx,       dudy,-(1.0)*dudz) + d2) + 0.0625*ConsistentSum(       dudxdy,-(1.0)*dudxdz,-(1.0)*dudydz);
-                        b(i  , j  , k+1) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(-(1.0)*dudx,-(1.0)*dudy,       dudz) + d2) + 0.0625*ConsistentSum(       dudxdy,-(1.0)*dudxdz,-(1.0)*dudydz);
-                        b(i+1, j  , k+1) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(       dudx,-(1.0)*dudy,       dudz) + d2) + 0.0625*ConsistentSum(-(1.0)*dudxdy,       dudxdz,-(1.0)*dudydz);
-                        b(i  , j+1, k+1) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(-(1.0)*dudx,       dudy,       dudz) + d2) + 0.0625*ConsistentSum(-(1.0)*dudxdy,-(1.0)*dudxdz,       dudydz);
-                        b(i+1, j+1, k+1) = Lab(x,y,z) + (0.25*ConsistentSum<ElementType>(       dudx,       dudy,       dudz) + d2) + 0.0625*ConsistentSum(       dudxdy,       dudxdz,       dudydz);
-                        #else
-                        b(i  , j  , k  ) = Lab(x,y,z) + 0.25*(-(1.0)* dudx - dudy - dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(       dudxdy + dudxdz + dudydz);
-                        b(i+1, j  , k  ) = Lab(x,y,z) + 0.25*(        dudx - dudy - dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(-(1.0)*dudxdy - dudxdz + dudydz);
-                        b(i  , j+1, k  ) = Lab(x,y,z) + 0.25*(-(1.0)* dudx + dudy - dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(-(1.0)*dudxdy + dudxdz - dudydz);
-                        b(i+1, j+1, k  ) = Lab(x,y,z) + 0.25*(        dudx + dudy - dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(       dudxdy - dudxdz - dudydz);
-                        b(i  , j  , k+1) = Lab(x,y,z) + 0.25*(-(1.0)* dudx - dudy + dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(       dudxdy - dudxdz - dudydz);
-                        b(i+1, j  , k+1) = Lab(x,y,z) + 0.25*(        dudx - dudy + dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(-(1.0)*dudxdy + dudxdz - dudydz);
-                        b(i  , j+1, k+1) = Lab(x,y,z) + 0.25*(-(1.0)* dudx + dudy + dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(-(1.0)*dudxdy - dudxdz + dudydz);
-                        b(i+1, j+1, k+1) = Lab(x,y,z) + 0.25*(        dudx + dudy + dudz) + 0.03125 *(dudx2+dudy2+dudz2) + 0.0625*(       dudxdy + dudxdz + dudydz);
-                        #endif
-                     }
-            }
-      #else
 
       for (int J = 0; J < 2; J++)
          for (int I = 0; I < 2; I++)
@@ -887,7 +698,6 @@ class MeshAdaptation
                   b(i+1,j+1,0) = (Lab(i/2+offsetX[I], j/2+offsetY[J]) + (+ 0.25*dudx + 0.25*dudy) ) + ( (0.03125*dudx2 + 0.03125*dudy2) + 0.0625*dudxdy);
                }
          }
-      #endif
    }
 
    /**
@@ -905,22 +715,11 @@ class MeshAdaptation
       BlockType & b = *(BlockType *)info.ptrBlock;
 
       double Linf = 0.0;
-      #if DIMENSION == 3
-      const int nz = BlockType::sizeZ;
-      for (int k = 0; k < nz; k++)
-         for (int j = 0; j < ny; j++)
-            for (int i = 0; i < nx; i++)
-            {
-               Linf = std::max(Linf, std::fabs(b(i, j, k).magnitude()));
-            }
-      #endif
-      #if DIMENSION == 2
       for (int j = 0; j < ny; j++)
          for (int i = 0; i < nx; i++)
          {
             Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
          }
-      #endif
 
       if (Linf > tolerance_for_refinement) return Refine;
       else if (Linf < tolerance_for_compression)

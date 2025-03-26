@@ -10,11 +10,7 @@
 #include <random>
 #include <vector>
  
-#if DIMENSION == 3
-  #include "SpaceFillingCurve.h"
-#else
   #include "SpaceFillingCurve2D.h"
-#endif
 
 namespace cubism{
 	
@@ -32,11 +28,7 @@ void convertVectorToGrid(Grid * grid, const typename Grid::ElementType * vec)
 	assert ((nx & (nx-1)) == 0);//assert that nx is a power of 2
         
 	std::array<int, 3> N = {nx*grid->NX,ny*grid->NY,nz*grid->NZ};
-        #if DIMENSION == 3
-	  static SpaceFillingCurve   sfc = SpaceFillingCurve(N[0],N[1],N[2],sfc_level);
-        #else
 	  static SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0],N[1],sfc_level);
-        #endif
 
 	//Blocks might not be ordered. We create a sorted copy and loop over it
 	std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
@@ -59,11 +51,7 @@ void convertVectorToGrid(Grid * grid, const typename Grid::ElementType * vec)
                   for (int x = 0 ; x < nx; x++)
 	          {
 	             index[0] = info.index[0]*nx + x;
-		     #if DIMENSION == 3
-		       const long long Z = sfc.forward(level,index[0],index[1],index[2]); 
-		     #else
 		       const long long Z = sfc.forward(level,index[0],index[1]); 
-		     #endif
 		     sortID [x + y*nx + z*nx*ny] = sfc.Encode(level,Z,index);
 	          }
 	       }
@@ -100,12 +88,8 @@ void convertGridToVector(const Grid * const grid, typename Grid::ElementType * v
 	assert ((nx & (nx-1)) == 0);//assert that nx is a power of 2
         
 	std::array<int, 3> N = {nx*grid->NX,ny*grid->NY,nz*grid->NZ};
-        #if DIMENSION == 3
-	  static SpaceFillingCurve   sfc = SpaceFillingCurve(N[0],N[1],N[2],sfc_level);
-        #else
 	  static 
 		  SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0],N[1],sfc_level);
-        #endif
 
 	//Blocks might not be ordered. We create a sorted copy and loop over it
 	std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
@@ -128,11 +112,7 @@ void convertGridToVector(const Grid * const grid, typename Grid::ElementType * v
                   for (int x = 0 ; x < nx; x++)
 	          {
 	             index[0] = info.index[0]*nx + x;
-		     #if DIMENSION == 3
-		       const long long Z = sfc.forward(level,index[0],index[1],index[2]); 
-		     #else
 		       const long long Z = sfc.forward(level,index[0],index[1]); 
-		     #endif
 		     sortID [x + y*nx + z*nx*ny] = sfc.Encode(level,Z,index);
 	          }
 	       }

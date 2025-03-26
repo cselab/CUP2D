@@ -72,24 +72,13 @@ class FluxCorrectionMPI : public TFluxCorrection
       assert(search != TFluxCorrection::MapOfCases.end());
       Case &CoarseCase                     = (*search->second);
       std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
-      #if DIMENSION == 3
-      for (int B = 0; B <= 3; B++) // loop over fine blocks that make up coarse face
-      #else
       for (int B = 0; B <= 1; B++) // loop over fine blocks that make up coarse face
-      #endif
       {
          const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
-         #if DIMENSION == 3
-            const long long Z = (*TFluxCorrection::grid).getZforward(info.level + 1,
-                                     2 * info.index[0] + std::max(code[0], 0) + code[0] + (B % 2) * std::max(0, 1 - abs(code[0])),
-                                     2 * info.index[1] + std::max(code[1], 0) + code[1] + aux * std::max(0, 1 - abs(code[1])),
-                                     2 * info.index[2] + std::max(code[2], 0) + code[2] + (B / 2) * std::max(0, 1 - abs(code[2])));
-         #else
             const long long Z = (*TFluxCorrection::grid).getZforward(info.level + 1,
                             2 * info.index[0] + std::max(code[0], 0) + code[0] + (B % 2) * std::max(0, 1 - abs(code[0])),
                             2 * info.index[1] + std::max(code[1], 0) + code[1] + aux * std::max(0, 1 - abs(code[1])));
-         #endif
          if (Z != F.infos[0]->Z) continue;
 
          const int d  = myFace / 2;
@@ -106,22 +95,12 @@ class FluxCorrectionMPI : public TFluxCorrection
          int r   = (*TFluxCorrection::grid).Tree(F.infos[0]->level,F.infos[0]->Z).rank();
          int dis = 0;
 
-         #if DIMENSION == 3
-            for (int i1 = 0; i1 < N1; i1 += 2)
-            for (int i2 = 0; i2 < N2; i2 += 2)
-            {
-               for (int j = 0; j < ElementType::DIM; j++)
-                  CoarseFace[base + (i2 / 2) + (i1 / 2) * N2].member(j) +=recv_buffer[r][F.offset + dis + j];
-               dis += ElementType::DIM;
-            }
-         #else
             for (int i2 = 0; i2 < N2; i2 += 2)
             {
                for (int j = 0; j < ElementType::DIM; j++)
                   CoarseFace[base + (i2 / 2)].member(j) +=recv_buffer[r][F.offset + dis + j];
                dis += ElementType::DIM;
             }
-         #endif
       }
    }
 
@@ -147,40 +126,6 @@ class FluxCorrectionMPI : public TFluxCorrection
       const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
       const int N2 = CoarseCase.m_vSize[d2];
       BlockType &block = *(BlockType *)info.ptrBlock;
-      #if DIMENSION == 3
-         const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-         const int N1 = CoarseCase.m_vSize[d1];
-         if (d == 0)
-         {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
-            for (int i1 = 0; i1 < N1; i1 ++)
-            for (int i2 = 0; i2 < N2; i2 ++)
-            {
-             block(j,i2,i1) += CoarseFace[i2 + i1 * N2];
-             CoarseFace[i2 + i1 * N2].clear();
-            }
-         }
-         else if (d == 1)
-         {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
-            for (int i1 = 0; i1 < N1; i1 ++)
-            for (int i2 = 0; i2 < N2; i2 ++)
-            {
-             block(i2,j,i1) += CoarseFace[i2 + i1 * N2];
-             CoarseFace[i2 + i1 * N2].clear();
-            }
-         }
-         else
-         {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeZ - 1;
-            for (int i1 = 0; i1 < N1; i1 ++)
-            for (int i2 = 0; i2 < N2; i2 ++)
-            {
-             block(i2,i1,j) += CoarseFace[i2 + i1 * N2];
-             CoarseFace[i2 + i1 * N2].clear();
-            }
-         }               
-      #else
          assert(d!=2);
          if (d == 0)
          {
@@ -200,7 +145,6 @@ class FluxCorrectionMPI : public TFluxCorrection
                CoarseFace[i2].clear();
             }
          }
-      #endif
    }
 
  public:
@@ -275,9 +219,7 @@ class FluxCorrectionMPI : public TFluxCorrection
             if (!_grid.xperiodic && code[0] == xskip && xskin) continue;
             if (!_grid.yperiodic && code[1] == yskip && yskin) continue;
             if (!_grid.zperiodic && code[2] == zskip && zskin) continue;
-            #if DIMENSION == 2
             if (code[2] != 0) continue;
-            #endif
 
             if (! (*TFluxCorrection::grid).Tree(info.level, info.Znei_(code[0], code[1], code[2])).Exists())
             {
@@ -289,11 +231,7 @@ class FluxCorrectionMPI : public TFluxCorrection
             int L[3];
             L[0]  = (code[0] == 0) ? blocksize[0] / 2 : 1;
             L[1]  = (code[1] == 0) ? blocksize[1] / 2 : 1;
-            #if DIMENSION == 3
-               L[2] = (code[2] == 0) ? blocksize[2] / 2 : 1;
-            #else
                L[2] = 1;
-            #endif
             int V = L[0] * L[1] * L[2];
 
             if ( (*TFluxCorrection::grid).Tree(info.level, info.Znei_(code[0], code[1], code[2])).CheckCoarser())
@@ -313,11 +251,7 @@ class FluxCorrectionMPI : public TFluxCorrection
             {
                BlockInfo & infoNei = (*TFluxCorrection::grid).getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
                int Bstep = 1;                      // face
-               #if DIMENSION == 3
-               for (int B = 0; B <= 3; B += Bstep) // loop over blocks that make up face
-               #else
                for (int B = 0; B <= 1; B += Bstep) // loop over blocks that make up face
-               #endif 
                {
                   const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                   const long long nFine  = infoNei.Zchild[std::max(-code[0], 0) + (B % 2) * std::max(0, 1 - abs(code[0]))]
@@ -378,11 +312,7 @@ class FluxCorrectionMPI : public TFluxCorrection
             int L[3];
             L[0]  = (code[0] == 0) ? blocksize[0] / 2 : 1;
             L[1]  = (code[1] == 0) ? blocksize[1] / 2 : 1;
-            #if DIMENSION == 3
-               L[2]  = (code[2] == 0) ? blocksize[2] / 2 : 1;
-            #else
                L[2] = 1;
-            #endif
             int V = L[0] * L[1] * L[2];
 
             f.offset = offset;
@@ -424,21 +354,6 @@ class FluxCorrectionMPI : public TFluxCorrection
             const int d  = myFace / 2;
             const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
             const int N2 = FineCase.m_vSize[d2];
-            #if DIMENSION == 3
-            const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-            const int N1 = FineCase.m_vSize[d1];
-               for (int i1 = 0; i1 < N1; i1 += 2)
-               for (int i2 = 0; i2 < N2; i2 += 2)
-               {
-                  ElementType avg = ((FineFace[i2 + i1 * N2] + FineFace[i2 + 1 + i1 * N2]) + (FineFace[i2 + (i1 + 1) * N2] + FineFace[i2 + 1 + (i1 + 1) * N2]));
-                  for (int j = 0 ; j < ElementType::DIM; j++) send_buffer[r][displacement + j] = avg.member(j);
-                  displacement += ElementType::DIM;
-                  FineFace[i2 + i1 * N2].clear();
-                  FineFace[i2 + 1 + i1 * N2].clear();
-                  FineFace[i2 + (i1 + 1) * N2].clear();
-                  FineFace[i2 + 1 + (i1 + 1) * N2].clear();
-               }
-            #else
               for (int i2 = 0; i2 < N2; i2 += 2)
               {
                  ElementType avg = FineFace[i2] + FineFace[i2 + 1];
@@ -447,7 +362,6 @@ class FluxCorrectionMPI : public TFluxCorrection
                  FineFace[i2    ].clear();
                  FineFace[i2 + 1].clear();
               }
-            #endif
          }
       }
 
@@ -505,11 +419,6 @@ class FluxCorrectionMPI : public TFluxCorrection
       for (int r = 0; r < size; r++) //if (r!=me)
          for (int index = 0; index < (int)recv_faces[r].size(); index++)
             FillCase_2(recv_faces[r][index],0,1,0);
-      #if DIMENSION == 3
-      for (int r = 0; r < size; r++) //if (r!=me)
-         for (int index = 0; index < (int)recv_faces[r].size(); index++)
-            FillCase_2(recv_faces[r][index],0,0,1);
-      #endif
 
       if (send_requests.size() > 0) MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
    }

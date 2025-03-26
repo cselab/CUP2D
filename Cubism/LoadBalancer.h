@@ -79,23 +79,6 @@ class LoadBalancer
       std::memcpy(a1, data, sizeof(BlockType));
 
       //3. Update status of children and parent block of newly allocated block
-      #if DIMENSION == 3
-         int p[3];
-         BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-         if (level < grid->getlevelMax() - 1)
-            for (int k1 = 0; k1 < 2; k1++)
-            for (int j1 = 0; j1 < 2; j1++)
-            for (int i1 = 0; i1 < 2; i1++)
-            {
-               const long long nc = grid->getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1, 2 * p[2] + k1);
-               grid->Tree(level + 1, nc).setCheckCoarser();
-            }
-         if (level > 0)
-         {
-            const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-            grid->Tree(level - 1, nf).setCheckFiner();
-         }
-      #else
          int p[2];
          BlockInfo::inverse(Z, level, p[0], p[1]);
          if (level < grid->getlevelMax() - 1)
@@ -110,7 +93,6 @@ class LoadBalancer
             const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
             grid->Tree(level - 1, nf).setCheckFiner();
          }
-      #endif
    }
 
  public:
@@ -148,11 +130,7 @@ class LoadBalancer
       //Loop over blocks
       for (auto &b : I)
       {
-         #if DIMENSION == 3
-         const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2), 2 * (b.index[2] / 2));
-         #else
          const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-         #endif
 
          const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
 
@@ -177,17 +155,10 @@ class LoadBalancer
          //if 'b' is the 'base' block we collect the remaining 7 (3, in 2D) blocks that will be compressed with it.
          else
          {
-            #if DIMENSION ==3
-            for (int k = 0; k < 2; k++)
-            #endif
             for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++)
             {
-               #if DIMENSION ==3
-               const long long n = grid->getZforward(b.level, b.index[0] + i, b.index[1] + j, b.index[2] + k);
-               #else
                const long long n = grid->getZforward(b.level, b.index[0] + i, b.index[1] + j);
-               #endif
                if (n == nBlock) continue;
                BlockInfo &temp    = grid->getBlockInfoAll(b.level, n);
                const int temprank = grid->Tree(b.level, n).rank();

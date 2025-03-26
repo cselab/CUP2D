@@ -379,11 +379,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const std::string &
     filename << fname;// fname is the base filepath without file type extension
     fullpath << dpath << "/" << filename.str();
 
-    #if DIMENSION == 2
     const int PtsPerElement = 4;
-    #else
-    const int PtsPerElement = 8;
-    #endif 
     std::vector<BlockInfo> & MyInfos = grid.getBlocksInfo();
     unsigned long long MyCells = MyInfos.size()*nX*nY*nZ;
     unsigned long long TotalCells;
@@ -435,13 +431,8 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const std::string &
         s << "<Domain>\n";
         s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
         s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
-        #if DIMENSION == 2
         s << "   <Topology NumberOfElements=\"" << TotalCells << "\" TopologyType=\"Quadrilateral\"/>\n";
         s << "     <Geometry GeometryType=\"XY\">\n";
-        #else
-        s << "   <Topology NumberOfElements=\"" << TotalCells << "\" TopologyType=\"Hexahedron\"/>\n";
-        s << "     <Geometry GeometryType=\"XYZ\">\n";
-        #endif
         //s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells*PtsPerElement << " " << DIMENSION << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
         s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells*PtsPerElement << " " << DIMENSION << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float) << "\" Format=\"HDF\">\n";
         s << "            " << gridFile.c_str() << ":/" << "vertices" << "\n";
@@ -503,42 +494,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const std::string &
             for (int x = 0; x < nX; x++)
             {
                 const int bbase = (i*nZ*nY*nX+z*nY*nX+y*nX+x)*PtsPerElement*DIMENSION;
-                #if DIMENSION == 3
-                float p[3];
-                info.pos(p,x,y,z);
-                //(0,0,0)
-                buffer[bbase              ] = p[0]-h2;
-                buffer[bbase            +1] = p[1]-h2;
-                buffer[bbase            +2] = p[2]-h2;
-                //(0,0,1)
-                buffer[bbase+  DIMENSION  ] = p[0]-h2;
-                buffer[bbase+  DIMENSION+1] = p[1]-h2;
-                buffer[bbase+  DIMENSION+2] = p[2]+h2;
-                //(0,1,1)
-                buffer[bbase+2*DIMENSION  ] = p[0]-h2;
-                buffer[bbase+2*DIMENSION+1] = p[1]+h2;
-                buffer[bbase+2*DIMENSION+2] = p[2]+h2;
-                //(0,1,0)
-                buffer[bbase+3*DIMENSION  ] = p[0]-h2;
-                buffer[bbase+3*DIMENSION+1] = p[1]+h2;
-                buffer[bbase+3*DIMENSION+2] = p[2]-h2;
-                //(1,0,0)
-                buffer[bbase+4*DIMENSION  ] = p[0]+h2;
-                buffer[bbase+4*DIMENSION+1] = p[1]-h2;
-                buffer[bbase+4*DIMENSION+2] = p[2]-h2;
-                //(1,0,1)
-                buffer[bbase+5*DIMENSION  ] = p[0]+h2;
-                buffer[bbase+5*DIMENSION+1] = p[1]-h2;
-                buffer[bbase+5*DIMENSION+2] = p[2]+h2;
-                //(1,1,1)
-                buffer[bbase+6*DIMENSION  ] = p[0]+h2;
-                buffer[bbase+6*DIMENSION+1] = p[1]+h2;
-                buffer[bbase+6*DIMENSION+2] = p[2]+h2;
-                //(1,1,0)
-                buffer[bbase+7*DIMENSION  ] = p[0]+h2;
-                buffer[bbase+7*DIMENSION+1] = p[1]+h2;
-                buffer[bbase+7*DIMENSION+2] = p[2]-h2;
-                #else
                 double p[2];
                 info.pos(p,x,y);
                 //(0,0)
@@ -553,7 +508,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const std::string &
                 //(1,0)
                 buffer[bbase+3*DIMENSION  ] = p[0]+h2;
                 buffer[bbase+3*DIMENSION+1] = p[1]-h2;
-                #endif
             }
         }
         save_buffer_to_file<float>(buffer, 1, comm,gridFilePath,"vertices",file_id_grid,fapl_id_grid);
@@ -611,11 +565,9 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime, const std::string 
     std::vector<BlockGroup> & MyGroups = grid.MyGroups;
     grid.UpdateMyGroups();
 
-    #if DIMENSION==2
         double hmin = 1e10;
         for (size_t groupID = 0 ; groupID < MyGroups.size() ; groupID ++) hmin = std::min(hmin,MyGroups[groupID].h);
         MPI_Allreduce(MPI_IN_PLACE, &hmin, 1, MPI_DOUBLE, MPI_MIN, comm);
-    #endif
 
     long long mycells = 0;
     for (size_t groupID = 0 ; groupID < MyGroups.size() ; groupID ++)
@@ -653,11 +605,7 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime, const std::string 
             s << "    " << std::scientific << group.origin[2]<< " " << group.origin[1]<< " " << group.origin[0]<< "\n";
             s << "   </DataItem>\n";
             s << "   <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
-            #if DIMENSION == 3
-              s << "    " << std::scientific <<group.h<<" "<<group.h <<" "<< group.h << "\n";
-            #else
               s << "    " << std::scientific <<hmin<<" "<<group.h <<" "<< group.h << "\n";
-            #endif
             s << "   </DataItem>\n";
             s << "   </Geometry>\n";
   
@@ -812,11 +760,7 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime, const std::string 
         for (int jB = group.i_min[1]; jB <= group.i_max[1]; jB++)
         for (int iB = group.i_min[0]; iB <= group.i_max[0]; iB++)
         {
-            #if DIMENSION == 3
-              const long long Z = BlockInfo::forward(group.level,iB,jB,kB);
-            #else
               const long long Z = BlockInfo::forward(group.level,iB,jB);
-            #endif
             const cubism::BlockInfo& I = grid.getBlockInfoAll(group.level,Z);
             const auto & lab = * (B*) (I.ptrBlock);
             for (int iz = 0; iz < nZ; iz++)

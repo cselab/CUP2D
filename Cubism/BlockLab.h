@@ -13,13 +13,8 @@ namespace cubism
 #define memcpy2(a, b, c) memcpy((a), (b), (c))
 
 //default coarse-fine interpolation stencil
-#if DIMENSION == 3
-    constexpr int default_start [3] = {-1,-1,-1};
-    constexpr int default_end   [3] = {2,2,2}; 
-#else
     constexpr int default_start [3] = {-1,-1,0};
     constexpr int default_end   [3] = {2,2,1}; 
-#endif
 
 /** \brief Copy of a Gridblock plus halo cells.*/
 /** This class provides the user a copy of a Gridblock that is extended by a layer of halo cells.
@@ -231,15 +226,9 @@ class BlockLab
                                   CoarseBlockSize[2] + e[2] - offset[2] - 1);
       }
 
-      #if DIMENSION == 3
-         use_averages = (m_refGrid->FiniteDifferences == false || istensorial
-                        || m_stencilStart[0]< -2 || m_stencilStart[1] < -2 || m_stencilStart[2] < -2 
-                        || m_stencilEnd  [0]>  3 || m_stencilEnd  [1] >  3 || m_stencilEnd  [2] >  3);
-      #else
          use_averages = (m_refGrid->FiniteDifferences == false || istensorial
                         || m_stencilStart[0]< -2 || m_stencilStart[1] < -2 
                         || m_stencilEnd  [0]>  3 || m_stencilEnd  [1] >  3);
-      #endif
 
    }
 
@@ -400,39 +389,6 @@ class BlockLab
    {
       const int nX = BlockType::sizeX;
       const int nY = BlockType::sizeY;
-      #if DIMENSION == 3
-         const int nZ = BlockType::sizeZ;
-         if (coarsened)
-         {
-            #pragma GCC ivdep
-            for (int k = 0; k < nZ / 2; k++)
-            {
-               #pragma GCC ivdep
-               for (int j = 0; j < nY / 2; j++)
-               {
-                  #pragma GCC ivdep
-                  for (int i = 0; i < nX / 2; i++)
-                  {
-                     if (i > -m_InterpStencilStart[0] && i < nX / 2 - m_InterpStencilEnd[0] &&
-                         j > -m_InterpStencilStart[1] && j < nY / 2 - m_InterpStencilEnd[1] &&
-                         k > -m_InterpStencilStart[2] && k < nZ / 2 - m_InterpStencilEnd[2]) continue;
-                     const int ix = 2 * i - m_stencilStart[0];
-                     const int iy = 2 * j - m_stencilStart[1];
-                     const int iz = 2 * k - m_stencilStart[2];
-                     ElementType &coarseElement = m_CoarsenedBlock->Access(i - offset[0], j - offset[1], k - offset[2]);
-                     coarseElement = AverageDown( m_cacheBlock->Read(ix  ,iy  ,iz  ), 
-                                                  m_cacheBlock->Read(ix+1,iy  ,iz  ),
-                                                  m_cacheBlock->Read(ix  ,iy+1,iz  ),
-                                                  m_cacheBlock->Read(ix+1,iy+1,iz  ),
-                                                  m_cacheBlock->Read(ix  ,iy  ,iz+1),
-                                                  m_cacheBlock->Read(ix+1,iy  ,iz+1),
-                                                  m_cacheBlock->Read(ix  ,iy+1,iz+1),
-                                                  m_cacheBlock->Read(ix+1,iy+1,iz+1));
-                  }
-               }
-            }
-         }
-      #else
          if (coarsened)
          {
             #pragma GCC ivdep
@@ -453,7 +409,6 @@ class BlockLab
                }
             }
          }
-      #endif
       if (applybc) _apply_bc(info, t, true); // apply BC to coarse block
       CoarseFineInterpolation(info);
       if (applybc) _apply_bc(info, t); 
@@ -560,68 +515,6 @@ class BlockLab
       }
    }
 
-   #if DIMENSION == 3
-   /// Average down eight elements (3D)
-   ElementType AverageDown(const ElementType &e0, const ElementType &e1, 
-                           const ElementType &e2, const ElementType &e3,
-                           const ElementType &e4, const ElementType &e5,
-                           const ElementType &e6, const ElementType &e7)
-   {
-      #ifdef PRESERVE_SYMMETRY
-      return ConsistentAverage<ElementType>(e0,e1,e2,e3,e4,e5,e6,e7);
-      #else
-      return 0.125 * (e0 + e1 + e2 + e3 + e4 + e5 + e6 + e7);
-      #endif
-   }
-
-   /** Coarse-fine interpolation function, based on interpolation stencil of +-1 point.
-    *  This function evaluates a third-order Taylor expansion by using a stencil of +-1 points 
-    *  around the coarse grid point that will be replaced by eight finer ones. This function can
-    *  be overwritten by derived versions of BlockLab, to enable a custom interpolation. The +-1
-    *  points used here come from the 'interpolation stencil' passed to BlockLab.
-    *  @param C: pointer to the +-1 points around the coarse point (27 values in total)
-    *  @param R: pointer to the eight refined points around the coarse point 
-    *  @param x: deprecated parameter, used only in the 2D version of this function 
-    *  @param y: deprecated parameter, used only in the 2D version of this function 
-    *  @param z: deprecated parameter, used only in the 2D version of this function 
-    */
-   virtual void TestInterp(ElementType *C[3][3][3], ElementType *R, int x, int y, int z)
-   {
-      #ifdef PRESERVE_SYMMETRY
-      const ElementType dudx   = 0.125*( (*C[2][1][1]) - (*C[0][1][1]) );
-      const ElementType dudy   = 0.125*( (*C[1][2][1]) - (*C[1][0][1]) );
-      const ElementType dudz   = 0.125*( (*C[1][1][2]) - (*C[1][1][0]) );
-      const ElementType dudxdy = 0.015625*(((*C[0][0][1]) + (*C[2][2][1])) - ((*C[2][0][1]) + (*C[0][2][1])));
-      const ElementType dudxdz = 0.015625*(((*C[0][1][0]) + (*C[2][1][2])) - ((*C[2][1][0]) + (*C[0][1][2])));
-      const ElementType dudydz = 0.015625*(((*C[1][0][0]) + (*C[1][2][2])) - ((*C[1][2][0]) + (*C[1][0][2])));
-      const ElementType lap    = *C[1][1][1] + 0.03125* ( ConsistentSum((*C[0][1][1]) + (*C[2][1][1]),(*C[1][0][1]) + (*C[1][2][1]),(*C[1][1][0]) + (*C[1][1][2])) -6.0*(*C[1][1][1]));
-      R[0] = lap + ( ConsistentSum((-1.0)*dudx,(-1.0)*dudy,(-1.0)*dudz) + ConsistentSum(       dudxdy,       dudxdz,       dudydz) );
-      R[1] = lap + ( ConsistentSum(       dudx,(-1.0)*dudy,(-1.0)*dudz) + ConsistentSum((-1.0)*dudxdy,(-1.0)*dudxdz,       dudydz) );
-      R[2] = lap + ( ConsistentSum((-1.0)*dudx,       dudy,(-1.0)*dudz) + ConsistentSum((-1.0)*dudxdy,       dudxdz,(-1.0)*dudydz) );
-      R[3] = lap + ( ConsistentSum(       dudx,       dudy,(-1.0)*dudz) + ConsistentSum(       dudxdy,(-1.0)*dudxdz,(-1.0)*dudydz) );
-      R[4] = lap + ( ConsistentSum((-1.0)*dudx,(-1.0)*dudy,       dudz) + ConsistentSum(       dudxdy,(-1.0)*dudxdz,(-1.0)*dudydz) );
-      R[5] = lap + ( ConsistentSum(       dudx,(-1.0)*dudy,       dudz) + ConsistentSum((-1.0)*dudxdy,       dudxdz,(-1.0)*dudydz) );
-      R[6] = lap + ( ConsistentSum((-1.0)*dudx,       dudy,       dudz) + ConsistentSum((-1.0)*dudxdy,(-1.0)*dudxdz,       dudydz) );
-      R[7] = lap + ( ConsistentSum(       dudx,       dudy,       dudz) + ConsistentSum(       dudxdy,       dudxdz,       dudydz) );
-      #else
-      const ElementType dudx   = 0.125*( (*C[2][1][1]) - (*C[0][1][1]) );
-      const ElementType dudy   = 0.125*( (*C[1][2][1]) - (*C[1][0][1]) );
-      const ElementType dudz   = 0.125*( (*C[1][1][2]) - (*C[1][1][0]) );
-      const ElementType dudxdy = 0.015625*((*C[0][0][1]) + (*C[2][2][1]) - (*C[2][0][1]) - (*C[0][2][1]));
-      const ElementType dudxdz = 0.015625*((*C[0][1][0]) + (*C[2][1][2]) - (*C[2][1][0]) - (*C[0][1][2]));
-      const ElementType dudydz = 0.015625*((*C[1][0][0]) + (*C[1][2][2]) - (*C[1][2][0]) - (*C[1][0][2]));
-      const ElementType lap    = *C[1][1][1] + 0.03125*((*C[0][1][1]) + (*C[2][1][1]) + (*C[1][0][1]) + (*C[1][2][1]) + (*C[1][1][0]) + (*C[1][1][2]) + (-6.0)*(*C[1][1][1]));
-      R[0] = lap - dudx - dudy - dudz + dudxdy + dudxdz + dudydz;
-      R[1] = lap + dudx - dudy - dudz - dudxdy - dudxdz + dudydz;
-      R[2] = lap - dudx + dudy - dudz - dudxdy + dudxdz - dudydz;
-      R[3] = lap + dudx + dudy - dudz + dudxdy - dudxdz - dudydz;
-      R[4] = lap - dudx - dudy + dudz + dudxdy - dudxdz - dudydz;
-      R[5] = lap + dudx - dudy + dudz - dudxdy + dudxdz - dudydz;
-      R[6] = lap - dudx + dudy + dudz - dudxdy - dudxdz + dudydz;
-      R[7] = lap + dudx + dudy + dudz + dudxdy + dudxdz + dudydz;
-      #endif
-   }
-   #else
    /// Average down four elements (2D)
    ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                            const ElementType &e2, const ElementType &e3)
@@ -666,7 +559,6 @@ class BlockLab
       ElementType dudy2  = ((*C[1][0]) + (*C[1][2])) -2.0*(*C[1][1]);
       R = (*C[1][1] + (dx*dudx + dy*dudy)) + ( ((0.5*dx*dx)*dudx2+(0.5*dy*dy)*dudy2) +(dx*dy)*dudxdy );
    }
-   #endif
 
    /** Exchange halo cells from fine to coarse blocks.
     * @param info: the BlockInfo for the GridBlock that needs halo cells.
@@ -716,16 +608,9 @@ class BlockLab
       {
          const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
-         #if DIMENSION == 3
-            BlockType *b_ptr = m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] + (B % 2) * std::max(0, 1 - abs(code[0])),
-                                                 2 * info.index[1] + std::max(code[1], 0) + code[1] + aux     * std::max(0, 1 - abs(code[1])),
-                                                 2 * info.index[2] + std::max(code[2], 0) + code[2] + (B / 2) * std::max(0, 1 - abs(code[2])),
-                                                 info.level + 1);
-         #else
             BlockType *b_ptr = m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] + (B % 2) * std::max(0, 1 - abs(code[0])),
                                                  2 * info.index[1] + std::max(code[1], 0) + code[1] + aux     * std::max(0, 1 - abs(code[1])),
                                                  info.level + 1);
-         #endif
          if (b_ptr == nullptr) continue;
          BlockType &b = *b_ptr;
 
@@ -749,32 +634,6 @@ class BlockLab
                const int YY1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * yStep - code[1] * nY) + std::min(0, code[1]) * nY : iy + 1 * yStep;
                const int YY2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * yStep - code[1] * nY) + std::min(0, code[1]) * nY : iy + 2 * yStep;
                const int YY3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * yStep - code[1] * nY) + std::min(0, code[1]) * nY : iy + 3 * yStep;
-               #if DIMENSION == 3
-                  const ElementType * ptrSrc_00 = &b(XX  ,YY0  ,ZZ  );
-                  const ElementType * ptrSrc_10 = &b(XX  ,YY0  ,ZZ+1);
-                  const ElementType * ptrSrc_20 = &b(XX  ,YY0+1,ZZ  );
-                  const ElementType * ptrSrc_30 = &b(XX  ,YY0+1,ZZ+1);
-                  const ElementType * ptrSrc_01 = &b(XX  ,YY1  ,ZZ  );
-                  const ElementType * ptrSrc_11 = &b(XX  ,YY1  ,ZZ+1);
-                  const ElementType * ptrSrc_21 = &b(XX  ,YY1+1,ZZ  );
-                  const ElementType * ptrSrc_31 = &b(XX  ,YY1+1,ZZ+1);
-                  const ElementType * ptrSrc_02 = &b(XX  ,YY2  ,ZZ  );
-                  const ElementType * ptrSrc_12 = &b(XX  ,YY2  ,ZZ+1);
-                  const ElementType * ptrSrc_22 = &b(XX  ,YY2+1,ZZ  );
-                  const ElementType * ptrSrc_32 = &b(XX  ,YY2+1,ZZ+1);
-                  const ElementType * ptrSrc_03 = &b(XX  ,YY3  ,ZZ  );
-                  const ElementType * ptrSrc_13 = &b(XX  ,YY3  ,ZZ+1);
-                  const ElementType * ptrSrc_23 = &b(XX  ,YY3+1,ZZ  );
-                  const ElementType * ptrSrc_33 = &b(XX  ,YY3+1,ZZ+1);
-                  #pragma GCC ivdep
-                  for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) + (1 - abs(code[0])) * ((e[0] - s[0]) / 2)); ee++)
-                  {
-                     ptrDest0[ee] = AverageDown(ptrSrc_00[2*ee],ptrSrc_10[2*ee],ptrSrc_20[2*ee],ptrSrc_30[2*ee],ptrSrc_00[2*ee+1],ptrSrc_10[2*ee+1],ptrSrc_20[2*ee+1],ptrSrc_30[2*ee+1]);
-                     ptrDest1[ee] = AverageDown(ptrSrc_01[2*ee],ptrSrc_11[2*ee],ptrSrc_21[2*ee],ptrSrc_31[2*ee],ptrSrc_01[2*ee+1],ptrSrc_11[2*ee+1],ptrSrc_21[2*ee+1],ptrSrc_31[2*ee+1]);
-                     ptrDest2[ee] = AverageDown(ptrSrc_02[2*ee],ptrSrc_12[2*ee],ptrSrc_22[2*ee],ptrSrc_32[2*ee],ptrSrc_02[2*ee+1],ptrSrc_12[2*ee+1],ptrSrc_22[2*ee+1],ptrSrc_32[2*ee+1]);
-                     ptrDest3[ee] = AverageDown(ptrSrc_03[2*ee],ptrSrc_13[2*ee],ptrSrc_23[2*ee],ptrSrc_33[2*ee],ptrSrc_03[2*ee+1],ptrSrc_13[2*ee+1],ptrSrc_23[2*ee+1],ptrSrc_33[2*ee+1]);
-                  }
-               #else
                  const ElementType *ptrSrc_00 = &b(XX,YY0  ,ZZ);
                  const ElementType *ptrSrc_10 = &b(XX,YY0+1,ZZ);
                  const ElementType *ptrSrc_01 = &b(XX,YY1  ,ZZ);
@@ -795,29 +654,12 @@ class BlockLab
                     ptrDest3[ee] = AverageDown(*(ptrSrc_03 + 2 * ee), *(ptrSrc_13 + 2 * ee),
                                                *(ptrSrc_03 + 2 * ee + 1), *(ptrSrc_13 + 2 * ee + 1));
                   }
-               #endif
             }
             #pragma GCC ivdep
             for (int iy = e[1]-mod; iy < e[1]; iy += yStep)
             {
                ElementType *ptrDest = (ElementType *)&m_cacheBlock->LinAccess(my_izx + (abs(code[1]) * (iy - m_stencilStart[1]) + (1 - abs(code[1])) *(iy / 2 - m_stencilStart[1] + aux * (e[1] - s[1]) / 2)) * m_vSize0);
                const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY : iy;
-               #if DIMENSION == 3
-                  const ElementType * ptrSrc_0 = &b(XX, YY, ZZ);
-                  const ElementType * ptrSrc_1 = &b(XX, YY, ZZ + 1);
-                  const ElementType * ptrSrc_2 = &b(XX, YY + 1, ZZ);
-                  const ElementType * ptrSrc_3 = &b(XX, YY + 1, ZZ + 1);
-                  const ElementType * ptrSrc_0_1 = &b(XX+1, YY, ZZ);
-                  const ElementType * ptrSrc_1_1 = &b(XX+1, YY, ZZ + 1);
-                  const ElementType * ptrSrc_2_1 = &b(XX+1, YY + 1, ZZ);
-                  const ElementType * ptrSrc_3_1 = &b(XX+1, YY + 1, ZZ + 1);
-                  // average down elements of block b to send to coarser neighbor
-                  #pragma GCC ivdep
-                  for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) + (1 - abs(code[0])) * ((e[0] - s[0]) / 2)); ee++)
-                  {
-                     ptrDest[ee] = AverageDown(ptrSrc_0[2*ee],ptrSrc_1[2*ee],ptrSrc_2[2*ee],ptrSrc_3[2*ee],ptrSrc_0_1[2*ee],ptrSrc_1_1[2*ee],ptrSrc_2_1[2*ee],ptrSrc_3_1[2*ee]);
-                  }
-               #else
                   const ElementType * ptrSrc_0 = &b(XX, YY    , ZZ);
                   const ElementType * ptrSrc_1 = &b(XX, YY + 1, ZZ);
                   // average down elements of block b to send to coarser neighbor
@@ -827,7 +669,6 @@ class BlockLab
                      ptrDest[ee] = AverageDown(*(ptrSrc_0 + 2 * ee    ), *(ptrSrc_1 + 2 * ee    ),
                                                *(ptrSrc_0 + 2 * ee + 1), *(ptrSrc_1 + 2 * ee + 1));
                   }
-               #endif
             }
          }
       } // B
@@ -848,14 +689,8 @@ class BlockLab
       const int infoNei_index_true[3] ={(info.index[0]+code[0]),
                                         (info.index[1]+code[1]),
                                         (info.index[2]+code[2])};
-      #if DIMENSION == 3
-         BlockType *b_ptr = m_refGrid->avail1((infoNei_index[0]) / 2,
-                                              (infoNei_index[1]) / 2,
-                                              (infoNei_index[2]) / 2, info.level - 1);
-      #else
          BlockType *b_ptr = m_refGrid->avail1((infoNei_index[0]) / 2,
                                               (infoNei_index[1]) / 2, info.level - 1);
-      #endif
 
       if (b_ptr == nullptr) return;
       const BlockType &b = *b_ptr;
@@ -988,25 +823,6 @@ class BlockLab
             ElementType * __restrict__ ptrDest1 = &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
 
             const int YY = 2 * (iy - s[1]) + start[1];
-            #if DIMENSION == 3
-               const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
-               const ElementType *ptrSrc_1 = &b(XX, YY, ZZ + 1);
-               const ElementType *ptrSrc_2 = &b(XX, YY + 1, ZZ);
-               const ElementType *ptrSrc_3 = &b(XX, YY + 1, ZZ + 1);
-               // average down elements of block b to send to coarser neighbor
-               #pragma GCC ivdep
-               for (int ee = 0; ee < e[0] - s[0]; ee++)
-               {
-                  ptrDest1[ee] = AverageDown(*(ptrSrc_0 + 2 * ee), 
-                                             *(ptrSrc_1 + 2 * ee),
-                                             *(ptrSrc_2 + 2 * ee), 
-                                             *(ptrSrc_3 + 2 * ee),
-                                             *(ptrSrc_0 + 2 * ee + 1), 
-                                             *(ptrSrc_1 + 2 * ee + 1),
-                                             *(ptrSrc_2 + 2 * ee + 1), 
-                                             *(ptrSrc_3 + 2 * ee + 1));
-               }
-            #else
                const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
                const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
                // average down elements of block b to send to coarser neighbor
@@ -1018,7 +834,6 @@ class BlockLab
                                              *(ptrSrc_0 + 2 * ee + 1), 
                                              *(ptrSrc_1 + 2 * ee + 1));
                }
-            #endif
          }
       }
    }
@@ -1051,9 +866,7 @@ class BlockLab
          if (icode == 1 * 1 + 3 * 1 + 9 * 1) continue;
          const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
 
-         #if DIMENSION == 2
          if (code[2] != 0) continue;
-         #endif
 
          if (!xperiodic && code[0] == xskip && xskin) continue;
          if (!yperiodic && code[1] == yskip && yskin) continue;
@@ -1076,263 +889,6 @@ class BlockLab
          const int bytes = (e[0] - s[0]) * sizeof(ElementType);
          if (!bytes) continue;
 
-         #if DIMENSION == 3
-            ElementType retval[8];
-            if (use_averages)
-               for (int iz = s[2]; iz < e[2]; iz += 2)
-               {
-                  const int ZZ = (iz - s[2] - std::min(0, code[2]) * ((e[2] - s[2]) % 2)) / 2 + sC[2];
-                  const int z = abs(iz - s[2] - std::min(0, code[2]) * ((e[2] - s[2]) % 2)) % 2;
-                  const int izp = (abs(iz) % 2 == 1) ?  -1 : 1;
-                  const int rzp = (izp == 1) ? 1:0;
-                  const int rz  = (izp == 1) ? 0:1;
-
-                  #pragma GCC ivdep   
-                  for (int iy = s[1]; iy < e[1]; iy += 2)
-                  {
-                     const int YY = (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 + sC[1];
-                     const int y = abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-                     const int iyp = (abs(iy) % 2 == 1) ?  -1 : 1;
-                     const int ryp = (iyp == 1) ? 1:0;
-                     const int ry  = (iyp == 1) ? 0:1;
-
-                     #pragma GCC ivdep      
-                     for (int ix = s[0]; ix < e[0]; ix += 2)
-                     {
-                        const int XX = (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 + sC[0];
-                        const int x = abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
-                        const int ixp = (abs(ix) % 2 == 1) ?  -1 : 1;
-                        const int rxp = (ixp == 1) ? 1:0;
-                        const int rx  = (ixp == 1) ? 0:1;
-   
-                        ElementType *Test[3][3][3];
-                        for (int i = 0; i < 3; i++)
-                           for (int j = 0; j < 3; j++)
-                              for (int k = 0; k < 3; k++)
-                                 Test[i][j][k] = &m_CoarsenedBlock->Access(XX - 1 + i - offset[0], YY - 1 + j - offset[1], ZZ - 1 + k - offset[2]);
-   
-                        TestInterp(Test,retval,x,y,z);
-      
-                        if (ix       >= s[0] && ix        < e[0] && iy       >= s[1] && iy        < e[1] && iz       >= s[2] && iz       < e[2])
-                          m_cacheBlock->Access(ix     - m_stencilStart[0],iy       - m_stencilStart[1],iz       - m_stencilStart[2]) = retval[ rx  +2*ry  +4*rz ];
-                        if (ix + ixp >= s[0] && ix + ixp  < e[0] && iy       >= s[1] && iy        < e[1] && iz       >= s[2] && iz       < e[2])
-                          m_cacheBlock->Access(ix+ixp - m_stencilStart[0],iy       - m_stencilStart[1],iz       - m_stencilStart[2]) = retval[ rxp +2*ry  +4*rz ];
-                        if (ix       >= s[0] && ix        < e[0] && iy + iyp >= s[1] && iy + iyp  < e[1] && iz       >= s[2] && iz       < e[2])
-                          m_cacheBlock->Access(ix     - m_stencilStart[0],iy + iyp - m_stencilStart[1],iz       - m_stencilStart[2]) = retval[ rx  +2*ryp +4*rz ];
-                        if (ix + ixp >= s[0] && ix + ixp  < e[0] && iy + iyp >= s[1] && iy + iyp  < e[1] && iz       >= s[2] && iz       < e[2])
-                          m_cacheBlock->Access(ix+ixp - m_stencilStart[0],iy + iyp - m_stencilStart[1],iz       - m_stencilStart[2]) = retval[ rxp +2*ryp +4*rz ];
-                        if (ix       >= s[0] && ix        < e[0] && iy       >= s[1] && iy        < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                          m_cacheBlock->Access(ix     - m_stencilStart[0],iy       - m_stencilStart[1],iz + izp - m_stencilStart[2]) = retval[ rx  +2*ry  +4*rzp];
-                        if (ix + ixp >= s[0] && ix + ixp  < e[0] && iy       >= s[1] && iy        < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                          m_cacheBlock->Access(ix+ixp - m_stencilStart[0],iy       - m_stencilStart[1],iz + izp - m_stencilStart[2]) = retval[ rxp +2*ry  +4*rzp];
-                        if (ix       >= s[0] && ix        < e[0] && iy + iyp >= s[1] && iy + iyp  < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                          m_cacheBlock->Access(ix     - m_stencilStart[0],iy + iyp - m_stencilStart[1],iz + izp - m_stencilStart[2]) = retval[ rx  +2*ryp +4*rzp];
-                        if (ix + ixp >= s[0] && ix + ixp  < e[0] && iy + iyp >= s[1] && iy + iyp  < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                          m_cacheBlock->Access(ix+ixp - m_stencilStart[0],iy + iyp - m_stencilStart[1],iz + izp - m_stencilStart[2]) = retval[ rxp +2*ryp +4*rzp];
-                     }
-                  }
-               }
-            if (m_refGrid->FiniteDifferences && abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) //Correct stencil points +-1 and +-2 at faces
-            {
-               const int coef_ixyz [3] = {std::min(0, code[0]) * ((e[0] - s[0]) % 2),
-                                          std::min(0, code[1]) * ((e[1] - s[1]) % 2),
-                                          std::min(0, code[2]) * ((e[2] - s[2]) % 2)}; 
-               const int min_iz = std::max(s[2],-2);
-               const int min_iy = std::max(s[1],-2);
-               const int min_ix = std::max(s[0],-2);
-               const int max_iz = std::min(e[2],nZ+2);
-               const int max_iy = std::min(e[1],nY+2);
-               const int max_ix = std::min(e[0],nX+2);
-
-               for (int iz = min_iz; iz < max_iz; iz ++)
-               {
-                  const int ZZ  =    (iz - s[2] - coef_ixyz[2])/2 + sC[2] - offset[2];
-                  const int z   = abs(iz - s[2] - coef_ixyz[2])%2;
-                  const double dz = 0.25*(2*z-1);
-                  const double * dz_coef = dz > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-                  const bool zinner = (ZZ+offset[2] != 0) && (ZZ+offset[2] != CoarseBlockSize[2] - 1);
-                  const bool zstart = (ZZ+offset[2] == 0);
-
-                  #pragma GCC ivdep
-                  for (int iy = min_iy; iy < max_iy; iy ++)
-                  {
-                     const int YY =    (iy - s[1] - coef_ixyz[1])/2 + sC[1] - offset[1];
-                     const int y  = abs(iy - s[1] - coef_ixyz[1])%2;
-                     const double dy = 0.25*(2*y-1);
-                     const double * dy_coef = dy > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-                     const bool yinner = (YY+offset[1] != 0) && (YY+offset[1] != CoarseBlockSize[1] - 1);
-                     const bool ystart = (YY+offset[1] == 0);
-
-                     #pragma GCC ivdep
-                     for (int ix = min_ix; ix < max_ix; ix ++)
-                     {
-                        const int XX =    (ix - s[0] - coef_ixyz[0])/2 + sC[0] - offset[0];
-                        const int x  = abs(ix - s[0] - coef_ixyz[0])%2;
-                        const double dx = 0.25*(2*x-1);
-                        const double * dx_coef = dx > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-                        const bool xinner = (XX+offset[0] != 0) && (XX+offset[0] != CoarseBlockSize[0] - 1);
-                        const bool xstart = (XX+offset[0] == 0);
-
-                        auto & a = m_cacheBlock->Access(ix - m_stencilStart[0],iy - m_stencilStart[1],iz - m_stencilStart[2]);
-                        if (code[0] != 0) //X-face
-                        {
-                           ElementType x1D,x2D,mixed;
-
-                           int YP,YM,ZP,ZM;
-                           double mixed_coef = 1.0;
-                           if (yinner)
-                           {
-                              x1D = (dy_coef[6]*m_CoarsenedBlock->Access(XX,YY-1,ZZ) +dy_coef[8]*m_CoarsenedBlock->Access(XX,YY+1,ZZ))+ dy_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY+1;
-                              YM = YY-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (ystart)
-                           {
-                              x1D = (dy_coef[0]*m_CoarsenedBlock->Access(XX,YY+2,ZZ) + dy_coef[1]*m_CoarsenedBlock->Access(XX,YY+1,ZZ)) + dy_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY+1;
-                              YM = YY;
-                           }
-                           else
-                           {
-                              x1D = (dy_coef[3]*m_CoarsenedBlock->Access(XX,YY-2,ZZ) + dy_coef[4]*m_CoarsenedBlock->Access(XX,YY-1,ZZ)) + dy_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY;
-                              YM = YY-1;
-                           }
-                           if (zinner)
-                           {
-                              x2D = (dz_coef[6]*m_CoarsenedBlock->Access(XX,YY,ZZ-1) + dz_coef[8]*m_CoarsenedBlock->Access(XX,YY,ZZ+1))+ dz_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ+1;
-                              ZM = ZZ-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (zstart)
-                           {
-                              x2D = (dz_coef[0]*m_CoarsenedBlock->Access(XX,YY,ZZ+2) + dz_coef[1]*m_CoarsenedBlock->Access(XX,YY,ZZ+1)) + dz_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ+1;
-                              ZM = ZZ;
-                           }
-                           else
-                           {
-                              x2D = (dz_coef[3]*m_CoarsenedBlock->Access(XX,YY,ZZ-2) + dz_coef[4]*m_CoarsenedBlock->Access(XX,YY,ZZ-1)) + dz_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ;
-                              ZM = ZZ-1;
-                           }
-                           mixed = mixed_coef*dy*dz*((m_CoarsenedBlock->Access(XX,YM,ZM)+m_CoarsenedBlock->Access(XX,YP,ZP))-(m_CoarsenedBlock->Access(XX,YP,ZM)+m_CoarsenedBlock->Access(XX,YM,ZP)));
-                           a = (x1D + x2D) + mixed;
-                        }
-                        else if (code[1] != 0) //Y-face
-                        {
-                           ElementType x1D,x2D,mixed;
-
-                           int XP,XM,ZP,ZM;
-                           double mixed_coef = 1.0;
-                           if (xinner)
-                           {
-                              x1D = (dx_coef[6]*m_CoarsenedBlock->Access(XX-1,YY,ZZ)  + dx_coef[8]*m_CoarsenedBlock->Access(XX+1,YY,ZZ)) + dx_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX+1;
-                              XM = XX-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (xstart)
-                           {
-                              x1D = (dx_coef[0]*m_CoarsenedBlock->Access(XX+2,YY,ZZ) + dx_coef[1]*m_CoarsenedBlock->Access(XX+1,YY,ZZ)) + dx_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX+1;
-                              XM = XX;
-                           }
-                           else
-                           {
-                              x1D = (dx_coef[3]*m_CoarsenedBlock->Access(XX-2,YY,ZZ) + dx_coef[4]*m_CoarsenedBlock->Access(XX-1,YY,ZZ)) + dx_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX;
-                              XM = XX-1;
-                           }
-                           if (zinner)
-                           {
-                              x2D = (dz_coef[6]*m_CoarsenedBlock->Access(XX,YY,ZZ-1) + dz_coef[8]*m_CoarsenedBlock->Access(XX,YY,ZZ+1))+ dz_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ+1;
-                              ZM = ZZ-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (zstart)
-                           {
-                              x2D = (dz_coef[0]*m_CoarsenedBlock->Access(XX,YY,ZZ+2) + dz_coef[1]*m_CoarsenedBlock->Access(XX,YY,ZZ+1)) + dz_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ+1;
-                              ZM = ZZ;
-                           }
-                           else
-                           {
-                              x2D = (dz_coef[3]*m_CoarsenedBlock->Access(XX,YY,ZZ-2) + dz_coef[4]*m_CoarsenedBlock->Access(XX,YY,ZZ-1)) + dz_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              ZP = ZZ;
-                              ZM = ZZ-1;
-                           }
-                           mixed = mixed_coef*dx*dz*((m_CoarsenedBlock->Access(XM,YY,ZM)+m_CoarsenedBlock->Access(XP,YY,ZP))-(m_CoarsenedBlock->Access(XP,YY,ZM)+m_CoarsenedBlock->Access(XM,YY,ZP)));
-                           a = (x1D + x2D) + mixed;
-                        }
-                        else if (code[2] != 0) //Z-face
-                        {
-                           ElementType x1D,x2D,mixed;
-
-                           int XP,XM,YP,YM;
-                           double mixed_coef = 1.0;
-                           if (xinner)
-                           {
-                              x1D = (dx_coef[6]*m_CoarsenedBlock->Access(XX-1,YY,ZZ)  + dx_coef[8]*m_CoarsenedBlock->Access(XX+1,YY,ZZ)) + dx_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX+1;
-                              XM = XX-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (xstart)
-                           {
-                              x1D = (dx_coef[0]*m_CoarsenedBlock->Access(XX+2,YY,ZZ) + dx_coef[1]*m_CoarsenedBlock->Access(XX+1,YY,ZZ)) + dx_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX+1;
-                              XM = XX;
-                           }
-                           else
-                           {
-                              x1D = (dx_coef[3]*m_CoarsenedBlock->Access(XX-2,YY,ZZ) + dx_coef[4]*m_CoarsenedBlock->Access(XX-1,YY,ZZ)) + dx_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              XP = XX;
-                              XM = XX-1;
-                           }
-                           if (yinner)
-                           {
-                              x2D = (dy_coef[6]*m_CoarsenedBlock->Access(XX,YY-1,ZZ) +dy_coef[8]*m_CoarsenedBlock->Access(XX,YY+1,ZZ))+ dy_coef[7]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY+1;
-                              YM = YY-1;
-                              mixed_coef *= 0.5;
-                           }
-                           else if (ystart)
-                           {
-                              x2D = (dy_coef[0]*m_CoarsenedBlock->Access(XX,YY+2,ZZ) + dy_coef[1]*m_CoarsenedBlock->Access(XX,YY+1,ZZ)) + dy_coef[2]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY+1;
-                              YM = YY;
-                           }
-                           else
-                           {
-                              x2D = (dy_coef[3]*m_CoarsenedBlock->Access(XX,YY-2,ZZ) + dy_coef[4]*m_CoarsenedBlock->Access(XX,YY-1,ZZ)) + dy_coef[5]*m_CoarsenedBlock->Access(XX,YY,ZZ);
-                              YP = YY;
-                              YM = YY-1;
-                           }
-
-                           mixed = mixed_coef*dx*dy*((m_CoarsenedBlock->Access(XM,YM,ZZ)+m_CoarsenedBlock->Access(XP,YP,ZZ))-(m_CoarsenedBlock->Access(XP,YM,ZZ)+m_CoarsenedBlock->Access(XM,YP,ZZ)));
-                           a = (x1D + x2D) + mixed;
-                        }
-
-                        const auto & b = m_cacheBlock->Access(ix - m_stencilStart[0] + (-3*code[0]+1)/2 - x*abs(code[0]),
-                                                              iy - m_stencilStart[1] + (-3*code[1]+1)/2 - y*abs(code[1]),
-                                                              iz - m_stencilStart[2] + (-3*code[2]+1)/2 - z*abs(code[2]));
-                        const auto & c = m_cacheBlock->Access(ix - m_stencilStart[0] + (-5*code[0]+1)/2 - x*abs(code[0]),
-                                                              iy - m_stencilStart[1] + (-5*code[1]+1)/2 - y*abs(code[1]),
-                                                              iz - m_stencilStart[2] + (-5*code[2]+1)/2 - z*abs(code[2]));
-                        const int ccc  = code[0] + code[1] + code[2];
-                        const int xyz  = abs(code[0])*x+abs(code[1])*y+abs(code[2])*z;
-
-                        if (ccc == 1)     a = (xyz==0)?(1.0/15.0)*(8.0*a+(10.0*b-3.0*c)):(1.0/15.0)*(24.0*a+(-15.0*b+6*c));
-                        else /*(ccc=-1)*/ a = (xyz==1)?(1.0/15.0)*(8.0*a+(10.0*b-3.0*c)):(1.0/15.0)*(24.0*a+(-15.0*b+6*c));
-                     }
-                  }
-               }
-            }
-         #else
 
             if (use_averages)
             {
@@ -1498,7 +1054,6 @@ class BlockLab
                }
                }
             }
-         #endif
       }
    }
 
