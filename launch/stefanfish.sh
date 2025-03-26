@@ -1,4 +1,4 @@
-${main=./main} \
+"${main=./main}" \
     -bAdaptChiGradient 0 \
     -bMeanConstraint 1 \
     -bpdx 4 \
