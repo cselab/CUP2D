@@ -52,20 +52,19 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
                          const std::string &dataset_name, const hid_t &file_id,
                          const hid_t &fapl_id) {
   assert(buffer.size() % NCHANNELS == 0);
-  unsigned long long MyCells = buffer.size() / NCHANNELS;
-  unsigned long long TotalCells;
-  MPI_Allreduce(&MyCells, &TotalCells, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
-                comm);
+  unsigned long long ncell = buffer.size() / NCHANNELS;
+  unsigned long long ncell_total;
+  MPI_Allreduce(&ncell, &ncell_total, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
   hsize_t base_tmp[1] = {0};
-  MPI_Exscan(&MyCells, &base_tmp[0], 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+  MPI_Exscan(&ncell, &base_tmp[0], 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
   base_tmp[0] *= NCHANNELS;
   hid_t dataset_id, fspace_id, mspace_id;
-  hsize_t dims[1] = {(hsize_t)TotalCells * NCHANNELS};
+  hsize_t dims[1] = {(hsize_t)ncell_total * NCHANNELS};
   fspace_id = H5Screate_simple(1, dims, NULL);
   dataset_id =
       H5Dcreate(file_id, dataset_name.c_str(), get_hdf5_type<data_type>(),
                 fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  hsize_t count[1] = {MyCells * NCHANNELS};
+  hsize_t count[1] = {ncell * NCHANNELS};
   fspace_id = H5Dget_space(dataset_id);
   mspace_id = H5Screate_simple(1, count, NULL);
   H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
@@ -85,24 +84,30 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   if (SaveGrid) {
     gridCount++;
   }
+  char xyz_path[FILENAME_MAX];
+  snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
   latestTime = absTime;
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
   const int NCHANNELS = TStreamer::NCHANNELS;
+  int rank, size;
   MPI_Comm comm = grid.getWorldComm();
-  const int rank = grid.myrank;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
   fullpath << dpath << "/" << filename.str();
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
-  unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
-  unsigned long long TotalCells;
-  MPI_Allreduce(&MyCells, &TotalCells, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
-                comm);
+  unsigned long long ncell = MyInfos.size() * nX * nY * nZ;
+  unsigned long long offset, ncell_total;
+  MPI_Exscan(&ncell, &offset, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+  if (rank == 0)
+    offset = 0;
+  ncell_total = ncell + offset;
   H5open();
   hid_t file_id, fapl_id;
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -128,7 +133,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
-  if (rank == 0 && dumpGrid) {
+  if (rank == size - 1 && dumpGrid) {
     std::ostringstream myfilename;
     myfilename << filename.str();
     std::stringstream s;
@@ -138,19 +143,19 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
     s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
-    s << "   <Topology NumberOfElements=\"" << TotalCells
+    s << "   <Topology NumberOfElements=\"" << ncell_total
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
-      << TotalCells * PtsPerElement << " " << DIMENSION
+      << ncell_total * PtsPerElement << " " << 2
       << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
-      << "\" Format=\"HDF\">\n";
-    s << "            " << gridFile.c_str() << ":/" << "vertices" << "\n";
+      << "\" Format=\"Binary\">\n";
+    s << "            " << xyz_path << "\n";
     s << "        </DataItem>\n";
     s << "     </Geometry>\n";
     s << "     <Attribute Name=\"data\" AttributeType=\""
       << TStreamer::getAttributeName() << "\" Center=\"Cell\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
+    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << ncell_total
       << " " << NCHANNELS << "\" NumberType=\"Float\" Precision=\" "
       << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
     s << "            " << (myfilename.str() + ".h5").c_str() << ":/" << "data"
@@ -192,7 +197,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
-    std::vector<float> buffer(MyCells * PtsPerElement * DIMENSION);
+    std::vector<float> buffer(ncell * PtsPerElement * 2);
     for (size_t i = 0; i < MyInfos.size(); i++) {
       const BlockInfo &info = MyInfos[i];
       const float h2 = 0.5 * info.h;
@@ -200,26 +205,31 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
             const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
-                              PtsPerElement * DIMENSION;
+                              PtsPerElement * 2;
             double p[2];
             info.pos(p, x, y);
             buffer[bbase] = p[0] - h2;
             buffer[bbase + 1] = p[1] - h2;
-            buffer[bbase + DIMENSION] = p[0] - h2;
-            buffer[bbase + DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 2 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 3 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
+            buffer[bbase + 2] = p[0] - h2;
+            buffer[bbase + 3] = p[1] + h2;
+            buffer[bbase + 4] = p[0] + h2;
+            buffer[bbase + 5] = p[1] + h2;
+            buffer[bbase + 6] = p[0] + h2;
+            buffer[bbase + 7] = p[1] - h2;
           }
     }
-    save_buffer_to_file<float>(buffer, 1, comm, gridFilePath, "vertices",
-                               file_id_grid, fapl_id_grid);
+    MPI_File mpi_file;
+    MPI_File_open(comm, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                  MPI_INFO_NULL, &mpi_file);
+    MPI_File_write_at_all(mpi_file, 8 * offset * sizeof buffer[0],
+                          buffer.data(), 8 * ncell * sizeof buffer[0],
+                          MPI_UINT8_T, MPI_STATUS_IGNORE);
+    MPI_File_close(&mpi_file);
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
   {
-    std::vector<hdf5Real> buffer(MyCells * NCHANNELS);
+    std::vector<hdf5Real> buffer(ncell * NCHANNELS);
     for (size_t i = 0; i < MyInfos.size(); i++) {
       const BlockInfo &info = MyInfos[i];
       B &b = *(B *)info.ptrBlock;
