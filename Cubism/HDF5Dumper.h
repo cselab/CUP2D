@@ -194,7 +194,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "</Xdmf>\n";
     std::string st = s.str();
     FILE *xmf = 0;
-    xmf = fopen((fullpath.str() + "-new.xmf").c_str(), "w");
+    xmf = fopen((fullpath.str() + ".xdmf2").c_str(), "w");
     fprintf(xmf, "%s", st.c_str());
     fclose(xmf);
   }
