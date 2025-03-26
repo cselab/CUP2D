@@ -16,9 +16,8 @@ make "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
 
 or
 ```
-make \
-     "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
+module load gcc openmpi hdf5 gsl
+make "CXXFLAGS = -Ofast" "LIBS = -lhdf5_hl -lhdf5 `gsl-config --libs`"
 ```
 
 For GPU
@@ -32,7 +31,7 @@ or
 
 ```
 module load gcc/12 openmpi hdf5 gsl cuda
-make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lgsl -lgslcblas" "MPICXX = h5c++" -j 4
+make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lhdf5_hl -lhdf5 `gsl-config --libs`"
 ```
 
 ## Running
