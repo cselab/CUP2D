@@ -1,6 +1,6 @@
 gpu = false
 MPICXX = mpicxx
-NVCC = nvcc -ccbin='$(MPICXX)'
+NVCC = nvcc
 FLAGS = \
 -D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
@@ -9,7 +9,7 @@ FLAGS = \
 -I. \
 
 ifeq ("$(gpu)", "true")
-	LINK = $(NVCC)
+	LINK = $(NVCC)  -ccbin='$(MPICXX)'
 	L = -Xcompiler '$(LIBS)' -Xcompiler -fopenmp -lcublas -lcusparse
 	FLAGS += -DGPU_POISSON
 	NVCCFLAGS = -std=c++17 -O3 --use_fast_math

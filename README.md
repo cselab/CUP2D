@@ -32,7 +32,7 @@ or
 
 ```
 module load gcc/12 openmpi hdf5 gsl cuda
-make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lhdf5`
+make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lgsl -lgslcblas" "MPICXX = h5c++" -j 4
 ```
 
 ## Running
