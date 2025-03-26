@@ -54,12 +54,12 @@ Poisson/LocalSpMatDnVec.o \
 
 endif
 
-all: debugRL simulation libcup.a
+all: debugRL main libcup.a
 .DEFAULT: all
 debugRL: debugRL.o $(OBJECTS)
 	$(LINK) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
-simulation: main.o $(OBJECTS)
+main: main.o $(OBJECTS)
 	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)

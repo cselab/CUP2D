@@ -1,4 +1,4 @@
-./simulation \
+${main=./main} \
     -bMeanConstraint 1 \
     -bpdx 2 \
     -bpdy 1 \

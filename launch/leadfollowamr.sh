@@ -1,4 +1,4 @@
-./simulation \
+${simulation=${main=./main}} \
     -bpdx 4 \
     -bpdy 2 \
     -levelMax 7 \

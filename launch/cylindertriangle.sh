@@ -1,4 +1,4 @@
-./simulation \
+${main=./main} \
     -BC_y wall \
     -bpdx 8 \
     -bpdy 4 \
