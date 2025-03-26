@@ -48,7 +48,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     gridCount++;
   }
   snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
-  snprintf(attr_path, sizeof attr_path, "%s.raw", fname.c_str(), gridCount);
+  snprintf(attr_path, sizeof attr_path, "%s.raw", fname.c_str());
 
   latestTime = absTime;
   typedef typename TGrid::BlockType B;
