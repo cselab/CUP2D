@@ -10,7 +10,7 @@ FLAGS = \
 
 ifeq ("$(gpu)", "true")
 	LINK = $(NVCC)
-	L = -Xcompiler -fopenmp $(LIBS) -lcublas -lcusparse
+	L = -Xcompiler '$(LIBS)' -Xcompiler -fopenmp -lcublas -lcusparse
 	FLAGS += -DGPU_POISSON
 	NVCCFLAGS = -std=c++17 -O3 --use_fast_math
 	C = \
