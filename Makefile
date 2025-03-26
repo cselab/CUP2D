@@ -7,11 +7,12 @@ CPPFLAGS = \
 -D_BS_=$(bs) \
 -DCUBISM_ALIGNMENT=32 \
 -D_DOUBLE_PRECISION_ \
--ICubism/include -DDIMENSION=2 \
+-DDIMENSION=2 \
+-I.
 
 OBJECTS = \
 Simulation.o \
-Cubism/src/ArgumentParser.o \
+Cubism/ArgumentParser.o \
 Obstacles/CarlingFish.o \
 Obstacles/CStartFish.o \
 Obstacles/CylinderNozzle.o \
