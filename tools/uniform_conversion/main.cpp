@@ -233,11 +233,7 @@ void convert_to_uniform(std::string filename,int tttt)
     const int aux = 1 << (levelMax - 1 - allGroups[i].level);
     points[0] = std::max(points[0], (long long)(allGroups[i].index[0]*BS + allGroups[i].nx)*aux );
     points[1] = std::max(points[1], (long long)(allGroups[i].index[1]*BS + allGroups[i].ny)*aux );
-    #if DIMENSION == 2
       points[2] = 1;
-    #else
-      points[2] = std::max(points[2], (long long)(allGroups[i].index[2]*BS + allGroups[i].nz)*aux );
-    #endif
   }
   MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_LONG_LONG , MPI_MAX, MPI_COMM_WORLD);
 
@@ -260,22 +256,14 @@ void convert_to_uniform(std::string filename,int tttt)
     if (start_x > my_end) continue;
 
     const long long start_y = group.index[1]*BS*aux;
-    #if DIMENSION == 2
       const long long start_z = 0;
-    #else
-      const long long start_z = group.index[2]*BS*aux;
-    #endif
     for (int z = 0; z < group.nz; z++)
     for (int y = 0; y < group.ny; y++)
     for (int x = 0; x < group.nx; x++)
     {
       const double value = amr[base[i] + x + y * group.nx + z*group.nx*group.ny];
 
-      #if DIMENSION == 3
-        for (int z_up = aux * z; z_up < aux * (z+1); z_up++)
-      #else
         const int z_up = 0;
-      #endif
       for (int y_up = aux * y; y_up < aux * (y+1); y_up++)
       for (int x_up = aux * x; x_up < aux * (x+1); x_up++)
       {
@@ -303,11 +291,7 @@ void convert_to_uniform(std::string filename,int tttt)
     s << "<Domain>\n";
     //s << "  <Time Value=\"" << std::scientific << tttt << "\"/>\n\n";
     s << "  <Grid GridType=\"Uniform\">\n";
-    #if DIMENSION == 3
-      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << points[2]/Cfactor + 1 << " " << points[1]/Cfactor + 1<< " " << points[0]/Cfactor + 1 << "\"/>\n";
-    #else
       s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1<< " " << points[1]/Cfactor + 1<< " " << points[0]/Cfactor + 1 << "\"/>\n";
-    #endif
     s << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
     s << "       <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
     s << "            " << std::scientific << 0.0 << " " << 0.0 << " " << 0.0 << "\n";
@@ -317,11 +301,7 @@ void convert_to_uniform(std::string filename,int tttt)
     s << "       </DataItem>\n";
     s << "   </Geometry>\n";
     s << "   <Attribute Name=\"data\" AttributeType=\"" << "Scalar"<< "\" Center=\"Cell\">\n";
-    #if DIMENSION == 3
-      s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << points[2]/Cfactor << " " << points[1]/Cfactor << " " << points[0]/Cfactor << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
-    #else
       s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << 1 << " " << points[1]/Cfactor << " " << points[0]/Cfactor << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
-    #endif
     s << "       " << (filename + "-uniform.h5").c_str() << ":/" << "data" << "\n";
     s << "     </DataItem>\n";
     s << "   </Attribute>\n";  
@@ -374,22 +354,14 @@ void convert_to_uniform(std::string filename,int tttt)
     //H5Sclose(memspace);
 
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-    #if DIMENSION == 3
-      hsize_t dims[3]  = { (hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)points[0]/Cfactor };
-    #else
       hsize_t dims[3]  = { (hsize_t)1,(hsize_t)points[1]/Cfactor,(hsize_t)points[0]/Cfactor };
-    #endif
     fspace_id        = H5Screate_simple(3, dims, NULL);
     dataset_id       = H5Dcreate (file_id, "data", H5T_NATIVE_FLOAT ,fspace_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
     H5Sclose(fspace_id);
 
     fspace_id = H5Dget_space(dataset_id);
 
-    #if DIMENSION == 3
-      hsize_t count[3] = {(hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
-    #else
       hsize_t count[3] = {(hsize_t)1,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
-    #endif
     hsize_t base_tmp[3] = {0,0,(hsize_t)my_start/Cfactor};
     mspace_id = H5Screate_simple(3, count, NULL);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
@@ -408,9 +380,6 @@ void convert_to_uniform(std::string filename,int tttt)
   } 
 
   return;
-  #if DIMENSION == 3 
-  return;
-  #endif
   {
     //t is theta!
     const int Nt = 1024;
