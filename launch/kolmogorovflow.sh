@@ -20,5 +20,4 @@
     -forcingCoefficient 4 \
     -forcingWavenumber 4 \
     -ic random \
-    -smagorinskyCoeff 0.0 \
-    -shapes ''
+    -smagorinskyCoeff 0.0

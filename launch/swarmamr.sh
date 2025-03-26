@@ -16,7 +16,7 @@
     -tend 1 \
     -muteAll 0 \
     -verbose 1 \
-    -poissonSolver cuda_iterative \
+    -poissonSolver iterative \
     -shapes 'stefanfish L=0.2 T=1 xpos=0.60 ypos=1.00 bFixed=1 pidpos=0 pid=0
 		 stefanfish L=0.2 T=1 xpos=0.90 ypos=0.90 bFixed=1 pidpos=0 pid=0
 		 stefanfish L=0.2 T=1 xpos=0.90 ypos=1.10 bFixed=1 pidpos=0 pid=0
