@@ -1,9 +1,5 @@
-
-
 #pragma once
-
 #include "Fish.h"
-
 class Teardrop : public Fish {
   const Real Apitch;
   const Real Fpitch;

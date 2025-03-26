@@ -1,5 +1,4 @@
 #pragma once
-
 #include "BlockInfo.h"
 #include "ConsistentOperations.h"
 #include "PUPkernelsMPI.h"
@@ -12,9 +11,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
-
 namespace cubism {
-
 template <typename T> class GrowingVector {
   size_t pos;
   size_t s;
@@ -27,7 +24,6 @@ public:
   }
   GrowingVector(size_t size) { resize(size); }
   GrowingVector(size_t size, T value) { resize(size, value); }
-
   void resize(size_t new_size, T value) {
     v.resize(new_size, value);
     s = new_size;
@@ -36,14 +32,11 @@ public:
     v.resize(new_size);
     s = new_size;
   }
-
   size_t size() { return s; }
-
   void clear() {
     pos = 0;
     s = 0;
   }
-
   void push_back(T value) {
     if (pos < v.size())
       v[pos] = value;
@@ -52,34 +45,24 @@ public:
     pos++;
     s++;
   }
-
   T *data() { return v.data(); }
-
   T &operator[](size_t i) { return v[i]; }
-
   T &back() { return v[pos - 1]; }
   typename std::vector<T>::iterator begin() { return v.begin(); }
   typename std::vector<T>::iterator end() { return v.begin() + pos; }
-
   void EraseAll() {
     v.clear();
     pos = 0;
     s = 0;
   }
-
   ~GrowingVector() { v.clear(); }
 };
-
 struct Interface {
   BlockInfo *infos[2];
   int icode[2];
-
   bool CoarseStencil;
-
   bool ToBeKept;
-
   int dis;
-
   Interface(BlockInfo &i0, BlockInfo &i1, const int a_icode0,
             const int a_icode1) {
     infos[0] = &i0;
@@ -90,7 +73,6 @@ struct Interface {
     ToBeKept = true;
     dis = 0;
   }
-
   bool operator<(const Interface &other) const {
     if (infos[0]->blockID_2 == other.infos[0]->blockID_2) {
       if (icode[0] == other.icode[0]) {
@@ -104,10 +86,8 @@ struct Interface {
     return (infos[0]->blockID_2 < other.infos[0]->blockID_2);
   }
 };
-
 struct MyRange {
   std::vector<int> removedIndices;
-
   int index;
   int sx;
   int sy;
@@ -117,7 +97,6 @@ struct MyRange {
   int ez;
   bool needed{true};
   bool avg_down{true};
-
   bool contains(MyRange &r) const {
     if (avg_down != r.avg_down)
       return false;
@@ -126,7 +105,6 @@ struct MyRange {
     return (sx <= r.sx && r.ex <= ex) && (sy <= r.sy && r.ey <= ey) &&
            (sz <= r.sz && r.ez <= ez) && (Vr < V);
   }
-
   void Remove(const MyRange &other) {
     size_t s = removedIndices.size();
     removedIndices.resize(s + other.removedIndices.size());
@@ -134,10 +112,8 @@ struct MyRange {
       removedIndices[s + i] = other.removedIndices[i];
   }
 };
-
 struct UnPackInfo {
   int offset;
-
   int lx;
   int ly;
   int lz;
@@ -147,25 +123,19 @@ struct UnPackInfo {
   int LX;
   int LY;
   int CoarseVersionOffset;
-
   int CoarseVersionLX;
   int CoarseVersionLY;
   int CoarseVersionsrcxstart;
-
   int CoarseVersionsrcystart;
-
   int CoarseVersionsrczstart;
-
   int level;
   int icode;
-
   int rank;
   int index_0;
   int index_1;
   int index_2;
   long long IDreceiver;
 };
-
 struct StencilManager {
   const StencilInfo stencil;
   const StencilInfo Cstencil;
@@ -175,7 +145,6 @@ struct StencilManager {
   int sLength[3 * 27 * 3];
   std::array<MyRange, 3 * 27> AllStencils;
   MyRange Coarse_Range;
-
   StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
                  int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
@@ -185,11 +154,9 @@ struct StencilManager {
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
                        stencil.ey / 2 + Cstencil.ey,
                        stencil.ez / 2 + Cstencil.ez};
-
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
-
       MyRange &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
@@ -200,7 +167,6 @@ struct StencilManager {
       sLength[3 * icode + 0] = range0.ex - range0.sx;
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
-
       MyRange &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? nX + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? nY + 2 * stencil.sy : 0) : 0;
@@ -211,7 +177,6 @@ struct StencilManager {
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
-
       MyRange &range2 = AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? nX / 2 + sC[0] : 0) : 0;
       range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
@@ -224,13 +189,11 @@ struct StencilManager {
       sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
     }
   }
-
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
     L[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
-
   void DetermineStencilLength(const int level_sender, const int level_receiver,
                               const int icode, int *L) {
     if (level_sender == level_receiver) {
@@ -247,7 +210,6 @@ struct StencilManager {
       L[2] = sLength[3 * (icode + 2 * 27) + 2];
     }
   }
-
   MyRange &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
     if (CoarseVersion) {
       AllStencils[f.icode[1] + 2 * 27].needed = true;
@@ -263,7 +225,6 @@ struct StencilManager {
         Coarse_Range.needed = true;
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
-
         const int s[3] = {
             code[0] < 1
                 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 + Cstencil.sx) : 0)
@@ -274,7 +235,6 @@ struct StencilManager {
             code[2] < 1
                 ? (code[2] < 0 ? ((stencil.sz - 1) / 2 + Cstencil.sz) : 0)
                 : nZ / 2};
-
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2)
                         : nX / 2 + stencil.ex / 2 + Cstencil.ex - 1,
@@ -282,17 +242,13 @@ struct StencilManager {
                         : nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2)
                         : nZ / 2 + stencil.ez / 2 + Cstencil.ez - 1};
-
         const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
                              (f.infos[1]->index[1] + code[1]) % 2,
                              (f.infos[1]->index[2] + code[2]) % 2};
-
         int Cindex_true[3];
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
-
         int CoarseEdge[3];
-
         CoarseEdge[0] = (code[0] == 0) ? 0
                         : (((f.infos[1]->index[0] % 2 == 0) &&
                             (Cindex_true[0] > f.infos[1]->index[0])) ||
@@ -314,7 +270,6 @@ struct StencilManager {
                             (Cindex_true[2] < f.infos[1]->index[2])))
                             ? 1
                             : 0;
-
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -322,7 +277,6 @@ struct StencilManager {
                           (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
                           CoarseEdge[1] * code[1] * nY / 2;
         Coarse_Range.sz = 0;
-
         Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -330,12 +284,10 @@ struct StencilManager {
                           (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
                           CoarseEdge[1] * code[1] * nY / 2;
         Coarse_Range.ez = 1;
-
         return Coarse_Range;
       }
     }
   }
-
   void __FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
                        int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
                        int &sx, int &sy, int &sz) {
@@ -356,7 +308,6 @@ struct StencilManager {
       sz = range_dup.sz - range.sz;
     }
   }
-
   void __FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
                         int &sy, int &sz) {
     if (f.infos[0]->level != f.infos[1]->level ||
@@ -369,13 +320,11 @@ struct StencilManager {
     sz = range_dup.sz - range.sz;
   }
 };
-
 struct HaloBlockGroup {
   std::vector<BlockInfo *> myblocks;
   std::set<int> myranks;
   bool ready = false;
 };
-
 template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   MPI_Comm comm;
   int rank;
@@ -387,33 +336,21 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   int nY;
   int nZ;
   MPI_Datatype MPIREAL;
-
   std::vector<BlockInfo *> inner_blocks;
   std::vector<BlockInfo *> halo_blocks;
-
   std::vector<GrowingVector<Real>> send_buffer;
   std::vector<GrowingVector<Real>> recv_buffer;
-
   std::vector<MPI_Request> requests;
-
   std::vector<int> send_buffer_size;
-
   std::vector<int> recv_buffer_size;
-
   std::set<int> Neighbors;
-
   GrowingVector<GrowingVector<UnPackInfo>> myunpacks;
-
   StencilManager SM;
-
   const unsigned int gptfloats;
   const int NC;
-
   struct PackInfo {
     Real *block;
-
     Real *pack;
-
     int sx;
     int sy;
     int sz;
@@ -422,53 +359,37 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     int ez;
   };
   std::vector<GrowingVector<PackInfo>> send_packinfos;
-
   std::vector<GrowingVector<Interface>> send_interfaces;
-
   std::vector<GrowingVector<Interface>> recv_interfaces;
-
   std::vector<std::vector<int>> ToBeAveragedDown;
-
   bool use_averages;
-
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
-
   std::unordered_map<int, MPI_Request *> mapofrequests;
-
   struct DuplicatesManager {
-
     struct cube {
       GrowingVector<MyRange> compass[27];
-
       void clear() {
         for (int i = 0; i < 27; i++)
           compass[i].clear();
       }
-
       cube() {}
-
       std::vector<MyRange *> keepEl() {
         std::vector<MyRange *> retval;
         for (int i = 0; i < 27; i++)
           for (size_t j = 0; j < compass[i].size(); j++)
             if (compass[i][j].needed)
               retval.push_back(&compass[i][j]);
-
         return retval;
       }
-
       void __needed(std::vector<int> &v) {
         static constexpr std::array<int, 3> faces_and_edges[18] = {
             {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
-
             {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
             {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
-
         for (auto &f : faces_and_edges)
           if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
             bool needme = false;
             auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
-
             for (size_t j1 = 0; j1 < me.size(); j1++)
               if (me[j1].needed) {
                 needme = true;
@@ -481,24 +402,20 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
                     break;
                   }
               }
-
             if (!needme)
               continue;
-
             const int imax = (f[0] == 1) ? 2 : f[0];
             const int imin = (f[0] == 1) ? 0 : f[0];
             const int jmax = (f[1] == 1) ? 2 : f[1];
             const int jmin = (f[1] == 1) ? 0 : f[1];
             const int kmax = (f[2] == 1) ? 2 : f[2];
             const int kmin = (f[2] == 1) ? 0 : f[2];
-
             for (int k = kmin; k <= kmax; k++)
               for (int j = jmin; j <= jmax; j++)
                 for (int i = imin; i <= imax; i++) {
                   if (i == f[0] && j == f[1] && k == f[2])
                     continue;
                   auto &other = compass[i + j * 3 + k * 9];
-
                   for (size_t j1 = 0; j1 < other.size(); j1++) {
                     auto &o = other[j1];
                     if (o.needed)
@@ -518,16 +435,11 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
     };
     cube C;
-
     std::vector<int> offsets;
-
     std::vector<int> offsets_recv;
-
     SynchronizerMPI_AMR *Synch_ptr;
-
     std::vector<int> positions;
     std::vector<size_t> sizes;
-
     DuplicatesManager(SynchronizerMPI_AMR &Synch) {
       positions.resize(Synch.size);
       sizes.resize(Synch.size);
@@ -535,23 +447,18 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       offsets_recv.resize(Synch.size, 0);
       Synch_ptr = &Synch;
     }
-
     void Add(const int r, const int index) {
       if (sizes[r] == 0)
         positions[r] = index;
       sizes[r]++;
     }
-
     void RemoveDuplicates(const int r, std::vector<Interface> &f,
                           int &total_size) {
       if (sizes[r] == 0)
         return;
-
       bool skip_needed = false;
       const int nc = Synch_ptr->getstencil().selcomponents.size();
-
       std::sort(f.begin() + positions[r], f.begin() + sizes[r] + positions[r]);
-
       C.clear();
       for (size_t i = 0; i < sizes[r]; i++) {
         C.compass[f[i + positions[r]].icode[0]].push_back(
@@ -563,14 +470,12 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         if (skip_needed == false)
           skip_needed = f[i + positions[r]].CoarseStencil;
       }
-
       if (skip_needed == false) {
         std::vector<int> remEl;
         C.__needed(remEl);
         for (size_t k = 0; k < remEl.size(); k++)
           f[remEl[k]].ToBeKept = false;
       }
-
       int L[3] = {0, 0, 0};
       int Lc[3] = {0, 0, 0};
       for (auto &i : C.keepEl()) {
@@ -591,13 +496,11 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
           f[i->removedIndices[kk]].dis = f[k].dis;
       }
     }
-
     void RemoveDuplicates_recv(std::vector<Interface> &f, int &total_size,
                                const int otherrank, const size_t start,
                                const size_t finish) {
       bool skip_needed = false;
       const int nc = Synch_ptr->getstencil().selcomponents.size();
-
       C.clear();
       for (size_t i = start; i < finish; i++) {
         C.compass[f[i].icode[0]].push_back(
@@ -608,14 +511,12 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         if (skip_needed == false)
           skip_needed = f[i].CoarseStencil;
       }
-
       if (skip_needed == false) {
         std::vector<int> remEl;
         C.__needed(remEl);
         for (size_t k = 0; k < remEl.size(); k++)
           f[remEl[k]].ToBeKept = false;
       }
-
       for (auto &i : C.keepEl()) {
         const int k = i->index;
         int L[3] = {0, 0, 0};
@@ -657,11 +558,8 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
           info.CoarseVersionLX = Lc[0];
           info.CoarseVersionLY = Lc[1];
         }
-
         offsets_recv[otherrank] += V * nc;
-
         Synch_ptr->myunpacks[f[k].infos[1]->halo_block_id].push_back(info);
-
         for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
           const int remEl1 = i->removedIndices[kk];
           Synch_ptr->SM.DetermineStencilLength(f[remEl1].infos[0]->level,
@@ -677,7 +575,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
           if (f[k].CoarseStencil)
             Synch_ptr->SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy,
                                            Csrcz);
-
           Synch_ptr->myunpacks[f[remEl1].infos[1]->halo_block_id].push_back(
               {info.offset,
                L[0],
@@ -701,13 +598,11 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
                f[remEl1].infos[0]->index[1],
                f[remEl1].infos[0]->index[2],
                f[remEl1].infos[1]->blockID_2});
-
           f[remEl1].dis = info.offset;
         }
       }
     }
   };
-
   bool UseCoarseStencil(const Interface &f) {
     BlockInfo &a = *f.infos[0];
     BlockInfo &b = *f.infos[1];
@@ -736,7 +631,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
           imax[d] = 0;
       }
     }
-
     bool retval = false;
     for (int i2 = imin[2]; i2 <= imax[2]; i2++)
       for (int i1 = imin[1]; i1 <= imax[1]; i1++)
@@ -748,7 +642,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         }
     return retval;
   }
-
   void AverageDownAndFill(Real *__restrict__ dst, const BlockInfo *const info,
                           const int code[3]) {
     const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
@@ -782,7 +675,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
     }
   }
-
   void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
                            const int code[3]) {
     const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
@@ -791,27 +683,21 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                        (stencil.sy - 1) / 2 + Cstencil.sy,
                        (stencil.sz - 1) / 2 + Cstencil.sz};
-
     const int s[3] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : nX / 2,
                       code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : nY / 2,
                       code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : nZ / 2};
-
     const int e[3] = {
         code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2) : nX / 2 + eC[0] - 1,
         code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2) : nY / 2 + eC[1] - 1,
         code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2) : nZ / 2 + eC[2] - 1};
-
     Real *src = (Real *)(*info).ptrBlock;
-
     int pos = 0;
-
     for (int iy = s[1]; iy < e[1]; iy++) {
       const int YY = 2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * nY / 2 -
                      code[1] * nY + std::min(0, code[1]) * (e[1] - s[1]);
       for (int ix = s[0]; ix < e[0]; ix++) {
         const int XX = 2 * (ix - s[0]) + s[0] + std::max(code[0], 0) * nX / 2 -
                        code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]);
-
         for (int c = 0; c < NC; c++) {
           int comp = stencil.selcomponents[c];
           dst[pos] =
@@ -824,14 +710,12 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
     }
   }
-
 #if 0
   std::string removeLeadingZeros(const std::string& input)
   {
     std::size_t firstNonZero = input.find_first_not_of('0');
     if (firstNonZero == std::string::npos)
     {
-
       return "0";
     }
     return input.substr(firstNonZero);
@@ -848,7 +732,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     return retval;
   }
 #endif
-
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {
@@ -870,13 +753,10 @@ public:
       recv_interfaces[r].clear();
       send_buffer_size[r] = 0;
     }
-
     for (size_t i = 0; i < myunpacks.size(); i++)
       myunpacks[i].clear();
     myunpacks.clear();
-
     DuplicatesManager DM(*(this));
-
     for (BlockInfo &info : grid->getBlocksInfo()) {
       info.halo_block_id = -1;
       const bool xskin =
@@ -891,18 +771,14 @@ public:
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
-
       bool isInner = true;
-
       std::vector<int> ToBeChecked;
       bool Coarsened = false;
-
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-
         if (code[2] != 0)
           continue;
         if (!grid->xperiodic && code[0] == xskip && xskin)
@@ -911,31 +787,24 @@ public:
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
-
         const TreePosition &infoNeiTree =
             grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
-
         if (infoNeiTree.Exists() && infoNeiTree.rank() != rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree.rank());
-
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei_(code[0], code[1], code[2]));
-
           const int icode2 =
               (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-
           send_interfaces[infoNeiTree.rank()].push_back(
               {info, infoNei, icode, icode2});
           recv_interfaces[infoNeiTree.rank()].push_back(
               {infoNei, info, icode2, icode});
-
           ToBeChecked.push_back(infoNeiTree.rank());
           ToBeChecked.push_back(
               (int)send_interfaces[infoNeiTree.rank()].size() - 1);
           ToBeChecked.push_back(
               (int)recv_interfaces[infoNeiTree.rank()].size() - 1);
-
           DM.Add(infoNeiTree.rank(),
                  (int)send_interfaces[infoNeiTree.rank()].size() - 1);
         } else if (infoNeiTree.CheckCoarser()) {
@@ -947,22 +816,17 @@ public:
           if (infoNeiCoarserrank != rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
-
             BlockInfo &infoNeiCoarser =
                 grid->getBlockInfoAll(infoNei.level - 1, infoNei.Zparent);
-
             const int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-
             const int Bmax[3] = {grid->getMaxBlocks()[0] << (info.level - 1),
                                  grid->getMaxBlocks()[1] << (info.level - 1),
                                  grid->getMaxBlocks()[2] << (info.level - 1)};
-
             const int test_idx[3] = {
                 (infoNeiCoarser.index[0] - code[0] + Bmax[0]) % Bmax[0],
                 (infoNeiCoarser.index[1] - code[1] + Bmax[1]) % Bmax[1],
                 (infoNeiCoarser.index[2] - code[2] + Bmax[2]) % Bmax[2]};
-
             if (info.index[0] / 2 == test_idx[0] &&
                 info.index[1] / 2 == test_idx[1] &&
                 info.index[2] / 2 == test_idx[2]) {
@@ -970,37 +834,30 @@ public:
                   {info, infoNeiCoarser, icode, icode2});
               recv_interfaces[infoNeiCoarserrank].push_back(
                   {infoNeiCoarser, info, icode2, icode});
-
               DM.Add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
-
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
                 const int d0 = abs(code[1] + 2 * code[2]);
-
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
-
                 int code3[3];
                 code3[d0] = code[d0];
                 code3[d1] = -2 * (info.index[d1] % 2) + 1;
                 code3[d2] = -2 * (info.index[d2] % 2) + 1;
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-
                 int code4[3];
                 code4[d0] = code[d0];
                 code4[d1] = code3[d1];
                 code4[d2] = 0;
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-
                 int code5[3];
                 code5[d0] = code[d0];
                 code5[d1] = 0;
                 code5[d2] = code3[d2];
                 const int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-
                 if (code3[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, info, icode2, icode3});
@@ -1016,22 +873,17 @@ public:
         } else if (infoNeiTree.CheckFiner()) {
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei_(code[0], code[1], code[2]));
-
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
             Bstep = 4;
-
-          for (int B = 0; B <= 3; B += Bstep)
-
-          {
+          for (int B = 0; B <= 3; B += Bstep) {
             if (Bstep == 1 && B >= 2)
               continue;
             if (Bstep > 1 && B >= 1)
               continue;
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-
             const long long nFine =
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
@@ -1039,57 +891,43 @@ public:
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-
             const int infoNeiFinerrank =
                 grid->Tree(info.level + 1, nFine).rank();
-
             if (infoNeiFinerrank != rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
-
               BlockInfo &infoNeiFiner =
                   grid->getBlockInfoAll(info.level + 1, nFine);
-
               const int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-
               send_interfaces[infoNeiFinerrank].push_back(
                   {info, infoNeiFiner, icode, icode2});
               recv_interfaces[infoNeiFinerrank].push_back(
                   {infoNeiFiner, info, icode2, icode});
-
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
-
-              if (Bstep == 1)
-
-              {
+              if (Bstep == 1) {
                 const int d0 = abs(code[1] + 2 * code[2]);
-
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
-
                 int code3[3];
                 code3[d0] = -code[d0];
                 code3[d1] = -2 * (infoNeiFiner.index[d1] % 2) + 1;
                 code3[d2] = -2 * (infoNeiFiner.index[d2] % 2) + 1;
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-
                 int code4[3];
                 code4[d0] = -code[d0];
                 code4[d1] = code3[d1];
                 code4[d2] = 0;
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-
                 int code5[3];
                 code5[d0] = -code[d0];
                 code5[d1] = 0;
                 code5[d2] = code3[d2];
                 const int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
                       Interface(info, infoNeiFiner, icode, icode3));
@@ -1113,7 +951,6 @@ public:
           }
         }
       }
-
       if (isInner) {
         info.halo_block_id = -1;
         inner_blocks.push_back(&info);
@@ -1130,7 +967,6 @@ public:
             recv_interfaces[r][recv].CoarseStencil = tmp;
           }
         }
-
         for (int r = 0; r < size; r++)
           if (DM.sizes[r] > 0) {
             DM.RemoveDuplicates(r, send_interfaces[r].v, send_buffer_size[r]);
@@ -1140,13 +976,10 @@ public:
       grid->getBlockInfoAll(info.level, info.Z).halo_block_id =
           info.halo_block_id;
     }
-
     myunpacks.resize(halo_blocks.size());
-
     for (int r = 0; r < size; r++) {
       recv_buffer_size[r] = 0;
       std::sort(recv_interfaces[r].begin(), recv_interfaces[r].end());
-
       size_t counter = 0;
       while (counter < recv_interfaces[r].size()) {
         const long long ID = recv_interfaces[r][counter].infos[0]->blockID_2;
@@ -1161,21 +994,17 @@ public:
             break;
         }
         counter = j;
-
         DM.RemoveDuplicates_recv(recv_interfaces[r].v, recv_buffer_size[r], r,
                                  start, finish);
       }
-
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
       send_packinfos[r].clear();
       ToBeAveragedDown[r].clear();
       for (int i = 0; i < (int)send_interfaces[r].size(); i++) {
         const Interface &f = send_interfaces[r][i];
-
         if (!f.ToBeKept)
           continue;
-
         if (f.infos[0]->level <= f.infos[1]->level) {
           const MyRange &range = SM.DetermineStencil(f);
           send_packinfos[r].push_back(
@@ -1193,10 +1022,8 @@ public:
         }
       }
     }
-
     mapofHaloBlockGroups.clear();
     for (auto &info : halo_blocks) {
-
       const int id = info->halo_block_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
@@ -1204,9 +1031,7 @@ public:
         const UnPackInfo &unpack = unpacks[jj];
         ranks.insert(unpack.rank);
       }
-
       auto set_ID = EncodeSet(ranks);
-
       const auto retval = mapofHaloBlockGroups.find(set_ID);
       if (retval == mapofHaloBlockGroups.end()) {
         HaloBlockGroup temporary;
@@ -1218,7 +1043,6 @@ public:
       }
     }
   }
-
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid)
       : stencil(a_stencil), Cstencil(a_Cstencil),
@@ -1254,18 +1078,13 @@ public:
       assert(sizeof(Real) == sizeof(float));
     }
   }
-
   std::vector<BlockInfo *> &avail_inner() { return inner_blocks; }
-
   std::vector<BlockInfo *> &avail_halo() {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     return halo_blocks;
   }
-
   std::vector<BlockInfo *> &avail_halo_nowait() { return halo_blocks; }
-
   std::vector<BlockInfo *> dummy_vector;
-
   std::vector<BlockInfo *> &avail_next() {
     bool done = false;
     auto it = mapofHaloBlockGroups.begin();
@@ -1293,19 +1112,16 @@ public:
     }
     return dummy_vector;
   }
-
   void sync() {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
       it++;
     }
-
     const int timestamp = grid->getTimeStamp();
     mapofrequests.clear();
     requests.clear();
     requests.reserve(2 * size);
-
     for (auto r : Neighbors)
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -1313,7 +1129,6 @@ public:
         MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPIREAL, r,
                   timestamp, comm, &requests.back());
       }
-
     for (int r = 0; r < size; r++)
       if (send_buffer_size[r] != 0) {
 #pragma omp parallel
@@ -1340,7 +1155,6 @@ public:
           }
         }
       }
-
     for (auto r : Neighbors)
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -1348,9 +1162,7 @@ public:
                   timestamp, comm, &requests.back());
       }
   }
-
   const StencilInfo &getstencil() const { return stencil; }
-
   bool isready(const BlockInfo &info) {
     const int id = info.halo_block_id;
     if (id < 0)
@@ -1367,22 +1179,18 @@ public:
     }
     return true;
   }
-
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
-
     const int id = info.halo_block_id;
     if (id < 0)
       return;
-
     UnPackInfo *unpacks = myunpacks[id].data();
     for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
       const UnPackInfo &unpack = unpacks[jj];
       const int code[3] = {unpack.icode % 3 - 1, (unpack.icode / 3) % 3 - 1,
                            (unpack.icode / 9) % 3 - 1};
       const int otherrank = unpack.rank;
-
       const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
                         code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
                         code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
@@ -1390,20 +1198,17 @@ public:
           code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
-
       if (unpack.level == info.level) {
         Real *dst =
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
                           (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
                              gptfloats;
-
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
                          gptfloats, &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
                          Length[0], Length[1], Length[2]);
-
         if (unpack.CoarseVersionOffset >= 0) {
           const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
@@ -1416,11 +1221,9 @@ public:
                        ((sC[2] - offset[2]) * CLength[0] * CLength[1] +
                         (sC[1] - offset[1]) * CLength[0] + sC[0] - offset[0]) *
                            gptfloats;
-
           int L[3];
           SM.CoarseStencilLength(
               (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
-
           unpack_subregion(
               &recv_buffer[otherrank]
                           [unpack.offset + unpack.CoarseVersionOffset],
@@ -1499,5 +1302,4 @@ public:
     }
   }
 };
-
 } // namespace cubism

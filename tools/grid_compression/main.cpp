@@ -10,20 +10,15 @@
 #include <variant>
 #include <vector>
 namespace fs = std::filesystem;
-
 void convert_to_float(std::string filename, std::string gridname) {
   const int dimension = 2;
   const int ptsPerElement = 4;
   const int nx = 8;
   const int ny = 8;
-
   size_t blocks = 0;
-
   H5open();
-
   hid_t file_id =
       H5Fopen((filename + ".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-
   std::vector<short int> levels;
   {
     hid_t dataset_id, fspace_id;
@@ -32,9 +27,7 @@ void convert_to_float(std::string filename, std::string gridname) {
     fspace_id = H5Dget_space(dataset_id);
     H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
     hid_t dtype = H5Dget_type(dataset_id);
-
     levels.resize(dim);
-
     const bool isInt = H5Tequal(dtype, H5T_NATIVE_INT);
     if (isInt) {
       std::vector<int> levels_int(dim);
@@ -48,7 +41,6 @@ void convert_to_float(std::string filename, std::string gridname) {
     H5Dclose(dataset_id);
     H5Sclose(fspace_id);
   }
-
   std::vector<double> amr;
   {
     hid_t dataset_id, fspace_id;
@@ -63,7 +55,6 @@ void convert_to_float(std::string filename, std::string gridname) {
     H5Sclose(fspace_id);
     blocks = dim / nx / ny;
   }
-
   hid_t file_id_grid =
       H5Fopen((gridname + ".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
   std::vector<float> vertices;
@@ -74,9 +65,7 @@ void convert_to_float(std::string filename, std::string gridname) {
     fspace_id = H5Dget_space(dataset_id);
     H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
     hid_t dtype = H5Dget_type(dataset_id);
-
     vertices.resize(dim);
-
     const bool isDouble = H5Tequal(dtype, H5T_NATIVE_DOUBLE);
     if (isDouble) {
       std::vector<double> vertices_double(dim);
@@ -93,18 +82,15 @@ void convert_to_float(std::string filename, std::string gridname) {
   }
   H5Fclose(file_id);
   H5Fclose(file_id_grid);
-
   const int NCHANNELS =
       (vertices.size() == amr.size() * ptsPerElement * dimension) ? 1 : 3;
   blocks /= NCHANNELS;
-
   std::vector<float> data_c;
   std::vector<float> vertices_c;
   data_c.reserve(amr.size() / 4);
   vertices_c.reserve(vertices.size() / 4);
   for (size_t i = 0; i < blocks; i++) {
     int C = 1;
-
     for (int y = 0; y < ny; y += C)
       for (int x = 0; x < nx; x += C) {
         float element[NCHANNELS] = {0.0};
@@ -118,13 +104,10 @@ void convert_to_float(std::string filename, std::string gridname) {
           element[j] /= (C * C);
           magnitude += element[j] * element[j];
         }
-
         if (magnitude < 1e-2)
           continue;
-
         for (int j = 0; j < NCHANNELS; j++)
           data_c.push_back(element[j]);
-
         const int bbase00 =
             (i * ny * nx + y * nx + x) * ptsPerElement * dimension;
         const int bbase10 =
@@ -155,7 +138,6 @@ void convert_to_float(std::string filename, std::string gridname) {
         vertices_c.push_back(ym01);
       }
   }
-
   std::vector<float> vertices_grid(vertices.size() / nx / ny, 0.0);
   for (size_t i = 0; i < blocks; i++) {
     for (int y = 0; y < ny; y += ny)
@@ -168,12 +150,10 @@ void convert_to_float(std::string filename, std::string gridname) {
             (i * ny * nx + (y + ny - 1) * nx + x) * ptsPerElement * dimension;
         const int bbase11 = (i * ny * nx + (y + ny - 1) * nx + x + nx - 1) *
                             ptsPerElement * dimension;
-
         const int offset00 = 0;
         const int offset10 = 3 * dimension;
         const int offset11 = 2 * dimension;
         const int offset01 = dimension;
-
         const float xm00 = vertices[bbase00 + offset00];
         const float ym00 = vertices[bbase00 + offset00 + 1];
         const float xm10 = vertices[bbase10 + offset10];
@@ -193,7 +173,6 @@ void convert_to_float(std::string filename, std::string gridname) {
         vertices_grid[bbasef + 3 * dimension + 1] = ym01;
       }
   }
-
   hid_t file_id1 = H5Fcreate((filename + "-compressed.h5").c_str(),
                              H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   {
@@ -235,11 +214,8 @@ void convert_to_float(std::string filename, std::string gridname) {
     H5Sclose(fspace_id);
     H5Dclose(dataset_id);
   }
-
   H5Fclose(file_id1);
-
   H5close();
-
   {
     const long long TotalCells = data_c.size() / NCHANNELS;
     std::ostringstream myfilename;
@@ -283,7 +259,6 @@ void convert_to_float(std::string filename, std::string gridname) {
     fprintf(xmf, st.c_str());
     fclose(xmf);
   }
-
   {
     const long long TotalCells = blocks;
     std::ostringstream myfilename;
@@ -315,7 +290,6 @@ void convert_to_float(std::string filename, std::string gridname) {
     fclose(xmf);
   }
 }
-
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   int rank, size;
@@ -333,7 +307,6 @@ int main(int argc, char **argv) {
       if (s.back() != 's' && s.back() != 'm' && g != "grid") {
         filenames.push_back(p.path().stem().string());
       }
-
       if (g == "grid") {
         gridnames.push_back(p.path().stem().string());
       }

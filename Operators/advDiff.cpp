@@ -1,15 +1,10 @@
-
-
 #include "advDiff.h"
-
 using namespace cubism;
-
 #ifdef CUP2D_PRESERVE_SYMMETRY
 #define CUP2D_DISABLE_OPTIMIZATIONS __attribute__((optimize("-O1")))
 #else
 #define CUP2D_DISABLE_OPTIMIZATIONS
 #endif
-
 CUP2D_DISABLE_OPTIMIZATIONS
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
                               const Real up1, const Real up2) {
@@ -36,7 +31,6 @@ static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
   const Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-
 CUP2D_DISABLE_OPTIMIZATIONS
 static inline Real weno5_minus(const Real um2, const Real um1, const Real u,
                                const Real up1, const Real up2) {
@@ -63,7 +57,6 @@ static inline Real weno5_minus(const Real um2, const Real um1, const Real u,
   const Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-
 static inline Real derivative(const Real U, const Real um3, const Real um2,
                               const Real um1, const Real u, const Real up1,
                               const Real up2, const Real up3) {
@@ -78,7 +71,6 @@ static inline Real derivative(const Real U, const Real um3, const Real um2,
   }
   return (fp - fm);
 }
-
 static inline Real dU_adv_dif(const VectorLab &V, const Real uinf[2],
                               const Real advF, const Real difF, const int ix,
                               const int iy) {
@@ -86,28 +78,23 @@ static inline Real dU_adv_dif(const VectorLab &V, const Real uinf[2],
   const Real v = V(ix, iy).u[1];
   const Real UU = u + uinf[0];
   const Real VV = v + uinf[1];
-
   const Real up1x = V(ix + 1, iy).u[0];
   const Real up2x = V(ix + 2, iy).u[0];
   const Real up3x = V(ix + 3, iy).u[0];
   const Real um1x = V(ix - 1, iy).u[0];
   const Real um2x = V(ix - 2, iy).u[0];
   const Real um3x = V(ix - 3, iy).u[0];
-
   const Real up1y = V(ix, iy + 1).u[0];
   const Real up2y = V(ix, iy + 2).u[0];
   const Real up3y = V(ix, iy + 3).u[0];
   const Real um1y = V(ix, iy - 1).u[0];
   const Real um2y = V(ix, iy - 2).u[0];
   const Real um3y = V(ix, iy - 3).u[0];
-
   const Real dudx = derivative(UU, um3x, um2x, um1x, u, up1x, up2x, up3x);
   const Real dudy = derivative(VV, um3y, um2y, um1y, u, up1y, up2y, up3y);
-
   return advF * (UU * dudx + VV * dudy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
 }
-
 static inline Real dV_adv_dif(const VectorLab &V, const Real uinf[2],
                               const Real advF, const Real difF, const int ix,
                               const int iy) {
@@ -115,28 +102,23 @@ static inline Real dV_adv_dif(const VectorLab &V, const Real uinf[2],
   const Real v = V(ix, iy).u[1];
   const Real UU = u + uinf[0];
   const Real VV = v + uinf[1];
-
   const Real vp1x = V(ix + 1, iy).u[1];
   const Real vp2x = V(ix + 2, iy).u[1];
   const Real vp3x = V(ix + 3, iy).u[1];
   const Real vm1x = V(ix - 1, iy).u[1];
   const Real vm2x = V(ix - 2, iy).u[1];
   const Real vm3x = V(ix - 3, iy).u[1];
-
   const Real vp1y = V(ix, iy + 1).u[1];
   const Real vp2y = V(ix, iy + 2).u[1];
   const Real vp3y = V(ix, iy + 3).u[1];
   const Real vm1y = V(ix, iy - 1).u[1];
   const Real vm2y = V(ix, iy - 2).u[1];
   const Real vm3y = V(ix, iy - 3).u[1];
-
   const Real dvdx = derivative(UU, vm3x, vm2x, vm1x, v, vp1x, vp2x, vp3x);
   const Real dvdy = derivative(VV, vm3y, vm2y, vm1y, v, vp1y, vp2y, vp3y);
-
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
-
 struct KernelAdvectDiffuse {
   KernelAdvectDiffuse(const SimulationData &s) : sim(s) {
     uinf[0] = sim.uinfx;
@@ -146,7 +128,6 @@ struct KernelAdvectDiffuse {
   Real uinf[2];
   const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real h = info.h;
     const Real dfac = sim.nu * sim.dt;
@@ -164,9 +145,7 @@ struct KernelAdvectDiffuse {
     VectorBlock::ElementType *faceXp = nullptr;
     VectorBlock::ElementType *faceYm = nullptr;
     VectorBlock::ElementType *faceYp = nullptr;
-
     const Real aux_coef = dfac;
-
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -203,12 +182,10 @@ struct KernelAdvectDiffuse {
     }
   }
 };
-
 void advDiff::operator()(const Real dt) {
   sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
   KernelAdvectDiffuse Step1(sim);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -219,9 +196,7 @@ void advDiff::operator()(const Real dt) {
         Vold(ix, iy).u[1] = V(ix, iy).u[1];
       }
   }
-
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -234,9 +209,7 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
       }
   }
-
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -249,6 +222,5 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-
   sim.stopProfiler();
 }

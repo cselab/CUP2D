@@ -1,11 +1,7 @@
-
-
 #include "Naca.h"
 #include "FishData.h"
 #include "FishUtilities.h"
-
 using namespace cubism;
-
 class NacaData : public FishData {
   const Real tRatio;
 
@@ -13,24 +9,19 @@ public:
   NacaData(Real L, Real _h, Real _tRatio) : FishData(L, _h), tRatio(_tRatio) {
     _computeWidth();
   }
-
   void computeMidline(const Real time, const Real dt) override {
     rX[0] = rY[0] = vX[0] = vY[0] = norX[0] = vNorX[0] = vNorY[0] = 0.0;
     norY[0] = 1.0;
-
 #pragma omp parallel for schedule(static)
     for (int i = 1; i < Nm; ++i) {
-
       const Real dx = std::fabs(rS[i] - rS[i - 1]);
       rX[i] = dx;
       rY[i] = vX[i] = vY[i] = norX[i] = vNorX[i] = vNorY[i] = 0.0;
       norY[i] = 1.0;
     }
-
     for (int i = 1; i < Nm; ++i)
       rX[i] += rX[i - 1];
   }
-
   Real _width(const Real s, const Real L) override {
     const Real a = 0.2969;
     const Real b = -0.1260;
@@ -48,7 +39,6 @@ public:
     return w;
   }
 };
-
 Naca::Naca(SimulationData &s, ArgumentParser &p, Real C[2]) : Fish(s, p, C) {
   Apitch = p("-Apitch").asDouble(0.0) * M_PI / 180;
   Fpitch = p("-Fpitch").asDouble(0.0);
@@ -66,17 +56,13 @@ Naca::Naca(SimulationData &s, ArgumentParser &p, Real C[2]) : Fish(s, p, C) {
            (double)Fpitch, (double)forcedu, (double)forcedv, (double)tAccel,
            (double)fixedCenterDist);
 }
-
 void Naca::updateVelocity(Real dt) {
   const Real omegaAngle = 2 * M_PI * Fpitch;
   const Real angle = Mpitch + Apitch * std::sin(omegaAngle * sim.time);
-
   omega = Apitch * omegaAngle * std::cos(omegaAngle * sim.time);
-
   const Real v_heave =
       -2.0 * M_PI * Fheave * Aheave * std::sin(2 * M_PI * Fheave * sim.time);
   if (sim.time < tAccel) {
-
     u = (1.0 - sim.time / tAccel) * 0.01 * forcedu +
         (sim.time / tAccel) * forcedu -
         fixedCenterDist * length * omega * std::sin(angle);
@@ -84,33 +70,24 @@ void Naca::updateVelocity(Real dt) {
         (sim.time / tAccel) * forcedv +
         fixedCenterDist * length * omega * std::cos(angle) + v_heave;
   } else {
-
     u = forcedu - fixedCenterDist * length * omega * std::sin(angle);
     v = forcedv + fixedCenterDist * length * omega * std::cos(angle) + v_heave;
   }
 }
-
 void Naca::updatePosition(Real dt) {
-
   centerOfMass[0] += dt * (u + sim.uinfx);
   centerOfMass[1] += dt * (v + sim.uinfy);
   labCenterOfMass[0] += dt * u;
   labCenterOfMass[1] += dt * v;
-
   const Real omegaAngle = 2 * M_PI * Fpitch;
   orientation = Mpitch + Apitch * std::sin(omegaAngle * sim.time);
-
   const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
-
   center[0] = centerOfMass[0] + cosang * d_gm[0] - sinang * d_gm[1];
   center[1] = centerOfMass[1] + sinang * d_gm[0] + cosang * d_gm[1];
-
   const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
-
   if (dt <= 0)
     return;
-
   if (not sim.muteAll && sim.rank == 0) {
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
            " M:%.02e J:%.02e\n",
@@ -123,19 +100,15 @@ void Naca::updatePosition(Real dt) {
     if (sim.step == 0)
       fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J accx accy "
               "accw\n";
-
     fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
          << " " << angle << " " << u << " " << v << " " << omega << " " << M
          << " " << J << " " << fluidMomX / penalM << " " << fluidMomY / penalM
          << " " << fluidAngMom / penalJ << "\n";
   }
 }
-
 void Naca::updateLabVelocity(int nSum[2], Real uSum[2]) {
-
   const Real v_heave =
       -2.0 * M_PI * Fheave * Aheave * std::sin(2 * M_PI * Fheave * sim.time);
-
   if (bFixedx) {
     (nSum[0])++;
     if (sim.time < tAccel)

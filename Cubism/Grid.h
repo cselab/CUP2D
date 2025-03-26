@@ -1,13 +1,9 @@
 #pragma once
-
-#include <algorithm>
-#include <unordered_map>
-
 #include "BlockInfo.h"
 #include "FluxCorrection.h"
-
+#include <algorithm>
+#include <unordered_map>
 namespace cubism {
-
 struct BlockGroup {
   int i_min[3];
   int i_max[3];
@@ -20,7 +16,6 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-
 template <typename Block,
           template <typename X> class allocator = std::allocator>
 class Grid {
@@ -28,13 +23,9 @@ public:
   typedef Block BlockType;
   using ElementType = typename Block::ElementType;
   typedef typename Block::RealType Real;
-
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-
   std::unordered_map<long long, TreePosition> Octree;
-
   std::vector<BlockInfo> m_vInfo;
-
   const int NX;
   const int NY;
   const int NZ;
@@ -49,11 +40,8 @@ public:
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-
   FluxCorrection<Grid> CorrectorGrid;
-
   TreePosition &Tree(const int m, const long long n) {
-
     const long long aux = level_base[m] + n;
     const auto retval = Octree.find(aux);
     if (retval == Octree.end()) {
@@ -70,11 +58,8 @@ public:
       return retval->second;
     }
   }
-
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
-
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
-
   void _alloc() {
     const int m = levelStart;
     const int TwoPower = 1 << m;
@@ -94,10 +79,8 @@ public:
     }
     FillPos();
   }
-
   void _alloc(const int m, const long long n) {
     allocator<Block> alloc;
-
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.ptrBlock = alloc.allocate(1);
 #pragma omp critical
@@ -106,7 +89,6 @@ public:
     }
     Tree(m, n).setrank(rank());
   }
-
   void _deallocAll() {
     allocator<Block> alloc;
     for (size_t i = 0; i < m_vInfo.size(); i++) {
@@ -127,7 +109,6 @@ public:
     BlockInfoAll.clear();
     Octree.clear();
   }
-
   void _dealloc(const int m, const long long n) {
     allocator<Block> alloc;
     alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
@@ -138,13 +119,10 @@ public:
       }
     }
   }
-
   void dealloc_many(const std::vector<long long> &dealloc_IDs) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
       m_vInfo[j].changed2 = false;
-
     allocator<Block> alloc;
-
     for (size_t i = 0; i < dealloc_IDs.size(); i++)
       for (size_t j = 0; j < m_vInfo.size(); j++) {
         if (m_vInfo[j].blockID_2 == dealloc_IDs[i]) {
@@ -155,12 +133,10 @@ public:
           break;
         }
       }
-
     m_vInfo.erase(std::remove_if(m_vInfo.begin(), m_vInfo.end(),
                                  [](const BlockInfo &x) { return x.changed2; }),
                   m_vInfo.end());
   }
-
   void FindBlockInfo(const int m, const long long n, const int m_new,
                      const long long n_new) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
@@ -171,12 +147,9 @@ public:
         return;
       }
   }
-
   virtual void FillPos(bool CopyInfos = true) {
     std::sort(m_vInfo.begin(), m_vInfo.end());
-
     Octree.reserve(Octree.size() + m_vInfo.size() / 8);
-
     if (CopyInfos)
       for (size_t j = 0; j < m_vInfo.size(); j++) {
         const int m = m_vInfo[j].level;
@@ -197,7 +170,6 @@ public:
         assert(Tree(m, n).Exists());
       }
   }
-
   Grid(const unsigned int _NX, const unsigned int _NY = 1,
        const unsigned int _NZ = 1, const double _maxextent = 1,
        const unsigned int _levelStart = 0, const unsigned int _levelMax = 1,
@@ -211,7 +183,6 @@ public:
     const int ny = dummy.blocks_per_dim(1, NX, NY);
     const int nz = 1;
     const int lvlMax = dummy.levelMax(levelMax);
-
     for (int m = 0; m < lvlMax; m++) {
       const int TwoPower = 1 << m;
       const long long Ntot = nx * ny * nz * pow(TwoPower, DIMENSION);
@@ -223,26 +194,19 @@ public:
     if (AllocateBlocks)
       _alloc();
   }
-
   virtual ~Grid() { _deallocAll(); }
-
   virtual Block *avail(const int m, const long long n) {
     return (Block *)getBlockInfoAll(m, n).ptrBlock;
   }
-
   virtual int rank() const { return 0; }
-
   virtual void initialize_blocks(const std::vector<long long> &blocksZ,
                                  const std::vector<short int> &blockslevel) {
     _deallocAll();
-
     for (size_t i = 0; i < blocksZ.size(); i++) {
       const int level = blockslevel[i];
       const long long Z = blocksZ[i];
-
       _alloc(level, Z);
       Tree(level, Z).setrank(rank());
-
       int p[2];
       BlockInfo::inverse(Z, level, p[0], p[1]);
       if (level < levelMax - 1)
@@ -261,25 +225,20 @@ public:
     UpdateFluxCorrection = true;
     UpdateGroups = true;
   }
-
   long long getZforward(const int level, const int i, const int j) const {
     const int TwoPower = 1 << level;
     const int ix = (i + TwoPower * NX) % (NX * TwoPower);
     const int iy = (j + TwoPower * NY) % (NY * TwoPower);
     return BlockInfo::forward(level, ix, iy);
   }
-
   Block *avail1(const int ix, const int iy, const int m) {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
-
   Block &operator()(const long long ID) {
     return *(Block *)m_vInfo[ID].ptrBlock;
   }
-
   std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
-
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
         NX << (levelMax - 1),
@@ -287,14 +246,11 @@ public:
         DIMENSION == 3 ? (NZ << (levelMax - 1)) : 1,
     };
   }
-
   std::array<int, 3> getMaxMostRefinedCells() const {
     const auto b = getMaxMostRefinedBlocks();
     return {b[0] * Block::sizeX, b[1] * Block::sizeY, b[2] * Block::sizeZ};
   }
-
   inline int getlevelMax() const { return levelMax; }
-
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
@@ -325,20 +281,13 @@ public:
       return getBlockInfoAll(m, n);
     }
   }
-
   std::vector<BlockInfo> &getBlocksInfo() { return m_vInfo; }
-
   const std::vector<BlockInfo> &getBlocksInfo() const { return m_vInfo; }
-
   virtual int get_world_size() const { return 1; }
-
   virtual void UpdateBoundary(bool clean = false) {}
-
   void UpdateMyGroups() {
-
     if (rank() == 0)
       std::cout << "Updating groups..." << std::endl;
-
     const unsigned int nX = BlockType::sizeX;
     const unsigned int nY = BlockType::sizeY;
     const size_t Ngrids = getBlocksInfo().size();
@@ -346,23 +295,18 @@ public:
     UpdateGroups = false;
     MyGroups.clear();
     std::vector<bool> added(MyInfos.size(), false);
-
     for (unsigned int m = 0; m < Ngrids; m++) {
       const BlockInfo &I = MyInfos[m];
-
       if (added[I.blockID])
         continue;
       added[I.blockID] = true;
       BlockGroup newGroup;
-
       newGroup.level = I.level;
       newGroup.h = I.h;
       newGroup.Z.push_back(I.Z);
-
       const int base[3] = {I.index[0], I.index[1], 0};
       int i_off[4] = {};
       bool ready_[4] = {};
-
       int d = 0;
       auto blk = getMaxBlocks();
       do {
@@ -373,12 +317,10 @@ public:
               (d < 2) ? (base[d] - i_off[d]) : (base[d - 2] + i_off[d]);
           const int d0 = (d < 2) ? (d) % 2 : (d - 2) % 2;
           const int d1 = (d < 2) ? (d + 1) % 2 : (d - 2 + 1) % 2;
-
           for (int i1 = base[d1] - i_off[d1]; i1 <= base[d1] + i_off[d1 + 2];
                i1++) {
             if (valid == false)
               break;
-
             if (i0 < 0 || i1 < 0 || i0 >= blk[d0] * (1 << I.level) ||
                 i1 >= blk[d1] * (1 << I.level)) {
               valid = false;
@@ -386,7 +328,6 @@ public:
             }
             long long n = (d == 0 || d == 2) ? getZforward(I.level, i0, i1)
                                              : getZforward(I.level, i1, i0);
-
             if (Tree(I.level, n).rank() != rank()) {
               valid = false;
               break;
@@ -395,7 +336,6 @@ public:
               valid = false;
             }
           }
-
           if (valid == false) {
             i_off[d]--;
             ready_[d] = true;
@@ -412,36 +352,28 @@ public:
         d = (d + 1) % 4;
       } while (ready_[0] == false || ready_[1] == false || ready_[2] == false ||
                ready_[3] == false);
-
       const int ix_min = base[0] - i_off[0];
       const int iy_min = base[1] - i_off[1];
       const int iz_min = 0;
       const int ix_max = base[0] + i_off[2];
       const int iy_max = base[1] + i_off[3];
       const int iz_max = 0;
-
       long long n_base = getZforward(I.level, ix_min, iy_min);
-
       newGroup.i_min[0] = ix_min;
       newGroup.i_min[1] = iy_min;
       newGroup.i_min[2] = iz_min;
-
       newGroup.i_max[0] = ix_max;
       newGroup.i_max[1] = iy_max;
       newGroup.i_max[2] = iz_max;
-
       const BlockInfo &info = getBlockInfoAll(I.level, n_base);
       newGroup.origin[0] = info.origin[0];
       newGroup.origin[1] = info.origin[1];
       newGroup.origin[2] = info.origin[2];
-
       newGroup.NXX = (newGroup.i_max[0] - newGroup.i_min[0] + 1) * nX + 1;
       newGroup.NYY = (newGroup.i_max[1] - newGroup.i_min[1] + 1) * nY + 1;
       newGroup.NZZ = 2;
-
       MyGroups.push_back(newGroup);
     }
   }
 };
-
 } // namespace cubism

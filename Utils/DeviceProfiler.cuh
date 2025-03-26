@@ -1,16 +1,13 @@
 #pragma once
-
+#include "../include/helper_cuda.h"
 #include <cassert>
+#include <cuda_runtime.h>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <mpi.h>
 #include <stdexcept>
 #include <string>
-
-#include "../include/helper_cuda.h"
-#include <cuda_runtime.h>
-
 template <typename... Args>
 std::string string_format(const std::string &format, Args... args) {
   int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
@@ -22,13 +19,11 @@ std::string string_format(const std::string &format, Args... args) {
   std::snprintf(buf.get(), size, format.c_str(), args...);
   return std::string(buf.get(), buf.get() + size - 1);
 }
-
 class DeviceProfiler {
 public:
   DeviceProfiler(MPI_Comm m_comm) : m_comm_(m_comm) {
     MPI_Comm_rank(m_comm, &rank_);
   }
-
   ~DeviceProfiler() {
 #ifdef BICGSTAB_PROFILER
     for (auto &[key, prof] : profs_) {
@@ -37,7 +32,6 @@ public:
     }
 #endif
   }
-
   void startProfiler(std::string tag, cudaStream_t s) {
 #ifdef BICGSTAB_PROFILER
     auto search_it = profs_.find(tag);
@@ -54,24 +48,20 @@ public:
     }
 #endif
   }
-
   void stopProfiler(std::string tag, cudaStream_t s) {
 #ifdef BICGSTAB_PROFILER
     auto search_it = profs_.find(tag);
     assert(search_it != profs_.end());
-
     assert(profs_[tag].started);
     profs_[tag].started = false;
     checkCudaErrors(cudaEventRecord(profs_[tag].stop, s));
     checkCudaErrors(cudaEventSynchronize(profs_[tag].stop));
-
     float et = 0.;
     checkCudaErrors(
         cudaEventElapsedTime(&et, profs_[tag].start, profs_[tag].stop));
     profs_[tag].elapsed += et;
 #endif
   }
-
   void print(std::string mt) {
 #ifdef BICGSTAB_PROFILER
     std::string out;
@@ -82,7 +72,6 @@ public:
         out += string_format("%10s:\t%.4e [ms]\t%6.2f%% of runtime\n",
                              key.c_str(), prof.elapsed,
                              profs_[key].elapsed / profs_[mt].elapsed * 100.);
-
     std::cout << out;
 #endif
   }

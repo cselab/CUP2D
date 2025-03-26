@@ -1,12 +1,7 @@
-
-
 #include "Forcing.h"
-
 using namespace cubism;
-
 void Forcing::operator()(const Real dt) {
   sim.startProfiler("Forcing");
-
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -18,6 +13,5 @@ void Forcing::operator()(const Real dt) {
                                    sim.extents[1]);
       }
   }
-
   sim.stopProfiler();
 }

@@ -1,10 +1,6 @@
-
-
 #pragma once
-
 #include "../Operator.h"
 #include "Helpers.h"
-
 class AdaptTheMesh : public Operator {
 public:
   ScalarAMR *tmp_amr = nullptr;
@@ -15,7 +11,6 @@ public:
   VectorAMR *vOld_amr = nullptr;
   VectorAMR *tmpV_amr = nullptr;
   ScalarAMR *Cs_amr = nullptr;
-
   AdaptTheMesh(SimulationData &s) : Operator(s) {
     tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
     chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
@@ -27,7 +22,6 @@ public:
     if (sim.smagorinskyCoeff != 0)
       Cs_amr = new ScalarAMR(*sim.Cs, sim.Rtol, sim.Ctol);
   }
-
   ~AdaptTheMesh() {
     if (tmp_amr not_eq nullptr)
       delete tmp_amr;
@@ -46,9 +40,7 @@ public:
     if (Cs_amr not_eq nullptr)
       delete Cs_amr;
   }
-
   void operator()(const Real dt) override;
   void adapt();
-
   std::string getName() override { return "AdaptTheMesh"; }
 };

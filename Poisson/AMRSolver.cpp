@@ -1,25 +1,18 @@
-
-
 #include "AMRSolver.h"
-
 using namespace cubism;
-
 void AMRSolver::getZ(Real *input, BlockInfo &zInfo) {
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
   const int N = BSX * BSY;
-
   {
     const int bpdx = sim.chi->getMaxBlocks()[0];
     const int bpdy = sim.chi->getMaxBlocks()[1];
     const int tid = omp_get_thread_num();
     {
-
       const Real c11 = input[(BSX - 1) + BSX * (BSY - 1)];
       const Real c10 = input[(BSX - 1) + BSX * (0)];
       const Real c01 = input[(0) + BSX * (BSY - 1)];
       const Real c00 = input[(0) + BSX * (0)];
-
       bool plus_x = zInfo.index[0] > bpdx * (1 << zInfo.level) / 2 - 1;
       bool plus_y = zInfo.index[1] > bpdy * (1 << zInfo.level) / 2 - 1;
       if (std::fabs(std::fabs(c11 + c10) - std::fabs(c01 + c00)) > 1e-14)
@@ -30,7 +23,6 @@ void AMRSolver::getZ(Real *input, BlockInfo &zInfo) {
       const int base_y = plus_y ? 0 : BSY - 1;
       const int sign_x = plus_x ? 1 : -1;
       const int sign_y = plus_y ? 1 : -1;
-
       for (int I = 0; I < N; I++) {
         Real rhs = 0.0;
         for (size_t jj = 0; jj < L_row[tid][I].size(); jj++) {
@@ -43,7 +35,6 @@ void AMRSolver::getZ(Real *input, BlockInfo &zInfo) {
         const int ix = base_x + sign_x * I % BSX;
         input[iy * BSX + ix] = (input[iy * BSX + ix] - rhs) * Ld[tid][I];
       }
-
       for (int I = N - 1; I >= 0; I--) {
         Real rhs = 0.0;
         for (size_t jj = 0; jj < L_col[tid][I].size(); jj++) {
@@ -59,7 +50,6 @@ void AMRSolver::getZ(Real *input, BlockInfo &zInfo) {
     }
   }
 }
-
 Real AMRSolver::getA_local(const int I1, const int I2) {
   const int BSX = VectorBlock::sizeX;
   const int j1 = I1 / BSX;
@@ -74,13 +64,11 @@ Real AMRSolver::getA_local(const int I1, const int I2) {
     return 0.0;
   }
 }
-
 AMRSolver::AMRSolver(SimulationData &ss) : sim(ss), Get_LHS(ss) {
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
   const int N = BSX * BSY;
   std::vector<std::vector<Real>> L(N);
-
   for (int i = 0; i < N; i++) {
     L[i].resize(i + 1);
   }
@@ -96,7 +84,6 @@ AMRSolver::AMRSolver(SimulationData &ss) : sim(ss), Get_LHS(ss) {
       L[j][i] = (getA_local(j, i) - s2) / L[i][i];
     }
   }
-
   L_row.resize(omp_get_max_threads());
   L_col.resize(omp_get_max_threads());
   Ld.resize(omp_get_max_threads());
@@ -105,7 +92,6 @@ AMRSolver::AMRSolver(SimulationData &ss) : sim(ss), Get_LHS(ss) {
     const int tid = omp_get_thread_num();
     L_row[tid].resize(N);
     L_col[tid].resize(N);
-
     for (int i = 0; i < N; i++) {
       Ld[tid].push_back(1.0 / L[i][i]);
       for (int j = 0; j < i; j++) {
@@ -120,34 +106,28 @@ AMRSolver::AMRSolver(SimulationData &ss) : sim(ss), Get_LHS(ss) {
       }
   }
 }
-
 void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
-
   if (input != sim.tmp || output != sim.pres)
     throw std::invalid_argument(
         "AMRSolver hardcoded to sim.tmp and sim.pres for now");
-
   const auto &AxInfo = input->getBlocksInfo();
   const auto &zInfo = output->getBlocksInfo();
   const size_t Nblocks = zInfo.size();
   const int BSX = VectorBlock::sizeX;
   const int BSY = VectorBlock::sizeY;
   const size_t N = BSX * BSY * Nblocks;
-
   const Real eps = 1e-100;
   const Real max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
   const Real max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
   bool serious_breakdown = false;
   bool useXopt = false;
-
   int restarts = 0;
   Real min_norm = 1e50;
   Real norm_1 = 0.0;
   Real norm_2 = 0.0;
   const MPI_Comm m_comm = sim.chi->getWorldComm();
   const bool verbose = sim.rank == 0 && !sim.muteAll;
-
   phat.resize(N);
   rhat.resize(N);
   shat.resize(N);
@@ -166,7 +146,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
   r0.resize(N);
   b.resize(N);
   x_opt.resize(N);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ rhs = *(ScalarBlock *)AxInfo[i].ptrBlock;
@@ -182,7 +161,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         x[j] = zz(ix, iy).s;
       }
   }
-
   _lhs(x, r0);
 #pragma omp parallel for
   for (size_t i = 0; i < N; i++) {
@@ -192,7 +170,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
   _preconditioner(r0, rhat);
   _lhs(rhat, w);
   _preconditioner(w, what);
-
   _lhs(what, t);
   Real alpha = 0.0;
   Real norm = 0.0;
@@ -217,12 +194,10 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
       std::cout << "[Poisson solver]: initial error norm:" << norm << "\n";
   }
   const Real init_norm = norm;
-
   int k;
   for (k = 0; k < sim.maxPoissonIterations; k++) {
     Real qy = 0.0;
     Real yy = 0.0;
-
     if (k % 50 != 0) {
 #pragma omp parallel for reduction(+ : qy, yy)
       for (size_t j = 0; j < N; j++) {
@@ -237,7 +212,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         yy += y[j] * y[j];
       }
     } else {
-
 #pragma omp parallel for
       for (size_t j = 0; j < N; j++) {
         phat[j] = rhat[j] + beta * (phat[j] - omega * shat[j]);
@@ -254,24 +228,18 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         yy += y[j] * y[j];
       }
     }
-
     MPI_Request request;
     Real quantities[7];
     quantities[0] = qy;
     quantities[1] = yy;
     MPI_Iallreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM, m_comm,
                    &request);
-
     _preconditioner(z, zhat);
-
     _lhs(zhat, v);
-
     MPI_Waitall(1, &request, MPI_STATUSES_IGNORE);
     qy = quantities[0];
     yy = quantities[1];
-
     omega = qy / (yy + eps);
-
     Real r0r = 0.0;
     Real r0w = 0.0;
     Real r0s = 0.0;
@@ -295,7 +263,6 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         norm_2 += r0[j] * r0[j];
       }
     } else {
-
 #pragma omp parallel for
       for (size_t j = 0; j < N; j++) {
         x[j] = x[j] + alpha * phat[j] + omega * qhat[j];
@@ -325,14 +292,10 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
     quantities[4] = norm_1;
     quantities[5] = norm_2;
     quantities[6] = norm;
-
     MPI_Iallreduce(MPI_IN_PLACE, &quantities, 7, MPI_Real, MPI_SUM, m_comm,
                    &request);
-
     _preconditioner(w, what);
-
     _lhs(what, t);
-
     MPI_Waitall(1, &request, MPI_STATUSES_IGNORE);
     r0r = quantities[0];
     r0w = quantities[1];
@@ -341,32 +304,25 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
     norm_1 = quantities[4];
     norm_2 = quantities[5];
     norm = std::sqrt(quantities[6]);
-
     beta = alpha / (omega + eps) * r0r / (r0r_prev + eps);
-
     alpha = r0r / (r0w + beta * r0s - beta * omega * r0z);
     Real alphat = 1.0 / (omega + eps) + r0w / (r0r + eps) -
                   beta * omega * r0z / (r0r + eps);
     alphat = 1.0 / (alphat + eps);
     if (std::fabs(alphat) < 10 * std::fabs(alpha))
       alpha = alphat;
-
     r0r_prev = r0r;
-
     serious_breakdown = r0r * r0r < 1e-16 * norm_1 * norm_2;
     if (serious_breakdown && restarts < max_restarts) {
       restarts++;
       if (verbose)
         std::cout << "  [Poisson solver]: Restart at iteration: " << k
                   << " norm: " << norm << std::endl;
-
 #pragma omp parallel for
       for (size_t i = 0; i < N; i++)
         r0[i] = r[i];
-
       _preconditioner(r0, rhat);
       _lhs(rhat, w);
-
       alpha = 0.0;
       Real temp0 = 0.0;
       Real temp1 = 0.0;
@@ -379,18 +335,14 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
       Real temporary[2] = {temp0, temp1};
       MPI_Iallreduce(MPI_IN_PLACE, temporary, 2, MPI_Real, MPI_SUM, m_comm,
                      &request2);
-
       _preconditioner(w, what);
       _lhs(what, t);
-
       MPI_Waitall(1, &request2, MPI_STATUSES_IGNORE);
-
       alpha = temporary[0] / (temporary[1] + eps);
       r0r_prev = temporary[0];
       beta = 0.0;
       omega = 0.0;
     }
-
     if (norm < min_norm) {
       useXopt = true;
       min_norm = norm;
@@ -405,12 +357,10 @@ void AMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
       break;
     }
   }
-
   if (verbose) {
     std::cout << " Error norm (relative) = " << min_norm << "/" << max_error
               << std::endl;
   }
-
   Real *solution = useXopt ? x_opt.data() : x.data();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {

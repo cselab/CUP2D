@@ -1,12 +1,9 @@
 #pragma once
-
 #include <cassert>
 #include <iostream>
 #include <math.h>
 #include <vector>
-
 namespace cubism {
-
 class SpaceFillingCurve {
 protected:
   int BX;
@@ -16,13 +13,9 @@ protected:
   bool isRegular;
   int base_level;
   std::vector<std::vector<long long>> Zsave;
-
   std::vector<std::vector<int>> i_inverse;
-
   std::vector<std::vector<int>> j_inverse;
-
   std::vector<std::vector<int>> k_inverse;
-
   long long AxestoTranspose(const int *X_in, int b) const {
     if (b == 0) {
       assert(X_in[0] == 0);
@@ -30,15 +23,11 @@ protected:
       assert(X_in[2] == 0);
       return 0;
     }
-
     const int n = 3;
     int X[3] = {X_in[0], X_in[1], X_in[2]};
-
     assert(b - 1 >= 0);
-
     int M = 1 << (b - 1), P, Q, t;
     int i;
-
     for (Q = M; Q > 1; Q >>= 1) {
       P = Q - 1;
       for (i = 0; i < n; i++)
@@ -50,7 +39,6 @@ protected:
           X[i] ^= t;
         }
     }
-
     for (i = 1; i < n; i++)
       X[i] ^= X[i - 1];
     t = 0;
@@ -59,7 +47,6 @@ protected:
         t ^= Q - 1;
     for (i = 0; i < n; i++)
       X[i] ^= t;
-
     long long retval = 0;
     long long a = 0;
     const long long one = 1;
@@ -73,19 +60,15 @@ protected:
       retval += a0 + a1 + a2;
       a += 3;
     }
-
     return retval;
   }
-
   void TransposetoAxes(long long index, long long *X, int b) const {
     const int n = 3;
-
     X[0] = 0;
     X[1] = 0;
     X[2] = 0;
     if (b == 0 && index == 0)
       return;
-
     long long aa = 0;
     const long long one = 1;
     const long long two = 2;
@@ -96,22 +79,17 @@ protected:
       index = index / two;
       long long x0 = index % two;
       index = index / two;
-
       X[0] += x0 * (one << aa);
       X[1] += x1 * (one << aa);
       X[2] += x2 * (one << aa);
-
       aa += 1;
     }
-
     int N = 2 << (b - 1), P, Q, t;
     int i;
-
     t = X[n - 1] >> 1;
     for (i = n - 1; i >= 1; i--)
       X[i] ^= X[i - 1];
     X[0] ^= t;
-
     for (Q = 2; Q != N; Q <<= 1) {
       P = Q - 1;
       for (i = n - 1; i >= 0; i--)
@@ -127,14 +105,12 @@ protected:
 
 public:
   SpaceFillingCurve() {};
-
   SpaceFillingCurve(int a_BX, int a_BY, int a_BZ, int lmax)
       : BX(a_BX), BY(a_BY), BZ(a_BZ), levelMax(lmax) {
     int n_max = std::max(std::max(BX, BY), BZ);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
       base_level++;
-
     i_inverse.resize(lmax);
     j_inverse.resize(lmax);
     k_inverse.resize(lmax);
@@ -147,7 +123,6 @@ public:
       k_inverse[l].resize(BX * BY * BZ * aux, -1);
       Zsave[l].resize(BX * BY * BZ * aux, -1);
     }
-
     isRegular = true;
 #pragma omp parallel for collapse(3)
     for (int k = 0; k < BZ; k++)
@@ -171,10 +146,8 @@ public:
           Zsave[0][k * BX * BY + j * BX + i] = index;
         }
   }
-
   long long forward(const int l, const int i, const int j, const int k) {
     const int aux = 1 << l;
-
     if (l >= levelMax)
       return 0;
     long long retval;
@@ -192,7 +165,6 @@ public:
     }
     return retval;
   }
-
   void inverse(long long Z, int l, int &i, int &j, int &k) {
     if (isRegular) {
       long long X[3] = {0, 0, 0};
@@ -214,25 +186,19 @@ public:
     }
     return;
   }
-
   long long IJK_to_index(int I, int J, int K) {
-
     long long index = Zsave[0][(J + K * BY) * BX + I];
     return index;
   }
-
   void index_to_IJK(long long index, int &I, int &J, int &K) {
-
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     K = k_inverse[0][index];
     return;
   }
-
   long long Encode(int level, long long Z, int index[3]) {
     int lmax = levelMax;
     long long retval = 0;
-
     int ix = index[0];
     int iy = index[1];
     int iz = index[2];
@@ -243,31 +209,24 @@ public:
       iy /= 2;
       iz /= 2;
     }
-
     ix = 2 * index[0];
     iy = 2 * index[1];
     iz = 2 * index[2];
     for (int l = level + 1; l < lmax; l++) {
       long long Zc = forward(l, ix, iy, iz);
-
       Zc -= Zc % 8;
       retval += Zc;
-
       int ix1, iy1, iz1;
       ix1 = ix;
       iy1 = iy;
       iz1 = iz;
-
       inverse(Zc, l, ix1, iy1, iz1);
       ix = 2 * ix1;
       iy = 2 * iy1;
       iz = 2 * iz1;
     }
-
     retval += level;
-
     return retval;
   }
 };
-
 } // namespace cubism

@@ -1,11 +1,7 @@
-
-
 #include "ExperimentFish.h"
 #include "FishData.h"
 #include "FishUtilities.h"
-
 using namespace cubism;
-
 ExperimentFish::ExperimentFish(SimulationData &s, ArgumentParser &p, Real C[2])
     : Fish(s, p, C), timeStart(p("-tStart").asDouble()) {
   const std::string path = p("-path").asString();
@@ -15,9 +11,7 @@ ExperimentFish::ExperimentFish(SimulationData &s, ArgumentParser &p, Real C[2])
     printf("[CUP2D] - ExperimentDataFish %s %d %f\n", path.c_str(), myFish->Nm,
            (double)length);
 }
-
 void ExperimentFish::updatePosition(Real dt) { Shape::updatePosition(dt); }
-
 void ExperimentFish::updateVelocity(Real dt) {
   ExperimentDataFish *const expFish =
       dynamic_cast<ExperimentDataFish *>(myFish);
@@ -25,7 +19,6 @@ void ExperimentFish::updateVelocity(Real dt) {
   v = expFish->v;
   omega = expFish->omega;
 }
-
 std::vector<std::vector<Real>>
 ExperimentDataFish::loadFile(const std::string path) {
   std::vector<std::vector<Real>> data;
@@ -49,9 +42,7 @@ ExperimentDataFish::loadFile(const std::string path) {
   }
   return data;
 }
-
 void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
-
   const std::array<Real, 6> midlinePoints = {
       (Real)0,           (Real).15 * length,
       (Real).4 * length, (Real).65 * length,
@@ -61,7 +52,6 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
     tNext += dtDataset;
     idxLast = idxNext;
     idxNext++;
-
     if (t >= timeStart) {
       u = (centerOfMassData[idxNext][0] - centerOfMassData[idxLast][0]) /
           dtDataset;
@@ -79,10 +69,8 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
                                 nextMidlineValues);
   }
   midlineScheduler.gimmeValues(t, midlinePoints, Nm, rS, rY, vY);
-
   rX[0] = 0.0;
   vX[0] = 0.0;
-
 #pragma omp parallel for schedule(static)
   for (int i = 1; i < Nm; ++i) {
     const Real dy = rY[i] - rY[i - 1], ds = rS[i] - rS[i - 1];
@@ -90,7 +78,6 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
     assert(dx > 0);
     const Real dVy = vY[i] - vY[i - 1];
     const Real dVx = -dy / dx * dVy;
-
     rX[i] = dx;
     vX[i] = dVx;
     norX[i - 1] = -dy / ds;
@@ -98,12 +85,10 @@ void ExperimentDataFish::computeMidline(const Real t, const Real dt) {
     vNorX[i - 1] = -dVy / ds;
     vNorY[i - 1] = dVx / ds;
   }
-
   for (int i = 1; i < Nm; ++i) {
     rX[i] += rX[i - 1];
     vX[i] += vX[i - 1];
   }
-
   norX[Nm - 1] = norX[Nm - 2];
   norY[Nm - 1] = norY[Nm - 2];
   vNorX[Nm - 1] = vNorX[Nm - 2];

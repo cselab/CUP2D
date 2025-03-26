@@ -1,13 +1,8 @@
-
-
 #include "ShapeLibrary.h"
-
 using namespace cubism;
-
 static Real distPointEllipseSpecial(const Real e[2], const Real y[2],
                                     Real x[2]);
 static Real distPointEllipse(const Real e[2], const Real y[2], Real x[2]);
-
 void FillBlocks_Cylinder::operator()(const BlockInfo &I, ScalarBlock &B,
                                      ObstacleBlock &O) const {
   if (_is_touching(I, bbox, safety))
@@ -24,7 +19,6 @@ void FillBlocks_Cylinder::operator()(const BlockInfo &I, ScalarBlock &B,
         }
       }
 }
-
 void FillBlocks_HalfCylinder::operator()(const BlockInfo &I, ScalarBlock &B,
                                          ObstacleBlock &O) const {
   if (_is_touching(I, bbox, safety)) {
@@ -42,7 +36,6 @@ void FillBlocks_HalfCylinder::operator()(const BlockInfo &I, ScalarBlock &B,
       }
   }
 }
-
 void FillBlocks_Rectangle::operator()(const BlockInfo &I, ScalarBlock &B,
                                       ObstacleBlock &O) const {
   if (_is_touching(I, bbox, safety)) {
@@ -60,7 +53,6 @@ void FillBlocks_Rectangle::operator()(const BlockInfo &I, ScalarBlock &B,
       }
   }
 }
-
 void FillBlocks_Ellipse::operator()(const BlockInfo &I, ScalarBlock &B,
                                     ObstacleBlock &O) const {
   if (_is_touching(I, bbox, safety)) {
@@ -76,7 +68,6 @@ void FillBlocks_Ellipse::operator()(const BlockInfo &I, ScalarBlock &B,
         Real dist = 0;
         if (std::fabs(t[0]) > e[0] + safety || std::fabs(t[1]) > e[1] + safety)
           dist = -1;
-
         else {
           const Real absdist = distPointEllipse(e, t, xs);
           const int sign = sqDist > (xs[0] * xs[0] + xs[1] * xs[1]) ? -1 : 1;
@@ -89,13 +80,11 @@ void FillBlocks_Ellipse::operator()(const BlockInfo &I, ScalarBlock &B,
       }
   }
 }
-
 Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2]) {
   static constexpr int imax = 2 * std::numeric_limits<Real>::max_exponent;
   static constexpr Real eps = std::numeric_limits<Real>::epsilon();
   if (y[1] > (Real)0) {
     if (y[0] > (Real)0) {
-
       const Real esqr[2] = {e[0] * e[0], e[1] * e[1]};
       const Real ey[2] = {e[0] * y[0], e[1] * y[1]};
       Real t0 = -esqr[1] + ey[1];
@@ -105,7 +94,6 @@ Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2]) {
         t = ((Real)0.5) * (t0 + t1);
         if (std::fabs(t - t0) < eps || std::fabs(t - t1) < eps)
           break;
-
         const Real r[2] = {ey[0] / (t + esqr[0]), ey[1] / (t + esqr[1])};
         const Real f = r[0] * r[0] + r[1] * r[1] - (Real)1;
         if (f > (Real)0)
@@ -115,7 +103,6 @@ Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2]) {
         else
           break;
       }
-
       x[0] = esqr[0] * y[0] / (t + esqr[0]);
       x[1] = esqr[1] * y[1] / (t + esqr[1]);
       const Real d[2] = {x[0] - y[0], x[1] - y[1]};
@@ -129,7 +116,6 @@ Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2]) {
     const Real denom0 = e[0] * e[0] - e[1] * e[1];
     const Real e0y0 = e[0] * y[0];
     if (e0y0 < denom0) {
-
       const Real x0de0 = e0y0 / denom0;
       const Real x0de0sqr = x0de0 * x0de0;
       x[0] = e[0] * x0de0;
@@ -137,20 +123,16 @@ Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2]) {
       const Real d0 = x[0] - y[0];
       return std::sqrt(d0 * d0 + x[1] * x[1]);
     } else {
-
       x[0] = e[0];
       x[1] = (Real)0;
       return std::fabs(y[0] - e[0]);
     }
   }
 }
-
 Real distPointEllipse(const Real e[2], const Real y[2], Real x[2]) {
-
   bool reflect[2];
   for (int i = 0; i < 2; ++i)
     reflect[i] = (y[i] < (Real)0);
-
   int permute[2];
   if (e[0] < e[1]) {
     permute[0] = 1;
@@ -159,11 +141,9 @@ Real distPointEllipse(const Real e[2], const Real y[2], Real x[2]) {
     permute[0] = 0;
     permute[1] = 1;
   }
-
   int invpermute[2];
   for (int i = 0; i < 2; ++i)
     invpermute[permute[i]] = i;
-
   Real locE[2], locY[2];
   for (int i = 0; i < 2; ++i) {
     const int j = permute[i];
@@ -172,16 +152,13 @@ Real distPointEllipse(const Real e[2], const Real y[2], Real x[2]) {
     if (reflect[j])
       locY[i] = -locY[i];
   }
-
   Real locX[2];
   const Real distance = distPointEllipseSpecial(locE, locY, locX);
-
   for (int i = 0; i < 2; ++i) {
     const int j = invpermute[i];
     if (reflect[j])
       locX[j] = -locX[j];
     x[i] = locX[j];
   }
-
   return distance;
 }

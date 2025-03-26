@@ -1,13 +1,8 @@
-
-
 #include "PutObjectsOnGrid.h"
 #include "../Shape.h"
 #include "../Utils/BufferedLogger.h"
-
 using namespace cubism;
-
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -42,7 +37,6 @@ struct ComputeSurfaceNormals {
     }
   }
 };
-
 struct PutChiOnGrid {
   PutChiOnGrid(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -98,18 +92,13 @@ struct PutChiOnGrid {
     }
   }
 };
-
 void PutObjectsOnGrid::operator()(const Real dt) {
   sim.startProfiler("PutObjectsGrid");
-
   advanceShapes(dt);
   putObjectsOnGrid();
-
   sim.stopProfiler();
 }
-
 void PutObjectsOnGrid::advanceShapes(const Real dt) {
-
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   for (const auto &shape : sim.shapes)
@@ -122,10 +111,8 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
     sim.uinfy_old = sim.uinfy;
     sim.uinfy = uSum[1] / nSum[1];
   }
-
   for (const auto &shape : sim.shapes) {
     shape->updatePosition(dt);
-
     Real p[2] = {0, 0};
     shape->getCentroid(p);
     const auto &extent = sim.extents;
@@ -137,19 +124,15 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
     }
   }
 }
-
 void PutObjectsOnGrid::putObjectsOnGrid() {
   const size_t Nblocks = velInfo.size();
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((ScalarBlock *)chiInfo[i].ptrBlock)->clear();
     ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
   }
-
   for (const auto &shape : sim.shapes)
     shape->create(tmpInfo);
-
   const PutChiOnGrid K(sim);
   cubism::compute<ScalarLab>(K, sim.tmp);
   const ComputeSurfaceNormals K1(sim);
@@ -172,11 +155,9 @@ void PutObjectsOnGrid::putObjectsOnGrid() {
     shape->centerOfMass[0] += com[1] / com[0];
     shape->centerOfMass[1] += com[2] / com[0];
   }
-
   for (const auto &shape : sim.shapes) {
     shape->removeMoments(chiInfo);
   }
-
   for (const auto &shape : sim.shapes) {
     shape->finalize();
   }

@@ -1,61 +1,48 @@
-
-
 #pragma once
-
 #include "../Definitions.h"
 #include <math.h>
-
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
                     const Real *const curv, const Real *const curv_dt,
                     Real *const rX, Real *const rY, Real *const vX,
                     Real *const vY, Real *const norX, Real *const norY,
                     Real *const vNorX, Real *const vNorY) {
-
     rX[0] = 0.0;
     rY[0] = 0.0;
     norX[0] = 0.0;
     norY[0] = 1.0;
     Real ksiX = 1.0;
     Real ksiY = 0.0;
-
     vX[0] = 0.0;
     vY[0] = 0.0;
     vNorX[0] = 0.0;
     vNorY[0] = 0.0;
     Real vKsiX = 0.0;
     Real vKsiY = 0.0;
-
     for (unsigned i = 1; i < Nm; i++) {
-
       const Real dksiX = curv[i - 1] * norX[i - 1];
       const Real dksiY = curv[i - 1] * norY[i - 1];
       const Real dnuX = -curv[i - 1] * ksiX;
       const Real dnuY = -curv[i - 1] * ksiY;
-
       const Real dvKsiX =
           curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
       const Real dvKsiY =
           curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
       const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
       const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-
       const Real ds = rS[i] - rS[i - 1];
-
       rX[i] = rX[i - 1] + ds * ksiX;
       rY[i] = rY[i - 1] + ds * ksiY;
       norX[i] = norX[i - 1] + ds * dnuX;
       norY[i] = norY[i - 1] + ds * dnuY;
       ksiX += ds * dksiX;
       ksiY += ds * dksiY;
-
       vX[i] = vX[i - 1] + ds * vKsiX;
       vY[i] = vY[i - 1] + ds * vKsiY;
       vNorX[i] = vNorX[i - 1] + ds * dvNuX;
       vNorY[i] = vNorY[i - 1] + ds * dvNuY;
       vKsiX += ds * dvKsiX;
       vKsiY += ds * dvKsiY;
-
       const Real d1 = ksiX * ksiX + ksiY * ksiY;
       const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
       if (d1 > std::numeric_limits<Real>::epsilon()) {
@@ -71,19 +58,16 @@ struct IF2D_Frenet2D {
     }
   }
 };
-
 class IF2D_Interpolation1D {
 public:
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
                                  const Real *xx, Real *yy, const unsigned nn) {
     return naturalCubicSpline(x, y, n, xx, yy, nn, 0);
   }
-
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
                                  const Real *xx, Real *yy, const unsigned nn,
                                  const Real offset) {
     std::vector<Real> y2(n), u(n - 1);
-
     y2[0] = 0;
     u[0] = 0;
     for (unsigned i = 1; i < n - 1; i++) {
@@ -94,14 +78,11 @@ public:
              (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
       u[i] = (6 * u[i] / (x[i + 1] - x[i - 1]) - sig * u[i - 1]) / p;
     }
-
     const Real qn = 0;
     const Real un = 0;
     y2[n - 1] = (un - qn * u[n - 2]) / (qn * y2[n - 2] + 1);
-
     for (unsigned k = n - 2; k > 0; k--)
       y2[k] = y2[k] * y2[k + 1] + u[k];
-
     for (unsigned j = 0; j < nn; j++) {
       unsigned int klo = 0;
       unsigned int khi = n - 1;
@@ -113,7 +94,6 @@ public:
         else
           klo = k;
       }
-
       const Real h = x[khi] - x[klo];
       if (h <= 0.0) {
         std::cout << "Interpolation points must be distinct!" << std::endl;
@@ -126,30 +106,25 @@ public:
           ((a * a * a - a) * y2[klo] + (b * b * b - b) * y2[khi]) * (h * h) / 6;
     }
   }
-
   static void cubicInterpolation(const Real x0, const Real x1, const Real x,
                                  const Real y0, const Real y1, const Real dy0,
                                  const Real dy1, Real &y, Real &dy) {
     const Real xrel = (x - x0);
     const Real deltax = (x1 - x0);
-
     const Real a = (dy0 + dy1) / (deltax * deltax) -
                    2 * (y1 - y0) / (deltax * deltax * deltax);
     const Real b =
         (-2 * dy0 - dy1) / deltax + 3 * (y1 - y0) / (deltax * deltax);
     const Real c = dy0;
     const Real d = y0;
-
     y = a * xrel * xrel * xrel + b * xrel * xrel + c * xrel + d;
     dy = 3 * a * xrel * xrel + 2 * b * xrel + c;
   }
-
   static void cubicInterpolation(const Real x0, const Real x1, const Real x,
                                  const Real y0, const Real y1, Real &y,
                                  Real &dy) {
     return cubicInterpolation(x0, x1, x, y0, y1, 0, 0, y, dy);
   }
-
   static void linearInterpolation(const Real x0, const Real x1, const Real x,
                                   const Real y0, const Real y1, Real &y,
                                   Real &dy) {
@@ -157,7 +132,6 @@ public:
     dy = (y1 - y0) / (x1 - x0);
   }
 };
-
 namespace Schedulers {
 template <int Npoints> struct ParameterScheduler {
   static constexpr int npoints = Npoints;
@@ -165,20 +139,17 @@ template <int Npoints> struct ParameterScheduler {
   std::array<Real, Npoints> parameters_t1;
   std::array<Real, Npoints> dparameters_t0;
   Real t0, t1;
-
   void save(std::string filename) {
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
     savestream.open(filename);
-
     savestream << t0 << "\t" << t1 << std::endl;
     for (int i = 0; i < Npoints; ++i)
       savestream << parameters_t0[i] << "\t" << parameters_t1[i] << "\t"
                  << dparameters_t0[i] << std::endl;
     savestream.close();
   }
-
   void restart(std::string filename) {
     std::ifstream restartstream;
     restartstream.open(filename);
@@ -195,7 +166,6 @@ template <int Npoints> struct ParameterScheduler {
     t0 = -1;
     t1 = 0;
   }
-
   ParameterScheduler() {
     t0 = -1;
     t1 = 0;
@@ -204,17 +174,14 @@ template <int Npoints> struct ParameterScheduler {
     dparameters_t0 = std::array<Real, Npoints>();
   }
   virtual ~ParameterScheduler() {}
-
   void transition(const Real t, const Real tstart, const Real tend,
                   const std::array<Real, Npoints> parameters_tend,
                   const bool UseCurrentDerivative = false) {
     if (t < tstart or t > tend)
       return;
-
     std::array<Real, Npoints> parameters;
     std::array<Real, Npoints> dparameters;
     gimmeValues(tstart, parameters, dparameters);
-
     t0 = tstart;
     t1 = tend;
     parameters_t0 = parameters;
@@ -222,7 +189,6 @@ template <int Npoints> struct ParameterScheduler {
     dparameters_t0 =
         UseCurrentDerivative ? dparameters : std::array<Real, Npoints>();
   }
-
   void transition(const Real t, const Real tstart, const Real tend,
                   const std::array<Real, Npoints> parameters_tstart,
                   const std::array<Real, Npoints> parameters_tend) {
@@ -230,16 +196,13 @@ template <int Npoints> struct ParameterScheduler {
       return;
     if (tstart < t0)
       return;
-
     t0 = tstart;
     t1 = tend;
     parameters_t0 = parameters_tstart;
     parameters_t1 = parameters_tend;
   }
-
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters,
                    std::array<Real, Npoints> &dparameters) {
-
     if (t < t0 or t0 < 0) {
       parameters = parameters_t0;
       dparameters = std::array<Real, Npoints>();
@@ -253,10 +216,8 @@ template <int Npoints> struct ParameterScheduler {
             0.0, parameters[i], dparameters[i]);
     }
   }
-
   void gimmeValuesLinear(const Real t, std::array<Real, Npoints> &parameters,
                          std::array<Real, Npoints> &dparameters) {
-
     if (t < t0 or t0 < 0) {
       parameters = parameters_t0;
       dparameters = std::array<Real, Npoints>();
@@ -270,13 +231,11 @@ template <int Npoints> struct ParameterScheduler {
             dparameters[i]);
     }
   }
-
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters) {
     std::array<Real, Npoints> dparameters_whocares;
     return gimmeValues(t, parameters, dparameters_whocares);
   }
 };
-
 struct ParameterSchedulerScalar : ParameterScheduler<1> {
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tend, const bool keepSlope = false) {
@@ -284,7 +243,6 @@ struct ParameterSchedulerScalar : ParameterScheduler<1> {
     return ParameterScheduler<1>::transition(t, tstart, tend, myParameter,
                                              keepSlope);
   }
-
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tstart, const Real parameter_tend) {
     const std::array<Real, 1> myParameterStart = {parameter_tstart};
@@ -292,31 +250,26 @@ struct ParameterSchedulerScalar : ParameterScheduler<1> {
     return ParameterScheduler<1>::transition(t, tstart, tend, myParameterStart,
                                              myParameterEnd);
   }
-
   void gimmeValues(const Real t, Real &parameter, Real &dparameter) {
     std::array<Real, 1> myParameter, mydParameter;
     ParameterScheduler<1>::gimmeValues(t, myParameter, mydParameter);
     parameter = myParameter[0];
     dparameter = mydParameter[0];
   }
-
   void gimmeValues(const Real t, Real &parameter) {
     std::array<Real, 1> myParameter;
     ParameterScheduler<1>::gimmeValues(t, myParameter);
     parameter = myParameter[0];
   }
 };
-
 template <int Npoints>
 struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
   void gimmeValues(const Real t, const std::array<Real, Npoints> &positions,
                    const int Nfine, const Real *const positions_fine,
                    Real *const parameters_fine, Real *const dparameters_fine) {
-
     Real *parameters_t0_fine = new Real[Nfine];
     Real *parameters_t1_fine = new Real[Nfine];
     Real *dparameters_t0_fine = new Real[Nfine];
-
     IF2D_Interpolation1D::naturalCubicSpline(
         positions.data(), this->parameters_t0.data(), Npoints, positions_fine,
         parameters_t0_fine, Nfine);
@@ -326,7 +279,6 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
     IF2D_Interpolation1D::naturalCubicSpline(
         positions.data(), this->dparameters_t0.data(), Npoints, positions_fine,
         dparameters_t0_fine, Nfine);
-
     if (t < this->t0 or this->t0 < 0) {
       memcpy(parameters_fine, parameters_t0_fine, Nfine * sizeof(Real));
       memset(dparameters_fine, 0, Nfine * sizeof(Real));
@@ -334,7 +286,6 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
       memcpy(parameters_fine, parameters_t1_fine, Nfine * sizeof(Real));
       memset(dparameters_fine, 0, Nfine * sizeof(Real));
     } else {
-
       for (int i = 0; i < Nfine; ++i)
         IF2D_Interpolation1D::cubicInterpolation(
             this->t0, this->t1, t, parameters_t0_fine[i], parameters_t1_fine[i],
@@ -344,17 +295,14 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
     delete[] parameters_t1_fine;
     delete[] dparameters_t0_fine;
   }
-
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters) {
     ParameterScheduler<Npoints>::gimmeValues(t, parameters);
   }
-
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters,
                    std::array<Real, Npoints> &dparameters) {
     ParameterScheduler<Npoints>::gimmeValues(t, parameters, dparameters);
   }
 };
-
 template <int Npoints>
 struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
   template <typename T>
@@ -364,11 +312,9 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
                    Real *const dparameters_fine) {
     const Real _1oL = 1. / Length;
     const Real _1oT = 1. / Twave;
-
     for (int i = 0; i < Nfine; ++i) {
       const Real c = positions_fine[i] * _1oL - (t - this->t0) * _1oT;
       bool bCheck = true;
-
       if (c < positions[0]) {
         IF2D_Interpolation1D::cubicInterpolation(
             c, positions[0], c, this->parameters_t0[0], this->parameters_t0[0],
@@ -398,19 +344,14 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
       }
     }
   }
-
-  void Turn(const Real b, const Real t_turn)
-
-  {
+  void Turn(const Real b, const Real t_turn) {
     this->t0 = t_turn;
-
     for (int i = Npoints - 1; i > 1; --i)
       this->parameters_t0[i] = this->parameters_t0[i - 2];
     this->parameters_t0[1] = b;
     this->parameters_t0[0] = 0;
   }
 };
-
 class Synapse {
 public:
   Real g = 0;
@@ -430,16 +371,12 @@ public:
     activationAmplitudes.clear();
   }
   void advance(const Real t) {
-
     dg = 0;
     Real dt = t - prevTime;
-
     for (size_t i = 0; i < activationTimes.size(); i++) {
       const Real deltaT = t - activationTimes.at(i);
-
       const Real dBiExp = -1 / tau2 * std::exp(-deltaT / tau2) +
                           1 / tau1 * std::exp(-deltaT / tau1);
-
       dg += activationAmplitudes.at(i) * dBiExp;
     }
     g += dg * dt;
@@ -447,16 +384,12 @@ public:
     forget(t);
   }
   void excite(const Real t, const Real amp) {
-
     activationTimes.push_back(t);
     activationAmplitudes.push_back(amp);
   }
   void forget(const Real t) {
-
     if (activationTimes.size() != 0) {
-
       if (t - activationTimes.at(0) > tau1 + tau2) {
-
         activationTimes.erase(activationTimes.begin());
         activationAmplitudes.erase(activationAmplitudes.begin());
       }
@@ -465,7 +398,6 @@ public:
   Real value() { return g; }
   Real speed() { return dg; }
 };
-
 template <int Npoints> class Oscillation {
 public:
   Real d = 0.0;
@@ -483,11 +415,9 @@ public:
     signal_out.clear();
   }
   void modify(const Real t0_in, const Real f_in, const Real d_in) {
-
     d = d_in;
     t0 = t0_in;
     prev_fmod = 0;
-
     signal = std::vector<Real>(Npoints, 0.0);
     signal.at(0) = f_in;
     signal.at(static_cast<int>(
@@ -495,7 +425,6 @@ public:
     signal_out = signal;
   }
   void advance(const Real t) {
-
     if (fmod(t - t0, d) < prev_fmod && t > t0) {
       signal.insert(signal.begin(), signal.back());
       signal.pop_back();
@@ -508,17 +437,14 @@ public:
     prev_fmod = fmod(t - t0, d);
   }
 };
-
 template <int Npoints>
 struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
   Real prevTime = 0.0;
   int numActiveSpikes = 0;
   const Real tau1 = 0.006 / 0.044;
   const Real tau2 = 0.008 / 0.044;
-
   std::array<Real, Npoints> neuroSignal_t_coarse = std::array<Real, Npoints>();
   std::array<Real, Npoints> timeActivated_coarse = std::array<Real, Npoints>();
-
   std::array<Real, Npoints> muscSignal_t_coarse = std::array<Real, Npoints>();
   std::array<Real, Npoints> dMuscSignal_t_coarse = std::array<Real, Npoints>();
   std::vector<std::array<Real, Npoints>> neuroSignalVec_coarse;
@@ -526,7 +452,6 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
   std::vector<std::array<Real, Npoints>> muscSignalVec_coarse;
   std::vector<std::array<Real, Npoints>> dMuscSignalVec_coarse;
   std::vector<Real> amplitudeVec;
-
   virtual void resetAll() {
     prevTime = 0.0;
     numActiveSpikes = 0;
@@ -540,7 +465,6 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
     dMuscSignalVec_coarse.clear();
     amplitudeVec.clear();
   }
-
   template <typename T>
   void gimmeValues(const Real t, const Real Length,
                    const std::array<Real, Npoints> &positions, const int Nfine,
@@ -548,10 +472,8 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
                    Real *const dMuscSignal_t_fine,
                    Real *const spatialDerivativeMuscSignal,
                    Real *const spatialDerivativeDMuscSignal) {
-
     if (numActiveSpikes > 0) {
       this->dMuscSignal_t_coarse = std::array<Real, Npoints>();
-
       for (int i = 0; i < numActiveSpikes; i++) {
         const Real relaxationTime = (Npoints + 1) * tau1 + tau2;
         const Real activeSpikeTime = t - timeActivatedVec_coarse.at(i).at(0);
@@ -564,11 +486,8 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
           this->dMuscSignalVec_coarse.erase(dMuscSignalVec_coarse.begin() + i);
         }
       }
-
       advanceCoarseArrays(t);
-
       this->prevTime = t;
-
       IF2D_Interpolation1D::naturalCubicSpline(
           positions.data(), this->muscSignal_t_coarse.data(), Npoints,
           positions_fine, muscSignal_t_fine, Nfine);
@@ -577,27 +496,21 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
           positions_fine, dMuscSignal_t_fine, Nfine);
     }
   }
-
   void advanceCoarseArrays(const Real time_current) {
-
     const Real delta_t = time_current - this->prevTime;
     for (int i = 0; i < numActiveSpikes; i++) {
       for (int j = 0; j < Npoints; j++) {
         const Real deltaT =
             time_current - this->timeActivatedVec_coarse.at(i).at(j);
         if (deltaT >= 0) {
-
           if (j > 0) {
             this->neuroSignalVec_coarse.at(i).at(j) =
                 this->neuroSignalVec_coarse.at(i)[j - 1];
           }
-
           const Real dBiExp = -1 / this->tau2 * std::exp(-deltaT / this->tau2) +
                               1 / this->tau1 * std::exp(-deltaT / this->tau1);
-
           this->dMuscSignalVec_coarse.at(i).at(j) =
               this->neuroSignalVec_coarse.at(i).at(j) * dBiExp;
-
           this->dMuscSignal_t_coarse.at(j) +=
               this->dMuscSignalVec_coarse.at(i).at(j);
           this->muscSignal_t_coarse.at(j) +=
@@ -606,7 +519,6 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
       }
     }
   }
-
   void Spike(const Real t_spike, const Real aCmd, const Real dCmd,
              const Real deltaTFireCmd) {
     this->t0 = t_spike;
@@ -616,38 +528,31 @@ struct ParameterSchedulerNeuroKinematic : ParameterScheduler<Npoints> {
     this->timeActivatedVec_coarse.push_back(std::array<Real, Npoints>());
     this->muscSignalVec_coarse.push_back(std::array<Real, Npoints>());
     this->dMuscSignalVec_coarse.push_back(std::array<Real, Npoints>());
-
     for (int j = 0; j < Npoints; j++) {
       this->timeActivatedVec_coarse.at(numActiveSpikes - 1).at(j) =
           this->t0 + j * dCmd;
     }
-
     this->neuroSignalVec_coarse.at(numActiveSpikes - 1).at(0) = aCmd;
   }
 };
-
 template <int Npoints>
 struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints> {
   std::array<Synapse, Npoints> synapses;
   Oscillation<Npoints> oscillation;
-
   std::array<Real, Npoints> muscle_value = std::array<Real, Npoints>();
   std::array<Real, Npoints> muscle_speed = std::array<Real, Npoints>();
-
   virtual void resetAll() {
     for (int i = 0; i < Npoints; i++) {
       synapses.at(i).reset();
     }
     oscillation.reset();
   }
-
   template <typename T>
   void gimmeValues(const Real t, const Real Length,
                    const std::array<Real, Npoints> &positions, const int Nfine,
                    const T *const positions_fine, T *const muscle_value_fine,
                    Real *const muscle_speed_fine) {
     advance(t);
-
     IF2D_Interpolation1D::naturalCubicSpline(
         positions.data(), this->muscle_value.data(), Npoints, positions_fine,
         muscle_value_fine, Nfine);
@@ -655,27 +560,22 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints> {
         positions.data(), this->muscle_speed.data(), Npoints, positions_fine,
         muscle_speed_fine, Nfine);
   }
-
   void advance(const Real t) {
     oscillation.advance(t);
     for (int i = 0; i < Npoints; i++) {
-
       const Real oscAmp = oscillation.signal_out.at(i);
       printf("[Scheduler][advance] signal_i %f\n",
              (double)oscillation.signal.at(i));
-
       if (oscAmp != 0) {
         synapses.at(i).excite(t, oscAmp);
       }
       synapses.at(i).advance(t);
       muscle_value.at(i) = synapses.at(i).value();
       muscle_speed.at(i) = synapses.at(i).speed();
-
       if (i == 0) {
         printf("[Scheduler][advance] muscle_value_0 %f\n",
                (double)muscle_value.at(0));
       }
-
       if (i == 0) {
         printf("[Scheduler][advance] synapse_0 numActivations %ld\n",
                synapses.at(0).activationAmplitudes.size());
@@ -684,14 +584,12 @@ struct ParameterSchedulerNeuroKinematicObject : ParameterScheduler<Npoints> {
         printf("[Scheduler][advance] muscle_value_10 %f\n",
                (double)muscle_value.at(10));
       }
-
       if (i == 10) {
         printf("[Scheduler][advance] synapse_10 numActivations %ld\n",
                synapses.at(10).activationAmplitudes.size());
       }
     }
   }
-
   void Spike(const Real t_spike, const Real aCmd, const Real dCmd,
              const Real deltaTFireCmd) {
     oscillation.modify(t_spike, aCmd, dCmd);

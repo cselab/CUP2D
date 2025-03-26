@@ -1,12 +1,9 @@
 #pragma once
-
 #include "BlockInfo.h"
 #include <algorithm>
 #include <cstring>
 #include <string>
-
 namespace cubism {
-
 template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
@@ -16,16 +13,13 @@ public:
 
 protected:
   TGrid *grid;
-
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
     long long mn[2];
     Real data[sizeof(BlockType) / sizeof(Real)];
-
     MPI_Block(const BlockInfo &info, const bool Fillptr = true) {
       prepare(info, Fillptr);
     }
-
     void prepare(const BlockInfo &info, const bool Fillptr = true) {
       mn[0] = info.level;
       mn[1] = info.Z;
@@ -34,20 +28,15 @@ protected:
         std::memcpy(&data[0], aux, sizeof(BlockType));
       }
     }
-
     MPI_Block() {}
   };
-
   void AddBlock(const int level, const long long Z, Real *data) {
-
     grid->_alloc(level, Z);
-
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
     BlockType *b1 = (BlockType *)info.ptrBlock;
     assert(b1 != NULL);
     Real *a1 = &b1->data[0][0][0].member(0);
     std::memcpy(a1, data, sizeof(BlockType));
-
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
     if (level < grid->getlevelMax() - 1)
@@ -67,7 +56,6 @@ public:
   LoadBalancer(TGrid &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
-
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
     MPI_Datatype array_of_types[2];
@@ -82,38 +70,28 @@ public:
                            array_of_types, &MPI_BLOCK);
     MPI_Type_commit(&MPI_BLOCK);
   }
-
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
-
   void PrepareCompression() {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
-
     std::vector<BlockInfo> &I = grid->getBlocksInfo();
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
-
     for (auto &b : I) {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
-
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
-
       if (!grid->Tree(base).Exists() || base.state != Compress)
         continue;
-
       const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
       const int baserank = grid->Tree(b.level, nBlock).rank();
       const int brank = grid->Tree(b.level, b.Z).rank();
-
       if (b.Z != nBlock) {
         if (baserank != rank && brank == rank) {
           send_blocks[baserank].push_back({bCopy});
           grid->Tree(b.level, b.Z).setrank(baserank);
         }
-      }
-
-      else {
+      } else {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long n =
@@ -129,7 +107,6 @@ public:
           }
       }
     }
-
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
       if (r != rank) {
@@ -146,19 +123,16 @@ public:
                     2468, grid->getWorldComm(), &requests.back());
         }
       }
-
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
         grid->Tree(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1])
             .setCheckCoarser();
       }
-
     if (requests.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(requests.size(), &requests[0], MPI_STATUSES_IGNORE);
     }
-
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
@@ -171,12 +145,10 @@ public:
         std::memcpy(a1, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
-
   void Balance_Diffusion(const bool verbose,
                          std::vector<long long> &block_distribution) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
-
     movedBlocks = false;
     {
       long long max_b = block_distribution[0];
@@ -194,14 +166,10 @@ public:
         return;
       }
     }
-
     const int right = (rank == size - 1) ? MPI_PROC_NULL : rank + 1;
     const int left = (rank == 0) ? MPI_PROC_NULL : rank - 1;
-
     const int my_blocks = grid->getBlocksInfo().size();
-
     int right_blocks, left_blocks;
-
     MPI_Request reqs[4];
     MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, grid->getWorldComm(),
               &reqs[0]);
@@ -211,25 +179,19 @@ public:
               &reqs[2]);
     MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, grid->getWorldComm(),
               &reqs[3]);
-
     MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
-
     const int nu = 4;
     const int flux_left = (rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
         (rank == size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-
     std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
     if (flux_right != 0 || flux_left != 0)
       std::sort(SortedInfos.begin(), SortedInfos.end());
-
     std::vector<MPI_Block> send_left;
     std::vector<MPI_Block> recv_left;
     std::vector<MPI_Block> send_right;
     std::vector<MPI_Block> recv_right;
-
     std::vector<MPI_Request> request;
-
     if (flux_left > 0) {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
@@ -262,19 +224,16 @@ public:
       MPI_Irecv(&recv_right[0], recv_right.size(), MPI_BLOCK, right, 7890,
                 grid->getWorldComm(), &request.back());
     }
-
     for (int i = 0; i < flux_right; i++) {
       BlockInfo &info = SortedInfos[my_blocks - i - 1];
       grid->_dealloc(info.level, info.Z);
       grid->Tree(info.level, info.Z).setrank(right);
     }
-
     for (int i = 0; i < flux_left; i++) {
       BlockInfo &info = SortedInfos[i];
       grid->_dealloc(info.level, info.Z);
       grid->Tree(info.level, info.Z).setrank(left);
     }
-
     if (request.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
@@ -283,39 +242,31 @@ public:
     MPI_Request request_reduction;
     MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM,
                    grid->getWorldComm(), &request_reduction);
-
     for (int i = 0; i < -flux_left; i++)
       AddBlock(recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
       AddBlock(recv_right[i].mn[0], recv_right[i].mn[1], recv_right[i].data);
-
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-
   void Balance_Global(std::vector<long long> &all_b) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
-
     std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
     std::sort(SortedInfos.begin(), SortedInfos.end());
-
     long long total_load = 0;
     for (int r = 0; r < size; r++)
       total_load += all_b[r];
     long long my_load = total_load / size;
     if (rank < (total_load % size))
       my_load += 1;
-
     std::vector<long long> index_start(size);
     index_start[0] = 0;
     for (int r = 1; r < size; r++)
       index_start[r] = index_start[r - 1] + all_b[r - 1];
-
     long long ideal_index = (total_load / size) * rank;
     ideal_index += (rank < (total_load % size)) ? rank : (total_load % size);
-
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
     for (int r = 0; r < size; r++)
@@ -347,7 +298,6 @@ public:
             send_blocks[r].resize(c2 - c1 + 1);
         }
       }
-
     int tag = 12345;
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
@@ -357,7 +307,6 @@ public:
         MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCK, r,
                   tag, grid->getWorldComm(), &requests.back());
       }
-
     long long counter_S = 0;
     long long counter_E = 0;
     for (int r = 0; r < rank; r++)
@@ -381,7 +330,6 @@ public:
         MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
                   tag, grid->getWorldComm(), &requests.back());
       }
-
     movedBlocks = true;
     std::vector<long long> deallocIDs;
     counter_S = 0;
@@ -406,9 +354,7 @@ public:
         }
       }
     grid->dealloc_many(deallocIDs);
-
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-
 #pragma omp parallel
     {
       for (int r = 0; r < size; r++)
@@ -422,5 +368,4 @@ public:
     grid->FillPos();
   }
 };
-
 } // namespace cubism

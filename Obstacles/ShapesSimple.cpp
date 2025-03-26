@@ -1,21 +1,15 @@
-
-
 #include "ShapesSimple.h"
 #include "ShapeLibrary.h"
-
 using namespace cubism;
-
 void Disk::create(const std::vector<BlockInfo> &vInfo) {
   const Real h = sim.getH();
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock *>(vInfo.size(), nullptr);
-
 #pragma omp parallel
   {
     FillBlocks_Cylinder kernel(radius, h, center);
-
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); i++)
       if (kernel.is_touching(vInfo[i])) {
@@ -26,7 +20,6 @@ void Disk::create(const std::vector<BlockInfo> &vInfo) {
       }
   }
 }
-
 void Disk::updateVelocity(Real dt) {
   Shape::updateVelocity(dt);
   if (tAccel > 0) {
@@ -36,18 +29,15 @@ void Disk::updateVelocity(Real dt) {
       v = (sim.time / tAccel) * forcedv;
   }
 }
-
 void HalfDisk::create(const std::vector<BlockInfo> &vInfo) {
   const Real h = sim.getH();
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock *>(vInfo.size(), nullptr);
-
 #pragma omp parallel
   {
     FillBlocks_HalfCylinder kernel(radius, h, center, orientation);
-
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); i++)
       if (kernel.is_touching(vInfo[i])) {
@@ -58,7 +48,6 @@ void HalfDisk::create(const std::vector<BlockInfo> &vInfo) {
       }
   }
 }
-
 void HalfDisk::updateVelocity(Real dt) {
   Shape::updateVelocity(dt);
   if (tAccel > 0) {
@@ -68,18 +57,15 @@ void HalfDisk::updateVelocity(Real dt) {
       v = (sim.time / tAccel) * forcedv;
   }
 }
-
 void Ellipse::create(const std::vector<BlockInfo> &vInfo) {
   const Real h = sim.getH();
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock *>(vInfo.size(), nullptr);
-
 #pragma omp parallel
   {
     FillBlocks_Ellipse kernel(semiAxis[0], semiAxis[1], h, center, orientation);
-
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); i++)
       if (kernel.is_touching(vInfo[i])) {
@@ -90,18 +76,15 @@ void Ellipse::create(const std::vector<BlockInfo> &vInfo) {
       }
   }
 }
-
 void Rectangle::create(const std::vector<BlockInfo> &vInfo) {
   const Real h = sim.getH();
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock *>(vInfo.size(), nullptr);
-
 #pragma omp parallel
   {
     FillBlocks_Rectangle kernel(extentX, extentY, h, center, orientation);
-
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); i++)
       if (kernel.is_touching(vInfo[i])) {

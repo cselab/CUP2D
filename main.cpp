@@ -1,16 +1,10 @@
-
-
 #include "Simulation.h"
-
 #include "mpi.h"
 using namespace cubism;
-
 int main(int argc, char **argv) {
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
-
   double time = -MPI_Wtime();
-
   Simulation *sim = new Simulation(argc, argv, MPI_COMM_WORLD);
   sim->init();
   sim->simulate();

@@ -1,9 +1,5 @@
-
-
 #pragma once
-
 #include "SimulationData.h"
-
 class Operator {
 public:
   SimulationData &sim;

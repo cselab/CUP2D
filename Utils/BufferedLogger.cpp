@@ -1,12 +1,7 @@
-
-
 #include "BufferedLogger.h"
 #include <fstream>
-
 BufferedLogger logger;
-
 static constexpr int AUTO_FLUSH_COUNT = 100;
-
 void BufferedLogger::flush(BufferedLogger::container_type::iterator it) {
   std::ofstream savestream;
   savestream.open(it->first, std::ios::app | std::ios::out);
@@ -14,7 +9,6 @@ void BufferedLogger::flush(BufferedLogger::container_type::iterator it) {
   savestream.close();
   it->second.requests_since_last_flush = 0;
 }
-
 std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
   auto it = files.find(filename);
   if (it != files.end()) {
@@ -22,7 +16,6 @@ std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
       flush(it);
     return it->second.stream;
   } else {
-
     auto new_it = files.emplace(filename, Stream()).first;
     return new_it->second.stream;
   }

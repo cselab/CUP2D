@@ -1,18 +1,13 @@
-
-
 #include "Definitions.h"
 #include "Operators/Helpers.h"
 #include "Shape.h"
 #include <Cubism/HDF5Dumper.h>
-
 #include <iomanip>
 using namespace cubism;
-
 void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
 }
-
 void SimulationData::resetAll() {
   for (const auto &shape : shapes)
     shape->resetAll();
@@ -24,13 +19,11 @@ void SimulationData::resetAll() {
   _bDump = false;
   bCollision = false;
 }
-
 void SimulationData::allocateGrid() {
   ScalarLab dummy;
   const bool xperiodic = dummy.is_xperiodic();
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
-
   chi = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                        xperiodic, yperiodic, zperiodic);
   vel = new VectorGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
@@ -45,13 +38,10 @@ void SimulationData::allocateGrid() {
                        xperiodic, yperiodic, zperiodic);
   pold = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
-
   if (smagorinskyCoeff != 0)
     Cs = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
-
   const std::vector<BlockInfo> &velInfo = vel->getBlocksInfo();
-
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
@@ -59,16 +49,13 @@ void SimulationData::allocateGrid() {
               << std::endl;
     MPI_Abort(chi->getWorldComm(), 1);
   }
-
   int aux = pow(2, levelStart);
   extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
-
   int auxMax = pow(2, levelMax - 1);
   minH = extents[0] / (auxMax * bpdx * VectorBlock::sizeX);
   maxH = extents[0] / (bpdx * VectorBlock::sizeX);
 }
-
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss;
   ss << name << std::setfill('0') << std::setw(7) << step;
@@ -117,11 +104,8 @@ void SimulationData::dumpCs(std::string name) {
   DumpHDF5_MPI<StreamerScalar, Real>(*(Cs), time, "Cs_" + ss.str(),
                                      path4serialization);
 }
-
 void SimulationData::registerDump() { nextDumpTime += dumpTime; }
-
 SimulationData::SimulationData() = default;
-
 SimulationData::~SimulationData() {
   delete profiler;
   if (vel not_eq nullptr)
@@ -141,20 +125,17 @@ SimulationData::~SimulationData() {
   if (Cs not_eq nullptr)
     delete Cs;
 }
-
 bool SimulationData::bOver() const {
   const bool timeEnd = endTime > 0 && time >= endTime;
   const bool stepEnd = nsteps > 0 && step >= nsteps;
   return timeEnd || stepEnd;
 }
-
 bool SimulationData::bDump() {
   const bool timeDump = dumpTime > 0 && time >= nextDumpTime;
   const bool stepDump = dumpFreq > 0 && (step % dumpFreq) == 0;
   _bDump = stepDump || timeDump;
   return _bDump;
 }
-
 void SimulationData::startProfiler(std::string name) {
 #ifndef NDEBUG
   Checker check(*this);
@@ -162,34 +143,25 @@ void SimulationData::startProfiler(std::string name) {
 #endif
   profiler->push_start(name);
 }
-
 void SimulationData::stopProfiler() { profiler->pop_stop(); }
-
 void SimulationData::printResetProfiler() {
   profiler->printSummary();
   profiler->reset();
 }
-
 void SimulationData::dumpAll(std::string name) {
   startProfiler("Dump");
-
   auto K1 = computeVorticity(*this);
   K1(0);
   dumpTmp(name);
   dumpChi(name);
   dumpVel(name);
   dumpPres(name);
-
   if (bDumpCs)
     dumpCs(name);
-
   writeRestartFiles();
-
   stopProfiler();
 }
-
 void SimulationData::writeRestartFiles() {
-
   if (rank == 0) {
     std::stringstream ssR;
     ssR << path4serialization + "/field.restart";
@@ -207,7 +179,6 @@ void SimulationData::writeRestartFiles() {
     fprintf(fField, "dt: %20.20e\n", (double)dt);
     fclose(fField);
   }
-
   {
     int size;
     MPI_Comm_size(comm, &size);
@@ -218,7 +189,6 @@ void SimulationData::writeRestartFiles() {
     }
     const size_t my_start = rank * (tasks / size);
     const size_t my_end = my_start + my_share;
-
 #pragma omp parallel for schedule(static, 1)
     for (size_t j = my_start; j < my_end; j++) {
       auto &shape = shapes[j];
@@ -235,9 +205,7 @@ void SimulationData::writeRestartFiles() {
     }
   }
 }
-
 void SimulationData::readRestartFiles() {
-
   FILE *fField = fopen("field.restart", "r");
   if (fField == NULL) {
     printf("Could not read %s. Aborting...\n", "field.restart");
@@ -268,7 +236,6 @@ void SimulationData::readRestartFiles() {
     printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n",
            (double)time, step, (double)uinfx, (double)uinfy);
   nextDumpTime = time + dumpTime;
-
   for (std::shared_ptr<Shape> shape : shapes) {
     std::stringstream ssR;
     ssR << "shape_" << shape->obstacleID << ".restart";

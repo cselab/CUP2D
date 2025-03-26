@@ -1,7 +1,4 @@
-
-
 #pragma once
-
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -20,7 +17,6 @@ using Real = double;
 using Real = long double;
 #define MPI_Real MPI_LONG_DOUBLE
 #endif
-
 #include <Cubism/AMR_MeshAdaptation.h>
 #include <Cubism/ArgumentParser.h>
 #include <Cubism/BlockInfo.h>
@@ -30,21 +26,16 @@ using Real = long double;
 #include <Cubism/Grid.h>
 #include <Cubism/GridMPI.h>
 #include <Cubism/StencilInfo.h>
-
 #ifndef _DIM_
 #define _DIM_ 2
 #endif
-
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
   if (strFlag == "periodic") {
-
     return periodic;
   } else if (strFlag == "freespace") {
-
     return freespace;
   } else if (strFlag == "wall") {
-
     return wall;
   } else {
     fprintf(stderr, "BC not recognized %s\n", strFlag.c_str());
@@ -53,10 +44,8 @@ inline BCflag string2BCflag(const std::string &strFlag) {
     return periodic;
   }
 }
-
 extern BCflag cubismBCX;
 extern BCflag cubismBCY;
-
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLabDirichlet : public cubism::BlockLab<TGrid, allocator> {
@@ -65,14 +54,11 @@ public:
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
-
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
-
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
-
     const int A = 1 - dir;
     if (!coarse) {
       auto *const cb = this->m_cacheBlock;
@@ -85,7 +71,6 @@ public:
                       : sizeX + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : sizeY + stenEnd[1] - 1)
                       : sizeY + stenEnd[1] - 1;
-
       if (!wall)
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
@@ -110,7 +95,6 @@ public:
           }
     } else {
       auto *const cb = this->m_CoarsenedBlock;
-
       const int eI[3] = {
           (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1,
           (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1,
@@ -119,20 +103,15 @@ public:
           (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0],
           (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1],
           (this->m_stencilStart[2] - 1) / 2 + this->m_InterpStencilStart[2]};
-
       const int *const stenBeg = sI;
       const int *const stenEnd = eI;
-
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-
       s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : sizeX / 2) : stenBeg[0];
       s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : sizeY / 2) : stenBeg[1];
-
       e[0] = dir == 0 ? (side == 0 ? 0 : sizeX / 2 + stenEnd[0] - 1)
                       : sizeX / 2 + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : sizeY / 2 + stenEnd[1] - 1)
                       : sizeY / 2 + stenEnd[1] - 1;
-
       if (!wall)
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
@@ -157,7 +136,6 @@ public:
           }
     }
   }
-
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     const BCflag BCX = cubismBCX;
@@ -190,12 +168,10 @@ public:
       }
     }
   }
-
   BlockLabDirichlet() : cubism::BlockLab<TGrid, allocator>() {}
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid, 2, allocator> {
@@ -204,7 +180,6 @@ public:
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
-
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (is_xperiodic() == false) {
@@ -221,14 +196,12 @@ public:
     }
   }
 };
-
 using ScalarElement = cubism::ScalarElement<Real>;
 using VectorElement = cubism::VectorElement<2, Real>;
 using ScalarBlock = cubism::GridBlock<_BS_, 2, ScalarElement>;
 using VectorBlock = cubism::GridBlock<_BS_, 2, VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
 using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
-
 using VectorLab =
     cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid, std::allocator>>;
 using ScalarLab =

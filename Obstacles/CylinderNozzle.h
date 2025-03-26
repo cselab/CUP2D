@@ -1,10 +1,6 @@
-
-
 #pragma once
-
 #include "../Shape.h"
 #include "FishUtilities.h"
-
 class CylinderNozzle : public Shape {
   const Real radius;
   std::vector<Real> actuators_prev_value;
@@ -12,16 +8,13 @@ class CylinderNozzle : public Shape {
   const int Nactuators;
   const Real actuator_theta;
   Real fx_integral = 0;
-
   std::vector<Schedulers::ParameterSchedulerScalar> actuatorSchedulers;
-
   Real t_change = 0;
   const Real regularizer;
   const Real ccoef;
 
 public:
   std::vector<Real> actuators;
-
   CylinderNozzle(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
       : Shape(s, p, C), radius(p("-radius").asDouble(0.1)),
         Nactuators(p("-Nactuators").asInt(2)),
@@ -33,10 +26,8 @@ public:
     actuators_prev_value.resize(Nactuators);
     actuators_next_value.resize(Nactuators);
   }
-
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   void finalize() override;
-
   void updateVelocity(Real dt) override {
     Shape::updateVelocity(dt);
     constexpr Real t1 = 0.25;
@@ -46,7 +37,6 @@ public:
             ? u * getCharLength() * sin(2 * M_PI * (sim.time - t1) / (t2 - t1))
             : 0.0;
   }
-
   Real getCharLength() const override { return 2 * radius; }
   void act(std::vector<Real> action, const int agentID);
   Real reward(const int agentID);

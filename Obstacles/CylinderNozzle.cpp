@@ -1,21 +1,16 @@
-
-
 #include "CylinderNozzle.h"
 #include "../Utils/BufferedLogger.h"
 #include "ShapeLibrary.h"
 using namespace cubism;
-
 void CylinderNozzle::create(const std::vector<BlockInfo> &vInfo) {
   const Real h = sim.getH();
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
   obstacleBlocks = std::vector<ObstacleBlock *>(vInfo.size(), nullptr);
-
 #pragma omp parallel
   {
     FillBlocks_Cylinder kernel(radius, h, center);
-
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); i++)
       if (kernel.is_touching(vInfo[i])) {
@@ -26,9 +21,7 @@ void CylinderNozzle::create(const std::vector<BlockInfo> &vInfo) {
       }
   }
 }
-
 void CylinderNozzle::finalize() {
-
   const Real transition_duration = 0.1;
   for (size_t idx = 0; idx < actuators.size(); idx++) {
     Real dummy;
@@ -37,83 +30,64 @@ void CylinderNozzle::finalize() {
         actuators_prev_value[idx], actuators_next_value[idx]);
     actuatorSchedulers[idx].gimmeValues(sim.time, actuators[idx], dummy);
   }
-
   const Real dtheta = 2 * M_PI / Nactuators;
   const Real Cx = centerOfMass[0];
   const Real Cy = centerOfMass[1];
   const Real Uact_max = ccoef * pow(u * u + v * v, 0.5);
-
   const auto &vInfo = sim.vel->getBlocksInfo();
   for (size_t i = 0; i < vInfo.size(); i++) {
     const auto &info = vInfo[i];
     if (obstacleBlocks[info.blockID] == nullptr)
       continue;
-
     UDEFMAT &__restrict__ UDEF = obstacleBlocks[info.blockID]->udef;
-
     for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
       for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
-
         UDEF[iy][ix][0] = 0.0;
         UDEF[iy][ix][1] = 0.0;
-
         Real p[2];
         info.pos(p, ix, iy);
         const Real x = p[0] - Cx;
         const Real y = p[1] - Cy;
-
         const Real r = x * x + y * y;
         if (r > (radius + 2 * info.h) * (radius + 2 * info.h) ||
             r < (radius - 2 * info.h) * (radius - 2 * info.h))
           continue;
-
         Real theta = atan2(y, x);
         if (theta < 0)
           theta += 2. * M_PI;
-
         int idx = round(theta / dtheta);
         if (idx == Nactuators)
           idx = 0;
-
         const Real theta0 = idx * dtheta;
         const Real phi = theta - theta0;
-
         if (std::fabs(phi) < 0.5 * actuator_theta ||
             (idx == 0 && std::fabs(phi - 2 * M_PI) < 0.5 * actuator_theta)) {
-
           const Real rr = radius / pow(r, 0.5);
           const Real ur =
               Uact_max * rr * actuators[idx] * cos(M_PI * phi / actuator_theta);
           UDEF[iy][ix][0] = ur * cos(theta);
-
           UDEF[iy][ix][1] = ur * sin(theta);
         }
       }
   }
-
   const double cd = forcex / (0.5 * u * u * 2 * radius);
   fx_integral += -std::fabs(cd) * sim.dt;
 }
-
 void CylinderNozzle::act(std::vector<Real> action, const int agentID) {
   t_change = sim.time;
-
   if (action.size() != actuators.size()) {
     std::cerr << "action size needs to be equal to actuators\n";
     fflush(0);
     abort();
   }
-
   bool bounded = false;
   while (bounded == false) {
     bounded = true;
-
     Real Q = 0;
     for (size_t i = 0; i < action.size(); i++) {
       Q += action[i];
     }
     Q /= action.size();
-
     for (size_t i = 0; i < action.size(); i++) {
       action[i] -= Q;
       if (std::fabs(action[i]) > 1.0)
@@ -122,13 +96,11 @@ void CylinderNozzle::act(std::vector<Real> action, const int agentID) {
       action[i] = std::min(action[i], +1.0);
     }
   }
-
   for (size_t i = 0; i < action.size(); i++) {
     actuators_prev_value[i] = actuators[i];
     actuators_next_value[i] = action[i];
   }
 }
-
 Real CylinderNozzle::reward(const int agentID) {
   Real retval = fx_integral / 0.1;
   fx_integral = 0;
@@ -140,7 +112,6 @@ Real CylinderNozzle::reward(const int agentID) {
   const double c = -regularizer;
   return retval + c * regularizer_sum;
 }
-
 std::vector<Real> CylinderNozzle::state(const int agentID) {
   std::vector<Real> S;
   const int bins = 16;
@@ -149,7 +120,6 @@ std::vector<Real> CylinderNozzle::state(const int agentID) {
   std::vector<int> n_s(bins, 0.0);
   std::vector<Real> p_s(bins, 0.0);
   std::vector<Real> o_s(bins, 0.0);
-
   for (auto &block : obstacleBlocks)
     if (block not_eq nullptr) {
       for (size_t i = 0; i < block->n_surfPoints; i++) {
@@ -163,7 +133,6 @@ std::vector<Real> CylinderNozzle::state(const int agentID) {
           idx = 0;
         const Real theta0 = idx * dtheta;
         const Real phi = theta - theta0;
-
         if (std::fabs(phi) < 0.5 * bins_theta ||
             (idx == 0 && std::fabs(phi - 2 * M_PI) < 0.5 * bins_theta)) {
           const Real p = block->p_s[i];
@@ -174,7 +143,6 @@ std::vector<Real> CylinderNozzle::state(const int agentID) {
         }
       }
     }
-
   MPI_Allreduce(MPI_IN_PLACE, n_s.data(), n_s.size(), MPI_INT, MPI_SUM,
                 sim.comm);
   for (int idx = 0; idx < bins; idx++) {
@@ -183,22 +151,18 @@ std::vector<Real> CylinderNozzle::state(const int agentID) {
     p_s[idx] /= n_s[idx];
     o_s[idx] /= n_s[idx];
   }
-
   for (int idx = 0; idx < bins; idx++)
     S.push_back(p_s[idx]);
   for (int idx = 0; idx < bins; idx++)
     S.push_back(o_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE, S.data(), S.size(), MPI_Real, MPI_SUM, sim.comm);
-
   S.push_back(forcex);
   S.push_back(forcey);
   const Real Re = std::fabs(u) * (2 * radius) / sim.nu;
   S.push_back(Re);
   S.push_back(ccoef);
-
   if (sim.rank == 0)
     for (size_t i = 0; i < S.size(); i++)
       std::cout << S[i] << " ";
-
   return S;
 }

@@ -1,12 +1,8 @@
-
-
 #pragma once
 #include <iosfwd>
 #include <map>
 #include <string>
-
 namespace cubism {
-
 class Value {
 private:
   std::string content;
@@ -15,7 +11,6 @@ public:
   Value() = default;
   Value(const std::string &content_) : content(content_) {}
   Value(const Value &c) = default;
-
   Value &operator=(const Value &rhs) {
     if (this != &rhs)
       content = rhs.content;
@@ -28,20 +23,17 @@ public:
   Value operator+(const Value &rhs) {
     return Value(content + " " + rhs.content);
   }
-
   double asDouble(double def = 0);
   int asInt(int def = 0);
   bool asBool(bool def = false);
   std::string asString(const std::string &def = std::string());
   friend std::ostream &operator<<(std::ostream &lhs, const Value &rhs);
 };
-
 class CommandlineParser {
 private:
   const int iArgC;
   char **vArgV;
   bool bStrictMode, bVerbose;
-
   bool _isnumber(const std::string &s) const;
 
 protected:
@@ -49,38 +41,26 @@ protected:
 
 public:
   CommandlineParser(int argc, char **argv);
-
   Value &operator()(std::string key);
   bool check(std::string key) const;
-
   int getargc() const { return iArgC; }
   char **getargv() const { return vArgV; }
-
   void set_strict_mode() { bStrictMode = true; }
-
   void unset_strict_mode() { bStrictMode = false; }
-
   void mute() { bVerbose = false; }
-
   void loud() { bVerbose = true; }
-
   void save_options(const std::string &path = ".");
   void print_args();
 };
-
 class ArgumentParser : public CommandlineParser {
   typedef std::map<std::string, Value> ArgMap;
   typedef std::map<std::string, Value *> pArgMap;
   typedef std::map<std::string, ArgMap *> FileMap;
-
   const char commentStart;
-
   ArgMap from_commandline;
   FileMap from_files;
   pArgMap from_code;
-
   ArgMap mapRuntime;
-
   void _ignoreComments(std::istream &stream, char commentChar);
   void _parseFile(std::ifstream &stream, ArgMap &container);
 
@@ -89,23 +69,17 @@ public:
       : CommandlineParser(_argc, _argv), commentStart(cstart) {
     from_commandline = mapArguments;
   }
-
   virtual ~ArgumentParser() {
     for (FileMap::iterator it = from_files.begin(); it != from_files.end();
          it++)
       delete it->second;
   }
-
   void readFile(const std::string &filepath);
   Value &operator()(std::string key);
-
   inline bool exist(const std::string &key) const { return check(key); }
-
   void write_runtime_environment() const;
   void read_runtime_environment();
-
   Value &parseRuntime(std::string key);
   void print_args(void);
 };
-
 } // namespace cubism

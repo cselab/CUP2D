@@ -1,5 +1,5 @@
 #pragma once
-
+#include "SpaceFillingCurve2D.h"
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -8,31 +8,21 @@
 #include <numeric>
 #include <random>
 #include <vector>
-
-#include "SpaceFillingCurve2D.h"
-
 namespace cubism {
-
 template <typename Grid>
 void convertVectorToGrid(Grid *grid, const typename Grid::ElementType *vec) {
   using Block = typename Grid::BlockType;
   const int nx = Block::sizeX;
   const int ny = Block::sizeY;
   const int nz = Block::sizeZ;
-
   const int log2n = log2(nx);
   const int sfc_level = grid->getlevelMax() + log2n;
-
   assert((nx & (nx - 1)) == 0);
-
   std::array<int, 3> N = {nx * grid->NX, ny * grid->NY, nz * grid->NZ};
   static SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0], N[1], sfc_level);
-
   std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
   std::sort(SortedInfos.begin(), SortedInfos.end());
-
   size_t position = 0;
-
   std::vector<int> indices(nx * ny * nz);
   std::vector<long long> sortID(nx * ny * nz);
   for (const auto &info : SortedInfos) {
@@ -49,7 +39,6 @@ void convertVectorToGrid(Grid *grid, const typename Grid::ElementType *vec) {
         }
       }
     }
-
     std::iota(indices.begin(), indices.end(), 0);
     std::sort(indices.begin(), indices.end(),
               [&](int A, int B) -> bool { return sortID[A] < sortID[B]; });
@@ -63,7 +52,6 @@ void convertVectorToGrid(Grid *grid, const typename Grid::ElementType *vec) {
     }
   }
 }
-
 template <typename Grid>
 void convertGridToVector(const Grid *const grid,
                          typename Grid::ElementType *vec) {
@@ -71,22 +59,16 @@ void convertGridToVector(const Grid *const grid,
   const int nx = Block::sizeX;
   const int ny = Block::sizeY;
   const int nz = Block::sizeZ;
-
   const int log2n = log2(nx);
   const int sfc_level = grid->getlevelMax() + log2n;
   const size_t blocks = grid->getBlocksInfo().size();
   const size_t length = blocks * nx * ny * nz;
-
   assert((nx & (nx - 1)) == 0);
-
   std::array<int, 3> N = {nx * grid->NX, ny * grid->NY, nz * grid->NZ};
   static SpaceFillingCurve2D sfc = SpaceFillingCurve2D(N[0], N[1], sfc_level);
-
   std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
   std::sort(SortedInfos.begin(), SortedInfos.end());
-
   size_t position = 0;
-
   std::vector<int> indices(nx * ny * nz);
   std::vector<long long> sortID(nx * ny * nz);
   for (const auto &info : SortedInfos) {
@@ -103,7 +85,6 @@ void convertGridToVector(const Grid *const grid,
         }
       }
     }
-
     std::iota(indices.begin(), indices.end(), 0);
     std::sort(indices.begin(), indices.end(),
               [&](int A, int B) -> bool { return sortID[A] < sortID[B]; });
@@ -117,5 +98,4 @@ void convertGridToVector(const Grid *const grid,
     }
   }
 }
-
 } // namespace cubism

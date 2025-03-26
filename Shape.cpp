@@ -1,16 +1,11 @@
-
-
 #include "Shape.h"
-
 #include "Utils/BufferedLogger.h"
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
 using namespace cubism;
-
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
-
 void Shape::updateVelocity(Real dt) {
 #ifdef EXPL_INTEGRATE_MOM
   if (not bForcedx || sim.time > timeForced)
@@ -20,14 +15,12 @@ void Shape::updateVelocity(Real dt) {
   if (not bBlockang || sim.time > timeForced)
     omega = (fluidAngMom + dt * appliedTorque) / penalJ;
 #else
-
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
                     {(double)-penalDY, (double)penalDX, (double)penalJ}};
   double b[3] = {(double)(fluidMomX + dt * appliedForceX),
                  (double)(fluidMomY + dt * appliedForceY),
                  (double)(fluidAngMom + dt * appliedTorque)};
-
   if (bForcedx && sim.time < timeForced) {
     A[0][1] = 0;
     A[0][2] = 0;
@@ -43,7 +36,6 @@ void Shape::updateVelocity(Real dt) {
     A[2][1] = 0;
     b[2] = penalJ * forcedomega;
   }
-
   gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
   gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
   gsl_vector *xgsl = gsl_vector_alloc(3);
@@ -51,21 +43,18 @@ void Shape::updateVelocity(Real dt) {
   gsl_permutation *permgsl = gsl_permutation_alloc(3);
   gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
   gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-
   if (not bForcedx || sim.time > timeForced)
     u = gsl_vector_get(xgsl, 0);
   if (not bForcedy || sim.time > timeForced)
     v = gsl_vector_get(xgsl, 1);
   if (not bBlockang || sim.time > timeForced)
     omega = gsl_vector_get(xgsl, 2);
-
   const double tStart = breakSymmetryTime;
   const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
   if (breakSymmetryType != 0 && shouldBreak) {
     const double strength = breakSymmetryStrength;
     const double charL = getCharLength();
     const double charV = std::abs(u);
-
     if (breakSymmetryType == 1) {
       omega = strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
     }
@@ -73,12 +62,10 @@ void Shape::updateVelocity(Real dt) {
       v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
     }
   }
-
   gsl_permutation_free(permgsl);
   gsl_vector_free(xgsl);
 #endif
 }
-
 void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
   if (bFixedx) {
     (nSum[0])++;
@@ -89,29 +76,21 @@ void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
     uSum[1] -= v;
   }
 }
-
 void Shape::updatePosition(Real dt) {
-
   centerOfMass[0] += dt * (u + sim.uinfx);
   centerOfMass[1] += dt * (v + sim.uinfy);
   labCenterOfMass[0] += dt * u;
   labCenterOfMass[1] += dt * v;
-
   orientation += dt * omega;
   orientation = orientation > M_PI ? orientation - 2 * M_PI : orientation;
   orientation = orientation < -M_PI ? orientation + 2 * M_PI : orientation;
-
   const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
-
   center[0] = centerOfMass[0] + cosang * d_gm[0] - sinang * d_gm[1];
   center[1] = centerOfMass[1] + sinang * d_gm[0] + cosang * d_gm[1];
-
   const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
-
   if (dt <= 0)
     return;
-
   if (not sim.muteAll && sim.rank == 0) {
     printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
            " M:%.02e J:%.02e\n",
@@ -124,14 +103,12 @@ void Shape::updatePosition(Real dt) {
     if (sim.step == 0)
       fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J accx accy "
               "accw\n";
-
     fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
          << " " << angle << " " << u << " " << v << " " << omega << " " << M
          << " " << J << " " << fluidMomX / penalM << " " << fluidMomY / penalM
          << " " << fluidAngMom / penalJ << "\n";
   }
 }
-
 Shape::Integrals
 Shape::integrateObstBlock(const std::vector<BlockInfo> &vInfo) {
   Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
@@ -177,23 +154,19 @@ Shape::integrateObstBlock(const std::vector<BlockInfo> &vInfo) {
   _a /= _j;
   return Integrals(_x, _y, _m, _j, _u, _v, _a);
 }
-
 void Shape::removeMoments(const std::vector<BlockInfo> &vInfo) {
   Shape::Integrals I = integrateObstBlock(vInfo);
   M = I.m;
   J = I.j;
-
   const Real dCx = center[0] - centerOfMass[0];
   const Real dCy = center[1] - centerOfMass[1];
   d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
   d_gm[1] = -dCx * std::sin(orientation) + dCy * std::cos(orientation);
-
 #pragma omp parallel for schedule(dynamic)
   for (size_t i = 0; i < vInfo.size(); i++) {
     const auto pos = obstacleBlocks[vInfo[i].blockID];
     if (pos == nullptr)
       continue;
-
     for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
       for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
         Real p[2];
@@ -205,11 +178,8 @@ void Shape::removeMoments(const std::vector<BlockInfo> &vInfo) {
       }
   }
 };
-
 void Shape::diagnostics() {}
-
 void Shape::computeForces() {
-
   perimeter = 0;
   forcex = 0;
   forcey = 0;
@@ -229,7 +199,6 @@ void Shape::computeForces() {
   defPower = 0;
   defPowerBnd = 0;
   circulation = 0;
-
   for (auto &block : obstacleBlocks)
     if (block not_eq nullptr) {
       circulation += block->circulation;
@@ -293,17 +262,14 @@ void Shape::computeForces() {
   thrust = quantities[16];
   defPowerBnd = quantities[17];
   defPower = quantities[18];
-
   Pthrust = thrust * std::sqrt(u * u + v * v);
   Pdrag = drag * std::sqrt(u * u + v * v);
   const Real denUnb = Pthrust - std::min(defPower, (Real)0);
   const Real demBnd = Pthrust - defPowerBnd;
   EffPDef = Pthrust / std::max(denUnb, EPS);
   EffPDefBnd = Pthrust / std::max(demBnd, EPS);
-
   if (sim.dt <= 0)
     return;
-
   if (not sim.muteAll && sim._bDump && bDumpSurface) {
     std::stringstream s;
     if (sim.rank == 0)
@@ -327,7 +293,6 @@ void Shape::computeForces() {
                           MPI_STATUS_IGNORE);
     MPI_File_close(&surface_file);
   }
-
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
@@ -335,18 +300,15 @@ void Shape::computeForces() {
     std::stringstream ssF, ssP;
     ssF << sim.path2file << "/forceValues_" << obstacleID << ".dat";
     ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
-
     std::stringstream &fileForce = logger.get_stream(ssF.str());
     if (sim.step == 0)
       fileForce << "time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc "
                    "drag thrust lift perimeter circulation blocks\n";
-
     fileForce << sim.time << " " << forcex << " " << forcey << " " << forcex_P
               << " " << forcey_P << " " << forcex_V << " " << forcey_V << " "
               << torque << " " << torque_P << " " << torque_V << " " << drag
               << " " << thrust << " " << lift << " " << perimeter << " "
               << circulation << " " << tot_blocks << "\n";
-
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if (sim.step == 0)
       filePower << "time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd "
@@ -356,7 +318,6 @@ void Shape::computeForces() {
               << defPower << " " << EffPDefBnd << " " << EffPDef << "\n";
   }
 }
-
 Shape::Shape(SimulationData &s, ArgumentParser &p, Real C[2])
     : sim(s), origC{C[0], C[1]}, origAng(p("-angle").asDouble(0) * M_PI / 180),
       center{C[0], C[1]}, centerOfMass{C[0], C[1]}, orientation(origAng),
@@ -373,13 +334,11 @@ Shape::Shape(SimulationData &s, ArgumentParser &p, Real C[2])
       breakSymmetryType(p("-breakSymmetryType").asInt(0)),
       breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
       breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {}
-
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
 }
-
 void Shape::saveRestart(FILE *f) {
   assert(f != NULL);
   fprintf(f, "x:     %20.20e\n", (double)centerOfMass[0]);
@@ -395,7 +354,6 @@ void Shape::saveRestart(FILE *f) {
   fprintf(f, "center0: %20.20e\n", (double)center[0]);
   fprintf(f, "center1: %20.20e\n", (double)center[1]);
 }
-
 void Shape::loadRestart(FILE *f) {
   assert(f != NULL);
   bool ret = true;

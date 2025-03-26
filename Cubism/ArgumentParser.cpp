@@ -1,3 +1,4 @@
+#include "Cubism/ArgumentParser.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -7,11 +8,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
-
-#include "Cubism/ArgumentParser.h"
-
 namespace cubism {
-
 double Value::asDouble(double def) {
   if (content == "") {
     std::ostringstream sbuf;
@@ -20,7 +17,6 @@ double Value::asDouble(double def) {
   }
   return (double)atof(content.c_str());
 }
-
 int Value::asInt(int def) {
   if (content == "") {
     std::ostringstream sbuf;
@@ -29,7 +25,6 @@ int Value::asInt(int def) {
   }
   return atoi(content.c_str());
 }
-
 bool Value::asBool(bool def) {
   if (content == "") {
     if (def)
@@ -41,34 +36,27 @@ bool Value::asBool(bool def) {
     return false;
   if (content == "false")
     return false;
-
   return true;
 }
-
 std::string Value::asString(const std::string &def) {
   if (content == "")
     content = def;
-
   return content;
 }
-
 std::ostream &operator<<(std::ostream &lhs, const Value &rhs) {
   lhs << rhs.content;
   return lhs;
 }
-
 static inline void _normalizeKey(std::string &key) {
   if (key[0] == '-')
     key.erase(0, 1);
   if (key[0] == '+')
     key.erase(0, 1);
 }
-
 static inline bool _existKey(const std::string &key,
                              const std::map<std::string, Value> &container) {
   return container.find(key) != container.end();
 }
-
 Value &CommandlineParser::operator()(std::string key) {
   _normalizeKey(key);
   if (bStrictMode) {
@@ -77,33 +65,26 @@ Value &CommandlineParser::operator()(std::string key) {
       abort();
     }
   }
-
   if (bVerbose)
     printf("%s is %s\n", key.data(), mapArguments[key].asString().data());
   return mapArguments[key];
 }
-
 bool CommandlineParser::check(std::string key) const {
   _normalizeKey(key);
   return _existKey(key, mapArguments);
 }
-
 bool CommandlineParser::_isnumber(const std::string &s) const {
   char *end = NULL;
   strtod(s.c_str(), &end);
   return end != s.c_str();
 }
-
 CommandlineParser::CommandlineParser(const int argc, char **argv)
     : iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true) {
-
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-') {
       std::string values = "";
       int itemCount = 0;
-
       for (int j = i + 1; j < argc; j++) {
-
         std::string sval(argv[j]);
         const bool leadingDash = (sval[0] == '-');
         const bool isNumeric = _isnumber(sval);
@@ -112,15 +93,12 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
         else {
           if (std::strcmp(values.c_str(), ""))
             values += ' ';
-
           values += argv[j];
           itemCount++;
         }
       }
-
       if (itemCount == 0)
         values = "true";
-
       std::string key(argv[i]);
       key.erase(0, 1);
       if (key[0] == '+') {
@@ -133,13 +111,10 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
         if (!_existKey(key, mapArguments))
           mapArguments[key] = Value(values);
       }
-
       i += itemCount;
     }
-
   mute();
 }
-
 void CommandlineParser::save_options(const std::string &path) {
   std::string options;
   for (std::map<std::string, Value>::iterator it = mapArguments.begin();
@@ -155,7 +130,6 @@ void CommandlineParser::save_options(const std::string &path) {
   fprintf(f, "%s\n", options.data());
   fclose(f);
 }
-
 void CommandlineParser::print_args() {
   for (std::map<std::string, Value>::iterator it = mapArguments.begin();
        it != mapArguments.end(); it++) {
@@ -165,7 +139,6 @@ void CommandlineParser::print_args() {
     std::cout << ": " << it->second.asString() << std::endl;
   }
 }
-
 void ArgumentParser::_ignoreComments(std::istream &stream,
                                      const char commentChar) {
   stream >> std::ws;
@@ -176,9 +149,7 @@ void ArgumentParser::_ignoreComments(std::istream &stream,
     nextchar = stream.peek();
   }
 }
-
 void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
-
   _ignoreComments(stream, commentStart);
   while (!stream.eof()) {
     std::string line, key, val;
@@ -193,11 +164,9 @@ void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
       val += (" " + multiVal);
       _ignoreComments(lineStream, commentStart);
     }
-
     const Value V(val);
     if (key[0] == '-')
       key.erase(0, 1);
-
     if (key[0] == '+') {
       key.erase(0, 1);
       if (!_existKey(key, container))
@@ -209,11 +178,9 @@ void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
     _ignoreComments(stream, commentStart);
   }
 }
-
 void ArgumentParser::readFile(const std::string &filepath) {
   from_files[filepath] = new ArgMap;
   ArgMap &myFMap = *(from_files[filepath]);
-
   std::ifstream confFile(filepath.c_str());
   if (confFile.good()) {
     _parseFile(confFile, mapArguments);
@@ -223,7 +190,6 @@ void ArgumentParser::readFile(const std::string &filepath) {
   }
   confFile.close();
 }
-
 Value &ArgumentParser::operator()(std::string key) {
   _normalizeKey(key);
   const bool bDefaultInCode = !_existKey(key, mapArguments);
@@ -232,14 +198,12 @@ Value &ArgumentParser::operator()(std::string key) {
     from_code[key] = &retval;
   return retval;
 }
-
 void ArgumentParser::write_runtime_environment() const {
   time_t rawtime;
   std::time(&rawtime);
   struct tm *timeinfo = std::localtime(&rawtime);
   char buf[256];
   std::strftime(buf, 256, "%A, %h %d %Y, %r", timeinfo);
-
   std::ofstream runtime("runtime_environment.conf");
   runtime << commentStart << " RUNTIME ENVIRONMENT SETTINGS" << std::endl;
   runtime << commentStart << " ============================" << std::endl;
@@ -272,7 +236,6 @@ void ArgumentParser::write_runtime_environment() const {
        it != mapArguments.end(); ++it)
     runtime << it->first << '\t' << it->second << std::endl;
 }
-
 void ArgumentParser::read_runtime_environment() {
   mapRuntime.clear();
   std::ifstream runtime("runtime_environment.conf");
@@ -280,7 +243,6 @@ void ArgumentParser::read_runtime_environment() {
     _parseFile(runtime, mapRuntime);
   runtime.close();
 }
-
 Value &ArgumentParser::parseRuntime(std::string key) {
   _normalizeKey(key);
   if (!_existKey(key, mapRuntime)) {
@@ -291,7 +253,6 @@ Value &ArgumentParser::parseRuntime(std::string key) {
   }
   return mapRuntime[key];
 }
-
 void ArgumentParser::print_args() {
   std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                "~~~~~~~"
@@ -318,7 +279,6 @@ void ArgumentParser::print_args() {
   std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                "~~~~~~~"
             << std::endl;
-
   if (!from_commandline.empty()) {
     std::cout << "* Command Line:" << std::endl;
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -335,7 +295,6 @@ void ArgumentParser::print_args() {
                  "~~~~~~~~~"
               << std::endl;
   }
-
   if (!from_files.empty()) {
     for (FileMap::iterator itFile = from_files.begin();
          itFile != from_files.end(); itFile++) {
@@ -358,7 +317,6 @@ void ArgumentParser::print_args() {
       }
     }
   }
-
   if (!from_code.empty()) {
     std::cout << "* Defaults in Code:" << std::endl;
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -376,5 +334,4 @@ void ArgumentParser::print_args() {
               << std::endl;
   }
 }
-
 } // namespace cubism

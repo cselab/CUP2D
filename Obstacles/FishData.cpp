@@ -1,10 +1,6 @@
-
-
 #include "FishData.h"
 #include "FishUtilities.h"
-
 using namespace cubism;
-
 FishData::FishData(Real L, Real _h)
     : length(L), h(_h), rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)),
       vX(_alloc(Nm)), vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)),
@@ -14,28 +10,22 @@ FishData::FishData(Real L, Real _h)
     fflush(0);
     abort();
   }
-
   rS[0] = 0;
   int k = 0;
-
   for (int i = 0; i < Nend; ++i, k++)
     rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-
   for (int i = 0; i < Nmid; ++i, k++)
     rS[k + 1] = rS[k] + dSmid;
-
   for (int i = 0; i < Nend; ++i, k++)
     rS[k + 1] =
         rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
   assert(k + 1 == Nm);
-
   rS[k] = std::min(rS[k], (Real)L);
   std::fill(rX, rX + Nm, 0);
   std::fill(rY, rY + Nm, 0);
   std::fill(vX, vX + Nm, 0);
   std::fill(vY, vY + Nm, 0);
 }
-
 FishData::~FishData() {
   _dealloc(rS);
   _dealloc(rX);
@@ -48,22 +38,18 @@ FishData::~FishData() {
   _dealloc(vNorY);
   _dealloc(width);
 }
-
 void FishData::resetAll() {}
-
 void FishData::writeMidline2File(const int step_id, std::string filename) {
   char buf[500];
   sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
   FILE *f = fopen(buf, "a");
   fprintf(f, "s x y vX vY\n");
   for (int i = 0; i < Nm; i++) {
-
     fprintf(f, "%g %g %g %g %g %g\n", (double)rS[i], (double)rX[i],
             (double)rY[i], (double)vX[i], (double)vY[i], (double)width[i]);
   }
   fflush(0);
 }
-
 void FishData::_computeMidlineNormals() const {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm - 1; i++) {
@@ -82,9 +68,7 @@ void FishData::_computeMidlineNormals() const {
   vNorX[Nm - 1] = vNorX[Nm - 2];
   vNorY[Nm - 1] = vNorY[Nm - 2];
 }
-
 Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
-
   Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
 #pragma omp parallel for schedule(static)                                      \
     reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
@@ -110,12 +94,9 @@ Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
   CoM[1] /= area;
   vCoM[0] = linMom[0] / area;
   vCoM[1] = linMom[1] / area;
-
   return area;
 }
-
 Real FishData::integrateAngularMomentum(Real &angVel) {
-
   Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
   for (int i = 0; i < Nm; ++i) {
@@ -130,10 +111,8 @@ Real FishData::integrateAngularMomentum(Real &angVel) {
                         vX[i] * norY[i]) *
                            fac2 +
                        (norX[i] * vNorY[i] - norY[i] * vNorX[i]) * fac3;
-
     const Real tmp_J = (rX[i] * rX[i] + rY[i] * rY[i]) * fac1 +
                        2 * (rX[i] * norX[i] + rY[i] * norY[i]) * fac2 + fac3;
-
     _am += tmp_M * ds / 2;
     _J += tmp_J * ds / 2;
   }
@@ -143,7 +122,6 @@ Real FishData::integrateAngularMomentum(Real &angVel) {
   angVel = angMom / J;
   return J;
 }
-
 void FishData::changeToCoMFrameLinear(const Real Cin[2],
                                       const Real vCin[2]) const {
 #pragma omp parallel for schedule(static)
@@ -154,11 +132,9 @@ void FishData::changeToCoMFrameLinear(const Real Cin[2],
     vY[i] -= vCin[1];
   }
 }
-
 void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
   const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
                                 {std::sin(Ain), std::cos(Ain)}};
-
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm; ++i) {
     vX[i] += vAin * rY[i];
@@ -168,9 +144,7 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
   }
   _computeMidlineNormals();
 }
-
 void FishData::computeSurface() const {
-
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < lowerSkin.Npoints; ++i) {
     Real norm[2] = {norX[i], norY[i]};
@@ -184,49 +158,40 @@ void FishData::computeSurface() const {
     upperSkin.ySurf[i] = rY[i] + width[i] * norm[1];
   }
 }
-
 void FishData::computeSkinNormals(const Real theta_comp,
                                   const Real CoM_comp[3]) const {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
-
   for (int i = 0; i < Nm; ++i) {
     _rotate2D(Rmatrix2D, rX[i], rY[i]);
     _rotate2D(Rmatrix2D, norX[i], norY[i]);
     rX[i] += CoM_comp[0];
     rY[i] += CoM_comp[1];
   }
-
 #pragma omp parallel for
   for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
     lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
     upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
     lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
     upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
-
     lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
     upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
     lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
     upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
-
     const Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
                                  std::pow(lowerSkin.normYSurf[i], 2));
     const Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
                                  std::pow(upperSkin.normYSurf[i], 2));
-
     lowerSkin.normXSurf[i] /= normL;
     upperSkin.normXSurf[i] /= normU;
     lowerSkin.normYSurf[i] /= normL;
     upperSkin.normYSurf[i] /= normU;
-
     const int ii =
         (i < 8) ? 8 : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
-
     const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
                       lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
     const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
                       upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
-
     if (dirL < 0) {
       lowerSkin.normXSurf[i] *= -1.0;
       lowerSkin.normYSurf[i] *= -1.0;
@@ -237,17 +202,13 @@ void FishData::computeSkinNormals(const Real theta_comp,
     }
   }
 }
-
 void FishData::surfaceToCOMFrame(const Real theta_internal,
                                  const Real CoM_internal[2]) const {
   const Real Rmatrix2D[2][2] = {
       {std::cos(theta_internal), -std::sin(theta_internal)},
       {std::sin(theta_internal), std::cos(theta_internal)}};
-
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < upperSkin.Npoints; ++i)
-
-  {
+  for (size_t i = 0; i < upperSkin.Npoints; ++i) {
     upperSkin.xSurf[i] -= CoM_internal[0];
     upperSkin.ySurf[i] -= CoM_internal[1];
     _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
@@ -256,12 +217,10 @@ void FishData::surfaceToCOMFrame(const Real theta_internal,
     _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
   }
 }
-
 void FishData::surfaceToComputationalFrame(
     const Real theta_comp, const Real CoM_interpolated[2]) const {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
-
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < upperSkin.Npoints; ++i) {
     _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
@@ -272,27 +231,20 @@ void FishData::surfaceToComputationalFrame(
     lowerSkin.ySurf[i] += CoM_interpolated[1];
   }
 }
-
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
-
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
                                 {std::sin(angle), std::cos(angle)}};
   const Real p[2] = {c[0], c[1]};
-
   const Real nx[2] = {normalI[0], normalI[1]};
   const Real ny[2] = {normalJ[0], normalJ[1]};
-
   for (int i = 0; i < 2; ++i) {
     c[i] = Rmatrix2D[i][0] * p[0] + Rmatrix2D[i][1] * p[1];
-
     normalI[i] = Rmatrix2D[i][0] * nx[0] + Rmatrix2D[i][1] * nx[1];
     normalJ[i] = Rmatrix2D[i][0] * ny[0] + Rmatrix2D[i][1] * ny[1];
   }
-
   c[0] += pos[0];
   c[1] += pos[1];
-
   const Real magI =
       std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
   const Real magJ =
@@ -300,19 +252,14 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
   assert(magI > std::numeric_limits<Real>::epsilon());
   assert(magJ > std::numeric_limits<Real>::epsilon());
   const Real invMagI = 1 / magI, invMagJ = 1 / magJ;
-
   for (int i = 0; i < 2; ++i) {
-
     normalI[i] = std::fabs(normalI[i]) * invMagI;
     normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
   }
-
   assert(normalI[0] >= 0 && normalI[1] >= 0);
   assert(normalJ[0] >= 0 && normalJ[1] >= 0);
-
   const Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
   const Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
-
   for (int i = 0; i < 2; ++i) {
     objBoxLabFr[i][0] = c[i] - widthXvec[i] - widthYvec[i];
     objBoxLabFr[i][1] = c[i] + widthXvec[i] + widthYvec[i];
@@ -320,74 +267,54 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
     objBoxObjFr[i][1] = c[i] + w[i];
   }
 }
-
 bool AreaSegment::isIntersectingWithAABB(const Real start[2],
                                          const Real end[2]) const {
-
   const Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
                           (end[1] - start[1]) / 2 + safe_distance};
-
   const Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
-
   const Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
                                {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
-
   assert(AABB_w[0] > 0 && AABB_w[1] > 0);
-
   Real intersectionLabFrame[2][2] = {
       {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
        std::min(objBoxLabFr[0][1], AABB_box[0][1])},
       {std::max(objBoxLabFr[1][0], AABB_box[1][0]),
        std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
-
   if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
       intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
     return false;
-
   const Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
-
   const Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
-
   const Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
                               AABB_c[0] + widthXbox[0] + widthYbox[0]},
                              {AABB_c[1] - widthXbox[1] - widthYbox[1],
                               AABB_c[1] + widthXbox[1] + widthYbox[1]}};
-
   Real intersectionFishFrame[2][2] = {
       {std::max(boxBox[0][0], objBoxObjFr[0][0]),
        std::min(boxBox[0][1], objBoxObjFr[0][1])},
       {std::max(boxBox[1][0], objBoxObjFr[1][0]),
        std::min(boxBox[1][1], objBoxObjFr[1][1])}};
-
   if (intersectionFishFrame[0][1] - intersectionFishFrame[0][0] < 0 ||
       intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
     return false;
-
   return true;
 }
-
 void PutFishOnBlocks::operator()(const BlockInfo &i, ScalarBlock &b,
                                  ObstacleBlock *const o,
                                  const std::vector<AreaSegment *> &v) const {
-
   constructSurface(i, b, o, v);
-
   constructInternl(i, b, o, v);
-
   signedDistanceSqrt(i, b, o, v);
 }
-
 void PutFishOnBlocks::signedDistanceSqrt(
     const BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
     const std::vector<AreaSegment *> &vSegments) const {
-
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
     for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
       const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
       o->udef[iy][ix][0] /= normfac;
       o->udef[iy][ix][1] /= normfac;
-
       o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
                                              : -std::sqrt(-o->dist[iy][ix]);
       b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
@@ -396,7 +323,6 @@ void PutFishOnBlocks::signedDistanceSqrt(
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
   std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
 }
-
 void PutFishOnBlocks::constructSurface(
     const BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
     const std::vector<AreaSegment *> &vSegments) const {
@@ -414,16 +340,12 @@ void PutFishOnBlocks::constructSurface(
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
   std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
   std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
-
   for (int i = 0; i < (int)vSegments.size(); ++i) {
-
     const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
     const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
     for (int ss = firstSegm; ss <= lastSegm; ++ss) {
       assert(width[ss] > 0);
-
       for (int signp = -1; signp <= 1; signp += 2) {
-
         Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
                        rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
         changeToComputationalFrame(myP);
@@ -433,7 +355,6 @@ void PutFishOnBlocks::constructSurface(
           continue;
         if (iap[1] + 3 <= 0 || iap[1] - 1 >= BS[1])
           continue;
-
         Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
                       rY[ss + 1] + width[ss + 1] * signp * norY[ss + 1]};
         changeToComputationalFrame(pP);
@@ -443,7 +364,6 @@ void PutFishOnBlocks::constructSurface(
         Real udef[2] = {vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
                         vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
         changeVelocityToComputationalFrame(udef);
-
         for (int sy = std::max(0, iap[1] - 2); sy < std::min(iap[1] + 4, BS[1]);
              ++sy)
           for (int sx = std::max(0, iap[0] - 2);
@@ -453,10 +373,8 @@ void PutFishOnBlocks::constructSurface(
             const Real dist0 = eulerDistSq2D(p, myP);
             const Real distP = eulerDistSq2D(p, pP);
             const Real distM = eulerDistSq2D(p, pM);
-
             if (std::fabs(o->dist[sy][sx]) < std::min({dist0, distP, distM}))
               continue;
-
             changeFromComputationalFrame(p);
 #ifndef NDEBUG
             const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
@@ -464,7 +382,6 @@ void PutFishOnBlocks::constructSurface(
             const Real distC = eulerDistSq2D(p, p0);
             assert(std::fabs(distC - dist0) < EPS);
 #endif
-
             int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
             Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
             if (distP < dist0 || distM < dist0) {
@@ -473,7 +390,6 @@ void PutFishOnBlocks::constructSurface(
               close_s = secnd_s;
               secnd_s = ss;
             }
-
             const Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
                               std::pow(rY[close_s] - rY[secnd_s], 2);
             assert(dSsq > 2.2e-16);
@@ -484,31 +400,24 @@ void PutFishOnBlocks::constructSurface(
             const Real grd2ML = eulerDistSq2D(p, xMidl);
             const Real diffH = std::fabs(width[close_s] - width[secnd_s]);
             Real sign2d = 0;
-
             if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
-
               sign2d = grd2ML > cnt2ML ? -1 : 1;
             } else {
-
               const Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
               const Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
                                (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
               const Real maxAx = std::max(cnt2ML, nxt2ML);
               const int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
               const int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-
               const Real d = std::sqrt((Rsq - maxAx) / dSsq);
-
               const Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
                                       rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
               const Real grd2Core = eulerDistSq2D(p, xCentr);
               sign2d = grd2Core > Rsq ? -1 : 1;
             }
-
             if (std::fabs(o->dist[sy][sx]) > dist1) {
               const Real W =
                   1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-
               assert(W >= 0);
               o->udef[sy][sx][0] = W * udef[0];
               o->udef[sy][sx][1] = W * udef[1];
@@ -520,7 +429,6 @@ void PutFishOnBlocks::constructSurface(
     }
   }
 }
-
 void PutFishOnBlocks::constructInternl(
     const BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
     const std::vector<AreaSegment *> &vSegments) const {
@@ -528,15 +436,12 @@ void PutFishOnBlocks::constructInternl(
   info.pos(org, 0, 0);
   const Real h = info.h, invh = 1.0 / info.h;
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-
   for (int i = 0; i < (int)vSegments.size(); ++i) {
     const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
     const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
     for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-
       const Real myWidth = cfish.width[ss];
       assert(myWidth > 0);
-
       const int Nw = std::floor(myWidth / h);
       for (int iw = -Nw + 1; iw < Nw; ++iw) {
         const Real offsetW = iw * h;
@@ -551,7 +456,6 @@ void PutFishOnBlocks::constructInternl(
           continue;
         if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
           continue;
-
         Real udef[2] = {cfish.vX[ss] + offsetW * cfish.vNorX[ss],
                         cfish.vY[ss] + offsetW * cfish.vNorY[ss]};
         changeVelocityToComputationalFrame(udef);
@@ -562,7 +466,6 @@ void PutFishOnBlocks::constructInternl(
           wghts[c][0] = 1 - t[0];
           wghts[c][1] = 1 - t[1];
         }
-
         for (int idy = std::max(0, iap[1]); idy < std::min(iap[1] + 2, BS[1]);
              ++idy)
           for (int idx = std::max(0, iap[0]); idx < std::min(iap[0] + 2, BS[0]);
@@ -574,7 +477,6 @@ void PutFishOnBlocks::constructInternl(
             o->udef[idy][idx][0] += wxwy * udef[0];
             o->udef[idy][idx][1] += wxwy * udef[1];
             o->chi[idy][idx] += wxwy;
-
             static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
             if (std::fabs(o->dist[idy][idx] + 1) < EPS)
               o->dist[idy][idx] = 1;

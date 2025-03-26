@@ -1,23 +1,14 @@
 #include "Common.h"
 #include "Fields.h"
-
 #include <mpi.h>
-
 namespace cubismup2d {
-
 using namespace py::literals;
-
 void bindOperators(py::module &m);
-
 void bindPoissonSolvers(py::module &m);
-
 void bindShapes(py::module &m);
-
 void bindSimulationData(py::module &m);
 void bindSimulation(py::module &m);
-
 namespace {
-
 struct CUPMPILoader {
   CUPMPILoader() {
     int flag, provided;
@@ -40,23 +31,17 @@ struct CUPMPILoader {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 } cup_mpi_loader;
-
 } // namespace
-
 } // namespace cubismup2d
-
 PYBIND11_MODULE(libcubismup2d, m) {
   using namespace cubismup2d;
   m.doc() = "CubismUP2D solver for incompressible Navier-Stokes";
-
   m.attr("BLOCK_SIZE") = CUP2D_BLOCK_SIZE;
-
   bindSimulationData(m);
   bindSimulation(m);
   bindFields(m);
   bindOperators(m);
   bindShapes(m);
-
   auto poisson = m.def_submodule("poisson");
   bindPoissonSolvers(poisson);
 }

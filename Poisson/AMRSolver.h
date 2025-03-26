@@ -1,10 +1,6 @@
-
-
 #pragma once
-
 #include "../Operator.h"
 #include "Base.h"
-
 class ComputeLHS : public Operator {
   struct LHSkernel {
     LHSkernel(const SimulationData &ss) : sim(ss) {}
@@ -12,7 +8,6 @@ class ComputeLHS : public Operator {
     const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
     const std::vector<cubism::BlockInfo> &lhsInfo = sim.tmp->getBlocksInfo();
     const std::vector<cubism::BlockInfo> &xInfo = sim.pres->getBlocksInfo();
-
     void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
       ScalarBlock &__restrict__ LHS =
           *(ScalarBlock *)lhsInfo[info.blockID].ptrBlock;
@@ -21,7 +16,6 @@ class ComputeLHS : public Operator {
           LHS(ix, iy).s = (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                             (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                            4.0 * lab(ix, iy).s);
-
       cubism::BlockCase<ScalarBlock> *tempCase =
           (cubism::BlockCase<ScalarBlock> *)(lhsInfo[info.blockID].auxiliary);
       ScalarBlock::ElementType *faceXm = nullptr;
@@ -64,7 +58,6 @@ public:
     const bool y = info.index[1] == 0;
     return x && y;
   }
-
   void operator()(const Real dt) {
     int index = -1;
     Real mean = 0.0;
@@ -87,10 +80,8 @@ public:
       MPI_Iallreduce(MPI_IN_PLACE, &mean, 1, MPI_Real, MPI_SUM,
                      sim.chi->getWorldComm(), &request);
     }
-
     const LHSkernel K(sim);
     cubism::compute<ScalarLab>(K, sim.pres, sim.tmp);
-
     if (sim.bMeanConstraint > 0) {
       MPI_Wait(&request, MPI_STATUS_IGNORE);
       if (index != -1 && sim.bMeanConstraint == 1) {
@@ -108,7 +99,6 @@ public:
   }
   std::string getName() { return "ComputeLHS"; }
 };
-
 class AMRSolver : public PoissonSolver {
 protected:
   SimulationData &sim;
@@ -123,30 +113,25 @@ public:
   std::vector<std::vector<std::vector<std::pair<int, Real>>>> L_col;
   void getZ(Real *input, cubism::BlockInfo &zInfo);
   Real getA_local(const int I1, const int I2);
-
   void _preconditioner(const std::vector<Real> &input,
                        std::vector<Real> &output) {
     auto &zInfo = sim.pres->getBlocksInfo();
     const size_t Nblocks = zInfo.size();
     const int BSX = VectorBlock::sizeX;
     const int BSY = VectorBlock::sizeY;
-
 #pragma omp parallel for
     for (size_t i = 0; i < input.size(); i++)
       output[i] = input[i];
-
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++)
       getZ(&output[i * BSX * BSY], zInfo[i]);
   }
-
   void _lhs(std::vector<Real> &input, std::vector<Real> &output) {
     auto &zInfo = sim.pres->getBlocksInfo();
     auto &AxInfo = sim.tmp->getBlocksInfo();
     const size_t Nblocks = zInfo.size();
     const int BSX = VectorBlock::sizeX;
     const int BSY = VectorBlock::sizeY;
-
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       ScalarBlock &__restrict__ zz = *(ScalarBlock *)zInfo[i].ptrBlock;
@@ -156,9 +141,7 @@ public:
           zz(ix, iy).s = input[j];
         }
     }
-
     Get_LHS(0);
-
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       ScalarBlock &__restrict__ Ax = *(ScalarBlock *)AxInfo[i].ptrBlock;
@@ -169,7 +152,6 @@ public:
         }
     }
   }
-
   std::vector<Real> b;
   std::vector<Real> phat;
   std::vector<Real> rhat;
@@ -188,7 +170,6 @@ public:
   std::vector<Real> x;
   std::vector<Real> r0;
   std::vector<Real> x_opt;
-
   bool isCorner(const cubism::BlockInfo &info) {
     return Get_LHS.isCorner(info);
   }

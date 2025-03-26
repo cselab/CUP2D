@@ -1,11 +1,7 @@
-
-
 #include "Teardrop.h"
 #include "FishData.h"
 #include "FishUtilities.h"
-
 using namespace cubism;
-
 class TeardropData : public FishData {
   const Real tRatio;
 
@@ -14,15 +10,11 @@ public:
       : FishData(L, _h), tRatio(_tRatio) {
     _computeWidth();
   }
-
   void computeMidline(const Real time, const Real dt) override;
   Real _width(const Real s, const Real L) override {
-
     const Real R = .5 * tRatio * L;
-
     if (s < 0 or s > L)
       return 0;
-
     Real w;
     if (s == 0)
       w = 0;
@@ -30,32 +22,23 @@ public:
       w = std::sqrt(R * R - (s - R) * (s - R));
     else
       w = R - R * (s - R) / (L - R);
-
     assert(w >= 0);
     return w;
   }
 };
-
 void TeardropData::computeMidline(const Real t, const Real dt) {
-
   rX[0] = rY[0] = vX[0] = vY[0] = norX[0] = vNorX[0] = vNorY[0] = 0.0;
   vNorY[0] = 1.0;
-
 #pragma omp parallel for schedule(static)
   for (int i = 1; i < Nm; ++i) {
-
     const Real dx = std::fabs(rS[i] - rS[i - 1]);
     rX[i] = dx;
-
     rY[i] = vX[i] = vY[i] = norX[i] = vNorX[i] = vNorY[i] = 0.0;
-
     norY[i] = 1.0;
   }
-
   for (int i = 1; i < Nm; ++i)
     rX[i] += rX[i - 1];
 }
-
 Teardrop::Teardrop(SimulationData &s, ArgumentParser &p, Real C[2])
     : Fish(s, p, C), Apitch(p("-Apitch").asDouble(0.0) * M_PI / 180),
       Fpitch(p("-Fpitch").asDouble(0.0)), tAccel(p("-tAccel").asDouble(-1)),
@@ -69,25 +52,20 @@ Teardrop::Teardrop(SimulationData &s, ArgumentParser &p, Real C[2])
            (double)Fpitch, (double)forcedu, (double)forcedv, (double)tAccel,
            (double)fixedCenterDist);
 }
-
 void Teardrop::updateVelocity(Real dt) {
   const Real omegaAngle = 2 * M_PI * Fpitch;
   const Real angle = Apitch * std::sin(omegaAngle * sim.time);
-
   omega = Apitch * omegaAngle * std::cos(omegaAngle * sim.time);
   if (sim.time < tAccel) {
-
     u = (sim.time / tAccel) * forcedu -
         fixedCenterDist * length * omega * std::sin(angle);
     v = (sim.time / tAccel) * forcedv +
         fixedCenterDist * length * omega * std::cos(angle);
   } else {
-
     u = forcedu - fixedCenterDist * length * omega * std::sin(angle);
     v = forcedv + fixedCenterDist * length * omega * std::cos(angle);
   }
 }
-
 void Teardrop::updateLabVelocity(int nSum[2], Real uSum[2]) {
   if (bFixedx) {
     (nSum[0])++;

@@ -4,7 +4,6 @@
 #include "ExpAMRSolver.h"
 #endif
 #include "../SimulationData.h"
-
 std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData &s) {
   if (s.poissonSolver == "iterative") {
     return std::make_shared<AMRSolver>(s);

@@ -10,11 +10,9 @@
 #include <string>
 #include <vector>
 namespace fs = std::filesystem;
-
 #define DIMENSION 2
 #define BS 16
 #define Cfactor 2
-
 struct BlockGroup {
   double h;
   int nx, ny, nz;
@@ -22,57 +20,46 @@ struct BlockGroup {
   int level;
   int index[3];
 };
-
 void decompose_1D(long long tasks, long long &my_start, long long &my_end) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
-
   long long my_share = tasks / size;
   if (tasks % size != 0 && rank == size - 1) {
     my_share += tasks % size;
   }
-
   my_start = rank * (tasks / size);
   my_end = my_start + my_share;
 }
-
 std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
   hid_t file_id, fapl_id;
   hid_t dataset_origins, fspace_origins;
   hid_t dataset_indices, fspace_indices;
-
   H5open();
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
   file_id = H5Fopen((filename + "-groups.h5").c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
-
   dataset_origins = H5Dopen2(file_id, "origins", H5P_DEFAULT);
   dataset_indices = H5Dopen2(file_id, "indices", H5P_DEFAULT);
-
   hsize_t dim_origins;
   hsize_t dim_indices;
   fspace_origins = H5Dget_space(dataset_origins);
   fspace_indices = H5Dget_space(dataset_indices);
   H5Sget_simple_extent_dims(fspace_origins, &dim_origins, NULL);
   H5Sget_simple_extent_dims(fspace_indices, &dim_indices, NULL);
-
   std::vector<double> origins(dim_origins);
   std::vector<int> indices(dim_indices);
   H5Dread(dataset_origins, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
           origins.data());
   H5Dread(dataset_indices, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
           indices.data());
-
   H5Dclose(dataset_origins);
   H5Dclose(dataset_indices);
   H5Sclose(fspace_origins);
   H5Sclose(fspace_indices);
   H5Fclose(file_id);
   H5close();
-
   double minh = 1e10;
   std::vector<BlockGroup> groups(dim_origins / 4);
   for (size_t i = 0; i < groups.size(); i++) {
@@ -98,7 +85,6 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Collection\">\n";
-
     for (size_t i = 0; i < groups.size(); i++) {
       const BlockGroup &group = groups[i];
       const int nXX = group.nx;
@@ -136,34 +122,26 @@ std::vector<BlockGroup> get_amr_groups(std::string filename, int tttt) {
   }
   return groups;
 }
-
 std::vector<double> get_amr_dataset(std::string filename) {
   hid_t file_id, dataset_id, fspace_id, fapl_id;
-
   H5open();
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
   file_id = H5Fopen((filename + ".h5").c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
-
   dataset_id = H5Dopen2(file_id, "dset", H5P_DEFAULT);
-
   hsize_t dim;
   fspace_id = H5Dget_space(dataset_id);
   H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
-
   std::vector<double> amr(dim);
   H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
           amr.data());
-
   H5Dclose(dataset_id);
   H5Sclose(fspace_id);
   H5Fclose(file_id);
   H5close();
   return amr;
 }
-
 double M1D(double x) {
   double s = std::fabs(x);
 #if 0
@@ -176,34 +154,26 @@ double M1D(double x) {
   if (s < 2.0)
     return 0.5 * (1.0 - s) * (2.0 - s) * (2.0 - s);
   return 0.0;
-
 #endif
 }
 double M6(double x, double y) { return M1D(x) * M1D(y); }
-
 void convert_to_uniform(std::string filename, int tttt) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
-
   std::vector<double> amr = get_amr_dataset(filename);
-
   std::vector<BlockGroup> allGroups = get_amr_groups(filename, tttt);
-
   std::vector<long long> base(allGroups.size());
   base[0] = 0;
   for (size_t i = 1; i < allGroups.size(); i++) {
     base[i] = base[i - 1] +
               allGroups[i - 1].nx * allGroups[i - 1].ny * allGroups[i - 1].nz;
   }
-
   double minh = 1e6;
   int levelMax = -1;
   long long points[3] = {0, 0, 0};
-
   long long my_start, my_end;
   decompose_1D(allGroups.size(), my_start, my_end);
-
   for (long long i = my_start; i < my_end; i++) {
     minh = std::min(allGroups[i].h, minh);
     levelMax = std::max(allGroups[i].level, levelMax);
@@ -211,7 +181,6 @@ void convert_to_uniform(std::string filename, int tttt) {
   levelMax++;
   MPI_Allreduce(MPI_IN_PLACE, &minh, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &levelMax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
   for (long long i = my_start; i < my_end; i++) {
     const int aux = 1 << (levelMax - 1 - allGroups[i].level);
     points[0] = std::max(
@@ -224,23 +193,18 @@ void convert_to_uniform(std::string filename, int tttt) {
   }
   MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_LONG_LONG, MPI_MAX,
                 MPI_COMM_WORLD);
-
   decompose_1D(points[0], my_start, my_end);
   std::vector<float> uniform_grid((my_end - my_start) * points[1] * points[2]);
-
 #pragma omp parallel for
   for (size_t i = 0; i < allGroups.size(); i++) {
     const BlockGroup &group = allGroups[i];
-
     const int aux = 1 << (levelMax - 1 - group.level);
     const long long start_x = group.index[0] * BS * aux;
     const long long end_x = start_x + group.nx * aux;
-
     if (end_x < my_start)
       continue;
     if (start_x > my_end)
       continue;
-
     const long long start_y = group.index[1] * BS * aux;
     const long long start_z = 0;
     for (int z = 0; z < group.nz; z++)
@@ -248,7 +212,6 @@ void convert_to_uniform(std::string filename, int tttt) {
         for (int x = 0; x < group.nx; x++) {
           const double value =
               amr[base[i] + x + y * group.nx + z * group.nx * group.ny];
-
           const int z_up = 0;
           for (int y_up = aux * y; y_up < aux * (y + 1); y_up++)
             for (int x_up = aux * x; x_up < aux * (x + 1); x_up++) {
@@ -264,17 +227,14 @@ void convert_to_uniform(std::string filename, int tttt) {
             }
         }
   }
-
   if (rank == 0)
     std::cout << "Finished upsampling." << std::endl;
-
   if (rank == 0) {
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
-
     s << "  <Grid GridType=\"Uniform\">\n";
     s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1
       << " " << points[1] / Cfactor + 1 << " " << points[0] / Cfactor + 1
@@ -311,13 +271,11 @@ void convert_to_uniform(std::string filename, int tttt) {
     out << st;
     out.close();
   }
-
   {
 #if Cfactor > 1
     std::vector<float> uniform_grid_coarse(
         (my_end - my_start) * points[1] * points[2] / pow(Cfactor, DIMENSION),
         0);
-
 #pragma omp parallel for collapse(3)
     for (int z = 0; z < points[2]; z += Cfactor)
       for (int y = 0; y < points[1]; y += Cfactor)
@@ -328,7 +286,6 @@ void convert_to_uniform(std::string filename, int tttt) {
                             points[1] / Cfactor;
           const int base =
               x + y * (my_end - my_start) + z * (my_end - my_start) * points[1];
-
           int iz = 0;
           for (int iy = 0; iy < Cfactor; iy++)
             for (int ix = 0; ix < Cfactor; ix++)
@@ -338,7 +295,6 @@ void convert_to_uniform(std::string filename, int tttt) {
           uniform_grid_coarse[i] /= pow(Cfactor, DIMENSION);
         }
 #endif
-
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -347,7 +303,6 @@ void convert_to_uniform(std::string filename, int tttt) {
                         H5P_DEFAULT, fapl_id);
     H5Pclose(fapl_id);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
-
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
     hsize_t dims[3] = {(hsize_t)1, (hsize_t)points[1] / Cfactor,
                        (hsize_t)points[0] / Cfactor};
@@ -355,9 +310,7 @@ void convert_to_uniform(std::string filename, int tttt) {
     dataset_id = H5Dcreate(file_id, "data", H5T_NATIVE_FLOAT, fspace_id,
                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     H5Sclose(fspace_id);
-
     fspace_id = H5Dget_space(dataset_id);
-
     hsize_t count[3] = {(hsize_t)1, (hsize_t)points[1] / Cfactor,
                         (hsize_t)(my_end - my_start) / Cfactor};
     hsize_t base_tmp[3] = {0, 0, (hsize_t)my_start / Cfactor};
@@ -371,17 +324,14 @@ void convert_to_uniform(std::string filename, int tttt) {
              uniform_grid.data());
 #endif
     H5Sclose(mspace_id);
-
     H5Sclose(fspace_id);
     H5Dclose(dataset_id);
     H5Pclose(fapl_id);
     H5Fclose(file_id);
     H5close();
   }
-
   return;
   {
-
     const int Nt = 1024;
     const int Nr = 8192;
     const double t_min = 0.0;
@@ -390,20 +340,16 @@ void convert_to_uniform(std::string filename, int tttt) {
     const double r_max = 0.6;
     const double dr = (r_max - r_min) / Nr;
     const double dt = (t_max - t_min) / Nt;
-
     std::vector<double> field(Nt * Nr, 0.0);
     std::vector<double> mass(Nt * Nr, 0.0);
     const double x0 = 0.5;
     const double y0 = 0.5;
-
     for (int ir = 0; ir < Nr; ir++)
       for (int it = 0; it < Nt; it++) {
         const double r = r_min + (ir + 0.5) * dr;
         const double t = t_min + (it + 0.5) * dt;
-
         const double x = r * cos(t + M_PI) + x0;
         const double y = r * sin(t + M_PI) + y0;
-
         double ss = 0;
         double mm = 0;
         const long long IX = x / minh;
@@ -420,7 +366,6 @@ void convert_to_uniform(std::string filename, int tttt) {
         field[ir + it * Nr] += ss;
         mass[ir + it * Nr] += mm;
       }
-
     MPI_Allreduce(MPI_IN_PLACE, field.data(), field.size(), MPI_DOUBLE, MPI_SUM,
                   MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, mass.data(), mass.size(), MPI_DOUBLE, MPI_SUM,
@@ -429,7 +374,6 @@ void convert_to_uniform(std::string filename, int tttt) {
       for (int ir = 0; ir < Nr; ir++) {
         field[ir + it * Nr] /= mass[ir + it * Nr] + 1e-21;
       }
-
     if (rank != 0)
       return;
     if (rank == 0) {
@@ -438,7 +382,6 @@ void convert_to_uniform(std::string filename, int tttt) {
       s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
       s << "<Xdmf Version=\"2.0\">\n";
       s << "<Domain>\n";
-
       s << "  <Grid GridType=\"Uniform\">\n";
       s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1
         << " " << Nt + 1 << " " << Nr + 1 << "\"/>\n";
@@ -473,33 +416,24 @@ void convert_to_uniform(std::string filename, int tttt) {
       out << st;
       out.close();
     }
-
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
     hsize_t count[3] = {1, Nt, Nr};
     hsize_t dims[3] = {1, Nt, Nr};
     hsize_t offset[3] = {0, 0, 0};
-
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     file_id = H5Fcreate((filename + "-uniform-polar.h5").c_str(), H5F_ACC_TRUNC,
                         H5P_DEFAULT, fapl_id);
     H5Pclose(fapl_id);
-
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
     fspace_id = H5Screate_simple(3, dims, NULL);
     dataset_id = H5Dcreate(file_id, "data", H5T_NATIVE_DOUBLE, fspace_id,
                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
     fspace_id = H5Dget_space(dataset_id);
-
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
-
     mspace_id = H5Screate_simple(3, count, NULL);
-
     H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, mspace_id, fspace_id, fapl_id,
              field.data());
-
     H5Sclose(mspace_id);
     H5Sclose(fspace_id);
     H5Dclose(dataset_id);
@@ -508,7 +442,6 @@ void convert_to_uniform(std::string filename, int tttt) {
     H5close();
   }
 }
-
 int main(int argc, char **argv) {
   int provided;
   const auto SECURITY = MPI_THREAD_FUNNELED;
@@ -520,7 +453,6 @@ int main(int argc, char **argv) {
   }
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
   std::vector<std::string> filenames;
   std::string path("./");
   std::string ext(".h5");
@@ -533,7 +465,6 @@ int main(int argc, char **argv) {
     }
   }
   std::sort(filenames.begin(), filenames.end());
-
   for (int i = filenames.size() - 1; i >= 0; i--) {
     if (rank == 0)
       std::cout << "processing files: " << filenames[i] << std::endl;

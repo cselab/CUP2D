@@ -1,5 +1,4 @@
 #pragma once
-
 #include "BlockInfo.h"
 #include "Matrix3D.h"
 #include "StencilInfo.h"
@@ -7,13 +6,10 @@
 #include <cstring>
 #include <math.h>
 #include <string>
-
 namespace cubism {
 #define memcpy2(a, b, c) memcpy((a), (b), (c))
-
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLab {
@@ -28,30 +24,22 @@ protected:
   int m_stencilStart[3];
   int m_stencilEnd[3];
   bool istensorial;
-
   bool use_averages;
-
   GridType *m_refGrid;
   int NX;
   int NY;
   int NZ;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
-
   int coarsened_nei_codes_size;
   int offset[3];
-
   Matrix3D<ElementType, allocator> *m_CoarsenedBlock;
   int m_InterpStencilStart[3];
-
   int m_InterpStencilEnd[3];
-
   bool coarsened;
   int CoarseBlockSize[3];
-
   const double d_coef_plus[9] = {-0.09375, 0.4375,   0.15625, 0.15625, -0.5625,
                                  0.90625,  -0.09375, 0.4375,  0.15625};
-
   const double d_coef_minus[9] = {0.15625, -0.5625, 0.90625, -0.09375, 0.4375,
                                   0.15625, 0.15625, 0.4375,  -0.09375};
 
@@ -63,7 +51,6 @@ public:
     m_InterpStencilStart[0] = m_InterpStencilStart[1] =
         m_InterpStencilStart[2] = 0;
     m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
-
     CoarseBlockSize[0] = (int)BlockType::sizeX / 2;
     CoarseBlockSize[1] = (int)BlockType::sizeY / 2;
     CoarseBlockSize[2] = (int)BlockType::sizeZ / 2;
@@ -74,20 +61,14 @@ public:
     if (CoarseBlockSize[2] == 0)
       CoarseBlockSize[2] = 1;
   }
-
   virtual std::string name() const { return "BlockLab"; }
-
   virtual bool is_xperiodic() { return true; }
-
   virtual bool is_yperiodic() { return true; }
-
   virtual bool is_zperiodic() { return true; }
-
   ~BlockLab() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -98,7 +79,6 @@ public:
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -109,7 +89,6 @@ public:
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-
   const ElementType &read(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -120,12 +99,10 @@ public:
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-
   void release() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
@@ -137,14 +114,12 @@ public:
     m_stencilEnd[0] = stencil.ex;
     m_stencilEnd[1] = stencil.ey;
     m_stencilEnd[2] = stencil.ez;
-
     m_InterpStencilStart[0] = Istencil_start[0];
     m_InterpStencilStart[1] = Istencil_start[1];
     m_InterpStencilStart[2] = Istencil_start[2];
     m_InterpStencilEnd[0] = Istencil_end[0];
     m_InterpStencilEnd[1] = Istencil_end[1];
     m_InterpStencilEnd[2] = Istencil_end[2];
-
     assert(m_InterpStencilStart[0] <= m_InterpStencilEnd[0]);
     assert(m_InterpStencilStart[1] <= m_InterpStencilEnd[1]);
     assert(m_InterpStencilStart[2] <= m_InterpStencilEnd[2]);
@@ -157,9 +132,7 @@ public:
     assert(stencil.ex < 2 * BlockType::sizeX);
     assert(stencil.ey < 2 * BlockType::sizeY);
     assert(stencil.ez < 2 * BlockType::sizeZ);
-
     m_refGrid = &grid;
-
     if (m_cacheBlock == NULL ||
         (int)m_cacheBlock->getSize()[0] !=
             (int)BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1 ||
@@ -169,25 +142,19 @@ public:
             (int)BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
-
       m_cacheBlock = allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-
       allocator<Matrix3D<ElementType, allocator>>().construct(m_cacheBlock);
-
       m_cacheBlock->_Setup(
           BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1,
           BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] - 1,
           BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] - 1);
     }
-
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
     offset[2] = (m_stencilStart[2] - 1) / 2 + m_InterpStencilStart[2];
-
     const int e[3] = {(m_stencilEnd[0]) / 2 + 1 + m_InterpStencilEnd[0] - 1,
                       (m_stencilEnd[1]) / 2 + 1 + m_InterpStencilEnd[1] - 1,
                       (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
-
     if (m_CoarsenedBlock == NULL ||
         (int)m_CoarsenedBlock->getSize()[0] !=
             CoarseBlockSize[0] + e[0] - offset[0] - 1 ||
@@ -197,22 +164,17 @@ public:
             CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
-
       m_CoarsenedBlock =
           allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-
       allocator<Matrix3D<ElementType, allocator>>().construct(m_CoarsenedBlock);
-
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
                                CoarseBlockSize[1] + e[1] - offset[1] - 1,
                                CoarseBlockSize[2] + e[2] - offset[2] - 1);
     }
-
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
-
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
     const int nX = BlockType::sizeX;
@@ -221,20 +183,15 @@ public:
     const bool xperiodic = is_xperiodic();
     const bool yperiodic = is_yperiodic();
     const bool zperiodic = is_zperiodic();
-
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
-
     const int aux = 1 << info.level;
     NX = blocksPerDim[0] * aux;
     NY = blocksPerDim[1] * aux;
     NZ = blocksPerDim[2] * aux;
-
     assert(m_cacheBlock != NULL);
-
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
       ElementType *ptrSource = &block(0);
-
 #if 0
             for(int iz=0; iz<nZ; iz++)
             for(int iy=0; iy<nY; iy++)
@@ -274,35 +231,29 @@ public:
       }
 #endif
     }
-
     {
       coarsened = false;
-
       const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
       const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
       const bool zskin = info.index[2] == 0 || info.index[2] == NZ - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
-
       int icodes[DIMENSION == 2 ? 8 : 26];
       int k = 0;
       coarsened_nei_codes_size = 0;
-
       for (int icode = (DIMENSION == 2 ? 9 : 0);
            icode < (DIMENSION == 2 ? 18 : 27); icode++) {
         myblocks[icode] = nullptr;
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-
         if (!xperiodic && code[0] == xskip && xskin)
           continue;
         if (!yperiodic && code[1] == yskip && yskin)
           continue;
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
-
         const auto &TreeNei =
             m_refGrid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
         if (TreeNei.Exists()) {
@@ -311,21 +262,17 @@ public:
           coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
           CoarseFineExchange(info, code);
         }
-
         if (!istensorial && !use_averages &&
             abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
           continue;
-
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
             code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
             code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : nZ};
-
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + m_stencilEnd[0] - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + m_stencilEnd[1] - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
-
         if (TreeNei.Exists())
           SameLevelExchange(info, code, s, e);
         else if (TreeNei.CheckFiner())
@@ -344,7 +291,6 @@ public:
             coarsened = true;
           }
         }
-
       if (m_refGrid->get_world_size() == 1) {
         post_load(info, t, applybc);
       }
@@ -382,13 +328,10 @@ protected:
     if (applybc)
       _apply_bc(info, t);
   }
-
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
-
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
-
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
@@ -410,7 +353,6 @@ protected:
           imax[d] = 0;
       }
     }
-
     for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
       for (int i2 = imin[2]; i2 <= imax[2]; i2++)
         for (int i1 = imin[1]; i1 <= imax[1]; i1++)
@@ -421,20 +363,17 @@ protected:
           }
     return false;
   }
-
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     myblocks[icode] =
         m_refGrid->avail(info.level, info.Znei_(code[0], code[1], code[2]));
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
     const int nZ = BlockType::sizeZ;
@@ -442,7 +381,6 @@ protected:
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - m_stencilStart[0];
     const int mod = (e[1] - s[1]) % 4;
-
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = (iz - m_stencilStart[2]) * m_nElemsPerSlice + my_ix;
@@ -479,24 +417,20 @@ protected:
       }
     }
   }
-
   ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                           const ElementType &e2, const ElementType &e3) {
     return 0.25 * ((e0 + e3) + (e1 + e2));
   }
-
   void LI(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (4.0 * kappa + 2.0 * lambda) + c;
   }
-
   void LE(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (9.0 * kappa + 3.0 * lambda) + c;
   }
-
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
     const double dx = 0.25 * (2 * x - 1);
     const double dy = 0.25 * (2 * y - 1);
@@ -510,7 +444,6 @@ protected:
         (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
          (dx * dy) * dudxdy);
   }
-
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -518,7 +451,6 @@ protected:
                       sizeof(ElementType);
     if (!bytes)
       return;
-
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
     const int nZ = BlockType::sizeZ;
@@ -527,16 +459,13 @@ protected:
     const int yStep = (code[1] == 0) ? 2 : 1;
     const int zStep = (code[2] == 0) ? 2 : 1;
     const int mod = ((e[1] - s[1]) / yStep) % 4;
-
     int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
       Bstep = 3;
     else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
       Bstep = 4;
-
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-
       BlockType *b_ptr =
           m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                                 (B % 2) * std::max(0, 1 - abs(code[0])),
@@ -546,12 +475,10 @@ protected:
       if (b_ptr == nullptr)
         continue;
       BlockType &b = *b_ptr;
-
       const int my_ix = abs(code[0]) * (s[0] - m_stencilStart[0]) +
                         (1 - abs(code[0])) * (s[0] - m_stencilStart[0] +
                                               (B % 2) * (e[0] - s[0]) / 2);
       const int XX = s[0] - code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]);
-
 #pragma GCC ivdep
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
         const int ZZ = (abs(code[2]) == 1)
@@ -563,7 +490,6 @@ protected:
                  (iz / 2 - m_stencilStart[2] + (B / 2) * (e[2] - s[2]) / 2)) *
                 m_nElemsPerSlice +
             my_ix;
-
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
           ElementType *__restrict__ ptrDest0 = &m_cacheBlock->LinAccess(
@@ -644,7 +570,6 @@ protected:
                                              : iy;
           const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
           const ElementType *ptrSrc_1 = &b(XX, YY + 1, ZZ);
-
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -657,9 +582,7 @@ protected:
       }
     }
   }
-
   void CoarseFineExchange(const BlockInfo &info, const int *const code) {
-
     const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                   (info.index[1] + code[1] + NY) % NY,
                                   (info.index[2] + code[2] + NZ) % NZ};
@@ -668,20 +591,16 @@ protected:
                                        (info.index[2] + code[2])};
     BlockType *b_ptr = m_refGrid->avail1(
         (infoNei_index[0]) / 2, (infoNei_index[1]) / 2, info.level - 1);
-
     if (b_ptr == nullptr)
       return;
     const BlockType &b = *b_ptr;
-
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
     const int nZ = BlockType::sizeZ;
-
     const int s[3] = {
         code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : CoarseBlockSize[2]};
-
     const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
                                   : CoarseBlockSize[0] + (m_stencilEnd[0]) / 2 +
                                         m_InterpStencilEnd[0] - 1,
@@ -691,15 +610,12 @@ protected:
                       code[2] < 1 ? (code[2] < 0 ? 0 : CoarseBlockSize[2])
                                   : CoarseBlockSize[2] + (m_stencilEnd[2]) / 2 +
                                         m_InterpStencilEnd[2] - 1};
-
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-
     const int base[3] = {(info.index[0] + code[0]) % 2,
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
-
     int CoarseEdge[3];
     CoarseEdge[0] = (code[0] == 0) ? 0
                     : (((info.index[0] % 2 == 0) &&
@@ -722,7 +638,6 @@ protected:
                         (infoNei_index_true[2] < info.index[2])))
                         ? 1
                         : 0;
-
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -730,13 +645,11 @@ protected:
             code[1] * nY + CoarseEdge[1] * code[1] * nY / 2,
         std::max(code[2], 0) * nZ / 2 + (1 - abs(code[2])) * base[2] * nZ / 2 -
             code[2] * nZ + CoarseEdge[2] * code[2] * nZ / 2};
-
     const int m_vSize0 = m_CoarsenedBlock->getSize(0);
     const int m_nElemsPerSlice =
         m_CoarsenedBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
-
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = (iz - offset[2]) * m_nElemsPerSlice + my_ix;
@@ -773,38 +686,30 @@ protected:
       }
     }
   }
-
   void FillCoarseVersion(const BlockInfo &info, const int *const code) {
-
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
     const int nZ = BlockType::sizeZ;
-
     const int eC[3] = {(m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0],
                        (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
                        (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
-
     const int s[3] = {
         code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : CoarseBlockSize[2]};
-
     const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
                                   : CoarseBlockSize[0] + eC[0] - 1,
                       code[1] < 1 ? (code[1] < 0 ? 0 : CoarseBlockSize[1])
                                   : CoarseBlockSize[1] + eC[1] - 1,
                       code[2] < 1 ? (code[2] < 0 ? 0 : CoarseBlockSize[2])
                                   : CoarseBlockSize[2] + eC[2] - 1};
-
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-
     const int start[3] = {
         s[0] + std::max(code[0], 0) * CoarseBlockSize[0] - code[0] * nX +
             std::min(0, code[0]) * (e[0] - s[0]),
@@ -812,18 +717,15 @@ protected:
             std::min(0, code[1]) * (e[1] - s[1]),
         s[2] + std::max(code[2], 0) * CoarseBlockSize[2] - code[2] * nZ +
             std::min(0, code[2]) * (e[2] - s[2])};
-
     const int m_vSize0 = m_CoarsenedBlock->getSize(0);
     const int m_nElemsPerSlice =
         m_CoarsenedBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - offset[0];
     const int XX = start[0];
-
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int ZZ = 2 * (iz - s[2]) + start[2];
       const int my_izx = (iz - offset[2]) * m_nElemsPerSlice + my_ix;
-
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
@@ -831,14 +733,11 @@ protected:
             iz > -m_InterpStencilStart[2] &&
             iz < nZ / 2 - m_InterpStencilEnd[2])
           continue;
-
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
-
         const int YY = 2 * (iy - s[1]) + start[1];
         const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
         const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
-
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -848,7 +747,6 @@ protected:
       }
     }
   }
-
 #ifdef PRESERVE_SYMMETRY
   __attribute__((optimize("-O1")))
 #endif
@@ -871,17 +769,14 @@ protected:
     const int xskip = info.index[0] == 0 ? -1 : 1;
     const int yskip = info.index[1] == 0 ? -1 : 1;
     const int zskip = info.index[2] == 0 ? -1 : 1;
-
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       const int icode = coarsened_nei_codes[ii];
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
-
       if (code[2] != 0)
         continue;
-
       if (!xperiodic && code[0] == xskip && xskin)
         continue;
       if (!yperiodic && code[1] == yskip && yskin)
@@ -891,7 +786,6 @@ protected:
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
         continue;
-
       const int s[3] = {
           code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
           code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
@@ -900,7 +794,6 @@ protected:
           code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + m_stencilEnd[0] - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + m_stencilEnd[1] - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
-
       const int sC[3] = {
           code[0] < 1 ? (code[0] < 0 ? ((m_stencilStart[0] - 1) / 2) : 0)
                       : CoarseBlockSize[0],
@@ -908,11 +801,9 @@ protected:
                       : CoarseBlockSize[1],
           code[2] < 1 ? (code[2] < 0 ? ((m_stencilStart[2] - 1) / 2) : 0)
                       : CoarseBlockSize[2]};
-
       const int bytes = (e[0] - s[0]) * sizeof(ElementType);
       if (!bytes)
         continue;
-
       if (use_averages) {
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1]; iy += 1) {
@@ -949,7 +840,6 @@ protected:
               abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
           const int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
           const double dy = 0.25 * (2 * y - 1);
-
 #pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 2) {
             const int XX =
@@ -961,7 +851,6 @@ protected:
             const double dx = 0.25 * (2 * x - 1);
             if (ix < -2 || iy < -2 || ix > nX + 1 || iy > nY + 1)
               continue;
-
             if (code[0] != 0) {
               ElementType dudy, dudy2;
               if (YY + offset[1] == 0) {
@@ -1051,7 +940,6 @@ protected:
             }
           }
         }
-
         for (int iy = s[1]; iy < e[1]; iy += 1) {
 #pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 1) {
@@ -1061,10 +949,8 @@ protected:
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             const int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-
             auto &a = m_cacheBlock->Access(ix - m_stencilStart[0],
                                            iy - m_stencilStart[1], 0);
-
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
@@ -1127,10 +1013,8 @@ protected:
       }
     }
   }
-
   virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
                          bool coarse = false) {}
-
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       allocator<T>().destroy(t);
@@ -1143,5 +1027,4 @@ private:
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-
 } // namespace cubism

@@ -1,19 +1,12 @@
-
-
 #include "PressureSingle.h"
 #include "../Shape.h"
 #include "Cubism/FluxCorrection.h"
-
 using namespace cubism;
-
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
-
 namespace {
-
 void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
               Real *J) {
-
   const Real m00 = 1.0;
   const Real m01 = 0.0;
   const Real m02 = 0.0;
@@ -33,7 +26,6 @@ void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
   a11 *= determinant;
   a12 *= determinant;
   a22 *= determinant;
-
   const Real aux_0 = (Rc[1] - R[1]) * N[2] - (Rc[2] - R[2]) * N[1];
   const Real aux_1 = (Rc[2] - R[2]) * N[0] - (Rc[0] - R[0]) * N[2];
   const Real aux_2 = (Rc[0] - R[0]) * N[1] - (Rc[1] - R[1]) * N[0];
@@ -41,7 +33,6 @@ void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
   J[1] = a01 * aux_0 + a11 * aux_1 + a12 * aux_2;
   J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
 }
-
 void ElasticCollision(const Real m1, const Real m2, const Real *I1,
                       const Real *I2, const Real *v1, const Real *v2,
                       const Real *o1, const Real *o2, Real *hv1, Real *hv2,
@@ -52,7 +43,6 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   const Real e = 1.0;
   const Real N[3] = {NX, NY, NZ};
   const Real C[3] = {CX, CY, CZ};
-
   const Real k1[3] = {N[0] / m1, N[1] / m1, N[2] / m1};
   const Real k2[3] = {-N[0] / m2, -N[1] / m2, -N[2] / m2};
   Real J1[3];
@@ -62,7 +52,6 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   J2[0] = -J2[0];
   J2[1] = -J2[1];
   J2[2] = -J2[2];
-
   Real u1DEF[3];
   u1DEF[0] = vc1[0] - v1[0] - (o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1]));
   u1DEF[1] = vc1[1] - v1[1] - (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2]));
@@ -71,7 +60,6 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   u2DEF[0] = vc2[0] - v2[0] - (o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1]));
   u2DEF[1] = vc2[1] - v2[1] - (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2]));
   u2DEF[2] = vc2[2] - v2[2] - (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0]));
-
   const Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
                         (vc1[2] - vc2[2]) * N[2]) +
                    ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
@@ -83,7 +71,6 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
                    ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
                     (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
                     (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
-
   const Real denom =
       -(1.0 / m1 + 1.0 / m2) +
       +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
@@ -106,15 +93,12 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-
 } // namespace
-
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
     VectorBlock &__restrict__ tmpV =
@@ -166,11 +150,9 @@ struct pressureCorrectionKernel {
     }
   }
 };
-
 void PressureSingle::pressureCorrection(const Real dt) {
   const pressureCorrectionKernel K(sim);
   cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
-
   std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
@@ -184,20 +166,16 @@ void PressureSingle::pressureCorrection(const Real dt) {
       }
   }
 }
-
 void PressureSingle::integrateMomenta(Shape *const shape) const {
   const size_t Nblocks = velInfo.size();
-
   const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0];
   const Real Cy = shape->centerOfMass[1];
   Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
-
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
   for (size_t i = 0; i < Nblocks; i++) {
     const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
     const Real hsq = velInfo[i].h * velInfo[i].h;
-
     if (OBLOCK[velInfo[i].blockID] == nullptr)
       continue;
     const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
@@ -205,7 +183,6 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
 #ifndef EXPL_INTEGRATE_MOM
     const Real lambdt = sim.lambda * sim.dt;
 #endif
-
     for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
       for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
         if (chi[iy][ix] <= 0)
@@ -215,7 +192,6 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
 #ifdef EXPL_INTEGRATE_MOM
         const Real F = hsq * chi[iy][ix];
 #else
-
         const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
 #endif
@@ -242,7 +218,6 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
   UM = quantities[4];
   VM = quantities[5];
   AM = quantities[6];
-
   shape->fluidAngMom = AM;
   shape->fluidMomX = UM;
   shape->fluidMomY = VM;
@@ -251,12 +226,9 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
   shape->penalM = PM;
   shape->penalJ = PJ;
 }
-
 void PressureSingle::penalize(const Real dt) const {
   std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-
   const size_t Nblocks = velInfo.size();
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
     for (const auto &shape : sim.shapes) {
@@ -264,37 +236,30 @@ void PressureSingle::penalize(const Real dt) const {
       const ObstacleBlock *const o = OBLOCK[velInfo[i].blockID];
       if (o == nullptr)
         continue;
-
       const Real u_s = shape->u;
       const Real v_s = shape->v;
       const Real omega_s = shape->omega;
       const Real Cx = shape->centerOfMass[0];
       const Real Cy = shape->centerOfMass[1];
-
       const CHI_MAT &__restrict__ X = o->chi;
       const UDEFMAT &__restrict__ UDEF = o->udef;
       const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-
       for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
         for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-
           if (CHI(ix, iy).s > X[iy][ix])
             continue;
           if (X[iy][ix] <= 0)
             continue;
-
           Real p[2];
           velInfo[i].pos(p, ix, iy);
           p[0] -= Cx;
           p[1] -= Cy;
 #ifndef EXPL_INTEGRATE_MOM
-
           const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
 #else
           const Real alpha = 1 - X[iy][ix];
 #endif
-
           const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
           const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
           V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
@@ -302,16 +267,13 @@ void PressureSingle::penalize(const Real dt) const {
         }
     }
 }
-
 struct updatePressureRHS {
-
   updatePressureRHS(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-
   void operator()(VectorLab &velLab, VectorLab &uDefLab,
                   const cubism::BlockInfo &info,
                   const cubism::BlockInfo &info2) const {
@@ -379,15 +341,12 @@ struct updatePressureRHS {
     }
   }
 };
-
 struct updatePressureRHS1 {
-
   updatePressureRHS1(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
         *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
@@ -396,7 +355,6 @@ struct updatePressureRHS1 {
         TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
-
     BlockCase<ScalarBlock> *tempCase =
         (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
     ScalarBlock::ElementType *faceXm = nullptr;
@@ -431,13 +389,11 @@ struct updatePressureRHS1 {
     }
   }
 };
-
 void PressureSingle::preventCollidingObstacles() const {
   const auto &shapes = sim.shapes;
   const auto &infos = sim.chi->getBlocksInfo();
   const size_t N = shapes.size();
   sim.bCollisionID.clear();
-
   struct CollisionInfo {
     Real iM = 0;
     Real iPosX = 0;
@@ -461,55 +417,41 @@ void PressureSingle::preventCollidingObstacles() const {
     Real jvecZ = 0;
   };
   std::vector<CollisionInfo> collisions(N);
-
   std::vector<Real> n_vec(3 * N, 0.0);
-
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < N; ++i)
     for (size_t j = 0; j < N; ++j) {
       if (i == j)
         continue;
       auto &coll = collisions[i];
-
       const auto &iBlocks = shapes[i]->obstacleBlocks;
       const Real iU0 = shapes[i]->u;
       const Real iU1 = shapes[i]->v;
-
       const Real iomega2 = shapes[i]->omega;
       const Real iCx = shapes[i]->centerOfMass[0];
       const Real iCy = shapes[i]->centerOfMass[1];
-
       const auto &jBlocks = shapes[j]->obstacleBlocks;
       const Real jU0 = shapes[j]->u;
       const Real jU1 = shapes[j]->v;
-
       const Real jomega2 = shapes[j]->omega;
       const Real jCx = shapes[j]->centerOfMass[0];
       const Real jCy = shapes[j]->centerOfMass[1];
-
       assert(iBlocks.size() == jBlocks.size());
-
       const size_t nBlocks = iBlocks.size();
       for (size_t k = 0; k < nBlocks; ++k) {
         if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
           continue;
-
         const auto &iSDF = iBlocks[k]->dist;
         const auto &jSDF = jBlocks[k]->dist;
-
         const CHI_MAT &iChi = iBlocks[k]->chi;
         const CHI_MAT &jChi = jBlocks[k]->chi;
-
         const UDEFMAT &iUDEF = iBlocks[k]->udef;
         const UDEFMAT &jUDEF = jBlocks[k]->udef;
-
         for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
           for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
             if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
               continue;
-
             const auto pos = infos[k].pos<Real>(ix, iy);
-
             const Real iUr0 = -iomega2 * (pos[1] - iCy);
             const Real iUr1 = iomega2 * (pos[0] - iCx);
             coll.iM += iChi[iy][ix];
@@ -517,7 +459,6 @@ void PressureSingle::preventCollidingObstacles() const {
             coll.iPosY += iChi[iy][ix] * pos[1];
             coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
             coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
-
             const Real jUr0 = -jomega2 * (pos[1] - jCy);
             const Real jUr1 = jomega2 * (pos[0] - jCx);
             coll.jM += jChi[iy][ix];
@@ -525,7 +466,6 @@ void PressureSingle::preventCollidingObstacles() const {
             coll.jPosY += jChi[iy][ix] * pos[1];
             coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
             coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
-
             Real dSDFdx_i;
             Real dSDFdx_j;
             if (ix == 0) {
@@ -538,7 +478,6 @@ void PressureSingle::preventCollidingObstacles() const {
               dSDFdx_i = 0.5 * (iSDF[iy][ix + 1] - iSDF[iy][ix - 1]);
               dSDFdx_j = 0.5 * (jSDF[iy][ix + 1] - jSDF[iy][ix - 1]);
             }
-
             Real dSDFdy_i;
             Real dSDFdy_j;
             if (iy == 0) {
@@ -551,16 +490,13 @@ void PressureSingle::preventCollidingObstacles() const {
               dSDFdy_i = 0.5 * (iSDF[iy + 1][ix] - iSDF[iy - 1][ix]);
               dSDFdy_j = 0.5 * (jSDF[iy + 1][ix] - jSDF[iy - 1][ix]);
             }
-
             coll.ivecX += iChi[iy][ix] * dSDFdx_i;
             coll.ivecY += iChi[iy][ix] * dSDFdy_i;
-
             coll.jvecX += jChi[iy][ix] * dSDFdx_j;
             coll.jvecY += jChi[iy][ix] * dSDFdy_j;
           }
       }
     }
-
   std::vector<Real> buffer(20 * N);
   for (size_t i = 0; i < N; i++) {
     auto &coll = collisions[i];
@@ -610,7 +546,6 @@ void PressureSingle::preventCollidingObstacles() const {
     coll.jvecY = buffer[20 * i + 18];
     coll.jvecZ = buffer[20 * i + 19];
   }
-
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < N; ++i)
     for (size_t j = i + 1; j < N; ++j) {
@@ -628,29 +563,24 @@ void PressureSingle::preventCollidingObstacles() const {
                           shapes[j]->centerOfMass[1], 0};
       const Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
       const Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
-
       auto &coll = collisions[i];
       auto &coll_other = collisions[j];
-
       if (coll.iM < 2.0 || coll.jM < 2.0)
         continue;
       if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
         continue;
-
       if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
               shapes[i]->getCharLength() ||
           std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
               shapes[i]->getCharLength()) {
         continue;
       }
-
       sim.bCollision = true;
 #pragma omp critical
       {
         sim.bCollisionID.push_back(i);
         sim.bCollisionID.push_back(j);
       }
-
       const bool iForced = shapes[i]->bForced;
       const bool jForced = shapes[j]->bForced;
       if (iForced || jForced) {
@@ -658,12 +588,10 @@ void PressureSingle::preventCollidingObstacles() const {
             << "[CUP2D] WARNING: Forced objects not supported for collision."
             << std::endl;
       }
-
       Real ho1[3];
       Real ho2[3];
       Real hv1[3];
       Real hv2[3];
-
       const Real norm_i =
           std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
                     coll.ivecZ * coll.ivecZ);
@@ -677,20 +605,16 @@ void PressureSingle::preventCollidingObstacles() const {
       const Real NX = mX * inorm;
       const Real NY = mY * inorm;
       const Real NZ = mZ * inorm;
-
       const Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
       const Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
       const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
       const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
-
       Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
                      coll.iMomZ / coll.iM};
       Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
                      coll.jMomZ / coll.jM};
-
       if (projVel <= 0)
         continue;
-
       const Real inv_iM = 1.0 / coll.iM;
       const Real inv_jM = 1.0 / coll.jM;
       const Real iPX = coll.iPosX * inv_iM;
@@ -702,19 +626,14 @@ void PressureSingle::preventCollidingObstacles() const {
       const Real CX = 0.5 * (iPX + jPX);
       const Real CY = 0.5 * (iPY + jPY);
       const Real CZ = 0.5 * (iPZ + jPZ);
-
       ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1,
                        C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
       shapes[i]->u = hv1[0];
       shapes[i]->v = hv1[1];
-
       shapes[j]->u = hv2[0];
       shapes[j]->v = hv2[1];
-
       shapes[i]->omega = ho1[2];
-
       shapes[j]->omega = ho2[2];
-
       if (sim.rank == 0) {
 #pragma omp critical
         {
@@ -748,20 +667,15 @@ void PressureSingle::preventCollidingObstacles() const {
       }
     }
 }
-
 void PressureSingle::operator()(const Real dt) {
   sim.startProfiler("Pressure");
   const size_t Nblocks = velInfo.size();
-
   for (const auto &shape : sim.shapes) {
     integrateMomenta(shape.get());
     shape->updateVelocity(dt);
   }
-
   preventCollidingObstacles();
-
   penalize(dt);
-
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
 #pragma omp parallel for
@@ -792,10 +706,8 @@ void PressureSingle::operator()(const Real dt) {
   updatePressureRHS K(sim);
   compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
           ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
-
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -808,9 +720,7 @@ void PressureSingle::operator()(const Real dt) {
   }
   updatePressureRHS1 K1(sim);
   cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
-
   pressureSolver->solve(sim.tmp, sim.pres);
-
   Real avg = 0;
   Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
@@ -836,13 +746,9 @@ void PressureSingle::operator()(const Real dt) {
       for (int ix = 0; ix < VectorBlock::sizeX; ix++)
         P(ix, iy).s += POLD(ix, iy).s - avg;
   }
-
   pressureCorrection(dt);
-
   sim.stopProfiler();
 }
-
 PressureSingle::PressureSingle(SimulationData &s)
     : Operator{s}, pressureSolver{makePoissonSolver(s)} {}
-
 PressureSingle::~PressureSingle() = default;

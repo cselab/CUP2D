@@ -5,12 +5,9 @@
 #include "../Utils/FactoryFileLineParser.h"
 #include "Common.h"
 #include <sstream>
-
 using namespace pybind11::literals;
 namespace py = pybind11;
-
 namespace cubismup2d {
-
 template <typename S>
 static std::shared_ptr<S> makeShape(SimulationData &s, const std::string &argv,
                                     std::array<Real, 2> C) {
@@ -18,18 +15,15 @@ static std::shared_ptr<S> makeShape(SimulationData &s, const std::string &argv,
   FactoryFileLineParser ffparser{stream};
   return std::make_shared<S>(s, ffparser, C.data());
 }
-
 template <typename T> static auto bindShape(py::module &m, const char *name) {
   return class_shared<T, Shape>(m, name).def(py::init(&makeShape<T>), "data"_a,
                                              "argv"_a, "center"_a);
 }
-
 static auto xyToPair(const Real Shape::*x, const Real Shape::*y) {
   return [x, y](const Shape &shape) {
     return std::array<Real, 2>{{shape.*x, shape.*y}};
   };
 }
-
 void bindShapes(py::module &m) {
   class_shared<Shape>(m, "_Shape")
       .def_property_readonly(
@@ -48,7 +42,6 @@ void bindShapes(py::module &m) {
       .def_readonly("drag", &Shape::drag)
       .def_readonly("thrust", &Shape::thrust)
       .def_readonly("lift", &Shape::lift);
-
   bindShape<Disk>(m, "_Disk").def_property_readonly("r", &Disk::getRadius);
   bindShape<HalfDisk>(m, "_HalfDisk");
   bindShape<Ellipse>(m, "_Ellipse");
@@ -58,5 +51,4 @@ void bindShapes(py::module &m) {
       .def("state", &StefanFish::state, "Get State")
       .def_readonly("efficiency", &StefanFish::EffPDefBnd);
 }
-
 } // namespace cubismup2d

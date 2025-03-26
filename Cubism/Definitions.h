@@ -3,46 +3,36 @@
 #include "BlockLab.h"
 #include "ConsistentOperations.h"
 #include "StencilInfo.h"
-
 namespace cubism {
-
 template <typename Lab, typename Kernel, typename TGrid,
           typename TGrid_corr = TGrid>
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
-
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-
   cubism::SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
       *(g->sync(kernel.stencil));
-
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
-
   std::vector<cubism::BlockInfo *> *halo_next;
   bool done = false;
 #pragma omp parallel
   {
     Lab lab;
     lab.prepare(*g, kernel.stencil);
-
 #pragma omp for nowait
     for (const auto &I : *inner) {
       lab.load(*I, 0);
       kernel(lab, *I);
     }
-
 #if 1
     while (done == false) {
 #pragma omp master
       halo_next = &Synch.avail_next();
 #pragma omp barrier
-
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
         lab.load(*I, 0);
         kernel(lab, *I);
       }
-
 #pragma omp single
       {
         if (halo_next->size() == 0)
@@ -71,13 +61,10 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
     }
 #endif
   }
-
   Synch.avail_halo();
-
   if (g_corr != nullptr)
     g_corr->Corrector.FillBlockCases();
 }
-
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2, typename TGrid_corr = TGrid>
 static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
@@ -85,7 +72,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-
   SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
       *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
@@ -98,22 +84,17 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-
   SynchronizerMPI_AMR<typename TGrid::Real, TGrid2> &Synch2 =
       *grid2.sync(kernel2.stencil);
-
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
-
   std::vector<cubism::BlockInfo> &blk = grid.getBlocksInfo();
   std::vector<bool> ready(blk.size(), false);
-
   std::vector<BlockInfo *> &avail0 = Synch.avail_inner();
   std::vector<BlockInfo *> &avail02 = Synch2.avail_inner();
   const int Ninner = avail0.size();
   std::vector<cubism::BlockInfo *> avail1;
   std::vector<cubism::BlockInfo *> avail12;
-
 #pragma omp parallel
   {
     LabMPI lab;
@@ -129,7 +110,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       kernel(lab, lab2, I, I2);
       ready[I.blockID] = true;
     }
-
 #if 1
 #pragma omp master
     {
@@ -137,9 +117,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       avail12 = Synch2.avail_halo();
     }
 #pragma omp barrier
-
     const int Nhalo = avail1.size();
-
 #pragma omp for
     for (int i = 0; i < Nhalo; i++) {
       const cubism::BlockInfo &I = *avail1[i];
@@ -149,7 +127,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       kernel(lab, lab2, I, I2);
     }
 #else
-
 #pragma omp master
     {
       avail1 = Synch.avail_halo_nowait();
@@ -157,13 +134,10 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     }
 #pragma omp barrier
     const int Nhalo = avail1.size();
-
     while (done == false) {
 #pragma omp barrier
-
 #pragma omp single
       done = true;
-
 #pragma omp for
       for (int i = 0; i < Nhalo; i++) {
         const cubism::BlockInfo &I = *avail1[i];
@@ -190,21 +164,15 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     avail12 = Synch2.avail_halo();
 #endif
   }
-
   if (applyFluxCorrection)
     corrected_grid->Corrector.FillBlockCases();
 }
-
 template <typename Real = double> struct ScalarElement {
   using RealType = Real;
   Real s = 0;
-
   inline void clear() { s = 0; }
-
   inline void set(const Real v) { s = v; }
-
   inline void copy(const ScalarElement &c) { s = c.s; }
-
   ScalarElement &operator*=(const Real a) {
     this->s *= a;
     return *this;
@@ -241,31 +209,24 @@ template <typename Real = double> struct ScalarElement {
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
 };
-
 template <int dim, typename Real = double> struct VectorElement {
   using RealType = Real;
   static constexpr int DIM = dim;
   Real u[DIM];
-
   VectorElement() { clear(); }
-
   inline void clear() {
     for (int i = 0; i < DIM; ++i)
       u[i] = 0;
   }
-
   inline void set(const Real v) {
     for (int i = 0; i < DIM; ++i)
       u[i] = v;
   }
-
   inline void copy(const VectorElement &c) {
     for (int i = 0; i < DIM; ++i)
       u[i] = c.u[i];
   }
-
   VectorElement &operator=(const VectorElement &c) = default;
-
   VectorElement &operator*=(const Real a) {
     for (int i = 0; i < DIM; ++i)
       this->u[i] *= a;
@@ -305,7 +266,6 @@ template <int dim, typename Real = double> struct VectorElement {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
-
     return (s1 < s2);
   }
   bool operator>(const VectorElement &other) const {
@@ -315,7 +275,6 @@ template <int dim, typename Real = double> struct VectorElement {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
-
     return (s1 > s2);
   }
   bool operator<=(const VectorElement &other) const {
@@ -325,7 +284,6 @@ template <int dim, typename Real = double> struct VectorElement {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
-
     return (s1 <= s2);
   }
   bool operator>=(const VectorElement &other) const {
@@ -335,7 +293,6 @@ template <int dim, typename Real = double> struct VectorElement {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
-
     return (s1 >= s2);
   }
   Real magnitude() {
@@ -347,9 +304,7 @@ template <int dim, typename Real = double> struct VectorElement {
   }
   Real &member(int i) { return u[i]; }
 };
-
 template <int blocksize, int dim, typename TElement> struct GridBlock {
-
   static constexpr int BS = blocksize;
   static constexpr int sizeX = blocksize;
   static constexpr int sizeY = blocksize;
@@ -357,34 +312,28 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
   using RealType = typename TElement::RealType;
-
   ElementType data[sizeZ][sizeY][sizeX];
-
   inline void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
-
   inline void set(const RealType v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
   }
-
   inline void copy(const GridBlock<blocksize, dim, ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].copy(source[i]);
   }
-
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
     return data[iz][iy][ix];
   }
-
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
@@ -393,11 +342,9 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
-
 template <typename TGrid, int dim,
           template <typename X> class allocator = std::allocator>
 class BlockLabNeumann : public cubism::BlockLab<TGrid, allocator> {
-
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
@@ -435,9 +382,7 @@ protected:
       bsize[1] = sizeY / 2;
       bsize[2] = sizeZ / 2;
     }
-
     auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
-
     int s[3];
     int e[3];
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : 0;
@@ -446,7 +391,6 @@ protected:
     e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1) : bsize[0];
     e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1) : bsize[1];
     e[2] = dir == 2 ? (side == 0 ? 0 : bsize[2] + stenEnd[2] - 1) : bsize[2];
-
     for (int iz = s[2]; iz < e[2]; iz++)
       for (int iy = s[1]; iy < e[1]; iy++)
         for (int ix = s[0]; ix < e[0]; ix++) {
@@ -457,7 +401,6 @@ protected:
                   (dir == 2 ? (side == 0 ? 0 : bsize[2] - 1) : iz) -
                       stenBeg[2]);
         }
-
     s[dir] = stenBeg[dir] * (1 - side) + bsize[dir] * side;
     e[dir] = (bsize[dir] - 1 + stenEnd[dir]) * side;
     const int d1 = (dir + 1) % 3;
@@ -484,7 +427,6 @@ protected:
             }
       }
   }
-
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -508,9 +450,7 @@ protected:
       bsize[0] = sizeX / 2;
       bsize[1] = sizeY / 2;
     }
-
     auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
-
     int s[2];
     int e[2];
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
@@ -519,7 +459,6 @@ protected:
                     : bsize[0] + stenEnd[0] - 1;
     e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
                     : bsize[1] + stenEnd[1] - 1;
-
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
         cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) = cb->Access(
@@ -531,17 +470,12 @@ public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
   using Real = typename ElementType::RealType;
-
   virtual bool is_xperiodic() override { return false; }
-
   virtual bool is_yperiodic() override { return false; }
-
   virtual bool is_zperiodic() override { return false; }
-
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (DIM == 2) {
@@ -569,5 +503,4 @@ public:
     }
   }
 };
-
 } // namespace cubism

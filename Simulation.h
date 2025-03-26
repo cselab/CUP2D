@@ -1,10 +1,6 @@
-
-
 #pragma once
-
 #include "Operator.h"
 #include "SimulationData.h"
-
 class Simulation {
 public:
   SimulationData sim;
@@ -12,14 +8,12 @@ public:
 
 protected:
   cubism::ArgumentParser parser;
-
   void createShapes();
   void parseRuntime();
 
 public:
   Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
-
   template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
@@ -28,12 +22,9 @@ public:
     }
     return nullptr;
   }
-
   void insertOperator(std::shared_ptr<Operator> op);
-
   void insertOperatorAfter(std::shared_ptr<Operator> op,
                            const std::string &name);
-
   void reset();
   void resetRL();
   void init();
@@ -41,6 +32,5 @@ public:
   void simulate();
   Real calcMaxTimestep();
   void advance(const Real dt);
-
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };

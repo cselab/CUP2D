@@ -1,43 +1,29 @@
-
-
 #include "Fish.h"
 #include "FishData.h"
-
 using namespace cubism;
-
 #define profile(func)                                                          \
   do {                                                                         \
   } while (0)
-
 void Fish::create(const std::vector<BlockInfo> &vInfo) {
-
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
-
   assert(myFish != nullptr);
   profile(push_start("midline"));
   myFish->computeMidline(sim.time, sim.dt);
   myFish->computeSurface();
   profile(pop_stop());
-
   if (sim.rank == 0 && sim.bDump())
     myFish->writeMidline2File(0, "appending");
-
   profile(push_start("2dmoments"));
-
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
-
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
-
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 #if 0
   {
     Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-
     const Real area_internal_check =
     myFish->integrateLinearMomentum(dummy_CoM_internal, dummy_vCoM_internal);
     myFish->integrateAngularMomentum(dummy_angvel_internal);
@@ -52,18 +38,15 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
 #endif
   profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
-
   const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
   assert((Nm - 1) % Nsegments == 0);
   profile(push_start("boxes"));
-
   std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
   const Real h = sim.getH();
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nsegments; ++i) {
     const int next_idx = (i + 1) * (Nm - 1) / Nsegments,
               idx = i * (Nm - 1) / Nsegments;
-
     Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
     for (int ss = idx; ss <= next_idx; ++ss) {
       const Real xBnd[2] = {
@@ -82,33 +65,28 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
     const Real DD = 4 * h;
-
     AreaSegment *const tAS =
         new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
     tAS->changeToComputationalFrame(center, orientation);
     vSegments[i] = tAS;
   }
   profile(pop_stop());
-
   profile(push_start("intersect"));
   const auto N = vInfo.size();
   std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
   obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
-
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) {
     const BlockInfo &info = vInfo[i];
     Real pStart[2], pEnd[2];
     info.pos(pStart, 0, 0);
     info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
-
     for (size_t s = 0; s < vSegments.size(); ++s)
       if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
         if (segmentsPerBlock[info.blockID] == nullptr)
           segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
         segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
       }
-
     if (segmentsPerBlock[info.blockID] not_eq nullptr) {
       assert(obstacleBlocks[info.blockID] == nullptr);
       ObstacleBlock *const block = new ObstacleBlock();
@@ -120,11 +98,9 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
   assert(not segmentsPerBlock.empty());
   assert(segmentsPerBlock.size() == obstacleBlocks.size());
   profile(pop_stop());
-
 #pragma omp parallel
   {
     const PutFishOnBlocks putfish(*myFish, center, orientation);
-
 #pragma omp for schedule(dynamic)
     for (size_t i = 0; i < vInfo.size(); i++) {
       const auto pos = segmentsPerBlock[vInfo[i].blockID];
@@ -135,7 +111,6 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
       }
     }
   }
-
   for (auto &E : vSegments) {
     if (E not_eq nullptr)
       delete E;
@@ -144,20 +119,16 @@ void Fish::create(const std::vector<BlockInfo> &vInfo) {
     if (E not_eq nullptr)
       delete E;
   }
-
   profile(pop_stop());
   if (sim.step % 100 == 0 && sim.verbose) {
     profile(printSummary());
     profile(reset());
   }
 }
-
 void Fish::updatePosition(Real dt) {
-
   Shape::updatePosition(dt);
   theta_internal -= dt * angvel_internal;
 }
-
 void Fish::resetAll() {
   CoM_internal[0] = 0;
   CoM_internal[1] = 0;
@@ -169,14 +140,12 @@ void Fish::resetAll() {
   Shape::resetAll();
   myFish->resetAll();
 }
-
 Fish::~Fish() {
   if (myFish not_eq nullptr) {
     delete myFish;
     myFish = nullptr;
   }
 }
-
 void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   Shape::removeMoments(vInfo);
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
@@ -195,14 +164,12 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   }
 #endif
 }
-
 void Fish::saveRestart(FILE *f) {
   assert(f != NULL);
   Shape::saveRestart(f);
   fprintf(f, "theta_internal: %20.20e\n", (double)theta_internal);
   fprintf(f, "angvel_internal: %20.20e\n", (double)angvel_internal);
 }
-
 void Fish::loadRestart(FILE *f) {
   assert(f != NULL);
   Shape::loadRestart(f);

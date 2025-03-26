@@ -1,10 +1,7 @@
-
-
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper.h"
 #include <random>
 using namespace cubism;
-
 void IC::operator()(const Real dt) {
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
@@ -12,7 +9,6 @@ void IC::operator()(const Real dt) {
   const std::vector<BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-
   if (not sim.bRestart) {
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
@@ -31,7 +27,6 @@ void IC::operator()(const Real dt) {
       VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
       VOLD.clear();
     }
-
     if (sim.smagorinskyCoeff != 0) {
       const std::vector<BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
 #pragma omp parallel for
@@ -44,17 +39,13 @@ void IC::operator()(const Real dt) {
       }
     }
   } else {
-
     sim.readRestartFiles();
-
     std::stringstream ss;
     ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
-
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
         *(sim.vel), "vel_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
         *(sim.pres), "pres_" + ss.str(), sim.path4serialization);
-
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
         *(sim.pold), "pres_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
@@ -65,7 +56,6 @@ void IC::operator()(const Real dt) {
         *(sim.tmpV), "vel_" + ss.str(), sim.path4serialization);
     ReadHDF5_MPI<StreamerVector, Real, VectorGrid>(
         *(sim.vOld), "vel_" + ss.str(), sim.path4serialization);
-
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
       ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
@@ -79,7 +69,6 @@ void IC::operator()(const Real dt) {
       VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
       VOLD.clear();
     }
-
     if (sim.smagorinskyCoeff != 0) {
       ReadHDF5_MPI<StreamerScalar, Real, ScalarGrid>(
           *(sim.Cs), "pres_" + ss.str(), sim.path4serialization);
@@ -95,7 +84,6 @@ void IC::operator()(const Real dt) {
     }
   }
 }
-
 void randomIC::operator()(const Real dt) {
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
@@ -103,13 +91,11 @@ void randomIC::operator()(const Real dt) {
   const std::vector<BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-
 #pragma omp parallel
   {
     std::random_device seed;
     std::mt19937 gen(seed());
     std::normal_distribution<Real> dist(0.0, 0.01);
-
 #pragma omp for
     for (size_t i = 0; i < velInfo.size(); i++) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -118,7 +104,6 @@ void randomIC::operator()(const Real dt) {
           VEL(ix, iy).u[0] = 0.5 + dist(gen);
           VEL(ix, iy).u[1] = 0.5 + dist(gen);
         }
-
       ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       CHI.clear();
       ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -133,7 +118,6 @@ void randomIC::operator()(const Real dt) {
       VOLD.clear();
     }
   }
-
   if (sim.smagorinskyCoeff != 0) {
     const std::vector<BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
 #pragma omp parallel for
@@ -146,12 +130,9 @@ void randomIC::operator()(const Real dt) {
     }
   }
 }
-
 Real findMaxU::run() const {
   const size_t Nblocks = velInfo.size();
-
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
-
 #ifdef ZERO_TOTAL_MOM
   Real momX = 0, momY = 0, totM = 0;
 #pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
@@ -172,10 +153,8 @@ Real findMaxU::run() const {
   momX = temp[0];
   momY = temp[1];
   totM = temp[2];
-
   const Real DU = momX / totM, DV = momY / totM;
 #endif
-
   Real U = 0, V = 0, u = 0, v = 0;
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
   for (size_t i = 0; i < Nblocks; i++) {
@@ -201,19 +180,15 @@ Real findMaxU::run() const {
   v = quantities[3];
   return std::max({U, V, u, v});
 }
-
 void Checker::run(std::string when) const {
   return;
   const size_t Nblocks = velInfo.size();
-
   const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
   bool bAbort = false;
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
     ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-
     for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
       for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
         if (std::isnan(VEL(ix, iy).u[0])) {
@@ -248,7 +223,6 @@ void Checker::run(std::string when) const {
         }
       }
   }
-
   if (bAbort) {
     std::cout << "[CUP2D] Detected NaN/INF Field Values. Dumping the field and "
                  "aborting..."
@@ -257,9 +231,7 @@ void Checker::run(std::string when) const {
     MPI_Abort(sim.comm, 1);
   }
 }
-
 void ApplyObjVel::operator()(const Real dt) {
-
   const size_t Nblocks = velInfo.size();
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();

@@ -1,9 +1,5 @@
-
-
 #include "advDiffSGS.h"
-
 using namespace cubism;
-
 __attribute__((optimize("-O1"))) static inline Real
 weno5_plus(const Real um2, const Real um1, const Real u, const Real up1,
            const Real up2) {
@@ -30,7 +26,6 @@ weno5_plus(const Real um2, const Real um1, const Real u, const Real up1,
   const Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-
 __attribute__((optimize("-O1"))) static inline Real
 weno5_minus(const Real um2, const Real um1, const Real u, const Real up1,
             const Real up2) {
@@ -57,7 +52,6 @@ weno5_minus(const Real um2, const Real um1, const Real u, const Real up1,
   const Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-
 static inline Real derivative(const Real U, const Real um3, const Real um2,
                               const Real um1, const Real u, const Real up1,
                               const Real up2, const Real up3) {
@@ -72,7 +66,6 @@ static inline Real derivative(const Real U, const Real um3, const Real um2,
   }
   return (fp - fm);
 }
-
 static inline Real computeEddyViscosity(const Real C, const Real h,
                                         const Real dudx, const Real dudy,
                                         const Real dvdx, const Real dvdy) {
@@ -84,7 +77,6 @@ static inline Real computeEddyViscosity(const Real C, const Real h,
   return (C * h) * (C * h) *
          std::sqrt(2 * (dudxSq + dvdySq + dudydvdx) + dudySq + dvdxSq);
 }
-
 static inline std::array<Real, 2> d_adv_dif(const VectorLab &V,
                                             const Real uinf[2], const Real advF,
                                             const Real difF, const int ix,
@@ -94,53 +86,43 @@ static inline std::array<Real, 2> d_adv_dif(const VectorLab &V,
   const Real v = V(ix, iy).u[1];
   const Real UU = u + uinf[0];
   const Real VV = v + uinf[1];
-
   const Real up1x = V(ix + 1, iy).u[0];
   const Real up2x = V(ix + 2, iy).u[0];
   const Real up3x = V(ix + 3, iy).u[0];
   const Real um1x = V(ix - 1, iy).u[0];
   const Real um2x = V(ix - 2, iy).u[0];
   const Real um3x = V(ix - 3, iy).u[0];
-
   const Real up1y = V(ix, iy + 1).u[0];
   const Real up2y = V(ix, iy + 2).u[0];
   const Real up3y = V(ix, iy + 3).u[0];
   const Real um1y = V(ix, iy - 1).u[0];
   const Real um2y = V(ix, iy - 2).u[0];
   const Real um3y = V(ix, iy - 3).u[0];
-
   const Real dudx = derivative(UU, um3x, um2x, um1x, u, up1x, up2x, up3x);
   const Real dudy = derivative(VV, um3y, um2y, um1y, u, up1y, up2y, up3y);
-
   const Real vp1x = V(ix + 1, iy).u[1];
   const Real vp2x = V(ix + 2, iy).u[1];
   const Real vp3x = V(ix + 3, iy).u[1];
   const Real vm1x = V(ix - 1, iy).u[1];
   const Real vm2x = V(ix - 2, iy).u[1];
   const Real vm3x = V(ix - 3, iy).u[1];
-
   const Real vp1y = V(ix, iy + 1).u[1];
   const Real vp2y = V(ix, iy + 2).u[1];
   const Real vp3y = V(ix, iy + 3).u[1];
   const Real vm1y = V(ix, iy - 1).u[1];
   const Real vm2y = V(ix, iy - 2).u[1];
   const Real vm3y = V(ix, iy - 3).u[1];
-
   const Real dvdx = derivative(UU, vm3x, vm2x, vm1x, v, vp1x, vp2x, vp3x);
   const Real dvdy = derivative(VV, vm3y, vm2y, vm1y, v, vp1y, vp2y, vp3y);
-
   const Real eddyViscocity = computeEddyViscosity(C, h, dudx, dudy, dudx, dudy);
-
   const Real dU_adv_dif =
       advF * (UU * dudx + VV * dudy) +
       (difF + dt * eddyViscocity) * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
   const Real dV_adv_dif =
       advF * (UU * dvdx + VV * dvdy) +
       (difF + dt * eddyViscocity) * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
-
   return std::array<Real, 2>{dU_adv_dif, dV_adv_dif};
 }
-
 struct KernelAdvectDiffuseSGS {
   KernelAdvectDiffuseSGS(const SimulationData &s, const Real c,
                          const Real uinfx, const Real uinfy)
@@ -155,7 +137,6 @@ struct KernelAdvectDiffuseSGS {
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
   ;
-
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real h = info.h;
     const Real dfac = sim.nu * sim.dt;
@@ -179,9 +160,7 @@ struct KernelAdvectDiffuseSGS {
     VectorBlock::ElementType *faceXp = nullptr;
     VectorBlock::ElementType *faceYm = nullptr;
     VectorBlock::ElementType *faceYp = nullptr;
-
     const Real aux_coef = dfac * coef;
-
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -218,12 +197,10 @@ struct KernelAdvectDiffuseSGS {
     }
   }
 };
-
 void advDiffSGS::operator()(const Real dt) {
   sim.startProfiler("advDiffSGS");
   const size_t Nblocks = velInfo.size();
   const Real UINF[2] = {sim.uinfx, sim.uinfy};
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -234,10 +211,8 @@ void advDiffSGS::operator()(const Real dt) {
         Vold(ix, iy).u[1] = V(ix, iy).u[1];
       }
   }
-
   KernelAdvectDiffuseSGS Step1(sim, 0.5, UINF[0], UINF[1]);
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -250,10 +225,8 @@ void advDiffSGS::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-
   KernelAdvectDiffuseSGS Step2(sim, 1.0, UINF[0], UINF[1]);
   cubism::compute<VectorLab>(Step2, sim.vel, sim.tmpV);
-
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -266,6 +239,5 @@ void advDiffSGS::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-
   sim.stopProfiler();
 }

@@ -1,84 +1,62 @@
-
-
 #pragma once
-
 #include "../ObstacleBlock.h"
 #include "../Operator.h"
 #include "../Shape.h"
 #include "Cubism/FluxCorrection.h"
-
 class findMaxU {
   SimulationData &sim;
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   findMaxU(SimulationData &s) : sim(s) {}
-
   Real run() const;
-
   std::string getName() const { return "findMaxU"; }
 };
-
 class Checker {
   SimulationData &sim;
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   Checker(SimulationData &s) : sim(s) {}
-
   void run(std::string when) const;
-
   std::string getName() const { return "Checker"; }
 };
-
 class IC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   IC(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt);
-
   std::string getName() { return "IC"; }
 };
-
 class gaussianIC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   gaussianIC(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt);
-
   std::string getName() { return "gaussianIC"; }
 };
-
 class randomIC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   randomIC(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt);
-
   std::string getName() { return "randomIC"; }
 };
-
 class ApplyObjVel : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
 public:
   ApplyObjVel(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt);
-
   std::string getName() { return "ApplyObjVel"; }
 };
-
 struct KernelVorticity {
   KernelVorticity(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -93,19 +71,15 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-
 class computeVorticity : public Operator {
 public:
   computeVorticity(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt) {
     const KernelVorticity mykernel(sim);
     cubism::compute<VectorLab>(mykernel, sim.vel);
-
     if (!sim.muteAll)
       reportVorticity();
   }
-
   void reportVorticity() const {
     Real maxv = -1e10;
     Real minv = -1e10;
@@ -128,10 +102,8 @@ public:
                 << " max(omega)+min(omega)=" << recvbuf[0] + recvbuf[1]
                 << std::endl;
   }
-
   std::string getName() { return "computeVorticity"; }
 };
-
 struct KernelQ {
   KernelQ(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -153,19 +125,15 @@ struct KernelQ {
       }
   }
 };
-
 class computeQ : public Operator {
 public:
   computeQ(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt) {
     const KernelQ mykernel(sim);
     cubism::compute<VectorLab>(mykernel, sim.vel);
   }
-
   std::string getName() { return "computeQ"; }
 };
-
 struct KernelDivergence {
   KernelDivergence(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -214,13 +182,10 @@ struct KernelDivergence {
     }
   }
 };
-
 class computeDivergence : public Operator {
 public:
   computeDivergence(SimulationData &s) : Operator(s) {}
-
   void operator()(const Real dt) {
-
     const KernelDivergence mykernel(sim);
     cubism::compute<VectorLab>(mykernel, sim.vel, sim.tmp);
 #if 0
@@ -248,6 +213,5 @@ public:
     }
 #endif
   }
-
   std::string getName() { return "computeDivergence"; }
 };

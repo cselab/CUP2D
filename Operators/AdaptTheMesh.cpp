@@ -1,13 +1,8 @@
-
-
 #include "AdaptTheMesh.h"
-
 using namespace cubism;
-
 struct GradChiOnTmp {
   GradChiOnTmp(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
-
   const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
@@ -16,7 +11,6 @@ struct GradChiOnTmp {
       for (int y = 0; y < VectorBlock::sizeY; ++y)
         for (int x = 0; x < VectorBlock::sizeX; ++x)
           TMP(x, y).s = std::max(TMP(x, y).s, (Real)0.0);
-
     const int offset = (info.level == sim.tmp->getlevelMax() - 1) ? 4 : 2;
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < VectorBlock::sizeY + offset; ++y)
@@ -34,9 +28,7 @@ struct GradChiOnTmp {
           break;
         }
       }
-
 #ifdef CUP2D_CYLINDER_REF
-
     for (int y = 0; y < VectorBlock::sizeY; ++y)
       for (int x = 0; x < VectorBlock::sizeX; ++x) {
         double p[2];
@@ -58,18 +50,14 @@ struct GradChiOnTmp {
 #endif
   }
 };
-
 void AdaptTheMesh::operator()(const Real dt) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
   adapt();
 }
-
 void AdaptTheMesh::adapt() {
   sim.startProfiler("AdaptTheMesh");
-
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-
   if (sim.Qcriterion) {
     auto K1 = computeQ(sim);
     K1(0);
@@ -77,10 +65,8 @@ void AdaptTheMesh::adapt() {
     auto K1 = computeVorticity(sim);
     K1(0);
   }
-
   GradChiOnTmp K2(sim);
   cubism::compute<ScalarLab>(K2, sim.chi);
-
   tmp_amr->Tag();
   chi_amr->TagLike(tmpInfo);
   pres_amr->TagLike(tmpInfo);
@@ -90,7 +76,6 @@ void AdaptTheMesh::adapt() {
   tmpV_amr->TagLike(tmpInfo);
   if (sim.smagorinskyCoeff != 0)
     Cs_amr->TagLike(tmpInfo);
-
   tmp_amr->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
   chi_amr->Adapt(sim.time, false, false);
   vel_amr->Adapt(sim.time, false, false);
@@ -100,6 +85,5 @@ void AdaptTheMesh::adapt() {
   tmpV_amr->Adapt(sim.time, false, true);
   if (sim.smagorinskyCoeff != 0)
     Cs_amr->Adapt(sim.time, false, true);
-
   sim.stopProfiler();
 }

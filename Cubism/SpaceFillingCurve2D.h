@@ -1,12 +1,9 @@
 #pragma once
-
 #include <cassert>
 #include <iostream>
 #include <math.h>
 #include <vector>
-
 namespace cubism {
-
 class SpaceFillingCurve2D {
 protected:
   int BX;
@@ -15,11 +12,8 @@ protected:
   bool isRegular;
   int base_level;
   std::vector<std::vector<long long>> Zsave;
-
   std::vector<std::vector<int>> i_inverse;
-
   std::vector<std::vector<int>> j_inverse;
-
   long long AxestoTranspose(const int *X_in, int b) const {
     int x = X_in[0];
     int y = X_in[1];
@@ -33,9 +27,7 @@ protected:
     }
     return d;
   }
-
   void TransposetoAxes(long long index, int *X, int b) const {
-
     int n = 1 << b;
     long long rx, ry, s, t = index;
     X[0] = 0;
@@ -49,14 +41,12 @@ protected:
       t /= 4;
     }
   }
-
   void rot(long long n, int *x, int *y, long long rx, long long ry) const {
     if (ry == 0) {
       if (rx == 1) {
         *x = n - 1 - *x;
         *y = n - 1 - *y;
       }
-
       int t = *x;
       *x = *y;
       *y = t;
@@ -65,14 +55,12 @@ protected:
 
 public:
   SpaceFillingCurve2D() {};
-
   SpaceFillingCurve2D(int a_BX, int a_BY, int lmax)
       : BX(a_BX), BY(a_BY), levelMax(lmax) {
     const int n_max = std::max(BX, BY);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
       base_level++;
-
     i_inverse.resize(lmax);
     j_inverse.resize(lmax);
     Zsave.resize(lmax);
@@ -83,7 +71,6 @@ public:
       j_inverse[l].resize(BX * BY * aux, -1);
       Zsave[l].resize(BX * BY * aux, -1);
     }
-
     isRegular = true;
 #pragma omp parallel for collapse(2)
     for (int j = 0; j < BY; j++)
@@ -105,10 +92,8 @@ public:
         Zsave[0][j * BX + i] = index;
       }
   }
-
   long long forward(const int l, const int i, const int j) {
     const int aux = 1 << l;
-
     if (l >= levelMax)
       return 0;
     long long retval;
@@ -124,7 +109,6 @@ public:
     }
     return retval;
   }
-
   void inverse(long long Z, int l, int &i, int &j) {
     if (isRegular) {
       int X[2] = {0, 0};
@@ -144,23 +128,18 @@ public:
     }
     return;
   }
-
   long long IJ_to_index(int I, int J) {
-
     long long index = Zsave[0][J * BX + I];
     return index;
   }
-
   void index_to_IJ(long long index, int &I, int &J) {
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     return;
   }
-
   long long Encode(int level, long long Z, int index[2]) {
     int lmax = levelMax;
     long long retval = 0;
-
     int ix = index[0];
     int iy = index[1];
     for (int l = level; l >= 0; l--) {
@@ -169,25 +148,19 @@ public:
       ix /= 2;
       iy /= 2;
     }
-
     ix = 2 * index[0];
     iy = 2 * index[1];
     for (int l = level + 1; l < lmax; l++) {
       long long Zc = forward(l, ix, iy);
-
       Zc -= Zc % 4;
       retval += Zc;
-
       int ix1, iy1;
       inverse(Zc, l, ix1, iy1);
       ix = 2 * ix1;
       iy = 2 * iy1;
     }
-
     retval += level;
-
     return retval;
   }
 };
-
 } // namespace cubism

@@ -1,7 +1,4 @@
-
-
 #pragma once
-
 #include "Grid.h"
 #include "GridMPI.h"
 #include <cassert>
@@ -18,7 +15,6 @@
 #include <utility>
 #include <vector>
 namespace fs = std::filesystem;
-
 template <typename T> hid_t get_hdf5_type();
 template <> inline hid_t get_hdf5_type<long long>() { return H5T_NATIVE_LLONG; }
 template <> inline hid_t get_hdf5_type<short int>() { return H5T_NATIVE_SHORT; }
@@ -28,11 +24,8 @@ template <> inline hid_t get_hdf5_type<double>() { return H5T_NATIVE_DOUBLE; }
 template <> inline hid_t get_hdf5_type<long double>() {
   return H5T_NATIVE_LDOUBLE;
 }
-
 #include "BlockInfo.h"
-
 namespace cubism {
-
 struct StreamerScalar {
   static constexpr int NCHANNELS = 1;
   template <typename TBlock, typename T>
@@ -43,7 +36,6 @@ struct StreamerScalar {
   static std::string prefix() { return std::string(""); }
   static const char *getAttributeName() { return "Scalar"; }
 };
-
 struct StreamerVector {
   static constexpr int NCHANNELS = 3;
   template <typename TBlock, typename T>
@@ -55,16 +47,13 @@ struct StreamerVector {
   static std::string prefix() { return std::string(""); }
   static const char *getAttributeName() { return "Vector"; }
 };
-
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
                       const std::string &fname,
                       const std::string &dpath = ".") {
-
   typedef typename TGrid::BlockType B;
   const unsigned int nX = B::sizeX;
   const unsigned int nY = B::sizeY;
-
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
@@ -74,27 +63,22 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
   std::array<int, 3> bpd = grid.getMaxBlocks();
   const unsigned int unx = bpd[0] * (1 << (levelMax - 1)) * nX;
   const unsigned int uny = bpd[1] * (1 << (levelMax - 1)) * nY;
-
   const unsigned int NCHANNELS = TStreamer::NCHANNELS;
   double hmin = 1e10;
   for (size_t i = 0; i < MyInfos.size(); i++)
     hmin = std::min(hmin, MyInfos[i].h);
   const double h = hmin;
-
   std::vector<float> uniform_mesh(uny * unx * NCHANNELS);
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const BlockInfo &info = MyInfos[i];
     const int level = info.level;
-
     for (unsigned int y = 0; y < nY; y++)
       for (unsigned int x = 0; x < nX; x++) {
         B &block = *(B *)info.ptrBlock;
-
         float output[NCHANNELS] = {0.0};
         float dudx[NCHANNELS] = {0.0};
         float dudy[NCHANNELS] = {0.0};
         TStreamer::operate(block, x, y, 0, (float *)output);
-
         if (x != 0 && x != nX - 1) {
           float output_p[NCHANNELS] = {0.0};
           float output_m[NCHANNELS] = {0.0};
@@ -113,7 +97,6 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
           for (unsigned int j = 0; j < NCHANNELS; ++j)
             dudx[j] = output[j] - output_m[j];
         }
-
         if (y != 0 && y != nY - 1) {
           float output_p[NCHANNELS] = {0.0};
           float output_m[NCHANNELS] = {0.0};
@@ -132,15 +115,12 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
           for (unsigned int j = 0; j < NCHANNELS; ++j)
             dudy[j] = output[j] - output_m[j];
         }
-
         int iy_start =
             (info.index[1] * nY + y) * (1 << ((levelMax - 1) - level));
         int ix_start =
             (info.index[0] * nX + x) * (1 << ((levelMax - 1) - level));
-
         const int points = 1 << ((levelMax - 1) - level);
         const double dh = 1.0 / points;
-
         for (int iy = iy_start; iy < iy_start + (1 << ((levelMax - 1) - level));
              iy++)
           for (int ix = ix_start;
@@ -153,12 +133,9 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
           }
       }
   }
-
   hid_t file_id, dataset_id, fspace_id, plist_id;
   H5open();
-
   hsize_t dims[4] = {1, uny, unx, NCHANNELS};
-
   plist_id = H5Pcreate(H5P_FILE_ACCESS);
   file_id = H5Fcreate((fullpath.str() + "uniform.h5").c_str(), H5F_ACC_TRUNC,
                       H5P_DEFAULT, plist_id);
@@ -168,15 +145,12 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
   H5Pclose(plist_id);
   H5Dclose(dataset_id);
   H5Sclose(fspace_id);
-
   dataset_id = H5Dopen(file_id, "dset", H5P_DEFAULT);
   H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
            uniform_mesh.data());
   H5Dclose(dataset_id);
-
   H5Fclose(file_id);
   H5close();
-
   {
     FILE *xmf = 0;
     xmf = fopen((fullpath.str() + "uniform.xmf").c_str(), "w");
@@ -219,7 +193,6 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
     fclose(xmf);
   }
 }
-
 template <typename data_type>
 void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
                            const std::string &name,
@@ -227,20 +200,15 @@ void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
   int rank, size;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
-
   hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
   file_id = H5Fopen(name.c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
-
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-
   dataset_id = H5Dopen2(file_id, dataset_name.c_str(), H5P_DEFAULT);
   hsize_t total = H5Dget_storage_size(dataset_id) / sizeof(data_type) / chunk;
-
   unsigned long long my_data = total / size;
   if ((hsize_t)rank < total % (hsize_t)size)
     my_data++;
@@ -254,57 +222,46 @@ void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
   hsize_t offset = n_start * chunk;
   hsize_t count = my_data * chunk;
   buffer.resize(count);
-
   fspace_id = H5Dget_space(dataset_id);
   mspace_id = H5Screate_simple(1, &count, NULL);
   H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL);
   H5Dread(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id, fapl_id,
           buffer.data());
-
   H5Pclose(fapl_id);
   H5Dclose(dataset_id);
   H5Sclose(fspace_id);
   H5Sclose(mspace_id);
   H5Fclose(file_id);
 }
-
 template <typename data_type>
 void save_buffer_to_file(const std::vector<data_type> &buffer,
                          const int NCHANNELS, MPI_Comm &comm,
                          const std::string &name,
                          const std::string &dataset_name, const hid_t &file_id,
-                         const hid_t &fapl_id)
-
-{
+                         const hid_t &fapl_id) {
   assert(buffer.size() % NCHANNELS == 0);
   unsigned long long MyCells = buffer.size() / NCHANNELS;
   unsigned long long TotalCells;
   MPI_Allreduce(&MyCells, &TotalCells, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
                 comm);
-
   hsize_t base_tmp[1] = {0};
   MPI_Exscan(&MyCells, &base_tmp[0], 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
   base_tmp[0] *= NCHANNELS;
-
   hid_t dataset_id, fspace_id, mspace_id;
-
   hsize_t dims[1] = {(hsize_t)TotalCells * NCHANNELS};
   fspace_id = H5Screate_simple(1, dims, NULL);
   dataset_id =
       H5Dcreate(file_id, dataset_name.c_str(), get_hdf5_type<data_type>(),
                 fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
   hsize_t count[1] = {MyCells * NCHANNELS};
   fspace_id = H5Dget_space(dataset_id);
   mspace_id = H5Screate_simple(1, count, NULL);
   H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
   H5Dwrite(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id,
            fapl_id, buffer.data());
-
   H5Sclose(mspace_id);
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
-
 #if 0
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
     hsize_t cdims[1];
@@ -328,15 +285,12 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
     H5Pclose(plist_id);
 #endif
 }
-
 static double latestTime{-1.0};
-
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                   const std::string &fname, const std::string &dpath = ".",
                   const bool dumpGrid = true) {
   const bool SaveGrid = latestTime < absTime && dumpGrid;
-
   int gridCount = 0;
   for (auto &p : fs::recursive_directory_iterator(dpath)) {
     if (p.path().extension() == ".h5") {
@@ -349,62 +303,49 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   }
   if (SaveGrid == false)
     gridCount--;
-
   latestTime = absTime;
-
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
   const int NCHANNELS = TStreamer::NCHANNELS;
-
   MPI_Comm comm = grid.getWorldComm();
   const int rank = grid.myrank;
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
   fullpath << dpath << "/" << filename.str();
-
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
   unsigned long long TotalCells;
   MPI_Allreduce(&MyCells, &TotalCells, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
                 comm);
-
   H5open();
   hid_t file_id, fapl_id;
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-
   file_id = H5Fcreate((fullpath.str() + ".h5").c_str(), H5F_ACC_TRUNC,
                       H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
   H5Fclose(file_id);
-
   hid_t file_id_grid, fapl_id_grid;
   std::stringstream gridFile_s;
   gridFile_s << "grid" << std::setfill('0') << std::setw(9) << gridCount
              << ".h5";
   std::string gridFile = gridFile_s.str();
-
   std::stringstream gridFilePath_s;
   gridFilePath_s << dpath << "/grid" << std::setfill('0') << std::setw(9)
                  << gridCount << ".h5";
   std::string gridFilePath = gridFilePath_s.str();
-
   if (SaveGrid) {
-
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-
     file_id_grid = H5Fcreate(gridFilePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                              fapl_id_grid);
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
-
   if (rank == 0 && dumpGrid) {
     std::ostringstream myfilename;
     myfilename << filename.str();
@@ -418,7 +359,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "   <Topology NumberOfElements=\"" << TotalCells
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
-
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
       << TotalCells * PtsPerElement << " " << DIMENSION
       << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
@@ -444,16 +384,13 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     fprintf(xmf, "%s", st.c_str());
     fclose(xmf);
   }
-
   std::string name = fullpath.str() + ".h5";
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
   file_id = H5Fopen(name.c_str(), H5F_ACC_RDWR, fapl_id);
   H5Pclose(fapl_id);
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-
   {
     std::vector<short int> bufferlevel(MyInfos.size());
     std::vector<long long> bufferZ(MyInfos.size());
@@ -466,7 +403,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     save_buffer_to_file<long long>(bufferZ, 1, comm, fullpath.str() + ".h5",
                                    "blocksZ", file_id, fapl_id);
   }
-
   if (SaveGrid) {
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
@@ -474,7 +410,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
-
     std::vector<float> buffer(MyCells * PtsPerElement * DIMENSION);
     for (size_t i = 0; i < MyInfos.size(); i++) {
       const BlockInfo &info = MyInfos[i];
@@ -486,27 +421,21 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                               PtsPerElement * DIMENSION;
             double p[2];
             info.pos(p, x, y);
-
             buffer[bbase] = p[0] - h2;
             buffer[bbase + 1] = p[1] - h2;
-
             buffer[bbase + DIMENSION] = p[0] - h2;
             buffer[bbase + DIMENSION + 1] = p[1] + h2;
-
             buffer[bbase + 2 * DIMENSION] = p[0] + h2;
             buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-
             buffer[bbase + 3 * DIMENSION] = p[0] + h2;
             buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
           }
     }
     save_buffer_to_file<float>(buffer, 1, comm, gridFilePath, "vertices",
                                file_id_grid, fapl_id_grid);
-
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
-
   {
     std::vector<hdf5Real> buffer(MyCells * NCHANNELS);
     for (size_t i = 0; i < MyInfos.size(); i++) {
@@ -527,12 +456,10 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                                   fullpath.str() + ".h5", "data", file_id,
                                   fapl_id);
   }
-
   H5Pclose(fapl_id);
   H5Fclose(file_id);
   H5close();
 }
-
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
                    const std::string &fname, const std::string &dpath = ".") {
@@ -540,7 +467,6 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
-
   MPI_Comm comm = grid.getWorldComm();
   const int rank = grid.myrank;
   const int size = grid.world_size;
@@ -549,18 +475,14 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
   std::ostringstream fullpath;
   filename << fname;
   fullpath << dpath << "/" << filename.str();
-
   if (rank == 0)
     std::filesystem::remove((fullpath.str() + ".xmf").c_str());
-
   std::vector<BlockGroup> &MyGroups = grid.MyGroups;
   grid.UpdateMyGroups();
-
   double hmin = 1e10;
   for (size_t groupID = 0; groupID < MyGroups.size(); groupID++)
     hmin = std::min(hmin, MyGroups[groupID].h);
   MPI_Allreduce(MPI_IN_PLACE, &hmin, 1, MPI_DOUBLE, MPI_MIN, comm);
-
   long long mycells = 0;
   for (size_t groupID = 0; groupID < MyGroups.size(); groupID++) {
     mycells += (MyGroups[groupID].NZZ - 1) * (MyGroups[groupID].NYY - 1) *
@@ -568,9 +490,7 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
   }
   hsize_t base_tmp[1] = {0};
   MPI_Exscan(&mycells, &base_tmp[0], 1, MPI_LONG_LONG, MPI_SUM, comm);
-
   long long start = 0;
-
   {
     std::ostringstream myfilename;
     myfilename << filename.str();
@@ -605,7 +525,6 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
         << "\n";
       s << "   </DataItem>\n";
       s << "   </Geometry>\n";
-
       int dd = (nZZ - 1) * (nYY - 1) * (nXX - 1);
       s << "   <Attribute Name=\"data\" AttributeType=\"" << "Scalar"
         << "\" Center=\"Cell\">\n";
@@ -643,27 +562,20 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
                           MPI_STATUS_IGNORE);
     MPI_File_close(&xmf);
   }
-
   H5open();
-
   {
     hid_t file_id, fapl_id;
     hid_t dataset_origins, fspace_origins, mspace_origins;
     hid_t dataset_indices, fspace_indices, mspace_indices;
-
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-
     file_id = H5Fcreate((fullpath.str() + "-groups.h5").c_str(), H5F_ACC_TRUNC,
                         H5P_DEFAULT, fapl_id);
     H5Pclose(fapl_id);
-
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-
     long long total = MyGroups.size();
     MPI_Allreduce(MPI_IN_PLACE, &total, 1, MPI_LONG_LONG, MPI_SUM, comm);
-
     hsize_t dim_origins = 4 * total;
     hsize_t dim_indices = 7 * total;
     fspace_origins = H5Screate_simple(1, &dim_origins, NULL);
@@ -674,7 +586,6 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
     dataset_indices =
         H5Dcreate(file_id, "indices", H5T_NATIVE_INT, fspace_indices,
                   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
     std::vector<double> origins(4 * MyGroups.size());
     std::vector<int> indices(7 * MyGroups.size());
     for (size_t groupID = 0; groupID < MyGroups.size(); groupID++) {
@@ -691,13 +602,11 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
       indices[7 * groupID + 5] = group.i_min[2];
       indices[7 * groupID + 6] = group.level;
     }
-
     long long my_size = MyGroups.size();
     hsize_t offset_groups = 0;
     MPI_Exscan(&my_size, &offset_groups, 1, MPI_LONG_LONG, MPI_SUM, comm);
     hsize_t offset_origins = 4 * offset_groups;
     hsize_t offset_indices = 7 * offset_groups;
-
     hsize_t count_origins = origins.size();
     hsize_t count_indices = indices.size();
     fspace_origins = H5Dget_space(dataset_origins);
@@ -712,7 +621,6 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
              fapl_id, origins.data());
     H5Dwrite(dataset_indices, H5T_NATIVE_INT, mspace_indices, fspace_indices,
              fapl_id, indices.data());
-
     H5Sclose(mspace_origins);
     H5Sclose(mspace_indices);
     H5Sclose(fspace_origins);
@@ -722,26 +630,20 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id);
     H5Fclose(file_id);
   }
-
   hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-
   file_id = H5Fcreate((fullpath.str() + ".h5").c_str(), H5F_ACC_TRUNC,
                       H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
-
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
   long long total;
   MPI_Allreduce(&start, &total, 1, MPI_LONG_LONG, MPI_SUM, comm);
-
   hsize_t dims[1] = {(hsize_t)total};
   fspace_id = H5Screate_simple(1, dims, NULL);
   dataset_id = H5Dcreate(file_id, "dset", get_hdf5_type<float>(), fspace_id,
                          H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
   long long start1 = 0;
   std::vector<float> bigArray(start);
   for (size_t groupID = 0; groupID < MyGroups.size(); groupID++) {
@@ -781,10 +683,8 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
     start1 += dd1;
   }
   hsize_t count[1] = {bigArray.size()};
-
   fspace_id = H5Dget_space(dataset_id);
   mspace_id = H5Screate_simple(1, count, NULL);
-
   H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
   H5Dwrite(dataset_id, get_hdf5_type<float>(), mspace_id, fspace_id, fapl_id,
            bigArray.data());
@@ -793,10 +693,8 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
   H5Dclose(dataset_id);
   H5Pclose(fapl_id);
   H5Fclose(file_id);
-
   H5close();
 }
-
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void ReadHDF5_MPI(TGrid &grid, const std::string &fname,
                   const std::string &dpath = ".") {
@@ -806,16 +704,12 @@ void ReadHDF5_MPI(TGrid &grid, const std::string &fname,
   const int nZ = B::sizeZ;
   const int NCHANNELS = TStreamer::NCHANNELS;
   const int blocksize = nX * nY * nZ * NCHANNELS;
-
   MPI_Comm comm = grid.getWorldComm();
-
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
   fullpath << dpath << "/" << filename.str();
-
   H5open();
-
   std::vector<long long> blocksZ;
   std::vector<short int> blockslevel;
   std::vector<hdf5Real> data;
@@ -825,9 +719,7 @@ void ReadHDF5_MPI(TGrid &grid, const std::string &fname,
                                    "blockslevel", 1);
   read_buffer_from_file<hdf5Real>(data, comm, fullpath.str() + ".h5", "data",
                                   blocksize);
-
   grid.initialize_blocks(blocksZ, blockslevel);
-
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const BlockInfo &info = MyInfos[i];
@@ -837,14 +729,11 @@ void ReadHDF5_MPI(TGrid &grid, const std::string &fname,
         for (int x = 0; x < nX; x++)
           for (int nc = 0; nc < std::min(NCHANNELS, (int)B::ElementType::DIM);
                nc++) {
-
             b(x, y, z).member(nc) =
                 data[(i * nZ * nY * nX + z * nY * nX + y * nX + x) * NCHANNELS +
                      nc];
           }
   }
-
   H5close();
 }
-
 } // namespace cubism

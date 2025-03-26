@@ -1,7 +1,5 @@
 #pragma once
-
 namespace cubism {
-
 template <typename Real>
 inline void pack(const Real *const srcbase, Real *const dst,
                  const unsigned int gptfloats, int *selected_components,
@@ -32,7 +30,6 @@ inline void pack(const Real *const srcbase, Real *const dst,
         }
   }
 }
-
 template <typename Real>
 inline void unpack_subregion(
     const Real *const pack, Real *const dstbase, const unsigned int gptfloats,
@@ -74,5 +71,4 @@ inline void unpack_subregion(
         }
   }
 }
-
 } // namespace cubism

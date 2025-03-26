@@ -1,12 +1,7 @@
-
-
 #pragma once
-
 #include "../Utils/BufferedLogger.h"
 #include "Fish.h"
-
 class Naca : public Fish {
-
   Real Apitch, Fpitch, Mpitch, Fheave, Aheave;
   Real tAccel;
   Real fixedCenterDist;

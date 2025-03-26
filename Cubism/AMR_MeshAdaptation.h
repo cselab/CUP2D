@@ -1,12 +1,9 @@
 #pragma once
-
 #include "AMR_SynchronizerMPI.h"
 #include "BlockInfo.h"
 #include "LoadBalancer.h"
 #include "StencilInfo.h"
-
 namespace cubism {
-
 template <typename TLab> class MeshAdaptation {
 protected:
   typedef typename TLab::GridType TGrid;
@@ -14,34 +11,23 @@ protected:
   typedef typename TGrid::BlockType::ElementType ElementType;
   typedef typename TGrid::BlockType::ElementType::RealType Real;
   typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
-
   StencilInfo stencil;
-
   bool CallValidStates;
-
   bool boundary_needed;
-
   LoadBalancer<TGrid> *Balancer;
   TGrid *grid;
   double time;
-
   bool basic_refinement;
-
   double tolerance_for_refinement;
-
   double tolerance_for_compression;
-
   std::vector<long long> dealloc_IDs;
 
 public:
   MeshAdaptation(TGrid &g, double Rtol, double Ctol) {
     grid = &g;
-
     tolerance_for_refinement = Rtol;
     tolerance_for_compression = Ctol;
-
     boundary_needed = false;
-
     constexpr int Gx = 1;
     constexpr int Gy = 1;
     constexpr int Gz = DIMENSION == 3 ? 1 : 0;
@@ -54,68 +40,50 @@ public:
     stencil.tensorial = true;
     for (int i = 0; i < ElementType::DIM; i++)
       stencil.selcomponents.push_back(i);
-
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
-
   virtual ~MeshAdaptation() { delete Balancer; }
-
   void Tag(double t = 0) {
     time = t;
     boundary_needed = true;
-
     SynchronizerMPI_AMR<Real, TGrid> *Synch = grid->sync(stencil);
-
     CallValidStates = false;
     bool Reduction = false;
     MPI_Request Reduction_req;
     int tmp;
-
     std::vector<BlockInfo *> &inner = Synch->avail_inner();
     TagBlocksVector(inner, Reduction, Reduction_req, tmp);
-
     std::vector<BlockInfo *> &halo = Synch->avail_halo();
     TagBlocksVector(halo, Reduction, Reduction_req, tmp);
-
     if (!Reduction) {
       tmp = CallValidStates ? 1 : 0;
       Reduction = true;
       MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
                      grid->getWorldComm(), &Reduction_req);
     }
-
     MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
     CallValidStates = (tmp > 0);
-
     grid->boundary = halo;
-
     if (CallValidStates)
       ValidStates();
   }
-
   void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<Real, TGrid> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
-
       grid->boundary = Synch->avail_halo();
       if (boundary_needed)
         grid->UpdateBoundary();
     }
-
     int r = 0;
     int c = 0;
-
     std::vector<int> m_com;
     std::vector<int> m_ref;
     std::vector<long long> n_com;
     std::vector<long long> n_ref;
-
     std::vector<BlockInfo> &I = grid->getBlocksInfo();
-
     long long blocks_after = I.size();
-
     for (auto &info : I) {
       if (info.state == Refine) {
         m_ref.push_back(info.level);
@@ -141,9 +109,7 @@ public:
                    &requests[0]);
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, grid->getWorldComm(), &requests[1]);
-
     dealloc_IDs.clear();
-
     {
       TLab lab;
       if (Synch != nullptr)
@@ -156,17 +122,12 @@ public:
       }
     }
     grid->dealloc_many(dealloc_IDs);
-
     Balancer->PrepareCompression();
-
     dealloc_IDs.clear();
-
     for (size_t i = 0; i < m_com.size(); i++) {
       compress(m_com[i], n_com[i]);
     }
-
     grid->dealloc_many(dealloc_IDs);
-
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
     if (verbosity) {
       std::cout
@@ -177,15 +138,11 @@ public:
           << "=============================================================="
           << std::endl;
     }
-
     Balancer->Balance_Diffusion(verbosity, block_distribution);
-
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateGroups = true;
-
       grid->UpdateBlockInfoAll_States(false);
-
       auto it = grid->SynchronizerMPIs.begin();
       while (it != grid->SynchronizerMPIs.end()) {
         (*it->second)._Setup();
@@ -193,7 +150,6 @@ public:
       }
     }
   }
-
   void TagLike(const std::vector<BlockInfo> &I1) {
     std::vector<BlockInfo> &I2 = grid->getBlocksInfo();
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
@@ -236,16 +192,12 @@ protected:
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I.size(); i++) {
         BlockInfo &info = grid->getBlockInfoAll(I[i]->level, I[i]->Z);
-
         I[i]->state = TagLoadedBlock(info);
-
         const bool maxLevel =
             (I[i]->state == Refine) && (I[i]->level == levelMax - 1);
         const bool minLevel = (I[i]->state == Compress) && (I[i]->level == 0);
-
         if (maxLevel || minLevel)
           I[i]->state = Leave;
-
         info.state = I[i]->state;
         if (info.state != Leave) {
 #pragma omp critical
@@ -262,15 +214,12 @@ protected:
       }
     }
   }
-
   void refine_1(const int level, const long long Z, TLab &lab) {
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     parent.state = Leave;
     if (basic_refinement == false)
       lab.load(parent, time, true);
-
     const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-
     assert(parent.ptrBlock != NULL);
     assert(level <= grid->getlevelMax() - 1);
     BlockType *Blocks[4];
@@ -287,17 +236,14 @@ protected:
     if (basic_refinement == false)
       RefineBlocks(Blocks, lab);
   }
-
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
     {
       dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2);
     }
-
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     grid->Tree(parent).setCheckFiner();
     parent.state = Leave;
-
     int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
     for (int j = 0; j < 2; j++)
       for (int i = 0; i < 2; i++) {
@@ -311,14 +257,10 @@ protected:
               grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
       }
   }
-
   void compress(const int level, const long long Z) {
     assert(level > 0);
-
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
-
     assert(info.state == Compress);
-
     BlockType *Blocks[4];
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
@@ -327,7 +269,6 @@ protected:
             grid->getZforward(level, info.index[0] + I, info.index[1] + J);
         Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
       }
-
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
     const int offsetX[2] = {0, nx / 2};
@@ -351,7 +292,6 @@ protected:
     parent.state = Leave;
     if (level - 2 >= 0)
       grid->Tree(level - 2, parent.Zparent).setCheckFiner();
-
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         const long long n =
@@ -368,7 +308,6 @@ protected:
         grid->getBlockInfoAll(level, n).state = Leave;
       }
   }
-
   void ValidStates() {
     const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
     const int levelMin = 0;
@@ -376,13 +315,10 @@ protected:
     const bool xperiodic = grid->xperiodic;
     const bool yperiodic = grid->yperiodic;
     const bool zperiodic = grid->zperiodic;
-
     std::vector<BlockInfo> &I = grid->getBlocksInfo();
-
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
       BlockInfo &info = I[j];
-
       if ((info.state == Refine && info.level == levelMax - 1) ||
           (info.state == Compress && info.level == levelMin)) {
         info.state = Leave;
@@ -393,10 +329,8 @@ protected:
         (grid->getBlockInfoAll(info.level, info.Z)).changed2 = info.changed2;
       }
     }
-
     bool clean_boundary = true;
     for (int m = levelMax - 1; m >= levelMin; m--) {
-
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state != Refine &&
@@ -411,7 +345,6 @@ protected:
           const int xskip = info.index[0] == 0 ? -1 : 1;
           const int yskip = info.index[1] == 0 ? -1 : 1;
           const int zskip = info.index[2] == 0 ? -1 : 1;
-
           for (int icode = 0; icode < 27; icode++) {
             if (info.state == Refine)
               break;
@@ -427,21 +360,18 @@ protected:
               continue;
             if (code[2] != 0)
               continue;
-
             if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
                     .CheckFiner()) {
               if (info.state == Compress) {
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
               }
-
               const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
               int Bstep = 1;
               if (tmp == 2)
                 Bstep = 3;
               else if (tmp == 3)
                 Bstep = 4;
-
               for (int B = 0; B <= 1; B += Bstep) {
                 const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                 const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
@@ -464,12 +394,10 @@ protected:
           }
         }
       }
-
       grid->UpdateBoundary(clean_boundary);
       clean_boundary = false;
       if (m == levelMin)
         break;
-
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state == Compress) {
@@ -483,7 +411,6 @@ protected:
           const int xskip = info.index[0] == 0 ? -1 : 1;
           const int yskip = info.index[1] == 0 ? -1 : 1;
           const int zskip = info.index[2] == 0 ? -1 : 1;
-
           for (int icode = 0; icode < 27; icode++) {
             if (icode == 1 * 1 + 3 * 1 + 9 * 1)
               continue;
@@ -497,7 +424,6 @@ protected:
               continue;
             if (code[2] != 0)
               continue;
-
             BlockInfo &infoNei = grid->getBlockInfoAll(
                 info.level, info.Znei_(code[0], code[1], code[2]));
             if (grid->Tree(infoNei).Exists() && infoNei.state == Refine) {
@@ -509,7 +435,6 @@ protected:
         }
       }
     }
-
     for (size_t jjj = 0; jjj < I.size(); jjj++) {
       BlockInfo &info = I[jjj];
       const int m = info.level;
@@ -546,19 +471,15 @@ protected:
             }
     }
   }
-
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
-
     int offsetX[2] = {0, nx / 2};
     int offsetY[2] = {0, ny / 2};
-
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         BlockType &b = *B[J * 2 + I];
         b.clear();
-
         for (int j = 0; j < ny; j += 2)
           for (int i = 0; i < nx; i += 2) {
             ElementType dudx =
@@ -567,7 +488,6 @@ protected:
             ElementType dudy =
                 0.5 * (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) -
                        Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1));
-
             ElementType dudx2 =
                 (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) +
                  Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J])) -
@@ -576,13 +496,11 @@ protected:
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) +
                  Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1)) -
                 2.0 * Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
-
             ElementType dudxdy =
                 0.25 * ((Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] + 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
                         (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-
             b(i, j, 0) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx - 0.25 * dudy)) +
@@ -602,25 +520,20 @@ protected:
           }
       }
   }
-
   virtual State TagLoadedBlock(BlockInfo &info) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
     BlockType &b = *(BlockType *)info.ptrBlock;
-
     double Linf = 0.0;
     for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++) {
         Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
       }
-
     if (Linf > tolerance_for_refinement)
       return Refine;
     else if (Linf < tolerance_for_compression)
       return Compress;
-
     return Leave;
   }
 };
-
 } // namespace cubism
