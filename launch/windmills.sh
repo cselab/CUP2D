@@ -11,11 +11,11 @@
     -poissonTol 1.0e-3 \
     -poissonTolRel 0 \
     -Rtol 0.1 \
-    -tdump 1.0 \
+    -tdump 0.025 \
     -tend 60 \
     -verbose 1 \
     -shapes '
-windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.1 ypos=0.25 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=3 freq=0.25
-windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.1 ypos=0.45 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=-2.8 freq=1.6
+windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.4 ypos=0.25 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=3 freq=0.25
+windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.4 ypos=0.45 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=-2.8 freq=1.6
 '
 
