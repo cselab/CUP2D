@@ -710,28 +710,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
     }
   }
-#if 0
-  std::string removeLeadingZeros(const std::string& input)
-  {
-    std::size_t firstNonZero = input.find_first_not_of('0');
-    if (firstNonZero == std::string::npos)
-    {
-      return "0";
-    }
-    return input.substr(firstNonZero);
-  }
-  std::set<int> DecodeSet(std::string ID)
-  {
-    std::set<int> retval;
-    for (size_t i = 0 ; i < ID.length() ; i += size)
-    {
-      std::string toconvert = removeLeadingZeros( ID.substr(i, size) );
-      int current_rank = std::stoi ( toconvert );
-      retval.insert(current_rank);
-    }
-    return retval;
-  }
-#endif
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {

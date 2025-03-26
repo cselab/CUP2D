@@ -74,28 +74,6 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(mspace_id);
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
-#if 0
-    hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    hsize_t cdims[1];
-    cdims[0] = 8*8*8;
-    if (compression==false)
-    {
-        const int PtsPerElement = 8;
-        cdims[0] *= PtsPerElement * DIMENSION;
-    }
-    H5Pset_chunk(plist_id, 1, cdims);
-    H5Pset_deflate(plist_id, 6);
-    dataset_id = H5Dcreate(file_id, dataset_name.c_str(), get_hdf5_type<data_type>(), fspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
-    hsize_t count[1] = {MyCells*NCHANNELS};
-    fspace_id = H5Dget_space(dataset_id);
-    mspace_id = H5Screate_simple(1, count, NULL);
-    H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
-    H5Dwrite(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id, fapl_id, buffer.data());
-    H5Sclose(mspace_id);
-    H5Sclose(fspace_id);
-    H5Dclose(dataset_id);
-    H5Pclose(plist_id);
-#endif
 }
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
