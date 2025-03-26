@@ -27,7 +27,7 @@ make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = `pkg-config --libs gsl`"
 or
 
 ```
-module load gcc/12 openmpi gsl cuda
+module load gcc/13 openmpi gsl cuda
 make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = `gsl-config --libs`"
 ```
 
