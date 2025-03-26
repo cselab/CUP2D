@@ -10,38 +10,30 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 
 For CPU
 ```
-make "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
+make "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 or
 ```
 make \
-     "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
+     "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 For GPU
 ```
 make "gpu = true" \
-     "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
-     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
+     "CXXFLAGS = -Ofast `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 or
 
 ```
-make -j 'gpu = true' 'LINK = nvcc' 'CXX = mpicxx -Ofast -I/scratch/slitvinov/.grace/include -fopenmp' 'LIBS = -L/scratch/slitvinov/.grace/lib -lhdf5 -lgsl -lgslcblas -Wl,-R/scratch/slitvinov/.grace/lib'
+module load gcc/12 openmpi hdf5 gsl cuda
+make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = -lhdf5`
 ```
-
-Run an example with the following commands, starting from the `build` directory:
-```
-cd ..
-export PYTHONPATH=$(pwd):$(pwd)/build/:$PYTHONPATH
-cd cubismup2d/examples/
-./rectangle_and_operator.py
-```
-Output files will be stored in the `output/` directory.
 
 ## Running
 

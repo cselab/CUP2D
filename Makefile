@@ -67,4 +67,4 @@ libcup.a: $O $C
 %.o: %.cu
 	$(NVCC) -o $@ $(NVCCFLAGS) -Xcompiler '$(FLAGS) $(CXXFLAGS)' -c $<
 %.o: %.cpp
-	$(MPICXX) $(FLAGS) $(CXXFLAGS) -c $< -o $@
+	$(MPICXX) $(FLAGS) -fopenmp $(CXXFLAGS) -c $< -o $@
