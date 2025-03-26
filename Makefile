@@ -1,16 +1,26 @@
-bs = 8
 gpu = false
-NVCC = nvcc
-LINK = $(CXX)
+MPICXX = mpicxx
+LINK = $(MPICXX)
+NVCC = nvcc -ccbin='$(MPICXX)'
 
-CPPFLAGS = \
--D_BS_=$(bs) \
+FLAGS = \
+-D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
--D_DOUBLE_PRECISION_ \
 -DDIMENSION=2 \
--I.
+-D_DOUBLE_PRECISION_ \
+-I. \
 
-OBJECTS = \
+ifeq ("$(gpu)", "true")
+	FLAGS += -DGPU_POISSON
+	NVCCFLAGS = -std=c++17 -O3 --use_fast_math
+	C = \
+Poisson/BiCGSTAB.o \
+Poisson/ExpAMRSolver.o \
+Poisson/LocalSpMatDnVec.o \
+
+endif
+
+O = \
 Simulation.o \
 Cubism/ArgumentParser.o \
 Obstacles/CarlingFish.o \
@@ -44,27 +54,16 @@ Shape.o \
 SimulationData.o \
 Utils/BufferedLogger.o \
 
-ifeq ("$(gpu)", "true")
-	CPPFLAGS += -DGPU_POISSON
-	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -DGPU_POISSON
-	OBJECTS += \
-Poisson/BiCGSTAB.o \
-Poisson/ExpAMRSolver.o \
-Poisson/LocalSpMatDnVec.o \
-
-endif
-
 all: debugRL main libcup.a
 .DEFAULT: all
-debugRL: debugRL.o $(OBJECTS)
-	$(LINK) debugRL.o $(OBJECTS) $(LIBS) -o $@
+debugRL: debugRL.o $O $C
+	$(LINK) -o $@ debugRL.o $O $(LIBS)
 
-main: main.o $(OBJECTS)
-	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
-libcup.a: $(OBJECTS)
-	ar rcs $@ $(OBJECTS)
-
+main: main.o $O $C
+	$(LINK) -o $@ main.o $O $(LIBS)
+libcup.a: $O $C
+	ar rcs $@ $O $C
 %.o: %.cu
-	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
+	$(NVCC) -o $@ $(NVCCFLAGS) -Xcompiler '$(FLAGS) $(CXXFLAGS)' -c $<
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+	$(MPICXX) $(FLAGS) $(CXXFLAGS) -c $< -o $@

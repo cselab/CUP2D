@@ -10,7 +10,8 @@ CubismUP-2D depends on MPI, GSL, and HDF5.
 
 For CPU
 ```
-make 'CXX = mpicxx -fopenmp -Ofast '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -fopenmp '"`pkg-config --libs hdf5-openmpi gsl`"
+make "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 or
@@ -20,7 +21,9 @@ make 'CXX = mpicxx -fopenmp -Ofast -I/scratch/slitvinov/.grace/include -fopenmp'
 
 For GPU
 ```
-make 'gpu = true' 'LINK = nvcc' 'CXX = mpicxx '"`pkg-config --cflags hdf5-openmpi gsl`" 'LIBS = -Xcompiler -fopenmp '"`pkg-config --libs hdf5-openmpi gsl` -lcublas -lcusparse"
+make "gpu = true" \
+     "CXXFLAGS = -Ofast -fopenmp `pkg-config --cflags hdf5-openmpi`" \
+     "LIBS = -fopenmp `pkg-config --libs gsl hdf5-openmpi`"
 ```
 
 or
