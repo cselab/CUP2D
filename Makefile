@@ -55,10 +55,8 @@ SimulationData.o \
 Utils/BufferedLogger.o \
 
 all: debugRL main libcup.a
-.DEFAULT: all
 debugRL: debugRL.o $O $C
 	$(LINK) -o $@ debugRL.o $O $(LIBS)
-
 main: main.o $O $C
 	$(LINK) -o $@ main.o $O $(LIBS)
 libcup.a: $O $C
