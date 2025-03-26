@@ -29,4 +29,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ct
 OBJECTS="teardrop L=$LENGTH tRatio=$TRATIO xpos=$XPOS angle=$ANGLE fixedCenterDist=$RCENTER xvel=$VELX Apitch=$APITCH Fpitch=$FPITCH tAccel=0 bFixed=1
 "
 
-. common.sh
+. ./common.sh

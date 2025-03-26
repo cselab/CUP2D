@@ -26,4 +26,4 @@ OBJECTS="disk radius=0.1 xpos=5.0 ypos=3.375 bForced=1 bFixed=1 xvel=0.2 breakSy
          disk radius=0.1 xpos=6.5 ypos=2.875 bForced=1 bFixed=1 xvel=0.2
         "
 
-. common.sh
+. ./common.sh

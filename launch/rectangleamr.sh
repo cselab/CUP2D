@@ -20,4 +20,4 @@ NU=${NU:-0.000008}
 OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -dt $DT -tdump 0.1 -nu $NU -tend 0 -muteAll 0 -verbose 0 -poissonTol $PT -poissonTolRel $PTR -bAdaptChiGradient 1"
 OBJECTS="rectangle extentX=$EXTENTX extentY=$EXTENTY xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBreakSymmetry=1"
 
-. common.sh
+. ./common.sh

@@ -26,4 +26,4 @@ OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart 4 -Rtol $RTOL -Ct
 OBJECTS="carlingfish L=$LENGTH T=$PERIOD xpos=$XPOS bFixed=1
 "
 
-. common.sh
+. ./common.sh

@@ -207,4 +207,4 @@ echo $OPTIONS
 echo "----------------------------"
 fi
 
-. common.sh
+. ./common.sh

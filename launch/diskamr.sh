@@ -77,4 +77,4 @@ VERBOSE=${VERBOSE:-0} #Set to 1 for more verbose screen output.
 OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -levelStart $LEVELSSTART -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump $TDUMP -nu $NU -tend $TEND -verbose $VERBOSE -poissonTol $PT -poissonTolRel $PTR -poissonSolver $PSOLVER"
 OBJECTS="disk radius=$RADIUS xpos=$XPOS bForced=1 bFixed=1 xvel=$XVEL breakSymmetryStrength=$BREAK_SYMMETRY_STRENGTH breakSymmetryType=$BREAK_SYMMETRY_TYPE breakSymmetryTime=$BREAK_SYMMETRY_TIME"
 
-. common.sh
+. ./common.sh
