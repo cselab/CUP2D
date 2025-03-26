@@ -3,9 +3,6 @@
 #include <algorithm>
 #include <unordered_map>
 
-#ifdef CUBISM_USE_ONETBB
-#include <tbb/concurrent_unordered_map.h>
-#endif
 
 #include "BlockInfo.h"
 #include "FluxCorrection.h"
@@ -48,10 +45,6 @@ class Grid
    using ElementType = typename Block::ElementType; ///<Blocks hold ElementTypes
    typedef typename Block::RealType Real; ///< Blocks must provide `RealType`.
 
-   #ifdef CUBISM_USE_ONETBB
-   tbb::concurrent_unordered_map<long long, BlockInfo *> BlockInfoAll;
-   tbb::concurrent_unordered_map<long long, TreePosition> Octree;
-   #else
 
    /** A map from unique BlockInfo IDs to pointers to BlockInfos.
     *  Should be accessed through function 'getBlockInfoAll'. If a Block does not belong to this
@@ -66,7 +59,6 @@ class Grid
     *  held by BlockInfos.
     */
    std::unordered_map<long long, TreePosition> Octree;
-   #endif
 
    /** Meta-data for blocks that belong to this rank.
     *  This vector holds all the BlockInfos for blocks that belong to this rank. When the mesh 
@@ -102,9 +94,7 @@ class Grid
       const auto retval   = Octree.find(aux);
       if (retval == Octree.end())
       {
-         #ifndef CUBISM_USE_ONETBB
          #pragma omp critical
-         #endif
          {
             const auto retval1 = Octree.find(aux);
             if (retval1 == Octree.end())
@@ -257,13 +247,11 @@ class Grid
    {
       std::sort(m_vInfo.begin(), m_vInfo.end()); //sort according to blockID_2
 
-      #ifndef CUBISM_USE_ONETBB
       //The following will reserve memory for the unordered map.
       //This will result in a thread-safe Tree(m,n) function
       //as Octree will not change size when it is accessed by
       //multiple threads. The number m_vInfo.size()/8 is arbitrary.
       Octree.reserve(Octree.size() + m_vInfo.size()/8);
-      #endif
 
       if (CopyInfos)
          for (size_t j = 0; j < m_vInfo.size(); j++)
@@ -436,9 +424,7 @@ class Grid
       }
       else
       {
-         #ifndef CUBISM_USE_ONETBB
          #pragma omp critical
-         #endif
          {
             const auto retval1 = BlockInfoAll.find(aux);
             if (retval1 == BlockInfoAll.end())
