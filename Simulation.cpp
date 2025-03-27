@@ -287,9 +287,6 @@ void Simulation::simulate() {
       advance(dt);
     if (!done)
       done = sim.bOver();
-    if (sim.rank == 0 && sim.profilerFreq > 0 &&
-        sim.step % sim.profilerFreq == 0)
-      sim.printResetProfiler();
     if (done) {
       const bool bDump = sim.bDump();
       if (bDump) {
@@ -301,7 +298,6 @@ void Simulation::simulate() {
       if (sim.rank == 0 && !sim.muteAll) {
         std::cout << kHorLine
                   << "[CUP2D] Simulation Over... Profiling information:\n";
-        sim.printResetProfiler();
         std::cout << kHorLine;
       }
       break;

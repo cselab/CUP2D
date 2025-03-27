@@ -183,7 +183,6 @@ struct KernelAdvectDiffuse {
   }
 };
 void advDiff::operator()(const Real dt) {
-  sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
   KernelAdvectDiffuse Step1(sim);
 #pragma omp parallel for
@@ -222,5 +221,4 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-  sim.stopProfiler();
 }

@@ -91,7 +91,6 @@ void SimulationData::dumpCs(std::string name) {
 void SimulationData::registerDump() { nextDumpTime += dumpTime; }
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
-  delete profiler;
   if (vel not_eq nullptr)
     delete vel;
   if (chi not_eq nullptr)
@@ -120,16 +119,7 @@ bool SimulationData::bDump() {
   _bDump = stepDump || timeDump;
   return _bDump;
 }
-void SimulationData::startProfiler(std::string name) {
-  profiler->push_start(name);
-}
-void SimulationData::stopProfiler() { profiler->pop_stop(); }
-void SimulationData::printResetProfiler() {
-  profiler->printSummary();
-  profiler->reset();
-}
 void SimulationData::dumpAll(std::string name) {
-  startProfiler("Dump");
   auto K1 = computeVorticity(*this);
   K1(0);
   dumpTmp(name);
@@ -139,7 +129,6 @@ void SimulationData::dumpAll(std::string name) {
   if (bDumpCs)
     dumpCs(name);
   writeRestartFiles();
-  stopProfiler();
 }
 void SimulationData::writeRestartFiles() {
   if (rank == 0) {

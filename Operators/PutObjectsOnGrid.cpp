@@ -93,10 +93,8 @@ struct PutChiOnGrid {
   }
 };
 void PutObjectsOnGrid::operator()(const Real dt) {
-  sim.startProfiler("PutObjectsGrid");
   advanceShapes(dt);
   putObjectsOnGrid();
-  sim.stopProfiler();
 }
 void PutObjectsOnGrid::advanceShapes(const Real dt) {
   int nSum[2] = {0, 0};

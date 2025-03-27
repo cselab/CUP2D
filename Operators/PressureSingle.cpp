@@ -668,7 +668,6 @@ void PressureSingle::preventCollidingObstacles() const {
     }
 }
 void PressureSingle::operator()(const Real dt) {
-  sim.startProfiler("Pressure");
   const size_t Nblocks = velInfo.size();
   for (const auto &shape : sim.shapes) {
     integrateMomenta(shape.get());
@@ -747,7 +746,6 @@ void PressureSingle::operator()(const Real dt) {
         P(ix, iy).s += POLD(ix, iy).s - avg;
   }
   pressureCorrection(dt);
-  sim.stopProfiler();
 }
 PressureSingle::PressureSingle(SimulationData &s)
     : Operator{s}, pressureSolver{makePoissonSolver(s)} {}

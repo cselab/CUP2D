@@ -125,7 +125,6 @@ void ExpAMRSolver::makeFlux(const BlockInfo &rhs_info, const int ix,
   }
 }
 void ExpAMRSolver::getMat() {
-  sim.startProfiler("Poisson solver: LS");
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
   sim.tmp->UpdateBlockInfoAll_States(true);
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
@@ -209,7 +208,6 @@ void ExpAMRSolver::getMat() {
       }
   }
   LocalLS_->make(Nrows_xcumsum_);
-  sim.stopProfiler();
 }
 void ExpAMRSolver::getVec() {
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();

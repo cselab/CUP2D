@@ -1,5 +1,4 @@
 #pragma once
-#include "Cubism/Profiler.h"
 #include "Definitions.h"
 #include <memory>
 class Shape;
@@ -44,7 +43,6 @@ struct SimulationData {
   bool muteAll;
   std::string path4serialization;
   std::string path2file;
-  cubism::Profiler *profiler = new cubism::Profiler();
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
   VectorGrid *vOld = nullptr;
@@ -92,9 +90,6 @@ struct SimulationData {
     MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
     return minHGrid;
   }
-  void startProfiler(std::string name);
-  void stopProfiler();
-  void printResetProfiler();
   void writeRestartFiles();
   void readRestartFiles();
   void dumpChi(std::string name);

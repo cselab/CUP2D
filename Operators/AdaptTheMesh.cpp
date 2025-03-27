@@ -56,7 +56,6 @@ void AdaptTheMesh::operator()(const Real dt) {
   adapt();
 }
 void AdaptTheMesh::adapt() {
-  sim.startProfiler("AdaptTheMesh");
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   if (sim.Qcriterion) {
     auto K1 = computeQ(sim);
@@ -85,5 +84,4 @@ void AdaptTheMesh::adapt() {
   tmpV_amr->Adapt(sim.time, false, true);
   if (sim.smagorinskyCoeff != 0)
     Cs_amr->Adapt(sim.time, false, true);
-  sim.stopProfiler();
 }
