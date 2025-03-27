@@ -44,14 +44,13 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
   }
   latestTime = absTime;
   snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
-  snprintf(attr_path, sizeof attr_path, "%s.%09ld.raw", fname, gridCount);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.%09ld.xdmf2", fname, gridCount);
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
   const int NCHANNELS = TStreamer::NCHANNELS;
-  int rank, size;
+  int rank, size, i;
   MPI_Comm comm = grid.getWorldComm();
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
@@ -68,6 +67,17 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
       fprintf(stderr, "%s:%d: Failed to open .xdmf2 file", __FILE__, __LINE__);
       MPI_Abort(comm, 1);
     }
+
+    struct {
+      const char *name;
+      int nc;
+    } attrs[] = {
+        {"chi", 1},
+        {"pres", 1},
+        {"tmp", 1},
+        {"vel", 2},
+    };
+
     fprintf(xmf,
             "<Xdmf\n"
             "    Version=\"2.0\">\n"
@@ -86,20 +96,24 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
             "        </DataItem>\n"
             "      </Geometry>\n",
             absTime, ncell_total, 4 * ncell_total, xyz_path);
-    fprintf(xmf,
-            "      <Attribute\n"
-            "          Name=\"%s\"\n"
-            "          AttributeType=\"%s\"\n"
-            "          Center=\"Cell\">\n"
-            "        <DataItem\n"
-            "            Dimensions=\"%lld %d\"\n"
-            "            Precision=\"%d\"\n"
-            "            Format=\"Binary\">\n"
-            "          %s\n"
-            "        </DataItem>\n"
-            "      </Attribute>\n",
-            fname, NCHANNELS == 1 ? "Scalar" : "Vector", ncell_total, NCHANNELS,
-            (int)sizeof(hdf5Real), attr_path);
+    for (i = 0; i < sizeof attrs / sizeof *attrs; i++) {
+      snprintf(attr_path, sizeof attr_path, "%s.%09ld.raw", attrs[i].name,
+               gridCount);
+      fprintf(xmf,
+              "      <Attribute\n"
+              "          Name=\"%s\"\n"
+              "          AttributeType=\"%s\"\n"
+              "          Center=\"Cell\">\n"
+              "        <DataItem\n"
+              "            Dimensions=\"%lld %d\"\n"
+              "            Precision=\"%d\"\n"
+              "            Format=\"Binary\">\n"
+              "          %s\n"
+              "        </DataItem>\n"
+              "      </Attribute>\n",
+              attrs[i].name, attrs[i].nc == 1 ? "Scalar" : "Vector",
+              ncell_total, attrs[i].nc, (int)sizeof(hdf5Real), attr_path);
+    }
     fprintf(xmf, "    </Grid>\n"
                  "  </Domain>\n"
                  "</Xdmf>\n");
@@ -113,8 +127,8 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
       for (int z = 0; z < nZ; z++)
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
-            const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
-                              4 * 2;
+            const int bbase =
+                (i * nZ * nY * nX + z * nY * nX + y * nX + x) * 4 * 2;
             double p[2];
             info.pos(p, x, y);
             buffer[bbase] = p[0] - h2;
@@ -150,6 +164,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
             }
           }
     }
+    snprintf(attr_path, sizeof attr_path, "%s.%09ld.raw", fname, gridCount);
     MPI_File_open(comm, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                   MPI_INFO_NULL, &mpi_file);
     MPI_File_write_at_all(mpi_file, NCHANNELS * offset * sizeof buffer[0],

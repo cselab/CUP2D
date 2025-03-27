@@ -4,7 +4,7 @@
     -CFL 0.4 \
     -Ctol 0.01 \
     -extent 1.0 \
-    -levelMax 3 \
+    -levelMax 5 \
     -muteAll 0 \
     -nu 0.000243 \
     -poissonSolver iterative \

@@ -4,7 +4,8 @@ Incompressible Flow Solver for Complex Deformable Geometries in 2D.
 
 ## Dependencies
 
-CubismUP-2D depends on MPI, GSL, and HDF5.
+CubismUP-2D depends on MPI and [GSL - GNU Scientific
+Library](https://www.gnu.org/software/gsl).
 
 ## Compilation
 
