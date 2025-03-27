@@ -36,21 +36,20 @@ struct StreamerVector {
   static const char *getAttributeName() { return "Vector"; }
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
-void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
-                  const std::string &fname, const std::string &dpath = ".",
-                  const bool dumpGrid = true) {
+void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
+                  const std::string &dpath = ".", const bool dumpGrid = true) {
   static double latestTime{-1.0};
   static long gridCount = 0;
   MPI_File mpi_file;
-  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
+  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX];
   const bool SaveGrid = latestTime < absTime && dumpGrid;
   if (SaveGrid) {
     gridCount++;
   }
-  snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
-  snprintf(attr_path, sizeof attr_path, "%s.raw", fname.c_str());
-
   latestTime = absTime;
+  snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
+  snprintf(attr_path, sizeof attr_path, "%s.%09ld.raw", fname, gridCount);
+  snprintf(xdmf_path, sizeof xdmf_path, "%s.%09ld.xdmf2", fname, gridCount);
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
@@ -60,10 +59,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   MPI_Comm comm = grid.getWorldComm();
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
-  std::ostringstream filename;
-  std::ostringstream fullpath;
-  filename << fname;
-  fullpath << dpath << "/" << filename.str();
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long ncell = MyInfos.size() * nX * nY * nZ;
@@ -72,16 +67,8 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   if (rank == 0)
     offset = 0;
   ncell_total = ncell + offset;
-  std::stringstream gridFile_s;
-  gridFile_s << "grid" << std::setfill('0') << std::setw(9) << gridCount
-             << ".h5";
-  std::string gridFile = gridFile_s.str();
-  std::stringstream gridFilePath_s;
-  gridFilePath_s << dpath << "/grid" << std::setfill('0') << std::setw(9)
-                 << gridCount << ".h5";
-  std::string gridFilePath = gridFilePath_s.str();
   if (rank == size - 1 && dumpGrid) {
-    FILE *xmf = fopen((fullpath.str() + ".xdmf2").c_str(), "w");
+    FILE *xmf = fopen(xdmf_path, "w");
     if (!xmf) {
       fprintf(stderr, "%s:%d: Failed to open .xdmf2 file", __FILE__, __LINE__);
       MPI_Abort(comm, 1);
@@ -102,9 +89,10 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
             "            Format=\"Binary\">\n"
             "          %s\n"
             "        </DataItem>\n"
-            "      </Geometry>\n"
+            "      </Geometry>\n");
+    fprintf(xmf,
             "      <Attribute\n"
-            "          Name=\"data\"\n"
+            "          Name=\"%s\"\n"
             "          AttributeType=\"%s\"\n"
             "          Center=\"Cell\">\n"
             "        <DataItem\n"
@@ -113,16 +101,23 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
             "            Format=\"Binary\">\n"
             "          %s\n"
             "        </DataItem>\n"
-            "      </Attribute>\n"
+	    "      </Attribute>\n",
+	    fname,
+            TStreamer::getAttributeName(),
+	    ncell_total,
+	    NCHANNELS,
+            (int)sizeof(hdf5Real),
+	    attr_path);
+    fprintf(xmf,
             "    </Grid>\n"
             "  </Domain>\n"
             "</Xdmf>\n",
-            absTime, ncell_total, 4 * ncell_total, xyz_path,
-            TStreamer::getAttributeName(), ncell_total, NCHANNELS,
-            (int)sizeof(hdf5Real), attr_path);
+            absTime,
+	    ncell_total,
+	    4 * ncell_total,
+	    xyz_path);
     fclose(xmf);
   }
-  std::string name = fullpath.str() + ".h5";
   if (SaveGrid) {
     std::vector<float> buffer(ncell * PtsPerElement * 2);
     for (size_t i = 0; i < MyInfos.size(); i++) {

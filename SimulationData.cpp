@@ -57,51 +57,35 @@ void SimulationData::allocateGrid() {
   maxH = extents[0] / (bpdx * VectorBlock::sizeX);
 }
 void SimulationData::dumpChi(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerScalar, Real>(*chi, time, "chi" + ss.str(),
+  DumpHDF5_MPI<StreamerScalar, Real>(*chi, time, "chi",
                                      path4serialization);
 }
 void SimulationData::dumpPres(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerScalar, Real>(*pres, time, "pres" + ss.str(),
+  DumpHDF5_MPI<StreamerScalar, Real>(*pres, time, "pres",
                                      path4serialization);
 }
 void SimulationData::dumpPold(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerScalar, Real>(*pold, time, "pold" + ss.str(),
+  DumpHDF5_MPI<StreamerScalar, Real>(*pold, time, "pold",
                                      path4serialization);
 }
 void SimulationData::dumpTmp(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerScalar, Real>(*tmp, time, "tmp" + ss.str(),
+  DumpHDF5_MPI<StreamerScalar, Real>(*tmp, time, "tmp",
                                      path4serialization);
 }
 void SimulationData::dumpVel(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vel), time, "vel" + ss.str(),
+  DumpHDF5_MPI<StreamerVector, Real>(*(vel), time, "vel",
                                      path4serialization);
 }
 void SimulationData::dumpVold(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(vOld), time, "vOld" + ss.str(),
+  DumpHDF5_MPI<StreamerVector, Real>(*(vOld), time, "vOld",
                                      path4serialization);
 }
 void SimulationData::dumpTmpV(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV), time, "tmpV" + ss.str(),
+  DumpHDF5_MPI<StreamerVector, Real>(*(tmpV), time, "tmpV",
                                      path4serialization);
 }
 void SimulationData::dumpCs(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  DumpHDF5_MPI<StreamerScalar, Real>(*(Cs), time, "Cs" + ss.str(),
+  DumpHDF5_MPI<StreamerScalar, Real>(*(Cs), time, "Cs",
                                      path4serialization);
 }
 void SimulationData::registerDump() { nextDumpTime += dumpTime; }
