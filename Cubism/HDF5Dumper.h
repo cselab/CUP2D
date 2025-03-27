@@ -59,7 +59,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
   MPI_Comm comm = grid.getWorldComm();
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
-  const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long ncell = MyInfos.size() * nX * nY * nZ;
   unsigned long long offset, ncell_total;
@@ -111,7 +110,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
     fclose(xmf);
   }
   if (SaveGrid) {
-    std::vector<float> buffer(ncell * PtsPerElement * 2);
+    std::vector<float> buffer(ncell * 4 * 2);
     for (size_t i = 0; i < MyInfos.size(); i++) {
       const BlockInfo &info = MyInfos[i];
       const float h2 = 0.5 * info.h;
@@ -119,7 +118,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
             const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
-                              PtsPerElement * 2;
+                              4 * 2;
             double p[2];
             info.pos(p, x, y);
             buffer[bbase] = p[0] - h2;
