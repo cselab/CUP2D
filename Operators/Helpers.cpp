@@ -138,57 +138,6 @@ Real findMaxU::run() const {
   v = quantities[3];
   return std::max({U, V, u, v});
 }
-void Checker::run(std::string when) const {
-  return;
-  const size_t Nblocks = velInfo.size();
-  const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  bool bAbort = false;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        if (std::isnan(VEL(ix, iy).u[0])) {
-          printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(VEL(ix, iy).u[0])) {
-          printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isnan(VEL(ix, iy).u[1])) {
-          printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(VEL(ix, iy).u[1])) {
-          printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isnan(PRES(ix, iy).s)) {
-          printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(PRES(ix, iy).s)) {
-          printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-      }
-  }
-  if (bAbort) {
-    std::cout << "[CUP2D] Detected NaN/INF Field Values. Dumping the field and "
-                 "aborting..."
-              << std::endl;
-    sim.dumpAll("abort_");
-    MPI_Abort(sim.comm, 1);
-  }
-}
 void ApplyObjVel::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();

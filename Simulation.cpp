@@ -259,7 +259,6 @@ void Simulation::resetRL() {
   ic(0);
 }
 void Simulation::startObstacles() {
-  Checker check(sim);
   if (sim.rank == 0 && sim.verbose && !sim.bRestart)
     std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();

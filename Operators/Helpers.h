@@ -12,15 +12,6 @@ public:
   Real run() const;
   std::string getName() const { return "findMaxU"; }
 };
-class Checker {
-  SimulationData &sim;
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  Checker(SimulationData &s) : sim(s) {}
-  void run(std::string when) const;
-  std::string getName() const { return "Checker"; }
-};
 class IC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
