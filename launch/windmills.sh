@@ -4,9 +4,9 @@
     -CFL 0.4 \
     -Ctol 0.01 \
     -extent 1.0 \
-    -levelMax 7 \
+    -levelMax 5 \
     -muteAll 0 \
-    -nu 0.00000243 \
+    -nu 1e-6 \
     -poissonSolver iterative \
     -poissonTol 1.0e-3 \
     -poissonTolRel 0 \
@@ -14,7 +14,6 @@
     -tdump 0.1 \
     -tend 600 \
     -verbose 1 \
-    -ic random \
     -shapes '
 windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.44 ypos=0.38 bBlockAng=1 angvelmax=-1.82018 freq=0.25
 windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.44 ypos=0.53 bBlockAng=1 angvelmax=-1.92776 freq=0.25
