@@ -57,13 +57,11 @@ Shape.o \
 SimulationData.o \
 Utils/BufferedLogger.o \
 
-all: debugRL main libcup.a
+all: debugRL main
 debugRL: debugRL.o $O $C
 	$(LINK) -o $@ debugRL.o $O $C $L
 main: main.o $O $C
 	$(LINK) -o $@ main.o $O $C $L
-libcup.a: $O $C
-	ar rcs $@ $O $C
 %.o: %.cu
 	$(NVCC) -o $@ $(NVCCFLAGS) -Xcompiler '$(FLAGS) $(CXXFLAGS)' -c $<
 %.o: %.cpp

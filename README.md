@@ -11,7 +11,7 @@ Library](https://www.gnu.org/software/gsl).
 
 For CPU
 ```
-make "CXXFLAGS = -Ofast" "LIBS = `pkg-config --libs gsl`"
+make "CXXFLAGS = `gsl-config --cflags` -Ofast" "LIBS = `gsl-config --libs gsl`"
 ```
 
 or
