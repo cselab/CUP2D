@@ -89,7 +89,8 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
             "            Format=\"Binary\">\n"
             "          %s\n"
             "        </DataItem>\n"
-            "      </Geometry>\n");
+            "      </Geometry>\n",
+            absTime, ncell_total, 4 * ncell_total, xyz_path);
     fprintf(xmf,
             "      <Attribute\n"
             "          Name=\"%s\"\n"
@@ -101,21 +102,12 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
             "            Format=\"Binary\">\n"
             "          %s\n"
             "        </DataItem>\n"
-	    "      </Attribute>\n",
-	    fname,
-            TStreamer::getAttributeName(),
-	    ncell_total,
-	    NCHANNELS,
-            (int)sizeof(hdf5Real),
-	    attr_path);
-    fprintf(xmf,
-            "    </Grid>\n"
-            "  </Domain>\n"
-            "</Xdmf>\n",
-            absTime,
-	    ncell_total,
-	    4 * ncell_total,
-	    xyz_path);
+            "      </Attribute>\n",
+            fname, TStreamer::getAttributeName(), ncell_total, NCHANNELS,
+            (int)sizeof(hdf5Real), attr_path);
+    fprintf(xmf, "    </Grid>\n"
+                 "  </Domain>\n"
+                 "</Xdmf>\n");
     fclose(xmf);
   }
   if (SaveGrid) {
