@@ -21,8 +21,6 @@ struct StreamerScalar {
                              const int iz, T output[NCHANNELS]) {
     output[0] = b(ix, iy, iz).s;
   }
-  static std::string prefix() { return std::string(""); }
-  static const char *getAttributeName() { return "Scalar"; }
 };
 struct StreamerVector {
   static constexpr int NCHANNELS = 3;
@@ -32,8 +30,6 @@ struct StreamerVector {
     for (int i = 0; i < TBlock::ElementType::DIM; i++)
       output[i] = b(ix, iy, iz).u[i];
   }
-  static std::string prefix() { return std::string(""); }
-  static const char *getAttributeName() { return "Vector"; }
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
@@ -102,7 +98,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
             "          %s\n"
             "        </DataItem>\n"
             "      </Attribute>\n",
-            fname, TStreamer::getAttributeName(), ncell_total, NCHANNELS,
+            fname, NCHANNELS == 1 ? "Scalar" : "Vector", ncell_total, NCHANNELS,
             (int)sizeof(hdf5Real), attr_path);
     fprintf(xmf, "    </Grid>\n"
                  "  </Domain>\n"
