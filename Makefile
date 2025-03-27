@@ -8,7 +8,7 @@ FLAGS = \
 -D_DOUBLE_PRECISION_ \
 -I. \
 
-ifeq ("$(gpu)", "true")
+ifeq ($(gpu), true)
 	LINK = $(NVCC)  -ccbin='$(MPICXX)'
 	L = -Xcompiler '$(LIBS)' -Xcompiler -fopenmp -lcublas -lcusparse
 	FLAGS += -DGPU_POISSON
