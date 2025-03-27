@@ -17,7 +17,7 @@ make "CXXFLAGS = -Ofast" "LIBS = `pkg-config --libs gsl`"
 or
 ```
 module load gcc openmpi gsl
-make "CXXFLAGS = -Ofast `gsl-config --cflags" "LIBS = `gsl-config --libs`"
+make "CXXFLAGS = -Ofast `gsl-config --cflags`" "LIBS = `gsl-config --libs`"
 ```
 
 For GPU
