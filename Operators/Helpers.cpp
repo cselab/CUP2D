@@ -1,8 +1,8 @@
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper.h"
-#include <random>
 using namespace cubism;
 void IC::operator()(const Real dt) {
+  const std::vector<BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
   const std::vector<BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
@@ -40,52 +40,6 @@ void IC::operator()(const Real dt) {
     }
   } else {
     assert(0);
-  }
-}
-void randomIC::operator()(const Real dt) {
-  const std::vector<BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const std::vector<BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  const std::vector<BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-#pragma omp parallel
-  {
-    std::random_device seed;
-    std::mt19937 gen(seed());
-    std::normal_distribution<Real> dist(0.0, 0.01);
-#pragma omp for
-    for (size_t i = 0; i < velInfo.size(); i++) {
-      VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-          VEL(ix, iy).u[0] = 0.5 + dist(gen);
-          VEL(ix, iy).u[1] = 0.5 + dist(gen);
-        }
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      CHI.clear();
-      ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-      PRES.clear();
-      ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-      POLD.clear();
-      ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-      TMP.clear();
-      VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      TMPV.clear();
-      VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-      VOLD.clear();
-    }
-  }
-  if (sim.smagorinskyCoeff != 0) {
-    const std::vector<BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
-#pragma omp parallel for
-    for (size_t i = 0; i < CsInfo.size(); i++) {
-      ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-        for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-          CS(ix, iy).s = sim.smagorinskyCoeff;
-        }
-    }
   }
 }
 Real findMaxU::run() const {

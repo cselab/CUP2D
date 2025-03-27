@@ -30,15 +30,6 @@ public:
   void operator()(const Real dt);
   std::string getName() { return "gaussianIC"; }
 };
-class randomIC : public Operator {
-protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  randomIC(SimulationData &s) : Operator(s) {}
-  void operator()(const Real dt);
-  std::string getName() { return "randomIC"; }
-};
 class ApplyObjVel : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
