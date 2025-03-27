@@ -81,38 +81,45 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                  << gridCount << ".h5";
   std::string gridFilePath = gridFilePath_s.str();
   if (rank == size - 1 && dumpGrid) {
-    std::ostringstream myfilename;
-    myfilename << filename.str();
-    std::stringstream s;
-    s << "<Xdmf Version=\"2.0\">\n";
-    s << "<Domain>\n";
-    s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
-    s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n";
-    s << "   <Topology NumberOfElements=\"" << ncell_total
-      << "\" TopologyType=\"Quadrilateral\"/>\n";
-    s << "     <Geometry GeometryType=\"XY\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
-      << ncell_total * PtsPerElement << " " << 2
-      << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
-      << "\" Format=\"Binary\">\n";
-    s << "            " << xyz_path << "\n";
-    s << "        </DataItem>\n";
-    s << "     </Geometry>\n";
-    s << "     <Attribute Name=\"data\" AttributeType=\""
-      << TStreamer::getAttributeName() << "\" Center=\"Cell\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << ncell_total
-      << " " << NCHANNELS << "\" NumberType=\"Float\" Precision=\" "
-      << (int)sizeof(hdf5Real) << "\" Format=\"Binary\">\n";
-    s << "            " << attr_path << "\n";
-    s << "        </DataItem>\n";
-    s << "     </Attribute>\n";
-    s << " </Grid>\n";
-    s << "</Domain>\n";
-    s << "</Xdmf>\n";
-    std::string st = s.str();
-    FILE *xmf = 0;
-    xmf = fopen((fullpath.str() + ".xdmf2").c_str(), "w");
-    fprintf(xmf, "%s", st.c_str());
+    FILE *xmf = fopen((fullpath.str() + ".xdmf2").c_str(), "w");
+    if (!xmf) {
+      fprintf(stderr, "%s:%d: Failed to open .xdmf2 file", __FILE__, __LINE__);
+      MPI_Abort(comm, 1);
+    }
+    fprintf(xmf,
+            "<Xdmf\n"
+            "    Version=\"2.0\">\n"
+            "  <Domain>\n"
+            "    <Grid>\n"
+            "      <Time Value=\"%.16e\"/>\n"
+            "      <Topology\n"
+            "          Dimensions=\"%lld\"\n"
+            "          TopologyType=\"Quadrilateral\"/>\n"
+            "      <Geometry\n"
+            "          GeometryType=\"XY\">\n"
+            "        <DataItem\n"
+            "            Dimensions=\"%lld 2\"\n"
+            "            Format=\"Binary\">\n"
+            "          %s\n"
+            "        </DataItem>\n"
+            "      </Geometry>\n"
+            "      <Attribute\n"
+            "          Name=\"data\"\n"
+            "          AttributeType=\"%s\"\n"
+            "          Center=\"Cell\">\n"
+            "        <DataItem\n"
+            "            Dimensions=\"%lld %d\"\n"
+            "            Precision=\"%d\"\n"
+            "            Format=\"Binary\">\n"
+            "          %s\n"
+            "        </DataItem>\n"
+            "      </Attribute>\n"
+            "    </Grid>\n"
+            "  </Domain>\n"
+            "</Xdmf>\n",
+            absTime, ncell_total, 4 * ncell_total, xyz_path,
+            TStreamer::getAttributeName(), ncell_total, NCHANNELS,
+            (int)sizeof(hdf5Real), attr_path);
     fclose(xmf);
   }
   std::string name = fullpath.str() + ".h5";

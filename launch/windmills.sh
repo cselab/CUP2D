@@ -1,21 +1,21 @@
 "${main=./main}" \
-    -bpdx 3 \
+    -bpdx 4 \
     -bpdy 4 \
     -CFL 0.4 \
     -Ctol 0.01 \
-    -extent 0.7 \
-    -levelMax 4 \
-    -muteAll 1 \
+    -extent 1.0 \
+    -levelMax 3 \
+    -muteAll 0 \
     -nu 0.000243 \
     -poissonSolver iterative \
     -poissonTol 1.0e-3 \
     -poissonTolRel 0 \
     -Rtol 0.1 \
-    -tdump 0.025 \
-    -tend 60 \
+    -tdump 0.1 \
+    -tend 600 \
     -verbose 1 \
+    -ic random \
     -shapes '
-windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.4 ypos=0.25 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=3 freq=0.25
-windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.4 ypos=0.45 bForced=1 xvel=0.15 tAccel=0 bBlockAng=1 angvelmax=-2.8 freq=1.6
+windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.6 ypos=0.6 bBlockAng=1 angvelmax=1 freq=0.25
+windmill semiAxisX=0.0405 semiAxisY=0.0135 xpos=0.4 ypos=0.4 bBlockAng=1 angvelmax=-1 freq=0.25
 '
-

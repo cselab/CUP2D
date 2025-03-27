@@ -21,14 +21,11 @@ public:
         action_ang_vel_max(p("-angvelmax").asDouble()),
         action_freq(p("-freq").asDouble()) {
     omega = 0;
-    setInitialConditions(0);
   }
   void resetAll() override { Shape::resetAll(); }
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   void updateVelocity(Real dt) override;
   void updatePosition(Real dt) override;
-  void setInitialConditions(Real init_angle);
-  Real getAngularVelocity();
   Real getCharLength() const override {
     return semiAxis[0] >= semiAxis[1] ? 2 * semiAxis[0] : 2 * semiAxis[1];
   }
