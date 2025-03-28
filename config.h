@@ -1,13 +1,13 @@
 #define OMPI_SKIP_MPICXX 1
 #ifdef _FLOAT_PRECISION_
-using Real = float;
+typedef float Real;
 #define MPI_Real MPI_FLOAT
 #endif
 #ifdef _DOUBLE_PRECISION_
-using Real = double;
+typedef double Real;
 #define MPI_Real MPI_DOUBLE
 #endif
 #ifdef _LONG_DOUBLE_PRECISION_
-using Real = long double;
+typedef long double Real;
 #define MPI_Real MPI_LONG_DOUBLE
 #endif
