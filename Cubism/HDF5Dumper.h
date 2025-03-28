@@ -31,7 +31,7 @@ struct StreamerVector {
   }
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
-void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname) {
+void Dump(TGrid &grid, Real absTime, const char *fname) {
   static double latestTime{-1.0};
   static long gridCount = 0;
   MPI_File mpi_file;
@@ -73,7 +73,7 @@ void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname) {
         {"chi", 1},
         {"pres", 1},
         {"tmp", 1},
-        {"vel", 2},
+        {"vel", 3},
     };
 
     fprintf(xmf,
