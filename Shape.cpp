@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Shape.h"
 #include "Utils/BufferedLogger.h"
 #include <iomanip>

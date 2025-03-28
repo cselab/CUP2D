@@ -15,13 +15,14 @@ protected:
       j--;
     return str.substr(i, j - i);
   }
+
 public:
   FactoryFileLineParser(std::istringstream &is_line)
       : cubism::ArgumentParser(0, NULL, '#') {
     std::string key, value;
     while (std::getline(is_line, key, '=')) {
       if (std::getline(is_line, value, ' ')) {
-	mapArguments[trim(key)] = cubism::Value(trim(value));
+        mapArguments[trim(key)] = cubism::Value(trim(value));
       }
     }
     mute();

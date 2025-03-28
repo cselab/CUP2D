@@ -1,3 +1,4 @@
+#include "config.h"
 #include "PutObjectsOnGrid.h"
 #include "../Shape.h"
 #include "../Utils/BufferedLogger.h"

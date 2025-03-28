@@ -1,3 +1,4 @@
+#include "config.h"
 #include "advDiff.h"
 using namespace cubism;
 #ifdef CUP2D_PRESERVE_SYMMETRY

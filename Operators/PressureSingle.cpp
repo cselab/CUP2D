@@ -1,3 +1,4 @@
+#include "config.h"
 #include "PressureSingle.h"
 #include "../Shape.h"
 #include "Cubism/FluxCorrection.h"

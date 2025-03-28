@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Simulation.h"
 #include "Obstacles/CStartFish.h"
 #include "Obstacles/CarlingFish.h"

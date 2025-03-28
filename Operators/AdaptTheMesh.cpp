@@ -1,3 +1,4 @@
+#include "config.h"
 #include "AdaptTheMesh.h"
 using namespace cubism;
 struct GradChiOnTmp {

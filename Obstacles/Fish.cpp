@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Fish.h"
 #include "FishData.h"
 using namespace cubism;

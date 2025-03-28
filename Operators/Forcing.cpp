@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Forcing.h"
 using namespace cubism;
 void Forcing::operator()(const Real dt) {

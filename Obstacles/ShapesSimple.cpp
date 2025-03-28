@@ -1,3 +1,4 @@
+#include "config.h"
 #include "ShapesSimple.h"
 #include "ShapeLibrary.h"
 using namespace cubism;

@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Waterturbine.h"
 #include "ShapeLibrary.h"
 #include <cmath>

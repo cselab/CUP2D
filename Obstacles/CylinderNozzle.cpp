@@ -1,3 +1,4 @@
+#include "config.h"
 #include "CylinderNozzle.h"
 #include "../Utils/BufferedLogger.h"
 #include "ShapeLibrary.h"

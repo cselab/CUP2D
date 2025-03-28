@@ -1,3 +1,4 @@
+#include "config.h"
 #include "SmartNaca.h"
 using namespace cubism;
 struct GradScalarOnTmpV {

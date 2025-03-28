@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Simulation.h"
 #include "mpi.h"
 using namespace cubism;

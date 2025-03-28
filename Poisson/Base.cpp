@@ -1,3 +1,4 @@
+#include "config.h"
 #include "Base.h"
 #include "AMRSolver.h"
 #ifdef GPU_POISSON

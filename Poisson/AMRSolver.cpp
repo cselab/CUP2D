@@ -1,3 +1,4 @@
+#include "config.h"
 #include "AMRSolver.h"
 using namespace cubism;
 void AMRSolver::getZ(Real *input, BlockInfo &zInfo) {

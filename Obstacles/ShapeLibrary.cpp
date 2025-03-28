@@ -1,3 +1,4 @@
+#include "config.h"
 #include "ShapeLibrary.h"
 using namespace cubism;
 static Real distPointEllipseSpecial(const Real e[2], const Real y[2],

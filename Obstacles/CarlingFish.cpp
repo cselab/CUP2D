@@ -1,3 +1,4 @@
+#include "config.h"
 #include "CarlingFish.h"
 using namespace cubism;
 CarlingFish::CarlingFish(SimulationData &s, ArgumentParser &p, Real C[2])

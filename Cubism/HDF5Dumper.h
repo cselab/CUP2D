@@ -33,7 +33,7 @@ struct StreamerVector {
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname,
-                  const std::string &dpath = ".", const bool dumpGrid = true) {
+          const std::string &dpath = ".", const bool dumpGrid = true) {
   static double latestTime{-1.0};
   static long gridCount = 0;
   MPI_File mpi_file;

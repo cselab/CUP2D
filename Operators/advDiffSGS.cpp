@@ -1,3 +1,4 @@
+#include "config.h"
 #include "advDiffSGS.h"
 using namespace cubism;
 __attribute__((optimize("-O1"))) static inline Real

@@ -1,3 +1,4 @@
+#include "config.h"
 #include "ExperimentFish.h"
 #include "FishData.h"
 #include "FishUtilities.h"
