@@ -7,14 +7,6 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
 void Shape::updateVelocity(Real dt) {
-#ifdef EXPL_INTEGRATE_MOM
-  if (not bForcedx || sim.time > timeForced)
-    u = (fluidMomX + dt * appliedForceX) / penalM;
-  if (not bForcedy || sim.time > timeForced)
-    v = (fluidMomY + dt * appliedForceY) / penalM;
-  if (not bBlockang || sim.time > timeForced)
-    omega = (fluidAngMom + dt * appliedTorque) / penalJ;
-#else
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
                     {(double)-penalDY, (double)penalDX, (double)penalJ}};
@@ -64,7 +56,6 @@ void Shape::updateVelocity(Real dt) {
   }
   gsl_permutation_free(permgsl);
   gsl_vector_free(xgsl);
-#endif
 }
 void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
   if (bFixedx) {

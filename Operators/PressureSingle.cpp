@@ -180,21 +180,15 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
       continue;
     const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
     const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
-#ifndef EXPL_INTEGRATE_MOM
     const Real lambdt = sim.lambda * sim.dt;
-#endif
     for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
       for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
         if (chi[iy][ix] <= 0)
           continue;
         const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
                                VEL(ix, iy).u[1] - udef[iy][ix][1]};
-#ifdef EXPL_INTEGRATE_MOM
-        const Real F = hsq * chi[iy][ix];
-#else
         const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
-#endif
         Real p[2];
         velInfo[i].pos(p, ix, iy);
         p[0] -= Cx;
@@ -255,11 +249,7 @@ void PressureSingle::penalize(const Real dt) const {
           velInfo[i].pos(p, ix, iy);
           p[0] -= Cx;
           p[1] -= Cy;
-#ifndef EXPL_INTEGRATE_MOM
           const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
-#else
-          const Real alpha = 1 - X[iy][ix];
-#endif
           const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
           const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
           V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
