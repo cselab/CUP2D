@@ -21,12 +21,12 @@ make 'gpu = true' 'NVCC = nvcc -ccbin mpicxx'
 ## Running
 
 ```
-OMP_NUM_THREADS=1 mpiexec.openmpi -n 2 sh launch/stefanfish.sh
+mpiexec sh launch/stefanfish.sh
 ```
 or
 
 ```
-mpiexec -n 4 sh launch/windmills.sh
+mpiexec sh launch/windmills.sh
 ```
 
 ## Visualize
