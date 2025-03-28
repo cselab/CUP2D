@@ -59,6 +59,7 @@ void Windmill::create(const std::vector<BlockInfo> &vInfo) {
 }
 void Windmill::updateVelocity(Real dt) {
   Shape::updateVelocity(dt);
-  omega = action_ang_vel_max;
+  if (bBlockang)
+    omega = action_ang_vel_max;
 }
 void Windmill::updatePosition(Real dt) { Shape::updatePosition(dt); }

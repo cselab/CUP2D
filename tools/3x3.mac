@@ -1,6 +1,6 @@
 load("cgrind");
-A: matrix([xx, 0, xz], [0, yy, yz], [xz, yz, zz]);
-b: matrix([bx], [by], [bz]);
+A: matrix([xx, 0, xz], [0, yy, yz], [zx, zy, zz]);
+b: matrix([x], [y], [z]);
 
 D: determinant(A);
 M: lu_factor(A);
@@ -10,5 +10,8 @@ fullratsimp(A . x - b);
 
 x: map(fullratsimp, x * D / 'D);
 
-cgrind(x[1]);
+(cgrind('D = factor(D)),
+  cgrind('u = x[1, 1]),
+  cgrind('v = x[2, 1]),
+ cgrind('omega = x[3, 1]));
 

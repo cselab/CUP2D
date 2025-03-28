@@ -1,46 +1,45 @@
 #include "Shape.h"
 #include "Utils/BufferedLogger.h"
-#include <gsl/gsl_linalg.h>
 #include <iomanip>
 using namespace cubism;
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
 void Shape::updateVelocity(Real dt) {
-  double A[3][3] = {{penalM, 0, -penalDY},
-                    {0, penalM, penalDX},
-                    {-penalDY, penalDX, penalJ}};
-  double b[3] = {(fluidMomX + dt * appliedForceX),
-                 (fluidMomY + dt * appliedForceY),
-                 (fluidAngMom + dt * appliedTorque)};
+  Real eps, x, y, z, xx, xz, yy, yz, zx, zy, zz, D;
+  eps = 5 * std::numeric_limits<Real>::min();
+  xx = penalM;
+  xz = -penalDY;
+  yy = penalM;
+  yz = penalDX;
+  zx = -penalDY;
+  zy = penalDX;
+  zz = penalJ;
+  x = fluidMomX + dt * appliedForceX;
+  y = fluidMomY + dt * appliedForceY;
+  z = fluidAngMom + dt * appliedTorque;
   if (bForcedx && sim.time < timeForced) {
-    A[0][1] = 0;
-    A[0][2] = 0;
-    b[0] = penalM * forcedu;
+    xz = 0;
+    x = penalM * forcedu;
   }
   if (bForcedy && sim.time < timeForced) {
-    A[1][0] = 0;
-    A[1][2] = 0;
-    b[1] = penalM * forcedv;
+    yz = 0;
+    y = penalM * forcedv;
   }
   if (bBlockang && sim.time < timeForced) {
-    A[2][0] = 0;
-    A[2][1] = 0;
-    b[2] = penalJ * forcedomega;
+    zx = 0;
+    zy = 0;
+    z = penalJ * forcedomega;
   }
-  gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
-  gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
-  gsl_vector *xgsl = gsl_vector_alloc(3);
-  int sgsl;
-  gsl_permutation *permgsl = gsl_permutation_alloc(3);
-  gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
-  gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
+  D = xx * yy * zz - xx * yz * zy - xz * yy * zx;
+  if (eps > D && D > -eps)
+    throw std::runtime_error("matrix is singular");
   if (not bForcedx || sim.time > timeForced)
-    u = gsl_vector_get(xgsl, 0);
+    u = (x * yy * zz + (xz * y - x * yz) * zy - xz * yy * z) / D;
   if (not bForcedy || sim.time > timeForced)
-    v = gsl_vector_get(xgsl, 1);
+    v = (xx * y * zz + (x * yz - xz * y) * zx - xx * yz * z) / D;
   if (not bBlockang || sim.time > timeForced)
-    omega = gsl_vector_get(xgsl, 2);
+    omega = -((xx * y * zy + x * yy * zx - xx * yy * z) / D);
   const double tStart = breakSymmetryTime;
   const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
   if (breakSymmetryType != 0 && shouldBreak) {
@@ -54,8 +53,6 @@ void Shape::updateVelocity(Real dt) {
       v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
     }
   }
-  gsl_permutation_free(permgsl);
-  gsl_vector_free(xgsl);
 }
 void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
   if (bFixedx) {
