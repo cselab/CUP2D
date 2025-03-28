@@ -51,13 +51,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
   MPI_Comm_size(sim.comm, &size);
   MPI_Comm_rank(sim.comm, &sim.rank);
   if (sim.rank == 0) {
-    std::cout << "============================================================="
-                 "==========\n";
-    std::cout << "    CubismUP 2D (velocity-pressure 2D incompressible "
-                 "Navier-Stokes)    \n";
-    std::cout << "============================================================="
-                 "==========\n";
-    parser.print_args();
 #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
