@@ -59,28 +59,28 @@ void SimulationData::allocateGrid() {
   maxH = extents[0] / (bpdx * VectorBlock::sizeX);
 }
 void SimulationData::dumpChi(std::string name) {
-  Dump<StreamerScalar, Real>(*chi, time, "chi", path4serialization);
+  Dump<StreamerScalar, Real>(*chi, time, "chi");
 }
 void SimulationData::dumpPres(std::string name) {
-  Dump<StreamerScalar, Real>(*pres, time, "pres", path4serialization);
+  Dump<StreamerScalar, Real>(*pres, time, "pres");
 }
 void SimulationData::dumpPold(std::string name) {
-  Dump<StreamerScalar, Real>(*pold, time, "pold", path4serialization);
+  Dump<StreamerScalar, Real>(*pold, time, "pold");
 }
 void SimulationData::dumpTmp(std::string name) {
-  Dump<StreamerScalar, Real>(*tmp, time, "tmp", path4serialization);
+  Dump<StreamerScalar, Real>(*tmp, time, "tmp");
 }
 void SimulationData::dumpVel(std::string name) {
-  Dump<StreamerVector, Real>(*(vel), time, "vel", path4serialization);
+  Dump<StreamerVector, Real>(*(vel), time, "vel");
 }
 void SimulationData::dumpVold(std::string name) {
-  Dump<StreamerVector, Real>(*(vOld), time, "vOld", path4serialization);
+  Dump<StreamerVector, Real>(*(vOld), time, "vOld");
 }
 void SimulationData::dumpTmpV(std::string name) {
-  Dump<StreamerVector, Real>(*(tmpV), time, "tmpV", path4serialization);
+  Dump<StreamerVector, Real>(*(tmpV), time, "tmpV");
 }
 void SimulationData::dumpCs(std::string name) {
-  Dump<StreamerScalar, Real>(*(Cs), time, "Cs", path4serialization);
+  Dump<StreamerScalar, Real>(*(Cs), time, "Cs");
 }
 void SimulationData::registerDump() { nextDumpTime += dumpTime; }
 SimulationData::SimulationData() = default;

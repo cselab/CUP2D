@@ -31,13 +31,12 @@ struct StreamerVector {
   }
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
-void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname,
-          const std::string &dpath = ".", const bool dumpGrid = true) {
+void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname) {
   static double latestTime{-1.0};
   static long gridCount = 0;
   MPI_File mpi_file;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX];
-  const bool SaveGrid = latestTime < absTime && dumpGrid;
+  const bool SaveGrid = latestTime < absTime;
   if (SaveGrid) {
     gridCount++;
   }
@@ -60,7 +59,7 @@ void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname,
   if (rank == 0)
     offset = 0;
   ncell_total = ncell + offset;
-  if (rank == size - 1 && dumpGrid) {
+  if (rank == size - 1) {
     FILE *xmf = fopen(xdmf_path, "w");
     if (!xmf) {
       fprintf(stderr, "%s:%d: Failed to open .xdmf2 file", __FILE__, __LINE__);
