@@ -57,9 +57,6 @@ Shape.o \
 SimulationData.o \
 Utils/BufferedLogger.o \
 
-all: debugRL main
-debugRL: debugRL.o $O $C
-	$(LINK) -o $@ debugRL.o $O $C $L
 main: main.o $O $C
 	$(LINK) -o $@ main.o $O $C $L
 %.o: %.cu
