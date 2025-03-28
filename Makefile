@@ -64,3 +64,7 @@ main: main.o $O $C
 	$(NVCC) -o $@ $(NVCCFLAGS) -Xcompiler '$(FLAGS) $(CXXFLAGS)' -c $<
 %.o: %.cpp
 	$(MPICXX) $(FLAGS) -fopenmp $(CXXFLAGS) -c $< -o $@
+
+deps:
+	tools/deps > deps.mk
+include deps.mk
