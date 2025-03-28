@@ -1,4 +1,4 @@
-"${main=./main}" \
+${main=./main} \
     -bpdx 4 \
     -bpdy 4 \
     -CFL 0.4 \

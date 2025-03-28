@@ -1,4 +1,4 @@
-"${main=./main}" \
+${main=./main} \
     -bpdx 32 \
     -bpdy 16 \
     -levelMax 3 \

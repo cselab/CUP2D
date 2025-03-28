@@ -90,13 +90,13 @@ void Shape::updatePosition(Real dt) {
     std::stringstream ssF;
     ssF << sim.path2file << "/velocity_" << obstacleID << ".dat";
     std::stringstream &fout = logger.get_stream(ssF.str());
-    if (sim.step == 0)
-      fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J accx accy "
+    if (sim.step == 0) {
+      fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J"
               "accw\n";
-    fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
-         << " " << angle << " " << u << " " << v << " " << omega << " " << M
-         << " " << J << " " << fluidMomX / penalM << " " << fluidMomY / penalM
-         << " " << fluidAngMom / penalJ << "\n";
+      fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
+           << " " << angle << " " << u << " " << v << " " << omega << " " << M
+           << " " << J << "\n";
+    }
   }
 }
 Shape::Integrals
