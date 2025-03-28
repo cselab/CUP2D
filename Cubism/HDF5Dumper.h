@@ -42,7 +42,6 @@ void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname) {
   }
   latestTime = absTime;
   snprintf(xyz_path, sizeof xyz_path, "xyz.%09ld.raw", gridCount);
-  snprintf(xdmf_path, sizeof xdmf_path, "%s.%09ld.xdmf2", fname, gridCount);
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
@@ -58,8 +57,9 @@ void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname) {
   MPI_Exscan(&ncell, &offset, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
   if (rank == 0)
     offset = 0;
-  ncell_total = ncell + offset;
-  if (rank == size - 1) {
+  if (rank == size - 1 && SaveGrid) {
+    ncell_total = ncell + offset;
+    snprintf(xdmf_path, sizeof xdmf_path, "a.%09ld.xdmf2", gridCount);
     FILE *xmf = fopen(xdmf_path, "w");
     if (!xmf) {
       fprintf(stderr, "%s:%d: Failed to open .xdmf2 file", __FILE__, __LINE__);
