@@ -1,6 +1,7 @@
 gpu = false
 MPICXX = mpicxx
 NVCC = nvcc
+CXXFLAGS = -Ofast -g
 FLAGS = \
 -D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
