@@ -7,12 +7,12 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
 void Shape::updateVelocity(Real dt) {
-  double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
-                    {(double)0, (double)penalM, (double)penalDX},
-                    {(double)-penalDY, (double)penalDX, (double)penalJ}};
-  double b[3] = {(double)(fluidMomX + dt * appliedForceX),
-                 (double)(fluidMomY + dt * appliedForceY),
-                 (double)(fluidAngMom + dt * appliedTorque)};
+  double A[3][3] = {{penalM, 0, -penalDY},
+                    {0, penalM, penalDX},
+                    {-penalDY, penalDX, penalJ}};
+  double b[3] = {(fluidMomX + dt * appliedForceX),
+                 (fluidMomY + dt * appliedForceY),
+                 (fluidAngMom + dt * appliedTorque)};
   if (bForcedx && sim.time < timeForced) {
     A[0][1] = 0;
     A[0][2] = 0;

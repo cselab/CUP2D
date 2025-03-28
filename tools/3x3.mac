@@ -1,7 +1,14 @@
-A: matrix([M, 0, -DY], [0, M, DX], [-DY, DX, J]);
-b: ['b[0], 'b[1], 'b[2]];
+load("cgrind");
+A: matrix([xx, 0, xz], [0, yy, yz], [xz, yz, zz]);
+b: matrix([bx], [by], [bz]);
 
 D: determinant(A);
-inv: A^^(-1) * D / 'D;
-x: inv . b;
-optimize([D, x]);
+M: lu_factor(A);
+x: lu_backsub(M, b);
+
+fullratsimp(A . x - b);
+
+x: map(fullratsimp, x * D / 'D);
+
+cgrind(x[1]);
+
