@@ -15,13 +15,13 @@ make
 
 For GPU
 ```
-make 'gpu = true'
+make 'gpu = true' 'NVCC = nvcc -ccbin mpicxx'
 ```
 
 ## Running
 
 ```
-mpiexec -n 4 sh launch/stefanfish.sh
+OMP_NUM_THREADS=1 mpiexec.openmpi -n 2 sh launch/stefanfish.sh
 ```
 or
 

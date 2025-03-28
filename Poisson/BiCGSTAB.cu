@@ -1,3 +1,5 @@
+#include <mpi.h>
+#include "config.h"
 #include <iostream>
 
 #include <cub/cub.cuh>

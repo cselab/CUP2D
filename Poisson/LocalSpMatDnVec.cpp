@@ -1,3 +1,5 @@
+#include <mpi.h>
+#include "config.h"
 #include "LocalSpMatDnVec.h"
 #include "BiCGSTAB.cuh"
 #include <algorithm>

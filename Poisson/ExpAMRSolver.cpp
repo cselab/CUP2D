@@ -1,3 +1,5 @@
+#include <mpi.h>
+#include "config.h"
 #include "ExpAMRSolver.h"
 using namespace cubism;
 double ExpAMRSolver::getA_local(int I1, int I2) {
