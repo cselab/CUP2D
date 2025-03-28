@@ -342,11 +342,6 @@ void Simulation::simulate() {
         sim.registerDump();
         sim.dumpAll("_");
       }
-      if (sim.rank == 0 && !sim.muteAll) {
-        std::cout << kHorLine
-                  << "[CUP2D] Simulation Over... Profiling information:\n";
-        std::cout << kHorLine;
-      }
       break;
     }
   }
