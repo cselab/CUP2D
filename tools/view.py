@@ -15,7 +15,6 @@ view.OrientationAxesVisibility = 0
 view.CameraParallelProjection = 1
 view.Background = 1, 1, 1
 layout = CreateLayout()
-layout.AssignView(0, view)
 xdmf = OpenDataFile(xdmf_path)
 threshold = Threshold(Input=xdmf)
 threshold.Scalars = 'CELLS', 'chi'
@@ -31,17 +30,16 @@ view.CameraParallelProjection = 1
 view.UseColorPaletteForBackground = 0
 view.Background = 1, 1, 1
 
-xl, xh, yl, yh, zl, zh = threshold.GetDataInformation().GetBounds()
+bnd = threshold.GetDataInformation().GetBounds()
 margin = 0
-cx = 0.5 * (xl + xh)
-cy = 0.5 * (yl + yh)
-cz = 0.5 * (zl + zh)
-dx = 0.5 * (xh - xl) * (1 + margin)
-dy = 0.5 * (yh - yl) * (1 + margin)
-dz = 0.5 * (zh - zl) * (1 + margin)
-
-width = 1200
-height = int(width * dy / dx)
+cx = 0.5 * (bnd[0] + bnd[1])
+cy = 0.5 * (bnd[2] + bnd[3])
+cz = 0.5 * (bnd[4] + bnd[5])
+dx = 0.5 * (bnd[1] - bnd[0]) * (1 + margin)
+dy = 0.5 * (bnd[3] - bnd[2]) * (1 + margin)
+dz = 0.5 * (bnd[5] - bnd[4]) * (1 + margin)
+height = 1200
+width = int(height * dx / dy)
 view.ViewSize = width, height
 layout.SetSize(width, height)
 

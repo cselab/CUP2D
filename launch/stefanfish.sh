@@ -17,7 +17,6 @@ ${main=./main} \
     -tdump 0.5 \
     -tend 10.0 \
     -verbose 1 \
-    -ic random \
     -shapes '
   stefanfish angle=0 L=0.2 xpos=1.8 ypos=0.8
   stefanfish angle=180 L=0.2 xpos=1.6 ypos=0.8
