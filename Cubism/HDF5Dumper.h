@@ -32,7 +32,7 @@ struct StreamerVector {
   }
 };
 template <typename TStreamer, typename hdf5Real, typename TGrid>
-void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime, const char *fname,
+void Dump(TGrid &grid, typename TGrid::Real absTime, const char *fname,
                   const std::string &dpath = ".", const bool dumpGrid = true) {
   static double latestTime{-1.0};
   static long gridCount = 0;

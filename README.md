@@ -11,25 +11,12 @@ Library](https://www.gnu.org/software/gsl).
 
 For CPU
 ```
-make "CXXFLAGS = `gsl-config --cflags` -Ofast" "LIBS = `gsl-config --libs gsl`"
-```
-
-or
-```
-module load gcc openmpi gsl
-make "CXXFLAGS = -Ofast `gsl-config --cflags`" "LIBS = `gsl-config --libs`"
+make 'CXXFLAGS = '`gsl-config --cflags`' -Ofast' 'LIBS = `gsl-config --libs`'
 ```
 
 For GPU
 ```
-make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = `pkg-config --libs gsl`"
-```
-
-or
-
-```
-module load gcc/13 openmpi gsl cuda
-make "gpu = true" "CXXFLAGS = -Ofast" "LIBS = `gsl-config --libs`"
+make 'gpu = true' 'CXXFLAGS = '`gsl-config --cflags`' -Ofast' 'LIBS = `gsl-config --libs`'
 ```
 
 ## Running
