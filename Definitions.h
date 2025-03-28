@@ -26,9 +26,6 @@ using Real = long double;
 #include <Cubism/Grid.h>
 #include <Cubism/GridMPI.h>
 #include <Cubism/StencilInfo.h>
-#ifndef _DIM_
-#define _DIM_ 2
-#endif
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
   if (strFlag == "periodic") {
