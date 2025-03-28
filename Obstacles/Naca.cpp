@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "Naca.h"
 #include "FishData.h"

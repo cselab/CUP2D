@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "CStartFish.h"
 #include "../Utils/BufferedLogger.h"

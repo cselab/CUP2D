@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "Simulation.h"
 #include "Obstacles/CStartFish.h"

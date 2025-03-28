@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "CylinderNozzle.h"
 #include "../Utils/BufferedLogger.h"

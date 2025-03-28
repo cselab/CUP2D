@@ -11,3 +11,9 @@ typedef double Real;
 typedef long double Real;
 #define MPI_Real MPI_LONG_DOUBLE
 #endif
+
+struct Config {
+  MPI_Comm comm;
+  int rank, size;
+};
+extern struct Config cfg;
