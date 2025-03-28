@@ -31,7 +31,7 @@ view.CameraParallelProjection = 1
 view.UseColorPaletteForBackground = 0
 view.Background = 1, 1, 1
 
-xl, xy, yl, yh, zl, zh = threshold.GetDataInformation().GetBounds()
+xl, xh, yl, yh, zl, zh = threshold.GetDataInformation().GetBounds()
 margin = 0
 cx = 0.5 * (xl + xy)
 cy = 0.5 * (yl + yh)
