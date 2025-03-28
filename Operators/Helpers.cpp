@@ -45,38 +45,12 @@ void IC::operator()(const Real dt) {
 Real findMaxU::run() const {
   const size_t Nblocks = velInfo.size();
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
-#ifdef ZERO_TOTAL_MOM
-  Real momX = 0, momY = 0, totM = 0;
-#pragma omp parallel for schedule(static) reduction(+ : momX, momY, totM)
-  for (size_t i = 0; i < Nblocks; i++) {
-    const Real h = velInfo[i].h;
-    const VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        const Real facMom = h * h;
-        momX += facMom * VEL(ix, iy).u[0];
-        momY += facMom * VEL(ix, iy).u[1];
-        totM += facMom;
-      }
-  }
-  Real temp[3] = {momX, momY, totM};
-  MPI_Allreduce(MPI_IN_PLACE, temp, 3, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-  momX = temp[0];
-  momY = temp[1];
-  totM = temp[2];
-  const Real DU = momX / totM, DV = momY / totM;
-#endif
   Real U = 0, V = 0, u = 0, v = 0;
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
     for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
       for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-#ifdef ZERO_TOTAL_MOM
-        VEL(ix, iy).u[0] -= DU;
-        VEL(ix, iy).u[1] -= DV;
-#endif
         U = std::max(U, std::fabs(VEL(ix, iy).u[0] + UINF));
         V = std::max(V, std::fabs(VEL(ix, iy).u[1] + VINF));
         u = std::max(u, std::fabs(VEL(ix, iy).u[0]));
