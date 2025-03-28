@@ -32,7 +32,7 @@ mpiexec sh launch/windmills.sh
 ## Visualize
 
 ```
-for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi; done | xargs -r -P `nproc` -n 2 sh -xc 'pvbatch tools/view.py "$@"' sh
+for i in a.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi; done | xargs -r -P `nproc` -n 2 sh -xc 'pvbatch tools/view.py "$@"' sh
 ```
 
 <p align="center" alt="windmill simulaton snapshot"><img width="300" src="img/windmills.png"/></p>

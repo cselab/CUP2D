@@ -17,7 +17,6 @@ public:
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-  using Real = typename ElementType::RealType;
 
 protected:
   Matrix3D<ElementType, allocator> *m_cacheBlock;

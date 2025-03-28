@@ -8,7 +8,6 @@ template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
-  typedef typename TGrid::Block::ElementType::RealType Real;
   bool movedBlocks;
 
 protected:

@@ -9,7 +9,7 @@ template <typename Lab, typename Kernel, typename TGrid,
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-  cubism::SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
+  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch =
       *(g->sync(kernel.stencil));
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<cubism::BlockInfo *> *halo_next;
@@ -72,7 +72,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-  SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
+  SynchronizerMPI_AMR<Real, TGrid> &Synch =
       *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -84,7 +84,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<typename TGrid::Real, TGrid2> &Synch2 =
+  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 =
       *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
@@ -168,7 +168,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     corrected_grid->Corrector.FillBlockCases();
 }
 template <typename Real = double> struct ScalarElement {
-  using RealType = Real;
   Real s = 0;
   inline void clear() { s = 0; }
   inline void set(const Real v) { s = v; }
@@ -210,7 +209,6 @@ template <typename Real = double> struct ScalarElement {
   static constexpr int DIM = 1;
 };
 template <int dim, typename Real = double> struct VectorElement {
-  using RealType = Real;
   static constexpr int DIM = dim;
   Real u[DIM];
   VectorElement() { clear(); }
@@ -311,14 +309,13 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
   static constexpr int sizeZ = dim > 2 ? blocksize : 1;
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
-  using RealType = typename TElement::RealType;
   ElementType data[sizeZ][sizeY][sizeX];
   inline void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
-  inline void set(const RealType v) {
+  inline void set(const Real v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
@@ -469,7 +466,6 @@ protected:
 public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  using Real = typename ElementType::RealType;
   virtual bool is_xperiodic() override { return false; }
   virtual bool is_yperiodic() override { return false; }
   virtual bool is_zperiodic() override { return false; }

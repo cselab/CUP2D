@@ -65,6 +65,9 @@ main: main.o $O $C
 %.o: %.cpp
 	$(MPICXX) $(FLAGS) -fopenmp $(CXXFLAGS) -c $< -o $@
 
+clean:
+	rm -f $O $C main
 deps:
 	tools/deps > deps.mk
 include deps.mk
+.PHONY: deps clean

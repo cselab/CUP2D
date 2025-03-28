@@ -22,7 +22,6 @@ class Grid {
 public:
   typedef Block BlockType;
   using ElementType = typename Block::ElementType;
-  typedef typename Block::RealType Real;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> m_vInfo;

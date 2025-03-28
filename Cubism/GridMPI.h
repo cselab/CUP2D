@@ -16,7 +16,6 @@
 namespace cubism {
 template <typename TGrid> class GridMPI : public TGrid {
 public:
-  typedef typename TGrid::Real Real;
   typedef typename TGrid::BlockType Block;
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;

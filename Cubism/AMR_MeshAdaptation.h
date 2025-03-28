@@ -9,7 +9,6 @@ protected:
   typedef typename TLab::GridType TGrid;
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  typedef typename TGrid::BlockType::ElementType::RealType Real;
   typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
