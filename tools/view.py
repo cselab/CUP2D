@@ -33,7 +33,7 @@ view.Background = 1, 1, 1
 
 xl, xh, yl, yh, zl, zh = threshold.GetDataInformation().GetBounds()
 margin = 0
-cx = 0.5 * (xl + xy)
+cx = 0.5 * (xl + xh)
 cy = 0.5 * (yl + yh)
 cz = 0.5 * (zl + zh)
 dx = 0.5 * (xh - xl) * (1 + margin)
