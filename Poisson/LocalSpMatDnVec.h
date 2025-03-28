@@ -1,7 +1,6 @@
 #pragma once
 #include <map>
 #include <memory>
-#include <mpi.h>
 #include <set>
 #include <vector>
 class SpRowInfo {

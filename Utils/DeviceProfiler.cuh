@@ -5,7 +5,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <mpi.h>
 #include <stdexcept>
 #include <string>
 template <typename... Args>

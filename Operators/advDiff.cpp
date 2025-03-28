@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "advDiff.h"
 using namespace cubism;

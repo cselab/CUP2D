@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "Helpers.h"
 #include "Cubism/HDF5Dumper.h"

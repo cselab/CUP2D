@@ -5,7 +5,6 @@
 #include "StencilInfo.h"
 #include <algorithm>
 #include <iomanip>
-#include <mpi.h>
 #include <numeric>
 #include <set>
 #include <sstream>

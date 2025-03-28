@@ -2,7 +2,6 @@
 #include "../include/helper_cuda.h"
 #include "../include/json.hpp"
 #include "cuda_runtime.h"
-#include "mpi.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>

@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "ComputeForces.h"
 #include "../Shape.h"

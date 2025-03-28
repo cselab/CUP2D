@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "ZebraFish.h"
 #include "FishData.h"

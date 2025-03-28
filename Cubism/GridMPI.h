@@ -8,7 +8,6 @@
 #include <ios>
 #include <iostream>
 #include <map>
-#include <mpi.h>
 #include <set>
 #include <sstream>
 #include <string>

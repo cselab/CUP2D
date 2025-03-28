@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "Base.h"
 #include "AMRSolver.h"

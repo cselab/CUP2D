@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "AMRSolver.h"
 using namespace cubism;

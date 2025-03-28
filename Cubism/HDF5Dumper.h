@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
-#include <mpi.h>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>

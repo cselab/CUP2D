@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include "config.h"
 #include "Definitions.h"
 #include "Operators/Helpers.h"

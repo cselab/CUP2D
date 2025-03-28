@@ -4,7 +4,6 @@
 #include <cublas_v2.h>
 #include <cusparse.h>
 #include <memory>
-#include <mpi.h>
 struct BiCGSTABScalars {
   double alpha;
   double beta;
