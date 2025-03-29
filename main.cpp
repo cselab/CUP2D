@@ -32,13 +32,27 @@ int main(int argc, char **argv) {
   return 0;
 }
 
+static const struct {
+  int sig;
+  const char *name, *desc;
+} FEInfo[] = {
+    {FE_DIVBYZERO, "FE_DIVBYZERO", "Division by zero"},
+    {FE_INEXACT, "FE_INEXACT", "Inexact result (rounding occurred)"},
+    {FE_INVALID, "FE_INVALID", "Invalid operation (e.g., sqrt(-1))"},
+    {FE_OVERFLOW, "FE_OVERFLOW", "Overflow (result too large to represent)"},
+    {FE_UNDERFLOW, "FE_UNDERFLOW", "Underflow (result too small to represent)"},
+};
 static void handler(int sig) {
   void *array[10];
   size_t size, i;
   char **strings;
+  const char *name = "unknown";
+  for (i = 0; i < sizeof FEInfo / sizeof *FEInfo; i++)
+    if (FEInfo[i].sig == sig)
+      name = FEInfo[i].name;
   size = backtrace(array, 10);
-  fprintf(stderr, "%s:%d: error: floating point exception '%d' on rank %d\n",
-          __FILE__, __LINE__, sig, cfg.rank);
+  fprintf(stderr, "%s:%d: error: '%s' floating point exception on rank %d\n",
+          __FILE__, __LINE__, name, cfg.rank);
   size = backtrace(array, 10);
   strings = backtrace_symbols(array, size);
   if (strings != NULL) {
