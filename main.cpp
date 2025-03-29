@@ -8,19 +8,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
 #include "Simulation.h"
 struct Config cfg;
-
-void handler(int sig)
-{
-  void *array[10];
-  size_t size;
-  size = backtrace(array, 10);
-  fprintf(stderr, "Error: signal %d:\n", sig);
-  backtrace_symbols_fd(array, size, STDERR_FILENO);
-  exit(1);
-}
+static void handler(int);
 
 int main(int argc, char **argv) {
   int threadSafety, rank;
@@ -40,4 +30,21 @@ int main(int argc, char **argv) {
   delete sim;
   MPI_Finalize();
   return 0;
+}
+
+static void handler(int sig) {
+  void *array[10];
+  size_t size, i;
+  char **strings;
+  size = backtrace(array, 10);
+  fprintf(stderr, "%s:%d: error: floating point exception '%d' on rank %d\n",
+          __FILE__, __LINE__, sig, cfg.rank);
+  size = backtrace(array, 10);
+  strings = backtrace_symbols(array, size);
+  if (strings != NULL) {
+    for (i = 0; i < size; i++)
+      fprintf(stderr, "%s\n", strings[i]);
+  }
+  free(strings);
+  exit(1);
 }
