@@ -130,8 +130,8 @@ struct AreaSegment {
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr),
-        w{(bb[0][1] - bb[0][0]) / 2 + safe, (bb[1][1] - bb[1][0]) / 2 + safe},
+      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
+                                            (bb[1][1] - bb[1][0]) / 2 + safe},
         c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
     assert(w[0] > 0);
     assert(w[1] > 0);

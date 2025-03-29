@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include "config.h"
 #include "SmartCylinder.h"
-#include "../Utils/BufferedLogger.h"
 #include "ShapeLibrary.h"
 using namespace cubism;
 void SmartCylinder::create(const std::vector<BlockInfo> &vInfo) {

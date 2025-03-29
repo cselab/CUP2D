@@ -104,7 +104,7 @@ protected:
   }
 
 public:
-  SpaceFillingCurve() {};
+  SpaceFillingCurve(){};
   SpaceFillingCurve(int a_BX, int a_BY, int a_BZ, int lmax)
       : BX(a_BX), BY(a_BY), BZ(a_BZ), levelMax(lmax) {
     int n_max = std::max(std::max(BX, BY), BZ);

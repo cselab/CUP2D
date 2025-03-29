@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include "config.h"
 #include "Shape.h"
-#include "Utils/BufferedLogger.h"
 #include <iomanip>
 using namespace cubism;
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
@@ -89,13 +88,12 @@ void Shape::updatePosition(Real dt) {
            (double)J);
     std::stringstream ssF;
     ssF << sim.path2file << "/velocity_" << obstacleID << ".dat";
-    std::stringstream &fout = logger.get_stream(ssF.str());
     if (sim.step == 0) {
-      fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J"
-              "accw\n";
-      fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
-           << " " << angle << " " << u << " " << v << " " << omega << " " << M
-           << " " << J << "\n";
+      std::cout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J"
+                   "accw\n";
+      std::cout << t << " " << dt << " " << cx << " " << cy << " " << CX << " "
+                << CY << " " << angle << " " << u << " " << v << " " << omega
+                << " " << M << " " << J << "\n";
     }
   }
 }
@@ -286,31 +284,11 @@ void Shape::computeForces() {
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
-  if (not sim.muteAll && sim.rank == 0) {
-    std::stringstream ssF, ssP;
-    ssF << sim.path2file << "/forceValues_" << obstacleID << ".dat";
-    ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
-    std::stringstream &fileForce = logger.get_stream(ssF.str());
-    if (sim.step == 0)
-      fileForce << "time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc "
-                   "drag thrust lift perimeter circulation blocks\n";
-    fileForce << sim.time << " " << forcex << " " << forcey << " " << forcex_P
-              << " " << forcey_P << " " << forcex_V << " " << forcey_V << " "
-              << torque << " " << torque_P << " " << torque_V << " " << drag
-              << " " << thrust << " " << lift << " " << perimeter << " "
-              << circulation << " " << tot_blocks << "\n";
-    std::stringstream &filePower = logger.get_stream(ssP.str());
-    if (sim.step == 0)
-      filePower << "time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd "
-                   "defPower EffPDefBnd EffPDef\n";
-    filePower << sim.time << " " << Pthrust << " " << Pdrag << " " << PoutBnd
-              << " " << Pout << " " << PoutNew << " " << defPowerBnd << " "
-              << defPower << " " << EffPDefBnd << " " << EffPDef << "\n";
-  }
 }
 Shape::Shape(SimulationData &s, ArgumentParser &p, Real C[2])
-    : sim(s), origC{C[0], C[1]}, origAng(p("-angle").asDouble(0) * M_PI / 180),
-      center{C[0], C[1]}, centerOfMass{C[0], C[1]}, orientation(origAng),
+    : sim(s), origC{C[0], C[1]},
+      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      centerOfMass{C[0], C[1]}, orientation(origAng),
       bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
       bFixedy(p("-bFixedy").asBool(bFixed)),
       bForced(p("-bForced").asBool(false)),

@@ -56,7 +56,6 @@ Poisson/AMRSolver.o \
 Poisson/Base.o \
 Shape.o \
 SimulationData.o \
-Utils/BufferedLogger.o \
 
 main: main.o $O $C
 	$(LINK) -o $@ main.o $O $C $L

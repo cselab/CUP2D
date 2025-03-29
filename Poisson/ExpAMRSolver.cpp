@@ -16,8 +16,9 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
 }
 ExpAMRSolver::ExpAMRSolver(SimulationData &s)
     : sim(s), m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
-      XmaxCell(*this), YminCell(*this), YmaxCell(*this),
-      edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
+      XmaxCell(*this), YminCell(*this),
+      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                    &YmaxCell} {
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);

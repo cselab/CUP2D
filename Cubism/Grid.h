@@ -83,9 +83,7 @@ public:
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.ptrBlock = alloc.allocate(1);
 #pragma omp critical
-    {
-      m_vInfo.push_back(new_info);
-    }
+    { m_vInfo.push_back(new_info); }
     Tree(m, n).setrank(rank());
   }
   void _deallocAll() {

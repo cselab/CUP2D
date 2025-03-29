@@ -74,8 +74,8 @@ struct FillBlocks_Rectangle {
                             pos[1] + extentX + extentY + safety}};
   FillBlocks_Rectangle(Real _extentX, Real _extentY, Real h, const Real C[2],
                        Real ang)
-      : extentX(_extentX), extentY(_extentY), safety(h * 2),
-        pos{(Real)C[0], (Real)C[1]}, angle(ang) {}
+      : extentX(_extentX), extentY(_extentY),
+        safety(h * 2), pos{(Real)C[0], (Real)C[1]}, angle(ang) {}
   inline Real distance(const Real x, const Real y) const {
     const Real X = x * cosang + y * sinang, Y = -x * sinang + y * cosang;
     return std::min(extentX / 2 - std::abs(X), extentY / 2 - std::abs(Y));

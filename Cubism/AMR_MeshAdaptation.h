@@ -237,9 +237,7 @@ protected:
   }
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
-    {
-      dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2);
-    }
+    { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     grid->Tree(parent).setCheckFiner();
     parent.state = Leave;
@@ -299,9 +297,7 @@ protected:
           grid->FindBlockInfo(level, n, level - 1, np);
         } else {
 #pragma omp critical
-          {
-            dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2);
-          }
+          { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2); }
         }
         grid->Tree(level, n).setCheckCoarser();
         grid->getBlockInfoAll(level, n).state = Leave;

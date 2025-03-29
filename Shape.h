@@ -84,7 +84,7 @@ public:
   virtual Real getCharMass() const;
   virtual Real getMaxVel() const;
   virtual void create(const std::vector<cubism::BlockInfo> &vInfo) = 0;
-  virtual void finalize() {};
+  virtual void finalize(){};
   virtual void updateVelocity(Real dt);
   virtual void updatePosition(Real dt);
   void setCentroid(Real C[2]) {

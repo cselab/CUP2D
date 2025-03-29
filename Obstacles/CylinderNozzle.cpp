@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include "config.h"
 #include "CylinderNozzle.h"
-#include "../Utils/BufferedLogger.h"
 #include "ShapeLibrary.h"
 using namespace cubism;
 void CylinderNozzle::create(const std::vector<BlockInfo> &vInfo) {

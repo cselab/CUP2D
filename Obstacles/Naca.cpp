@@ -90,23 +90,6 @@ void Naca::updatePosition(Real dt) {
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
   if (dt <= 0)
     return;
-  if (not sim.muteAll && sim.rank == 0) {
-    printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
-           " M:%.02e J:%.02e\n",
-           (double)cx, (double)cy, (double)center[0], (double)center[1],
-           (double)angle, (double)u, (double)v, (double)omega, (double)M,
-           (double)J);
-    std::stringstream ssF;
-    ssF << sim.path2file << "/velocity_" << obstacleID << ".dat";
-    std::stringstream &fout = logger.get_stream(ssF.str());
-    if (sim.step == 0)
-      fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J accx accy "
-              "accw\n";
-    fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
-         << " " << angle << " " << u << " " << v << " " << omega << " " << M
-         << " " << J << " " << fluidMomX / penalM << " " << fluidMomY / penalM
-         << " " << fluidAngMom / penalJ << "\n";
-  }
 }
 void Naca::updateLabVelocity(int nSum[2], Real uSum[2]) {
   const Real v_heave =

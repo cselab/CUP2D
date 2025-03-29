@@ -7,6 +7,7 @@ public:
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
+
 private:
   typedef SynchronizerMPI_AMR<Real, GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;

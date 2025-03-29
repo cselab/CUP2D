@@ -9,8 +9,7 @@ template <typename Lab, typename Kernel, typename TGrid,
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch =
-      *(g->sync(kernel.stencil));
+  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<cubism::BlockInfo *> *halo_next;
   bool done = false;
@@ -72,8 +71,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-  SynchronizerMPI_AMR<Real, TGrid> &Synch =
-      *grid.sync(kernel.stencil);
+  SynchronizerMPI_AMR<Real, TGrid> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -84,8 +82,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 =
-      *grid2.sync(kernel2.stencil);
+  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
   std::vector<cubism::BlockInfo> &blk = grid.getBlocksInfo();
@@ -145,9 +142,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
         if (ready[I.blockID] == false) {
           bool blockready;
 #pragma omp critical
-          {
-            blockready = (Synch.isready(I) && Synch.isready(I2));
-          }
+          { blockready = (Synch.isready(I) && Synch.isready(I2)); }
           if (blockready) {
             ready[I.blockID] = true;
             lab.load(I, 0);

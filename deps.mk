@@ -8,8 +8,8 @@ CStartFish.o: Obstacles/CStartFish.cpp config.h Obstacles/CStartFish.h \
  Cubism/ArgumentParser.h Cubism/BlockLab.h Cubism/Matrix3D.h \
  Cubism/BlockLabMPI.h Cubism/Definitions.h Cubism/Grid.h \
  Cubism/FluxCorrection.h Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h \
- Obstacles/../SimulationData.h Obstacles/../Utils/BufferedLogger.h \
- Obstacles/FishData.h Obstacles/../Operator.h Obstacles/FishUtilities.h
+ Obstacles/../SimulationData.h Obstacles/FishData.h \
+ Obstacles/../Operator.h Obstacles/FishUtilities.h
 CarlingFish.o: Obstacles/CarlingFish.cpp config.h Obstacles/CarlingFish.h \
  Obstacles/Fish.h Obstacles/../Shape.h Obstacles/../ObstacleBlock.h \
  Obstacles/../Definitions.h Cubism/AMR_MeshAdaptation.h \
@@ -32,7 +32,7 @@ CylinderNozzle.o: Obstacles/CylinderNozzle.cpp config.h \
  Cubism/Definitions.h Cubism/Grid.h Cubism/FluxCorrection.h \
  Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h \
  Obstacles/../SimulationData.h Obstacles/FishUtilities.h \
- Obstacles/../Utils/BufferedLogger.h Obstacles/ShapeLibrary.h
+ Obstacles/ShapeLibrary.h
 ExperimentFish.o: Obstacles/ExperimentFish.cpp config.h \
  Obstacles/ExperimentFish.h Obstacles/Fish.h Obstacles/../Shape.h \
  Obstacles/../ObstacleBlock.h Obstacles/../Definitions.h \
@@ -66,8 +66,7 @@ FishData.o: Obstacles/FishData.cpp config.h Obstacles/FishData.h \
  Cubism/Definitions.h Cubism/Grid.h Cubism/FluxCorrection.h \
  Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h Obstacles/../Operator.h \
  Obstacles/../SimulationData.h Obstacles/FishUtilities.h
-Naca.o: Obstacles/Naca.cpp config.h Obstacles/Naca.h \
- Obstacles/../Utils/BufferedLogger.h Obstacles/Fish.h \
+Naca.o: Obstacles/Naca.cpp config.h Obstacles/Naca.h Obstacles/Fish.h \
  Obstacles/../Shape.h Obstacles/../ObstacleBlock.h \
  Obstacles/../Definitions.h Cubism/AMR_MeshAdaptation.h \
  Cubism/AMR_SynchronizerMPI.h Cubism/BlockInfo.h \
@@ -120,8 +119,7 @@ SmartCylinder.o: Obstacles/SmartCylinder.cpp config.h \
  Cubism/BlockLab.h Cubism/Matrix3D.h Cubism/BlockLabMPI.h \
  Cubism/Definitions.h Cubism/Grid.h Cubism/FluxCorrection.h \
  Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h \
- Obstacles/../SimulationData.h Obstacles/../Utils/BufferedLogger.h \
- Obstacles/ShapeLibrary.h
+ Obstacles/../SimulationData.h Obstacles/ShapeLibrary.h
 SmartNaca.o: Obstacles/SmartNaca.cpp config.h Obstacles/SmartNaca.h \
  Obstacles/Fish.h Obstacles/../Shape.h Obstacles/../ObstacleBlock.h \
  Obstacles/../Definitions.h Cubism/AMR_MeshAdaptation.h \
@@ -132,8 +130,7 @@ SmartNaca.o: Obstacles/SmartNaca.cpp config.h Obstacles/SmartNaca.h \
  Cubism/BlockLabMPI.h Cubism/Definitions.h Cubism/Grid.h \
  Cubism/FluxCorrection.h Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h \
  Obstacles/../SimulationData.h Obstacles/FishData.h \
- Obstacles/../Operator.h Obstacles/FishUtilities.h Obstacles/Naca.h \
- Obstacles/../Utils/BufferedLogger.h
+ Obstacles/../Operator.h Obstacles/FishUtilities.h Obstacles/Naca.h
 StefanFish.o: Obstacles/StefanFish.cpp config.h Obstacles/StefanFish.h \
  Obstacles/Fish.h Obstacles/../Shape.h Obstacles/../ObstacleBlock.h \
  Obstacles/../Definitions.h Cubism/AMR_MeshAdaptation.h \
@@ -176,8 +173,7 @@ Windmill.o: Obstacles/Windmill.cpp config.h Obstacles/Windmill.h \
  Cubism/ArgumentParser.h Cubism/BlockLab.h Cubism/Matrix3D.h \
  Cubism/BlockLabMPI.h Cubism/Definitions.h Cubism/Grid.h \
  Cubism/FluxCorrection.h Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h \
- Obstacles/../SimulationData.h Obstacles/../Utils/BufferedLogger.h \
- Obstacles/ShapeLibrary.h
+ Obstacles/../SimulationData.h Obstacles/ShapeLibrary.h
 ZebraFish.o: Obstacles/ZebraFish.cpp config.h Obstacles/ZebraFish.h \
  Obstacles/Fish.h Obstacles/../Shape.h Obstacles/../ObstacleBlock.h \
  Obstacles/../Definitions.h Cubism/AMR_MeshAdaptation.h \
@@ -251,7 +247,7 @@ PutObjectsOnGrid.o: Operators/PutObjectsOnGrid.cpp config.h \
  Cubism/BlockLab.h Cubism/Matrix3D.h Cubism/BlockLabMPI.h \
  Cubism/Definitions.h Cubism/Grid.h Cubism/FluxCorrection.h \
  Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h Operators/../Shape.h \
- Operators/../ObstacleBlock.h Operators/../Utils/BufferedLogger.h
+ Operators/../ObstacleBlock.h
 advDiff.o: Operators/advDiff.cpp config.h Operators/advDiff.h \
  Operators/../Operator.h Operators/../SimulationData.h \
  Operators/../Definitions.h Cubism/AMR_MeshAdaptation.h \
@@ -303,7 +299,6 @@ LocalSpMatDnVec.o: Poisson/LocalSpMatDnVec.cpp config.h \
  Poisson/LocalSpMatDnVec.h Poisson/BiCGSTAB.cuh \
  Poisson/../Utils/DeviceProfiler.cuh \
  Poisson/../Utils/../include/helper_cuda.h helper_string.h
-BufferedLogger.o: Utils/BufferedLogger.cpp Utils/BufferedLogger.h
 StackTrace.o: Utils/StackTrace.cpp
 Shape.o: Shape.cpp config.h Shape.h ObstacleBlock.h Definitions.h \
  Cubism/AMR_MeshAdaptation.h Cubism/AMR_SynchronizerMPI.h \
@@ -312,8 +307,7 @@ Shape.o: Shape.cpp config.h Shape.h ObstacleBlock.h Definitions.h \
  Cubism/StencilInfo.h Cubism/LoadBalancer.h Cubism/ArgumentParser.h \
  Cubism/BlockLab.h Cubism/Matrix3D.h Cubism/BlockLabMPI.h \
  Cubism/Definitions.h Cubism/Grid.h Cubism/FluxCorrection.h \
- Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h SimulationData.h \
- Utils/BufferedLogger.h
+ Cubism/GridMPI.h Cubism/FluxCorrectionMPI.h SimulationData.h
 Simulation.o: Simulation.cpp config.h Simulation.h Operator.h \
  SimulationData.h Definitions.h Cubism/AMR_MeshAdaptation.h \
  Cubism/AMR_SynchronizerMPI.h Cubism/BlockInfo.h \
@@ -326,14 +320,14 @@ Simulation.o: Simulation.cpp config.h Simulation.h Operator.h \
  Obstacles/../ObstacleBlock.h Obstacles/CarlingFish.h \
  Obstacles/FishData.h Obstacles/FishUtilities.h \
  Obstacles/CylinderNozzle.h Obstacles/ExperimentFish.h Obstacles/Naca.h \
- Obstacles/../Utils/BufferedLogger.h Obstacles/NeuroKinematicFish.h \
- Obstacles/ShapesSimple.h Obstacles/SmartCylinder.h Obstacles/SmartNaca.h \
- Obstacles/StefanFish.h Obstacles/Teardrop.h Obstacles/Waterturbine.h \
- Obstacles/Windmill.h Obstacles/ZebraFish.h Operators/AdaptTheMesh.h \
- Operators/Helpers.h Operators/ComputeForces.h Operators/Forcing.h \
- Operators/PressureSingle.h Operators/../Poisson/Base.h \
- Operators/PutObjectsOnGrid.h Operators/advDiff.h Operators/advDiffSGS.h \
- Utils/FactoryFileLineParser.h Utils/StackTrace.h Cubism/HDF5Dumper.h
+ Obstacles/NeuroKinematicFish.h Obstacles/ShapesSimple.h \
+ Obstacles/SmartCylinder.h Obstacles/SmartNaca.h Obstacles/StefanFish.h \
+ Obstacles/Teardrop.h Obstacles/Waterturbine.h Obstacles/Windmill.h \
+ Obstacles/ZebraFish.h Operators/AdaptTheMesh.h Operators/Helpers.h \
+ Operators/ComputeForces.h Operators/Forcing.h Operators/PressureSingle.h \
+ Operators/../Poisson/Base.h Operators/PutObjectsOnGrid.h \
+ Operators/advDiff.h Operators/advDiffSGS.h Utils/FactoryFileLineParser.h \
+ Utils/StackTrace.h Cubism/HDF5Dumper.h
 SimulationData.o: SimulationData.cpp config.h Definitions.h \
  Cubism/AMR_MeshAdaptation.h Cubism/AMR_SynchronizerMPI.h \
  Cubism/BlockInfo.h Cubism/SpaceFillingCurve2D.h \

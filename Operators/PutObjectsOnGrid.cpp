@@ -2,7 +2,6 @@
 #include "config.h"
 #include "PutObjectsOnGrid.h"
 #include "../Shape.h"
-#include "../Utils/BufferedLogger.h"
 using namespace cubism;
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct ComputeSurfaceNormals {
@@ -141,7 +140,7 @@ void PutObjectsOnGrid::putObjectsOnGrid() {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < OBLOCK.size(); i++) {
       if (OBLOCK[i] == nullptr)
         continue;

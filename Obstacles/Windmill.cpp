@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include "config.h"
 #include "Windmill.h"
-#include "../Utils/BufferedLogger.h"
 #include "ShapeLibrary.h"
 #include <cmath>
 using namespace cubism;

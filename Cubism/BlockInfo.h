@@ -64,7 +64,7 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const {
     return (blockID_2 < other.blockID_2);
   }
-  BlockInfo() {};
+  BlockInfo(){};
   void setup(const int a_level, const double a_h, const double a_origin[3],
              const long long a_Z) {
     level = a_level;
