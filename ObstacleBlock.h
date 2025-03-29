@@ -118,8 +118,8 @@ struct ObstacleBlock {
   }
   void clear() {
     clear_surface();
-    std::fill(dist[0], dist[0] + sizeX * sizeY, -1);
-    std::fill(chi[0], chi[0] + sizeX * sizeY, 0);
+    std::fill(&dist[0][0], &dist[0][0] + sizeX * sizeY, -1);
+    std::fill(&chi[0][0], &chi[0][0] + sizeX * sizeY, 0);
     memset(udef, 0, sizeof(Real) * sizeX * sizeY * 2);
   }
   void write(const int ix, const int iy, const Real delta, const Real gradUX,

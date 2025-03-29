@@ -323,7 +323,7 @@ void PutFishOnBlocks::signedDistanceSqrt(
       ;
     }
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+  std::fill(&o->chi[0][0], &o->chi[0][0] + BS[1] * BS[0], 0);
 }
 void PutFishOnBlocks::constructSurface(
     const BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
@@ -340,8 +340,8 @@ void PutFishOnBlocks::constructSurface(
   const Real *const vY = cfish.vY, *const vNorY = cfish.vNorY;
   const Real *const width = cfish.width;
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-  std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
-  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+  std::fill(&o->dist[0][0], &o->dist[0][0] + BS[1] * BS[0], -1);
+  std::fill(&o->chi[0][0], &o->chi[0][0] + BS[1] * BS[0], 0);
   for (int i = 0; i < (int)vSegments.size(); ++i) {
     const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
     const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
