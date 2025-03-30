@@ -26,7 +26,14 @@ export MPICXX=mpic++
 With the above dependencies installed and associated environment variables set the code can be compiled by
 ```
 cd makefiles
-make -j
+make
+```
+
+or
+
+```
+cd makefiles
+make "MPICXX = mpicxx `pkg-config --libs --cflags hdf5-openmpi gsl`"
 ```
 
 ## Compilation (cmake)
