@@ -6,23 +6,9 @@ Incompressible Flow Solver for Complex Deformable Geometries in 2D.
 
 CubismUP-2D has the following prerequisite libraries:
 
-- MPI, with the $MPICXX enviroment variable defined.
-- GSL, with the $GSL_ROOT environment variable defined.
-- HDF5, with the $HDF5_ROOT environment variable defined.
-
-On Piz Daint:
-```
-module swap PrgEnv-cray PrgEnv-gnu
-module load daint-gpu 
-moudle load cray-python
-module load cray-hdf5 
-module load GSL 
-module load cdt-cuda
-module load craype-accel-nvidia60
-export MPICXX=CC
-export CXX=CC
-export NVCC=nvcc
-```
+- MPI, with the `$MPICXX` enviroment variable defined.
+- GSL, with the `$GSL_ROOT` environment variable defined.
+- HDF5, with the `$HDF5_ROOT` environment variable defined.
 
 On Euler:
 ```
@@ -34,13 +20,6 @@ module load python
 module load gsl
 export MPICXX=mpic++
 ```
-
-On Panda/Falcon:
-```
-module load gnu mpich python hdf5
-export GSL_ROOT=/usr
-```
-
 
 ## Compilation
 
